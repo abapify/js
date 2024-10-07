@@ -3,5 +3,10 @@
   "version": "0.0.1",
   "dependencies": {},
   "main": "./index.cjs",
-  "module": "./index.js"
+  "module": "./index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abapify/js.git",
+    "directory": "packages/asjson-parser"
+  }
 }
