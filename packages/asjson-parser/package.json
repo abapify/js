@@ -1,6 +1,6 @@
 {
   "name": "@abapify/asjson-parser",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "dependencies": {},
   "main": "./index.cjs",
   "module": "./index.js",
