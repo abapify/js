@@ -1,6 +1,6 @@
 {
   "name": "abapify",
-  "version": "1.0.0",
+  "private": true,
   "main": "index.js",
   "scripts": {
     "test": "nx run-many --target=test --exclude=${npm_package_name} --coverage"
