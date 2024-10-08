@@ -8,9 +8,7 @@ module.exports = [
       '@nx/dependency-checks': [
         'error',
         {
-          ignoredFiles: [
-            '{projectRoot}/*.config.{js,ts,mjs,mts}'
-          ],
+          ignoredFiles: ['{projectRoot}/*.config.{js,ts,mjs,mts}'],
         },
       ],
     },
