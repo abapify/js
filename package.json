@@ -5,7 +5,7 @@
   "scripts": {
     "test": "nx run-many --target=test --exclude=${npm_package_name} --coverage",
     "prepare": "husky",
-    "precommit": "nx format:check"
+    "precommit": "nx format:check --uncommitted"
   },
   "author": "",
   "license": "ISC",
