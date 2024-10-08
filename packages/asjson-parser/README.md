@@ -87,15 +87,15 @@ console.log(parse(json));
 - as a transformer
 
 ```ts
-import { fromAbapJson } from '@abapify/asjson-parser';
+import { transform } from '@abapify/asjson-parser';
 const object = JSON.parse(json);
-console.log(fromAbapJson(object));
+console.log(transform(object));
 ```
 
-- as a proxy
+- as a proxy (returns a proxied object)
 
 ```ts
-import { fromAbapJsonProxy } from '@abapify/asjson-parser';
+import { proxy } from '@abapify/asjson-parser';
 const object = JSON.parse(json);
-console.log(new Proxy(object, fromAbapJsonProxy));
+console.log(proxy(object));
 ```
