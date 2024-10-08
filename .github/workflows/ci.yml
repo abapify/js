@@ -29,5 +29,8 @@ jobs:
 
       - uses: nrwl/nx-set-shas@v4
 
+      - name: Print Environment Info
+        run: npx nx report
+        shell: bash
       - run: npx nx-cloud record -- nx format:check
       - run: npx nx affected -t lint test build e2e-ci
