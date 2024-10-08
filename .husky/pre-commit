@@ -1,1 +1,1 @@
-npm run precommit
+nx format:write --uncommitted
