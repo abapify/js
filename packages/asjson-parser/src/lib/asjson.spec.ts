@@ -1,4 +1,4 @@
-import { fromAbapJson } from './asjson';
+import { transform } from './asjson';
 
 const abapJson = {
   "I": 123,
@@ -76,15 +76,15 @@ const targetObject = {
 
 describe('ABAP asJSON parser', () => {
   it('should resolve data references as fully typed objects', () => {
-    expect(fromAbapJson(abapJson)).toMatchObject(targetObject);
+    expect(transform(abapJson)).toMatchObject(targetObject);
   });
   it('should support embedded data references', () => {
-    expect(fromAbapJson(abapJsonEmbedded)).toMatchObject({ DATA: targetObject });
+    expect(transform(abapJsonEmbedded)).toMatchObject({ DATA: targetObject });
   });
   it('should support nested data references', () => {
-    expect(fromAbapJson(dataAsRef)).toMatchObject({ DATA: targetObject });
+    expect(transform(dataAsRef)).toMatchObject({ DATA: targetObject });
   });
   it('should support nested embedded data references', () => {
-    expect(fromAbapJson(dataAsRefEmbedded)).toMatchObject({ DATA: targetObject });
+    expect(transform(dataAsRefEmbedded)).toMatchObject({ DATA: targetObject });
   });
 });

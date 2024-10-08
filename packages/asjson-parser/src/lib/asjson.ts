@@ -32,18 +32,18 @@ export const AbapJsonProxyHandler: ProxyHandler<object> = {
     }
 
     if (typeof value === "object" && value !== null) {
-      value = fromAbapJsonProxy(Object.assign(value, { [HEAP]: heap }));
+      value = proxy(Object.assign(value, { [HEAP]: heap }));
     }
 
     return value;
   }
 }
 
-export function fromAbapJsonProxy(target: object): object {
+export function proxy(target: object): object {
   return new Proxy(target, AbapJsonProxyHandler);
 }
 
-export function fromAbapJson(target: object): object {
+export function transform(target: object): object {
   const proxy = new Proxy(target, AbapJsonProxyHandler);
   return Object.fromEntries(
     Object.entries(proxy)
@@ -51,6 +51,6 @@ export function fromAbapJson(target: object): object {
 }
 
 export function parse(asjson: string): object {
-  return fromAbapJson(JSON.parse(asjson));
+  return transform(JSON.parse(asjson));
 }
 
