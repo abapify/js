@@ -36,16 +36,10 @@
   "targetDefaults": {
     "@nx/vite:test": {
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ]
+      "inputs": ["default", "^default"]
     },
     "nx-release-publish": {
-      "dependsOn": [
-        "build",
-        "test"
-      ]
+      "dependsOn": ["build", "test"]
     }
   }
 }
