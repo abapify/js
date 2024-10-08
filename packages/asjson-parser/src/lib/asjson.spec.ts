@@ -1,77 +1,65 @@
 import { transform } from './asjson';
 
 const abapJson = {
-  "I": 123,
-  "I_REF": {
-    "%ref": "#d16"
+  I: 123,
+  I_REF: {
+    '%ref': '#d16',
   },
-  "%heap": {
-    "d16": {
-      "%type": "xsd:int",
-      "%val": 123
-    }
-  }
+  '%heap': {
+    d16: {
+      '%type': 'xsd:int',
+      '%val': 123,
+    },
+  },
 };
 
 const abapJsonEmbedded = {
-  "DATA":
-  {
-    "I": 123,
-    "I_REF":
-    {
-      "%type": "xsd:int",
-      "%val": 123
-    }
-  }
+  DATA: {
+    I: 123,
+    I_REF: {
+      '%type': 'xsd:int',
+      '%val': 123,
+    },
+  },
 };
 
 const dataAsRef = {
-  "DATA":
-  {
-    "%ref": "#d1"
+  DATA: {
+    '%ref': '#d1',
   },
-  "%heap":
-  {
-    "d1":
-    {
-      "%type": "http://www.sap.com/abapxml/types/program/ZTEST_HEAP:PAYLOAD_TS",
-      "%val":
-      {
-        "I": 123,
-        "I_REF":
-        {
-          "%ref": "#d2"
-        }
-      }
+  '%heap': {
+    d1: {
+      '%type': 'http://www.sap.com/abapxml/types/program/ZTEST_HEAP:PAYLOAD_TS',
+      '%val': {
+        I: 123,
+        I_REF: {
+          '%ref': '#d2',
+        },
+      },
     },
-    "d2":
-    {
-      "%type": "xsd:int",
-      "%val": 123
-    }
-  }
-}
+    d2: {
+      '%type': 'xsd:int',
+      '%val': 123,
+    },
+  },
+};
 
 const dataAsRefEmbedded = {
-  "DATA":
-  {
-    "%type": "http://www.sap.com/abapxml/types/program/ZTEST_HEAP:PAYLOAD_TS",
-    "%val":
-    {
-      "I": 123,
-      "I_REF":
-      {
-        "%type": "xsd:int",
-        "%val": 123
-      }
-    }
-  }
-}
-
+  DATA: {
+    '%type': 'http://www.sap.com/abapxml/types/program/ZTEST_HEAP:PAYLOAD_TS',
+    '%val': {
+      I: 123,
+      I_REF: {
+        '%type': 'xsd:int',
+        '%val': 123,
+      },
+    },
+  },
+};
 
 const targetObject = {
-  "I": 123,
-  "I_REF": 123
+  I: 123,
+  I_REF: 123,
 };
 
 describe('ABAP asJSON parser', () => {
