@@ -41,5 +41,6 @@
     "nx-release-publish": {
       "dependsOn": ["build", "test"]
     }
-  }
+  },
+  "useLegacyCache": true
 }
