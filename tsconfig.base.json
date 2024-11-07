@@ -15,7 +15,8 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@abapify/asjson-parser": ["packages/asjson-parser/src/index.ts"]
+      "@abapify/asjson-parser": ["packages/asjson-parser/src/index.ts"],
+      "@abapify/components": ["packages/components/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

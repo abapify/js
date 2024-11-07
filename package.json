@@ -5,7 +5,8 @@
   "scripts": {
     "test": "nx run-many --target=test --exclude=${npm_package_name} --coverage",
     "prepare": "husky",
-    "precommit": "nx format:check --uncommitted"
+    "precommit": "nx format:check --uncommitted",
+    "lint": "nx run-many --target=lint --fix --exclude=${npm_package_name}"
   },
   "author": "",
   "license": "ISC",
@@ -39,5 +40,8 @@
     "vite": "^5.4.8",
     "vitest": "^2.1.2"
   },
-  "nx": {}
+  "nx": {},
+  "dependencies": {
+    "fast-xml-parser": "^4.5.0"
+  }
 }
