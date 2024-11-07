@@ -12,11 +12,12 @@ const package_abapgit = `<?xml version="1.0" encoding="utf-8"?>
     </asx:values>
   </asx:abap>
 </abapGit>
-`
+`;
 
-describe("package", () => {
-    test("abapGit", () => {
-        expect(new Package({ description: "test package" }).toAbapgitXML()).eq(package_abapgit);
-    })
-})
-
+describe('package', () => {
+  test('abapGit', () => {
+    expect(new Package({ description: 'test package' }).toAbapgitXML()).eq(
+      package_abapgit
+    );
+  });
+});
