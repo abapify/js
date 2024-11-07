@@ -8,13 +8,14 @@ const package_abapgit = `<?xml version="1.0" encoding="utf-8"?>
     </asx:values>
   </asx:abap>
 </abapGit>
-`
+`;
 
-import { toAbapGitXML } from '../abapgit/abapgit'
+import { toAbapGitXML } from '../abapgit/abapgit';
 
-describe("package", () => {
-    test("abapGit", () => {
-        expect(toAbapGitXML({ DEVC: { CTEXT: "test package" } }, 'LCL_OBJECT_DEVC')).to.eq(package_abapgit);
-    })
-})
-
+describe('package', () => {
+  test('abapGit', () => {
+    expect(
+      toAbapGitXML({ DEVC: { CTEXT: 'test package' } }, 'LCL_OBJECT_DEVC')
+    ).to.eq(package_abapgit);
+  });
+});
