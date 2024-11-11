@@ -4,6 +4,7 @@
     "esbenp.prettier-vscode",
     "larshp.standalone-abap-development",
     "firsttris.vscode-jest-runner",
-    "vitest.explorer"
+    "vitest.explorer",
+    "connor4312.nodejs-testing"
   ]
 }
