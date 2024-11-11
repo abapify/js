@@ -3,7 +3,7 @@ import { Component } from '@abapify/components';
 import { AbapAnnotation } from './annotations';
 import { dset } from 'dset';
 import { DdicFactory } from './factory';
-import { writeFile } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 import path = require('path');
 
 interface Cds2AbapInput {
@@ -15,14 +15,17 @@ export async function cds2abap(input: Cds2AbapInput) {
   const model = await cds.load(input.model);
   const components = csn2abap(model);
 
+  // creating output folder if not exists
+  await mkdir(input.output, { recursive: true });
+
   for (const component of components.values()) {
     //generate abapgit file
 
-    const filename = `${component.id}.${component.type}.xml`;
+    const filename = `${component.id}.${component.type}.xml`.toLowerCase();
     const xml = component.toAbapgitXML();
 
-    console.log('✅', filename);
     await writeFile(path.join(input.output, filename), xml);
+    console.log('✅', filename);
   }
 }
 
