@@ -19,7 +19,5 @@
       "x-prompt": "Where to save generated files?"
     }
   },
-  "required": [
-    "model"
-  ]
+  "required": ["model"]
 }
