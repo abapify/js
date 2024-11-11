@@ -13,7 +13,8 @@
           "targetName": "build",
           "configName": "tsconfig.lib.json"
         }
-      }
+      },
+      "exclude": ["samples/cds/*"]
     },
     {
       "plugin": "@nx/rollup/plugin",
