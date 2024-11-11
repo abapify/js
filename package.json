@@ -59,6 +59,7 @@
   },
   "workspaces": [
     "packages/*",
-    "samples/*"
+    "samples/*",
+    "tools/*"
   ]
 }
