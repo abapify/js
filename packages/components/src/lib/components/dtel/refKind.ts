@@ -5,12 +5,11 @@
 // R	Reference Type
 // D	Domain
 
-
 export enum RefKind {
-    // ELEMENTARY = 'E',
-    // STRUCTURED = 'S',
-    // TABLE = 'L',
-    DIRECT_TYPE_ENTRY = '',
-    REFERENCE = 'R',
-    DOMAIN = 'D'
+  // ELEMENTARY = 'E',
+  // STRUCTURED = 'S',
+  // TABLE = 'L',
+  DIRECT_TYPE_ENTRY = '',
+  REFERENCE = 'R',
+  DOMAIN = 'D',
 }
