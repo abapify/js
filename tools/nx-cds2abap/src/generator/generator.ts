@@ -7,7 +7,7 @@ export async function abapgitGenerator(
   tree: Tree,
   options: AbapgitGeneratorSchema
 ) {
-  cds2abap({
+  await cds2abap({
     ...options,
     output: options.output || 'src',
   });
