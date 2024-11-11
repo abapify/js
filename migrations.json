@@ -1,19 +1,11 @@
 {
   "migrations": [
     {
-      "version": "20.0.1",
-      "description": "Set `useLegacyCache` to true for migrating workspaces",
-      "implementation": "./src/migrations/update-20-0-1/use-legacy-cache",
-      "x-repair-skip": true,
-      "package": "nx",
-      "name": "use-legacy-cache"
-    },
-    {
-      "version": "20.0.4-beta.0",
-      "description": "Add gitignore entry for temporary vite config files.",
+      "version": "20.0.6-beta.0",
+      "description": "Add gitignore entry for temporary vite config files and remove previous incorrect glob.",
       "implementation": "./src/migrations/update-20-0-4/add-vite-temp-files-to-git-ignore",
       "package": "@nx/vite",
-      "name": "update-20-0-4"
+      "name": "update-20-0-6"
     }
   ]
 }
