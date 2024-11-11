@@ -3,12 +3,14 @@ import * as cds from '@sap/cds';
 
 import { dset } from 'dset';
 import { AbapAnnotation } from './lib/annotations';
-import {
-  Component,
-} from '@abapify/components';
+import { Component } from '@abapify/components';
 
 import { DdicFactory } from './lib/factory';
-type ComponentFactory = { [key: string]: (input: unknown) => Component<unknown> | Array<Component<unknown>> };
+type ComponentFactory = {
+  [key: string]: (
+    input: unknown
+  ) => Component<unknown> | Array<Component<unknown>>;
+};
 
 test('generate abapgit project from CDS model', async () => {
   const model = await cds.load(__dirname + '/cds/model.cds');
@@ -27,7 +29,6 @@ test('generate abapgit project from CDS model', async () => {
 
   for (const annotation of generator) {
     const ddic = annotation['@abap']?.ddic;
-
 
     //generic logic to generate components from abap annotation
     if (ddic) {
@@ -57,8 +58,8 @@ test('generate abapgit project from CDS model', async () => {
   for (const component of abapComponents.values()) {
     console.log('\n', component.type, component.id, component.toAbapgitXML());
   }
-
-}); function* cds2abap(csn: cds.csn.CSN) {
+});
+function* cds2abap(csn: cds.csn.CSN) {
   for (const definition_key in csn.definitions) {
     const definition = csn.definitions[definition_key];
 
