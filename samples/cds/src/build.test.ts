@@ -1,5 +1,5 @@
 import test from 'node:test';
-import * as cds from "@sap/cds"
+import * as cds from '@sap/cds';
 import { csn2abap } from '@abapify/cds2abap';
 
 test('generate abapgit project from CDS model', async () => {
@@ -9,4 +9,3 @@ test('generate abapgit project from CDS model', async () => {
     console.log('\n', component.type, component.id, component.toAbapgitXML());
   }
 });
-
