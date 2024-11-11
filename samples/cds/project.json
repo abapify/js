@@ -7,7 +7,9 @@
   "targets": {
     "test": {
       "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
+      "outputs": [
+        "{options.reportsDirectory}"
+      ],
       "options": {
         "reportsDirectory": "../../coverage/samples/cds"
       }
@@ -16,7 +18,7 @@
       "executor": "@abapify/nx:cds2abap",
       "options": {
         "model": "@samples/projects",
-        "output": "dist/{projectRoot}"
+        "output": "dist/{projectRoot}/src"
       }
     }
   }
