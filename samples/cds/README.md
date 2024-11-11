@@ -73,3 +73,25 @@ and corresponding domain ZPROJECT_ID:
 ```
 
 Of course - there will be much more properties and artifacts supported, this is just the simplest example.
+
+## What are benefits of this approach?
+
+- we can start developing ABAP artifacts using existing tools such as VS Code, CDS extension like a normal CAP project
+- we can reuse existing CAP models and deploy them to ABAP system
+- working in VS Code opens up for us capabilities to use AI/GPT tools
+- we can build ABAP artifacts using CI/CD pipelines, so our data models will be trully git-driven
+
+## What are challenges we might face?
+
+- It's a general problem - direct change of git-driven artifacts ideally should not be allowed in the system
+- There may be a risk of not just loosing the code, but since we talk about data models also data. It should be used very carefully
+- Reusing annotations themselves, like we want to reuse same data element. So maybe some reusable types should be used.
+
+## How far we can go with ths approach?
+
+if we can generate data models - nothing would stop us from generating other artifacts. For example what we can generate more:
+
+- CDS views with annotations and associations
+- RAP models
+- Service definitions
+- Service bindings
