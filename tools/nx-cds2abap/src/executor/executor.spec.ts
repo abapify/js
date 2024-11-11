@@ -4,7 +4,7 @@ import { Cds2abapExecutorSchema } from './schema';
 import executor from './executor';
 
 const options: Cds2abapExecutorSchema = {
-  model: "@samples/projects"
+  model: '@samples/projects',
 };
 const context: ExecutorContext = {
   root: '',
