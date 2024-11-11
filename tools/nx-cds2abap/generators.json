@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "abapgit": {
+      "factory": "./src/generator/generator",
+      "schema": "./src/generator/schema.json",
+      "description": "Generate ABAP artifacts from CAP CDS"
+    }
+  }
+}
