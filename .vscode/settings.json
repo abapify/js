@@ -8,5 +8,6 @@
       "extensions": ["mts", "cts", "ts"],
       "parameters": ["--import", "tsx"]
     }
-  ]
+  ],
+  "eslint.validate": ["json"]
 }
