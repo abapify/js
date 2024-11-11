@@ -5,11 +5,10 @@ import { dset } from 'dset';
 import { AbapAnnotation } from './lib/annotations';
 import {
   Component,
-  DataElement,
-  DataElementInput,
-  Domain,
-  DomainInput,
 } from '@abapify/components';
+
+import { DdicFactory } from './lib/factory';
+type ComponentFactory = { [key: string]: (input: unknown) => Component<unknown> | Array<Component<unknown>> };
 
 test('generate abapgit project from CDS model', async () => {
   const model = await cds.load(__dirname + '/cds/model.cds');
@@ -29,14 +28,29 @@ test('generate abapgit project from CDS model', async () => {
   for (const annotation of generator) {
     const ddic = annotation['@abap']?.ddic;
 
-    //data element
-    if (typeof ddic?.dataElement === 'object' && ddic.dataElement.generate) {
-      processDataElement(ddic.dataElement, ddic.dataElement.generate);
-    }
 
-    //domain
-    if (typeof ddic?.domain === 'object' && ddic.domain.generate) {
-      processDomain(ddic.domain, ddic.domain.generate);
+    //generic logic to generate components from abap annotation
+    if (ddic) {
+      for (const key in ddic) {
+        const input = ddic[key];
+        if (typeof input === 'object' && input.generate) {
+          if (key in DdicFactory) {
+            const component = (DdicFactory as unknown as ComponentFactory)[key];
+            if (key) {
+              const result = component(input);
+              if (Array.isArray(result)) {
+                for (const item of result) {
+                  addComponent(item);
+                }
+              } else {
+                addComponent(result);
+              }
+            }
+          } else {
+            console.warn(`No component factory for key: ${key}`);
+          }
+        }
+      }
     }
   }
 
@@ -44,32 +58,7 @@ test('generate abapgit project from CDS model', async () => {
     console.log('\n', component.type, component.id, component.toAbapgitXML());
   }
 
-  function processDataElement(
-    dataElement: DataElementInput,
-    generate?: boolean
-  ) {
-    if (generate) {
-      const component = new DataElement(dataElement);
-      addComponent(component);
-    }
-
-    if (
-      'domain' in dataElement &&
-      typeof dataElement.domain === 'object' &&
-      'generate' in dataElement.domain
-    ) {
-      processDomain(dataElement.domain, generate);
-    }
-  }
-
-  function processDomain(domain: DomainInput, generate?: boolean) {
-    if (generate) {
-      const component = new Domain(domain);
-      addComponent(component);
-    }
-  }
-});
-function* cds2abap(csn: cds.csn.CSN) {
+}); function* cds2abap(csn: cds.csn.CSN) {
   for (const definition_key in csn.definitions) {
     const definition = csn.definitions[definition_key];
 
