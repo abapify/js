@@ -16,7 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "@abapify/asjson-parser": ["packages/asjson-parser/src/index.ts"],
-      "@abapify/components": ["packages/components/src/index.ts"]
+      "@abapify/components": ["packages/components/src/index.ts"],
+      "samples/cds": ["samples/cds/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
