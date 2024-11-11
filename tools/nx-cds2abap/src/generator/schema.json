@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "Abapgit",
+  "title": "",
+  "type": "object",
+  "properties": {
+    "model": {
+      "type": "string",
+      "description": "",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "What is CDS model name/path?"
+    },
+    "output": {
+      "type": "string",
+      "description": "Output directory",
+      "x-prompt": "Where to save generated files?"
+    }
+  },
+  "required": [
+    "model"
+  ]
+}
