@@ -1,4 +1,5 @@
 export enum ComponentType {
-  dataElement = 'DTEL',
+  package = 'DEVC',
   domain = 'DOMA',
+  dataElement = 'DTEL',
 }

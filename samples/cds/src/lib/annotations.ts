@@ -10,6 +10,9 @@ export interface AbapAnnotation {
     ddic?: {
       dataElement?: GeneratorInput<DataElementInput> | string;
       domain?: GeneratorInput<DomainInput> | string;
+      [key: string]: string | GeneratorInput<unknown> | undefined; // Index signature
     };
   };
 }
+
+
