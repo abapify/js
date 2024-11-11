@@ -10,13 +10,13 @@
 // I	Interface
 
 export enum RefType {
-    ANY = 'A',
-    OBJECT = 'O',
-    DATA = 'D',
-    BUILT_IN_DICTIONARY_TYPE = 'B',
-    DATA_ELEMENT = 'E',
-    STRUCTURED_TYPE = 'S',
-    TABLE_TYPE = 'L',
-    CLASS = 'C',
-    INTERFACE = 'I'
+  ANY = 'A',
+  OBJECT = 'O',
+  DATA = 'D',
+  BUILT_IN_DICTIONARY_TYPE = 'B',
+  DATA_ELEMENT = 'E',
+  STRUCTURED_TYPE = 'S',
+  TABLE_TYPE = 'L',
+  CLASS = 'C',
+  INTERFACE = 'I',
 }
