@@ -1,5 +1,5 @@
 import * as cds from '@sap/cds';
-import { Component } from '@abapify/components'
+import { Component } from '@abapify/components';
 import { AbapAnnotation } from './annotations';
 import { dset } from 'dset';
 import { DdicFactory } from './factory';
@@ -21,13 +21,12 @@ export async function cds2abap(input: Cds2AbapInput) {
     const filename = `${component.id}.${component.type}.xml`;
     const xml = component.toAbapgitXML();
 
-    console.log('✅', filename)
-    await writeFile(path.join(input.output, filename), xml)
+    console.log('✅', filename);
+    await writeFile(path.join(input.output, filename), xml);
   }
 }
 
 export function csn2abap(model: cds.csn.CSN): Map<string, Component<unknown>> {
-
   const generator = anotationGenerator(model);
 
   const abapComponents = new Map<string, Component<unknown>>();
