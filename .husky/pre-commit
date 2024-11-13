@@ -1,1 +1,2 @@
 nx format:write --uncommitted
+git update-index --again
