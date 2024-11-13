@@ -1,3 +1,3 @@
 export enum AdtCoreType {
-    Domain = "DOMA/DD",
+  Domain = 'DOMA/DD',
 }
