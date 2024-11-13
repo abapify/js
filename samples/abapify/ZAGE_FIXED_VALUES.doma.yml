@@ -1,0 +1,16 @@
+kind: Domain
+metadata:
+  name: ZAGE_FIXED_VALUES
+  description: 'Fixed values (test)'
+spec:
+  typeInformation:
+    datatype: 'CHAR'
+    length: 1
+  outputInformation:
+    length: 1
+  valueInformation:
+    fixValues:
+      - low: 'A'
+        text: 'This is A'
+      - low: 'B'
+        text: 'This is B'

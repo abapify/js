@@ -54,8 +54,12 @@
   "dependencies": {
     "@nx/devkit": "20.0.12",
     "@sap/cds-dk": "^8.4.0",
+    "@xmldom/xmldom": "^0.9.5",
     "dset": "^3.1.4",
-    "fast-xml-parser": "^4.5.0"
+    "fast-xml-parser": "^4.5.0",
+    "fxmlp": "^1.0.7",
+    "reflect-metadata": "^0.2.2",
+    "yaml": "^2.6.0"
   },
   "workspaces": [
     "packages/*",
