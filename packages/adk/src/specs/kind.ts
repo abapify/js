@@ -1,3 +1,3 @@
 export enum Kind {
-    Domain = "Domain",
+  Domain = 'Domain',
 }
