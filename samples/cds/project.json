@@ -12,7 +12,7 @@
         "reportsDirectory": "../../coverage/samples/cds"
       }
     },
-    "build": {
+    "build-abap": {
       "executor": "@abapify/nx:cds2abap",
       "options": {
         "model": "@samples/projects",
