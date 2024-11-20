@@ -7,7 +7,8 @@
     "prepare": "husky",
     "precommit": "nx format:check --uncommitted",
     "lint": "nx run-many --target=lint --fix --exclude=${npm_package_name}",
-    "devcontainer": "devcontainer up --workspace-folder=$(pwd)"
+    "devcontainer": "devcontainer up --workspace-folder=$(pwd)",
+    "preversion": "npx nx release version ${npm_new_version}"
   },
   "author": "",
   "license": "ISC",
