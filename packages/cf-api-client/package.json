@@ -10,6 +10,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abapify/js.git",
-    "directory": "packages/cf"
+    "directory": "packages/cf-api-client"
   }
 }
