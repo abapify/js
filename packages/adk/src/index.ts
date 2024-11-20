@@ -1,1 +1,1 @@
-export * from './specs';
+export * from './objects';
