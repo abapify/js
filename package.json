@@ -6,7 +6,8 @@
     "test": "nx run-many --target=test --exclude=${npm_package_name} --coverage",
     "prepare": "husky",
     "precommit": "nx format:check --uncommitted",
-    "lint": "nx run-many --target=lint --fix --exclude=${npm_package_name}"
+    "lint": "nx run-many --target=lint --fix --exclude=${npm_package_name}",
+    "devcontainer": "devcontainer up --workspace-folder=$(pwd)"
   },
   "author": "",
   "license": "ISC",
@@ -54,10 +55,13 @@
   "dependencies": {
     "@nx/devkit": "20.0.12",
     "@sap/cds-dk": "^8.4.0",
+    "@sap/xsenv": "^5.4.0",
     "@xmldom/xmldom": "^0.9.5",
+    "axios": "^1.7.7",
     "dset": "^3.1.4",
     "fast-xml-parser": "^4.5.0",
     "fxmlp": "^1.0.7",
+    "qs": "^6.13.1",
     "reflect-metadata": "^0.2.2",
     "yaml": "^2.6.0"
   },
