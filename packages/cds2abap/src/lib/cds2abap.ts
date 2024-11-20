@@ -4,7 +4,7 @@ import { AbapAnnotation } from './annotations';
 import { dset } from 'dset';
 import { DdicFactory } from './factory';
 import { mkdir, writeFile } from 'fs/promises';
-import path = require('path');
+import path from 'path';
 
 interface Cds2AbapInput {
   model: string;

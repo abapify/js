@@ -1,4 +1,4 @@
-import { Spec } from '../specs/spec';
+import { Spec } from '../objects/base';
 
 export abstract class BaseAdapter<T extends Spec<unknown>> {
   private input: T;
