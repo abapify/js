@@ -1,5 +1,7 @@
-import { Spec } from '../spec';
-export type DomainSpec = Spec<Domain>;
+import { Spec } from '../base';
+import { Kind } from '../kind';
+
+export type DomainSpec = Spec<Domain, Kind.Domain>;
 export * from './adapters';
 
 interface Domain {
