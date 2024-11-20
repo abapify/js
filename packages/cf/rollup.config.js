@@ -5,7 +5,7 @@ module.exports = withNx(
     main: './src/index.ts',
     outputPath: '../../dist/packages/cf',
     tsConfig: './tsconfig.lib.json',
-    compiler: 'swc',
+    compiler: 'tsc',
     format: ['cjs', 'esm'],
     assets: [{ input: '.', output: '.', glob: '*.md' }],
   },
