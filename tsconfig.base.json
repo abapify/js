@@ -21,6 +21,7 @@
       "@abapify/cds2abap": ["packages/cds2abap/src/index.ts"],
       "@abapify/components": ["packages/components/src/index.ts"],
       "@abapify/nx": ["tools/nx-cds2abap/src/index.ts"],
+      "cf-api-client": ["packages/cf/src/index.ts"],
       "samples/cds": ["samples/cds/src/index.ts"]
     }
   },
