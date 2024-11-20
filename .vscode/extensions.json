@@ -3,7 +3,6 @@
     "nrwl.angular-console",
     "esbenp.prettier-vscode",
     "larshp.standalone-abap-development",
-    "firsttris.vscode-jest-runner",
     "vitest.explorer",
     "connor4312.nodejs-testing"
   ]
