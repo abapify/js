@@ -54,6 +54,7 @@
   },
   "nx": {},
   "dependencies": {
+    "@cloudfoundry/api": "^0.1.7",
     "@nx/devkit": "20.0.12",
     "@sap/cds-dk": "^8.4.0",
     "@sap/xsenv": "^5.4.0",
