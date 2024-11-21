@@ -1,4 +1,8 @@
-import { getOAuthToken, CloudFoundryClient, readCfConfig } from 'cf-api-client';
+import {
+  getOAuthToken,
+  CloudFoundryClient,
+  readCfConfig,
+} from '@cloudfoundry/api';
 import { AxiosError } from 'axios';
 import assert from 'node:assert';
 
@@ -11,7 +15,10 @@ describe('Service bindings', () => {
     assert(config);
 
     //oauthToken = 'bearer {access_token}'
-    const cf = new CloudFoundryClient(config.Target, oauthToken);
+    const cf = new CloudFoundryClient({
+      apiEndpoint: config.Target,
+      accessToken: oauthToken,
+    });
 
     try {
       const serviceBindings = await cf.serviceCredentialBinding.list({
