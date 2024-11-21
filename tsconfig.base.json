@@ -22,7 +22,6 @@
       "@abapify/components": ["packages/components/src/index.ts"],
       "@abapify/nx": ["tools/nx-cds2abap/src/index.ts"],
       "@sap/cds": ["node_modules/@cap-js/cds-types/dist/cds-types.d.ts"],
-      "cf-api-client": ["packages/cf-api-client/src/index.ts"],
       "samples/cds": ["samples/cds/src/index.ts"]
     }
   },
