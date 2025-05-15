@@ -5,10 +5,9 @@
   "projectType": "library",
   "release": {
     "version": {
-      "generatorOptions": {
-        "packageRoot": "{projectRoot}",
-        "currentVersionResolver": "git-tag"
-      }
+      "currentVersionResolver": "git-tag",
+      "preserveLocalDependencyProtocols": false,
+      "manifestRootsToUpdate": ["{projectRoot}"]
     }
   },
   "tags": [],
