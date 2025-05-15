@@ -7,7 +7,9 @@
     "version": {
       "currentVersionResolver": "git-tag",
       "preserveLocalDependencyProtocols": false,
-      "manifestRootsToUpdate": ["{projectRoot}"]
+      "manifestRootsToUpdate": [
+        "{projectRoot}"
+      ]
     }
   },
   "tags": [],
@@ -19,7 +21,9 @@
     },
     "test": {
       "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
+      "outputs": [
+        "{options.reportsDirectory}"
+      ],
       "options": {
         "reportsDirectory": "{workspaceRoot}/coverage/{projectRoot}"
       }
