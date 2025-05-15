@@ -135,3 +135,7 @@ dist
 .nx/workspace-data
 
 vite.config.*.timestamp*
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+vitest.config.*.timestamp*
