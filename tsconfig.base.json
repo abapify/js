@@ -18,6 +18,7 @@
     "paths": {
       "@abapify/adk": ["packages/adk/src/index.ts"],
       "@abapify/asjson-parser": ["packages/asjson-parser/src/index.ts"],
+      "@abapify/btp-service-key-parser": ["packages/sk/src/index.ts"],
       "@abapify/cds2abap": ["packages/cds2abap/src/index.ts"],
       "@abapify/components": ["packages/components/src/index.ts"],
       "@abapify/nx": ["tools/nx-cds2abap/src/index.ts"],
