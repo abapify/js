@@ -1,8 +1,8 @@
 {
   "servers": {
     "nx-mcp": {
-      "type": "http",
-      "url": "http://localhost:9132/mcp"
+      "command": "npx",
+      "args": ["nx-mcp@latest"]
     }
   }
 }
