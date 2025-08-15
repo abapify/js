@@ -9,9 +9,7 @@
         "typecheck": { "targetName": "typecheck" },
         "build": { "targetName": "build", "configName": "tsconfig.lib.json" }
       },
-      "exclude": [
-        "samples/cds/*"
-      ]
+      "exclude": ["samples/cds/*"]
     },
     {
       "plugin": "@nx/rollup/plugin",
@@ -25,13 +23,8 @@
     "nx-release-publish": { "dependsOn": ["build", "test"] },
     "@nx/js:swc": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "default",
-        "^default"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["default", "^default"]
     },
     "@nx/jest:jest": {
       "cache": true,
@@ -41,13 +34,8 @@
     },
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "default",
-        "^default"
-      ]
+      "dependsOn": ["^build"],
+      "inputs": ["default", "^default"]
     }
   }
 }
