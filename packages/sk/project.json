@@ -23,10 +23,10 @@
       }
     },
     "test": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "executor": "@nx/vite:test",
       "options": {
-        "jestConfig": "packages/sk/jest.config.ts"
+        "reportsDirectory": "../../coverage/packages/sk",
+        "passWithNoTests": true
       }
     },
     "nx-release-publish": {

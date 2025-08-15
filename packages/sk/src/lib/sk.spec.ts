@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { ServiceKeyParser, BTPServiceKey } from './parser';
 import { ZodError } from 'zod';
 
