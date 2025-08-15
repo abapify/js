@@ -1,47 +1,26 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "defaultBase": "main",
-  "nxCloudId": "6704198501384244ec4969ce",
+  "nxCloudId": "689f2325a9081eb8eb04b58d",
   "plugins": [
     {
       "plugin": "@nx/js/typescript",
       "options": {
-        "typecheck": {
-          "targetName": "typecheck"
-        },
-        "build": {
-          "targetName": "build",
-          "configName": "tsconfig.lib.json"
-        }
+        "typecheck": { "targetName": "typecheck" },
+        "build": { "targetName": "build", "configName": "tsconfig.lib.json" }
       },
       "exclude": ["samples/cds/*"]
     },
     {
       "plugin": "@nx/rollup/plugin",
-      "options": {
-        "buildTargetName": "build"
-      }
+      "options": { "buildTargetName": "build" }
     },
-    {
-      "plugin": "@nx/eslint/plugin",
-      "options": {
-        "targetName": "lint"
-      }
-    }
+    { "plugin": "@nx/eslint/plugin", "options": { "targetName": "lint" } }
   ],
-  "release": {
-    "version": {
-      "preVersionCommand": "npx nx run-many -t build"
-    }
-  },
+  "release": { "version": { "preVersionCommand": "npx nx run-many -t build" } },
   "targetDefaults": {
-    "@nx/vite:test": {
-      "cache": true,
-      "inputs": ["default", "^default"]
-    },
-    "nx-release-publish": {
-      "dependsOn": ["build", "test"]
-    },
+    "@nx/vite:test": { "cache": true, "inputs": ["default", "^default"] },
+    "nx-release-publish": { "dependsOn": ["build", "test"] },
     "@nx/js:swc": {
       "cache": true,
       "dependsOn": ["^build"],
@@ -50,15 +29,8 @@
     "@nx/jest:jest": {
       "cache": true,
       "inputs": ["default", "^default", "{workspaceRoot}/jest.preset.js"],
-      "options": {
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": {
-          "ci": true,
-          "codeCoverage": true
-        }
-      }
+      "options": { "passWithNoTests": true },
+      "configurations": { "ci": { "ci": true, "codeCoverage": true } }
     },
     "@nx/js:tsc": {
       "cache": true,
