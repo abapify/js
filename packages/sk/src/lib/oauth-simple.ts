@@ -8,27 +8,23 @@ export interface OAuthToken {
   expires_at: Date;
 }
 
-export interface OAuthError {
-  error: string;
-  error_description?: string;
-}
-
 export async function fetchOAuthToken(
   serviceKey: BTPServiceKey
 ): Promise<OAuthToken> {
   const { uaa } = serviceKey;
 
-  // Prepare the request
-  const tokenUrl = `${uaa.url}/oauth/token`;
-  const credentials = Buffer.from(
-    `${uaa.clientid}:${uaa.clientsecret}`
-  ).toString('base64');
-
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-  });
-
   try {
+    // Prepare OAuth 2.0 client credentials request
+    const tokenUrl = `${uaa.url}/oauth/token`;
+    const credentials = Buffer.from(
+      `${uaa.clientid}:${uaa.clientsecret}`,
+      'utf8'
+    ).toString('base64');
+
+    const body = new URLSearchParams({
+      grant_type: 'client_credentials',
+    });
+
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -40,16 +36,15 @@ export async function fetchOAuthToken(
     });
 
     if (!response.ok) {
-      let errorDetails: OAuthError;
+      let errorDetails;
       try {
-        errorDetails = (await response.json()) as OAuthError;
+        errorDetails = await response.json();
       } catch {
         errorDetails = {
           error: 'http_error',
           error_description: `HTTP ${response.status}: ${response.statusText}`,
         };
       }
-
       throw new Error(
         `OAuth token request failed: ${errorDetails.error}${
           errorDetails.error_description
@@ -61,24 +56,18 @@ export async function fetchOAuthToken(
 
     const tokenData = await response.json();
 
-    // Validate required fields
-    if (
-      !tokenData.access_token ||
-      !tokenData.token_type ||
-      !tokenData.expires_in
-    ) {
-      throw new Error('Invalid OAuth token response: missing required fields');
+    if (!tokenData.access_token || !tokenData.expires_in) {
+      throw new Error(
+        'Invalid token response: missing access_token or expires_in'
+      );
     }
-
-    // Calculate expiration timestamp
-    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
     return {
       access_token: tokenData.access_token,
-      token_type: tokenData.token_type,
+      token_type: tokenData.token_type || 'bearer',
       expires_in: tokenData.expires_in,
       scope: tokenData.scope || '',
-      expires_at: expiresAt,
+      expires_at: new Date(Date.now() + tokenData.expires_in * 1000),
     };
   } catch (error) {
     if (error instanceof Error) {
