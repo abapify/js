@@ -27,3 +27,7 @@
 - **Naming**: PascalCase for types/classes, camelCase for variables/methods
 - **Formatting**: Prettier with 2-space indents, ESLint with NX rules
 - **Error handling**: TypeScript strict mode enabled
+
+## AMP
+
+- Always propose a plan and confirm it with me before executing it
