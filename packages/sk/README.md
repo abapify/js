@@ -1,6 +1,6 @@
 # @abapify/btp-service-key-parser
 
-Parser for SAP BTP (Business Technology Platform) service keys with Zod validation, TypeScript types, and OAuth token support.
+Simple parser for SAP BTP (Business Technology Platform) service keys with OAuth token fetching using native fetch.
 
 ## Installation
 
@@ -16,29 +16,22 @@ import {
   fetchOAuthToken,
 } from '@abapify/btp-service-key-parser';
 
-// Parse from JSON string (throws on validation error)
-const serviceKey = ServiceKeyParser.parse(jsonString);
-
-// Parse from object (throws on validation error)
-const serviceKey = ServiceKeyParser.parse(serviceKeyObject);
-
-// Safe parsing with result object
-const result = ServiceKeyParser.safeParse(serviceKeyObject);
-if (result.success) {
-  console.log(result.data); // Validated BTPServiceKey
-} else {
-  console.log(result.error.issues); // Zod validation errors
-}
-
-// Access parsed properties directly
-const abapEndpoint = serviceKey.endpoints['abap'] || serviceKey.url;
-const uaaCredentials = serviceKey.uaa;
-const systemId = serviceKey.systemid;
-const catalogPath = serviceKey.catalogs['abap']?.path;
+// Parse and validate service key
+const serviceKey = ServiceKeyParser.parse(serviceKeyJson);
 
 // Fetch OAuth token for ADT calls
 const token = await fetchOAuthToken(serviceKey);
-console.log(`Bearer ${token.access_token}`); // Use in Authorization header
+
+// Use token in API calls
+const response = await fetch(
+  `${serviceKey.url}/sap/bc/adt/repository/informationsystem/objecttypes`,
+  {
+    headers: {
+      Authorization: `Bearer ${token.access_token}`,
+      Accept: 'application/xml',
+    },
+  }
+);
 ```
 
 ## API
@@ -53,16 +46,16 @@ Safely parses and validates without throwing. Returns `{ success: true, data: BT
 
 ### `fetchOAuthToken(serviceKey: BTPServiceKey): Promise<OAuthToken>`
 
-Fetches an OAuth access token using the service key's UAA credentials. Returns token data including expiration time.
+Fetches an OAuth access token using native fetch with the service key's UAA credentials.
 
 ```typescript
 const token = await fetchOAuthToken(serviceKey);
-// Use token.access_token in Authorization header: `Bearer ${token.access_token}`
+// Returns: { access_token, token_type, expires_in, scope, expires_at }
 ```
 
-### Property Access
+## Property Access
 
-Once parsed, access service key properties directly:
+Access parsed service key properties directly:
 
 ```typescript
 const serviceKey = ServiceKeyParser.parse(jsonInput);
@@ -78,57 +71,23 @@ serviceKey.url;
 
 // Endpoints
 serviceKey.endpoints['abap'];
-serviceKey.endpoints['other-service'];
 
 // Catalogs
 serviceKey.catalogs['abap']?.path;
-serviceKey.catalogs['abap']?.type;
 ```
 
-## Validation
+## Features
 
-Built with [Zod](https://zod.dev/) for robust schema validation including:
+- ✅ **Zod validation** - Robust schema validation with detailed error messages
+- ✅ **TypeScript support** - Full type safety for all service key components
+- ✅ **Native OAuth** - Simple OAuth 2.0 client credentials flow using native fetch
+- ✅ **Simple API** - Parse service keys and fetch tokens with minimal code
+- ✅ **Standards compliant** - Follows OAuth 2.0 and OpenID Connect specifications
 
-- ✅ URL format validation for endpoints
-- ✅ Required field validation
-- ✅ Type checking for all properties
-- ✅ Detailed error messages with field paths
-
-## TypeScript Support
-
-Full TypeScript definitions are included for all service key components:
+## Types
 
 - `BTPServiceKey` - Main service key interface
 - `UAACredentials` - OAuth/UAA authentication details
+- `OAuthToken` - OAuth token response with expiration data
 - `Catalog` - Service catalog information
 - `Binding` - Service binding metadata
-- `OAuthToken` - OAuth token response with expiration data
-
-Types are automatically inferred from Zod schemas for perfect type safety.
-
-## OAuth Integration
-
-The `fetchOAuthToken` function provides seamless OAuth token acquisition for ADT (ABAP Development Tools) and other SAP BTP services:
-
-```typescript
-// Example: Using token for ADT API calls
-const serviceKey = ServiceKeyParser.parse(serviceKeyJson);
-const token = await fetchOAuthToken(serviceKey);
-
-const response = await fetch(
-  `${serviceKey.url}/sap/bc/adt/repository/informationsystem/objecttypes`,
-  {
-    headers: {
-      Authorization: `Bearer ${token.access_token}`,
-      Accept: 'application/xml',
-    },
-  }
-);
-```
-
-**Features:**
-
-- ✅ Native `fetch` API (no dependencies)
-- ✅ Automatic token expiration calculation
-- ✅ Proper error handling for OAuth failures
-- ✅ Full TypeScript support

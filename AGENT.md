@@ -30,4 +30,4 @@
 
 ## AMP
 
-- Always propose a plan and confirm it with me before executing it
+- Always propose a plan and confirm it with me before executing it by showing OK button

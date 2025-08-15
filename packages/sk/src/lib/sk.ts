@@ -5,4 +5,4 @@ export * from './types';
 export * from './parser';
 
 // Re-export OAuth functionality
-export * from './oauth';
+export * from './oauth-simple';
