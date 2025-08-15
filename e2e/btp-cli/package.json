@@ -1,0 +1,14 @@
+{
+  "name": "btp-cli",
+  "version": "0.0.1",
+  "description": "CLI tool for testing BTP service key parsing and OAuth token fetching",
+  "private": true,
+  "type": "commonjs",
+  "bin": {
+    "btp": "./cli.ts"
+  },
+  "scripts": {
+    "test": "npx tsx cli.ts --file ../secrets/service_key.json",
+    "test-example": "npx tsx cli.ts --file example-service-key.json"
+  }
+}

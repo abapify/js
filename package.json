@@ -8,7 +8,9 @@
     "precommit": "nx format:check --uncommitted",
     "lint": "nx run-many --target=lint --fix --exclude=${npm_package_name}",
     "devcontainer": "devcontainer up --workspace-folder=$(pwd)",
-    "preversion": "npx nx release version ${npm_new_version}"
+    "preversion": "npx nx release version ${npm_new_version}",
+    "btp": "npx tsx e2e/btp-cli/cli.ts",
+    "btp:token": "npm run btp -- --file e2e/secrets/service_key.json"
   },
   "author": "",
   "license": "ISC",
@@ -73,7 +75,8 @@
   "workspaces": [
     "packages/*",
     "samples/*",
-    "tools/*"
+    "tools/*",
+    "e2e/*"
   ],
   "version": "0.1.1"
 }

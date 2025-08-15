@@ -1,0 +1,39 @@
+{
+  "uaa": {
+    "tenantmode": "dedicated",
+    "sburl": "https://internal-xsuaa.authentication.mock-region.hana.ondemand.com",
+    "subaccountid": "12345678-1234-4678-babc-def012345678",
+    "credential-type": "binding-secret",
+    "clientid": "sb-mock-client-id-1234-5678!b999999|mock-service-broker!b9999",
+    "xsappname": "mock-client-id-1234-5678!b999999|mock-service-broker!b9999",
+    "clientsecret": "mock-client-secret-abcd-1234$MockSecretTokenString123=",
+    "serviceInstanceId": "12345678-1234-4678-babc-def012345679",
+    "url": "https://mock-tenant.authentication.mock-region.hana.ondemand.com",
+    "uaadomain": "authentication.mock-region.hana.ondemand.com",
+    "verificationkey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAMOCKVERIFICATIONKEY\nForTestingPurposesOnlyDoNotUseInProductionSystemsThisIsMockData\n-----END PUBLIC KEY-----",
+    "apiurl": "https://api.authentication.mock-region.hana.ondemand.com",
+    "identityzone": "mock-identity-zone",
+    "identityzoneid": "12345678-1234-4678-babc-def012345678",
+    "tenantid": "12345678-1234-4678-babc-def012345678",
+    "zoneid": "12345678-1234-4678-babc-def012345678"
+  },
+  "url": "https://mock-system-uuid.abap.mock-region.hana.ondemand.com",
+  "sap.cloud.service": "com.sap.cloud.abap",
+  "systemid": "MCK",
+  "endpoints": {
+    "abap": "https://mock-system-uuid.abap.mock-region.hana.ondemand.com"
+  },
+  "catalogs": {
+    "abap": {
+      "path": "/sap/opu/odata/IWFND/CATALOGSERVICE;v=2",
+      "type": "sap_abap_catalog_v1"
+    }
+  },
+  "binding": {
+    "env": "cf",
+    "version": "1.0.1.1",
+    "type": "oauth",
+    "id": "mock-binding-id-1234-5678-9abc"
+  },
+  "preserve_host_header": true
+}
