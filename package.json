@@ -70,7 +70,6 @@
     "@xmldom/xmldom": "^0.9.5",
     "axios": "^1.7.7",
     "dset": "^3.1.4",
-    "express": "^5.1.0",
     "fast-xml-parser": "^4.5.0",
     "fxmlp": "^1.0.7",
     "open": "^10.2.0",
