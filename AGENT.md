@@ -28,6 +28,14 @@
 - **Formatting**: Prettier with 2-space indents, ESLint with NX rules
 - **Error handling**: TypeScript strict mode enabled
 
+## NX guidelines
+
+- As a template for a new library please use `sample-tsdown` package located in `packages/sample-tsdown` folder
+- Use a command like `npx nx g @nx/node:library --directory=packages/sample-tsdown --no-interactive`
+- We will use a custom build using `tsdown`. For that purpose we'll need a `tsdown.config.ts` to be copied from a sample package
+- Please note that script must be adjusted too `"build": "tsdown"` in `package.json`
+- Please check that `skipNodeModulesBundle: true` is used in a config - we don't want too much dependencies
+
 ## AMP
 
 - Always propose a plan and confirm it with me before executing it by showing OK button
