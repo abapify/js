@@ -1,7 +1,9 @@
 #!/usr/bin/env -S npx tsx
 
 import { Command } from 'commander';
+import { writeFileSync } from 'fs';
 import { AuthManager } from './auth-manager';
+import { parseDiscoveryXml } from './discovery-parser';
 
 const authManager = new AuthManager();
 
@@ -54,7 +56,8 @@ export function createCLI(): Command {
   program
     .command('discovery')
     .description('Discover ADT services and features')
-    .action(async () => {
+    .option('-o, --output <file>', 'Save discovery XML to file')
+    .action(async (options) => {
       try {
         const session = authManager.getAuthenticatedSession();
         const token = await authManager.getValidToken();
@@ -89,11 +92,64 @@ export function createCLI(): Command {
         console.log(
           `📄 Received ${xmlContent.length} bytes of ADT discovery XML`
         );
+
         console.log('✅ ADT discovery successful!');
 
-        // Parse and show key services (optional - for better UX)
-        if (xmlContent.includes('<app:workspace>')) {
-          console.log('🎯 ADT workspace discovered successfully');
+        // Handle output file
+        if (options.output) {
+          const isJsonOutput = options.output.toLowerCase().endsWith('.json');
+
+          if (isJsonOutput) {
+            // Parse and save as JSON
+            try {
+              const discoveryData = parseDiscoveryXml(xmlContent);
+              writeFileSync(
+                options.output,
+                JSON.stringify(discoveryData, null, 2),
+                'utf8'
+              );
+              console.log(
+                `💾 Discovery data saved as JSON to: ${options.output}`
+              );
+            } catch (parseError) {
+              console.log('⚠️  Could not parse XML, saving raw XML instead');
+              writeFileSync(
+                options.output.replace('.json', '.xml'),
+                xmlContent,
+                'utf8'
+              );
+            }
+          } else {
+            // Save raw XML
+            writeFileSync(options.output, xmlContent, 'utf8');
+            console.log(`💾 Discovery XML saved to: ${options.output}`);
+          }
+        } else {
+          // No output file - parse and display
+          try {
+            const discoveryData = parseDiscoveryXml(xmlContent);
+            console.log('\n📋 Available ADT Services:');
+
+            for (const workspace of discoveryData.workspaces) {
+              console.log(`\n📁 ${workspace.title}`);
+              for (const collection of workspace.collections) {
+                console.log(`  └─ ${collection.title} (${collection.href})`);
+                if (collection.category) {
+                  console.log(`     Category: ${collection.category.term}`);
+                }
+                if (
+                  collection.templateLinks &&
+                  collection.templateLinks.length > 0
+                ) {
+                  console.log(
+                    `     Templates: ${collection.templateLinks.length} available`
+                  );
+                }
+              }
+            }
+          } catch (parseError) {
+            console.log('⚠️  Could not parse discovery XML');
+          }
         }
       } catch (error) {
         console.error(
