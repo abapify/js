@@ -1,137 +1,7 @@
 #!/usr/bin/env -S npx tsx
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve, join } from 'path';
-import { homedir } from 'os';
 import { Command } from 'commander';
-import {
-  ServiceKeyParser,
-  fetchOAuthToken,
-  BTPServiceKey,
-  OAuthToken,
-} from './auth-utils';
-
-// Auth session storage
-const AUTH_CONFIG_DIR = join(homedir(), '.adt');
-const AUTH_CONFIG_FILE = join(AUTH_CONFIG_DIR, 'config.json');
-
-interface AuthSession {
-  serviceKey: BTPServiceKey;
-  token?: OAuthToken;
-}
-
-class AuthManager {
-  private session: AuthSession | null = null;
-
-  loadSession(): AuthSession | null {
-    if (!existsSync(AUTH_CONFIG_FILE)) {
-      return null;
-    }
-
-    try {
-      const config = JSON.parse(readFileSync(AUTH_CONFIG_FILE, 'utf8'));
-      if (config.token?.expires_at) {
-        config.token.expires_at = new Date(config.token.expires_at);
-      }
-      this.session = config;
-      return this.session;
-    } catch {
-      return null;
-    }
-  }
-
-  saveSession(session: AuthSession): void {
-    try {
-      if (!existsSync(AUTH_CONFIG_DIR)) {
-        require('fs').mkdirSync(AUTH_CONFIG_DIR, { recursive: true });
-      }
-      writeFileSync(AUTH_CONFIG_FILE, JSON.stringify(session, null, 2));
-      this.session = session;
-    } catch (error) {
-      throw new Error(`Failed to save auth session: ${error}`);
-    }
-  }
-
-  clearSession(): void {
-    if (existsSync(AUTH_CONFIG_FILE)) {
-      require('fs').unlinkSync(AUTH_CONFIG_FILE);
-    }
-    this.session = null;
-  }
-
-  async login(serviceKeyPath: string): Promise<void> {
-    const filePath = resolve(serviceKeyPath);
-
-    if (!existsSync(filePath)) {
-      throw new Error(`Service key file not found: ${filePath}`);
-    }
-
-    const serviceKeyJson = readFileSync(filePath, 'utf8');
-    const serviceKey = ServiceKeyParser.parse(serviceKeyJson);
-
-    console.log(`🔧 System ID: ${serviceKey.systemid}`);
-    console.log(
-      `🌐 ABAP Endpoint: ${serviceKey.endpoints['abap'] || serviceKey.url}`
-    );
-    console.log('🔄 Fetching OAuth token...');
-
-    const token = await fetchOAuthToken(serviceKey);
-
-    const session: AuthSession = {
-      serviceKey,
-      token: {
-        ...token,
-        expires_at: token.expires_at,
-      },
-    };
-
-    this.saveSession(session);
-    console.log('✅ Successfully logged in!');
-  }
-
-  logout(): void {
-    this.clearSession();
-    console.log('✅ Successfully logged out!');
-  }
-
-  getAuthenticatedSession(): AuthSession {
-    const session = this.loadSession();
-    if (!session) {
-      throw new Error(
-        'Not authenticated. Run "adt auth login --file <service-key>" first.'
-      );
-    }
-
-    if (session.token && session.token.expires_at < new Date()) {
-      throw new Error(
-        'Token expired. Please login again with "adt auth login --file <service-key>".'
-      );
-    }
-
-    return session;
-  }
-
-  async getValidToken(): Promise<string> {
-    const session = this.getAuthenticatedSession();
-
-    // Check if token is expired or about to expire (refresh 1 minute early)
-    const now = new Date();
-    const expiresAt = new Date(session.token!.expires_at);
-    const refreshThreshold = new Date(now.getTime() + 60000); // 1 minute
-
-    if (expiresAt <= refreshThreshold) {
-      console.log('🔄 Token expired, refreshing...');
-      const newToken = await fetchOAuthToken(session.serviceKey);
-      session.token = {
-        ...newToken,
-        expires_at: newToken.expires_at,
-      };
-      this.saveSession(session);
-    }
-
-    return session.token!.access_token;
-  }
-}
+import { AuthManager } from './auth-manager';
 
 const authManager = new AuthManager();
 
@@ -198,20 +68,33 @@ export function createCLI(): Command {
         const response = await fetch(discoveryUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
-            Accept: 'application/xml',
+            Accept: 'application/atomsvc+xml', // Correct Accept header for ADT discovery
+            'User-Agent': 'ADT-CLI/1.0.0',
           },
         });
 
+        console.log(
+          `📊 Response status: ${response.status} ${response.statusText}`
+        );
+
         if (!response.ok) {
+          const errorBody = await response.text();
+          console.log('❌ Error response:', errorBody.substring(0, 500));
           throw new Error(
             `Discovery request failed: ${response.status} ${response.statusText}`
           );
         }
 
         const xmlContent = await response.text();
-        console.log('\n📋 ADT Discovery Response:');
-        console.log('='.repeat(50));
-        console.log(xmlContent);
+        console.log(
+          `📄 Received ${xmlContent.length} bytes of ADT discovery XML`
+        );
+        console.log('✅ ADT discovery successful!');
+
+        // Parse and show key services (optional - for better UX)
+        if (xmlContent.includes('<app:workspace>')) {
+          console.log('🎯 ADT workspace discovered successfully');
+        }
       } catch (error) {
         console.error(
           '❌ Discovery failed:',
