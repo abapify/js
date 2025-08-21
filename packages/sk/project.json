@@ -16,10 +16,11 @@
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/sk",
-        "main": "sk/src/index.ts",
-        "tsConfig": "sk/tsconfig.lib.json",
-        "assets": ["sk/*.md"]
+        "outputPath": "dist/packages/sk",
+        "main": "packages/sk/src/index.ts",
+        "tsConfig": "packages/sk/tsconfig.lib.json",
+        "packageJson": "packages/sk/package.json",
+        "assets": ["packages/sk/*.md"]
       }
     },
     "test": {
