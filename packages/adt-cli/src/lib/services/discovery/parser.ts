@@ -5,7 +5,7 @@ import {
   ADTCollection,
   ADTCategory,
   ADTTemplateLink,
-} from './discovery-types';
+} from './types';
 
 const parser = new XMLParser({
   ignoreAttributes: false,

@@ -3,9 +3,12 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
 import { AuthManager } from './auth-manager';
-import { parseDiscoveryXml } from './discovery-parser';
+import { ADTClient } from './adt-client';
+import { TransportService } from './services/transport';
+import { DiscoveryService } from './services/discovery';
 
 const authManager = new AuthManager();
+const adtClient = new ADTClient(authManager);
 
 // Create main program
 export function createCLI(): Command {
@@ -59,41 +62,7 @@ export function createCLI(): Command {
     .option('-o, --output <file>', 'Save discovery XML to file')
     .action(async (options) => {
       try {
-        const session = authManager.getAuthenticatedSession();
-        const token = await authManager.getValidToken();
-
-        const abapEndpoint =
-          session.serviceKey.endpoints['abap'] || session.serviceKey.url;
-        const discoveryUrl = `${abapEndpoint}/sap/bc/adt/discovery`;
-
-        console.log(`🔍 Discovering ADT services from: ${discoveryUrl}`);
-
-        const response = await fetch(discoveryUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/atomsvc+xml', // Correct Accept header for ADT discovery
-            'User-Agent': 'ADT-CLI/1.0.0',
-          },
-        });
-
-        console.log(
-          `📊 Response status: ${response.status} ${response.statusText}`
-        );
-
-        if (!response.ok) {
-          const errorBody = await response.text();
-          console.log('❌ Error response:', errorBody.substring(0, 500));
-          throw new Error(
-            `Discovery request failed: ${response.status} ${response.statusText}`
-          );
-        }
-
-        const xmlContent = await response.text();
-        console.log(
-          `📄 Received ${xmlContent.length} bytes of ADT discovery XML`
-        );
-
-        console.log('✅ ADT discovery successful!');
+        const discoveryService = new DiscoveryService(adtClient);
 
         // Handle output file
         if (options.output) {
@@ -102,7 +71,7 @@ export function createCLI(): Command {
           if (isJsonOutput) {
             // Parse and save as JSON
             try {
-              const discoveryData = parseDiscoveryXml(xmlContent);
+              const discoveryData = await discoveryService.getDiscovery();
               writeFileSync(
                 options.output,
                 JSON.stringify(discoveryData, null, 2),
@@ -113,6 +82,9 @@ export function createCLI(): Command {
               );
             } catch (parseError) {
               console.log('⚠️  Could not parse XML, saving raw XML instead');
+              const xmlContent = await adtClient.get('/sap/bc/adt/discovery', {
+                Accept: 'application/atomsvc+xml',
+              });
               writeFileSync(
                 options.output.replace('.json', '.xml'),
                 xmlContent,
@@ -121,39 +93,94 @@ export function createCLI(): Command {
             }
           } else {
             // Save raw XML
+            const xmlContent = await adtClient.get('/sap/bc/adt/discovery', {
+              Accept: 'application/atomsvc+xml',
+            });
             writeFileSync(options.output, xmlContent, 'utf8');
             console.log(`💾 Discovery XML saved to: ${options.output}`);
           }
         } else {
           // No output file - parse and display
-          try {
-            const discoveryData = parseDiscoveryXml(xmlContent);
-            console.log('\n📋 Available ADT Services:');
+          const discoveryData = await discoveryService.getDiscovery();
+          console.log('\n📋 Available ADT Services:');
 
-            for (const workspace of discoveryData.workspaces) {
-              console.log(`\n📁 ${workspace.title}`);
-              for (const collection of workspace.collections) {
-                console.log(`  └─ ${collection.title} (${collection.href})`);
-                if (collection.category) {
-                  console.log(`     Category: ${collection.category.term}`);
-                }
-                if (
-                  collection.templateLinks &&
-                  collection.templateLinks.length > 0
-                ) {
-                  console.log(
-                    `     Templates: ${collection.templateLinks.length} available`
-                  );
-                }
+          for (const workspace of discoveryData.workspaces) {
+            console.log(`\n📁 ${workspace.title}`);
+            for (const collection of workspace.collections) {
+              console.log(`  └─ ${collection.title} (${collection.href})`);
+              if (collection.category) {
+                console.log(`     Category: ${collection.category.term}`);
+              }
+              if (
+                collection.templateLinks &&
+                collection.templateLinks.length > 0
+              ) {
+                console.log(
+                  `     Templates: ${collection.templateLinks.length} available`
+                );
               }
             }
-          } catch (parseError) {
-            console.log('⚠️  Could not parse discovery XML');
           }
         }
       } catch (error) {
         console.error(
           '❌ Discovery failed:',
+          error instanceof Error ? error.message : String(error)
+        );
+        process.exit(1);
+      }
+    });
+
+  // Transport commands
+  const transportCmd = program
+    .command('transport')
+    .alias('tr')
+    .description('Transport request management');
+
+  transportCmd
+    .command('list')
+    .description('List transport requests')
+    .option('-u, --user <user>', 'Filter by user')
+    .option('-s, --status <status>', 'Filter by status (modifiable, released)')
+    .option('-m, --max <number>', 'Maximum number of results', '50')
+    .action(async (options) => {
+      try {
+        const transportService = new TransportService(adtClient);
+
+        const filters = {
+          user: options.user,
+          status: options.status,
+          maxResults: parseInt(options.max),
+        };
+
+        console.log('🚚 Fetching transport requests...');
+        const result = await transportService.listTransports(filters);
+
+        console.log(
+          `\n📋 Found ${result.transports.length} transport requests:`
+        );
+
+        if (result.transports.length === 0) {
+          console.log('No transport requests found.');
+          return;
+        }
+
+        for (const transport of result.transports) {
+          console.log(`\n🚛 ${transport.number}`);
+          console.log(`   Description: ${transport.description}`);
+          console.log(`   Status: ${transport.status}`);
+          console.log(`   Owner: ${transport.owner}`);
+          console.log(`   Created: ${transport.created.toLocaleDateString()}`);
+          if (transport.target) {
+            console.log(`   Target: ${transport.target}`);
+          }
+          if (transport.tasks && transport.tasks.length > 0) {
+            console.log(`   Tasks: ${transport.tasks.length}`);
+          }
+        }
+      } catch (error) {
+        console.error(
+          '❌ Failed to list transport requests:',
           error instanceof Error ? error.message : String(error)
         );
         process.exit(1);
