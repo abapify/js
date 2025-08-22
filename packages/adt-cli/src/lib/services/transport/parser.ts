@@ -71,6 +71,88 @@ export class TransportParser {
     };
   }
 
+  parseTransportDetail(
+    xmlContent: string,
+    requestedNumber: string,
+    debug = false
+  ): Transport | null {
+    const result = this.parser.parse(xmlContent);
+
+    if (debug) {
+      console.log(
+        '📄 Received',
+        xmlContent.length,
+        'bytes of transport detail XML'
+      );
+      console.log(
+        'Transport detail XML structure:',
+        JSON.stringify(result, null, 2)
+      );
+    }
+
+    // Check if this is a task request vs transport request
+    const root = result['tm:root'];
+    const requestedIsTask =
+      root?.['@adtcore:name'] === requestedNumber &&
+      root?.['@tm:object_type'] === 'T';
+
+    if (debug) {
+      console.log(
+        `Requested: ${requestedNumber}, Found root name: ${root?.['@adtcore:name']}, Object type: ${root?.['@tm:object_type']}`
+      );
+      console.log(`Is task request: ${requestedIsTask}`);
+    }
+
+    // Try to find the transport in different possible locations
+    const possibleTransportNodes = [
+      result['tm:root']?.['tm:request'], // Detail API structure
+      result['tm:request'],
+      result['asx:abap']?.['asx:values']?.['TRANSPORT'],
+      result.transport,
+      result.request,
+      result,
+    ];
+
+    for (const node of possibleTransportNodes) {
+      if (node && typeof node === 'object') {
+        const transport = this.parseTransport(node);
+        if (transport && transport.number) {
+          // If this was a task request, we need to make sure the task is included
+          if (requestedIsTask && root?.['tm:task']) {
+            const taskData = root['tm:task'];
+            const task = this.parseTask(taskData);
+            if (task) {
+              // Add the task to the transport if not already there
+              if (!transport.tasks) transport.tasks = [];
+              if (!transport.tasks.find((t) => t.number === task.number)) {
+                transport.tasks.push(task);
+              }
+            }
+          }
+          return transport;
+        }
+      }
+    }
+
+    if (debug) {
+      console.log('Could not find transport in expected locations');
+      console.log('Root keys:', Object.keys(result));
+    }
+
+    return null;
+  }
+
+  private parseTask(taskData: any): Task {
+    return {
+      number: taskData['@tm:number'] || '',
+      description: taskData['@tm:desc'] || '',
+      status: this.parseStatus(taskData['@tm:status']),
+      owner: taskData['@tm:owner'] || '',
+      created: this.parseDate(taskData['@tm:lastchanged_timestamp']),
+      type: taskData['@tm:type'] || '',
+    };
+  }
+
   private parseTransport(transportData: any): Transport {
     return {
       number: transportData['@tm:number'] || '',

@@ -188,6 +188,98 @@ export function createCLI(): Command {
       }
     });
 
+  transportCmd
+    .command('get')
+    .description('Get detailed information about a specific transport request')
+    .argument('<tr-number>', 'Transport request number')
+    .option('--objects', 'Include objects in the transport')
+    .option('--tasks', 'Include detailed task information')
+    .option('--full', 'Show everything (objects + tasks)')
+    .option('--json', 'Output as JSON')
+    .option('--debug', 'Show debug output for parsing')
+    .action(async (trNumber, options) => {
+      try {
+        const transportService = new TransportService(adtClient);
+
+        console.log(`🚚 Fetching transport request: ${trNumber}`);
+        const result = await transportService.getTransport(trNumber, {
+          includeObjects: options.objects || options.full,
+          includeTasks: options.tasks || options.full,
+          debug: options.debug,
+        });
+
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        // Check if requested number is a task, not the main transport
+        const isTask = result.transport.number !== trNumber;
+        const requestedTask = isTask
+          ? result.transport.tasks?.find((t) => t.number === trNumber)
+          : null;
+
+        if (isTask && requestedTask) {
+          // Display task information
+          console.log(`\n📋 Task: ${requestedTask.number}`);
+          console.log(`   Description: ${requestedTask.description}`);
+          console.log(`   Status: ${requestedTask.status}`);
+          console.log(`   Owner: ${requestedTask.owner}`);
+          console.log(`   Created: ${requestedTask.created.toLocaleString()}`);
+          console.log(`   Type: ${requestedTask.type}`);
+          console.log(
+            `   Parent Transport: ${result.transport.number} (${result.transport.description})`
+          );
+        } else {
+          // Display transport request information
+          console.log(`\n🚛 Transport Request: ${result.transport.number}`);
+          console.log(`   Description: ${result.transport.description}`);
+          console.log(`   Status: ${result.transport.status}`);
+          console.log(`   Owner: ${result.transport.owner}`);
+          console.log(
+            `   Created: ${result.transport.created.toLocaleString()}`
+          );
+          if (result.transport.target) {
+            console.log(`   Target: ${result.transport.target}`);
+          }
+        }
+
+        // Only show tasks section for transport requests, not when viewing individual tasks
+        if (!isTask) {
+          if (
+            result.transport.tasks &&
+            result.transport.tasks.length > 0 &&
+            (options.tasks || options.full)
+          ) {
+            console.log(`\n📋 Tasks (${result.transport.tasks.length}):`);
+            for (const task of result.transport.tasks) {
+              console.log(`   └─ ${task.number} (${task.type})`);
+              console.log(`      Description: ${task.description}`);
+              console.log(`      Owner: ${task.owner}`);
+              console.log(`      Status: ${task.status}`);
+            }
+          } else if (
+            result.transport.tasks &&
+            result.transport.tasks.length > 0
+          ) {
+            console.log(`   Tasks: ${result.transport.tasks.length}`);
+          }
+        }
+
+        // Objects would be displayed here when --objects or --full is used
+        if (options.objects || options.full) {
+          console.log(`\n📦 Objects:`);
+          console.log(`   (Object list not yet implemented)`);
+        }
+      } catch (error) {
+        console.error(
+          '❌ Failed to get transport request:',
+          error instanceof Error ? error.message : String(error)
+        );
+        process.exit(1);
+      }
+    });
+
   return program;
 }
 

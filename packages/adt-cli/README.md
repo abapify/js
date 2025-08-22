@@ -43,7 +43,13 @@ npx @abapify/adt-cli <command>
    adt transport list
    ```
 
-4. **Save discovery data:**
+4. **Get transport details:**
+
+   ```bash
+   adt transport get TRLK907362
+   ```
+
+5. **Save discovery data:**
 
    ```bash
    # Save as XML
@@ -130,6 +136,65 @@ adt discovery -o discovery.json
 ```
 
 ### Transport Requests
+
+#### `adt transport get <tr-number> [options]` or `adt tr get <tr-number> [options]`
+
+Get detailed information about a specific transport request or task.
+
+**Options:**
+
+- `--objects` - Include objects in the transport (future feature)
+- `--tasks` - Include detailed task information
+- `--full` - Show everything (objects + tasks)
+- `--json` - Output as JSON
+- `--debug` - Show debug output for parsing
+
+**Examples:**
+
+```bash
+# Get transport request details
+adt transport get TRLK907362
+
+# Get task details (shows parent transport relationship)
+adt transport get TRLK907363
+
+# Include detailed task information
+adt transport get TRLK907362 --tasks
+
+# Export as JSON
+adt transport get TRLK907362 --json
+
+# Use alias
+adt tr get TRLK907362
+```
+
+**Sample Output - Transport Request:**
+
+```
+🚚 Fetching transport request: TRLK907362
+
+🚛 Transport Request: TRLK907362
+   Description: one more request
+   Status: modifiable
+   Owner: CB9980003374
+   Created: 8/22/2025, 9:45:09 AM
+   Target: No target system
+   Tasks: 1
+```
+
+**Sample Output - Task:**
+
+```
+🚚 Fetching transport request: TRLK907363
+
+📋 Task: TRLK907363
+   Description: one more request
+   Status: modifiable
+   Owner: CB9980003374
+   Created: 8/22/2025, 9:45:10 AM
+   Type: Unclassified
+   Parent Transport: TRLK907362 (one more request)
+```
 
 #### `adt transport list [options]` or `adt tr list [options]`
 
@@ -301,16 +366,17 @@ MIT License - see LICENSE file for details.
 
 ## Command Reference
 
-| Command                           | Description                       |
-| --------------------------------- | --------------------------------- |
-| `adt auth login --file <path>`    | Authenticate with BTP service key |
-| `adt auth logout`                 | Clear stored tokens               |
-| `adt discovery`                   | List available ADT services       |
-| `adt discovery -o file.json`      | Export services as JSON           |
-| `adt transport list`              | List transport requests           |
-| `adt transport list -u USER`      | Filter by user                    |
-| `adt tr list --status modifiable` | Filter by status (alias)          |
-| `adt transport list --debug`      | Show debug output                 |
+| Command                        | Description                       |
+| ------------------------------ | --------------------------------- |
+| `adt auth login --file <path>` | Authenticate with BTP service key |
+| `adt auth logout`              | Clear stored tokens               |
+| `adt discovery`                | List available ADT services       |
+| `adt discovery -o file.json`   | Export services as JSON           |
+| `adt transport list`           | List transport requests           |
+| `adt transport get <TR>`       | Get transport or task details     |
+| `adt transport list -u USER`   | Filter by user                    |
+| `adt tr get <TR> --tasks`      | Get with task details (alias)     |
+| `adt transport list --debug`   | Show debug output                 |
 
 ## Related Projects
 
