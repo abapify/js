@@ -6,6 +6,8 @@ import {
   TransportList,
   TransportGetOptions,
   TransportGetResult,
+  TransportCreateOptions,
+  TransportCreateResult,
 } from './types';
 
 export class TransportService {
@@ -231,5 +233,107 @@ export class TransportService {
         }`
       );
     }
+  }
+
+  async createTransport(
+    options: TransportCreateOptions
+  ): Promise<TransportCreateResult> {
+    const endpoint = '/sap/bc/adt/cts/transportrequests';
+
+    if (options.debug) {
+      console.log(`Creating transport request at: ${endpoint}`);
+    }
+
+    // Build XML payload based on the ADT trace
+    const xmlPayload = await this.buildCreateTransportXml(options);
+
+    if (options.debug) {
+      console.log('Create transport XML payload:', xmlPayload);
+    }
+
+    try {
+      const xmlContent = await this.adtClient.post(
+        endpoint,
+        xmlPayload,
+        {
+          'Content-Type': 'text/plain',
+          Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+          'x-sap-security-session': 'use',
+          'sap-cancel-on-close': 'true',
+        },
+        options.debug
+      );
+
+      if (options.debug) {
+        console.log(`Received ${xmlContent.length} bytes create response`);
+        console.log('Create response:', xmlContent.substring(0, 500));
+      }
+
+      // Parse the created transport from the response
+      const transport = this.parser.parseTransportDetail(
+        xmlContent,
+        '',
+        options.debug
+      );
+
+      if (!transport) {
+        throw new Error('Failed to parse created transport response');
+      }
+
+      // For create response, the task is typically created automatically
+      // If no task in response, create a placeholder task with the transport info
+      let task = transport.tasks?.[0];
+      if (!task) {
+        // Create a placeholder task based on typical SAP transport creation behavior
+        task = {
+          number: transport.number + '1', // Tasks usually are TR + 1 digit
+          description: transport.description,
+          status: transport.status,
+          owner: transport.owner,
+          created: transport.created,
+          type: 'Development/Correction',
+        };
+      }
+
+      return {
+        transport,
+        task,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to create transport request: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  private async buildCreateTransportXml(
+    options: TransportCreateOptions
+  ): Promise<string> {
+    const type = options.type || 'K'; // Default to Workbench
+    const target = options.target || 'LOCAL';
+    const project = options.project || '';
+
+    // Get current user ID properly
+    const owner = options.owner || (await this.adtClient.getCurrentUser());
+
+    return `<?xml version="1.0" encoding="ASCII"?>
+<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:useraction="newrequest">
+  <tm:request tm:desc="${this.escapeXml(
+    options.description
+  )}" tm:type="${type}" tm:target="${target}" tm:cts_project="${project}">
+    <tm:task tm:owner="${owner}"/>
+  </tm:request>
+</tm:root>`;
+  }
+
+  private escapeXml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }
