@@ -1,6 +1,12 @@
 import { ADTClient } from '../../adt-client';
 import { TransportParser } from './parser';
-import { Transport, TransportFilters, TransportList } from './types';
+import {
+  Transport,
+  TransportFilters,
+  TransportList,
+  TransportGetOptions,
+  TransportGetResult,
+} from './types';
 
 export class TransportService {
   private parser: TransportParser;
@@ -173,20 +179,51 @@ export class TransportService {
     return this.parser.parseTransportList(xmlContent, filters.debug);
   }
 
-  async getTransport(trNumber: string): Promise<Transport> {
+  async getTransport(
+    trNumber: string,
+    options: TransportGetOptions = {}
+  ): Promise<TransportGetResult> {
     const endpoint = `/sap/bc/adt/cts/transportrequests/${trNumber}`;
 
-    console.log(`🚚 Fetching transport request: ${trNumber}`);
+    if (options.debug) {
+      console.log(`Fetching specific transport: ${endpoint}`);
+    }
 
     try {
-      const xmlContent = await this.adtClient.get(endpoint);
-      const transportList = this.parser.parseTransportList(xmlContent);
+      const xmlContent = await this.adtClient.get(endpoint, {
+        Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+      });
 
-      if (transportList.transports.length === 0) {
+      if (options.debug) {
+        console.log(
+          `Received ${xmlContent.length} bytes for transport ${trNumber}`
+        );
+        console.log('First 300 chars:', xmlContent.substring(0, 300));
+      }
+
+      // Parse as single transport, not a list
+      const transport = this.parser.parseTransportDetail(
+        xmlContent,
+        trNumber,
+        options.debug
+      );
+
+      if (!transport) {
         throw new Error(`Transport request ${trNumber} not found`);
       }
 
-      return transportList.transports[0];
+      // Check if the requested number is a task
+      const isTask = transport.number !== trNumber;
+      const requestedTask = isTask
+        ? transport.tasks?.find((t) => t.number === trNumber)
+        : undefined;
+
+      return {
+        transport,
+        requestedNumber: trNumber,
+        isTask,
+        requestedTask,
+      };
     } catch (error) {
       throw new Error(
         `Failed to fetch transport request ${trNumber}: ${
