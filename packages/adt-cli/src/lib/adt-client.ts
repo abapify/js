@@ -12,6 +12,10 @@ export class ADTClient {
 
   constructor(private authManager: AuthManager) {}
 
+  setDebugMode(enabled: boolean): void {
+    this.debugMode = enabled;
+  }
+
   private debug(message: string): void {
     if (this.debugMode) {
       console.log(this.sanitizeForLogging(message));
@@ -242,7 +246,59 @@ export class ADTClient {
   }
 
   async getCurrentUser(): Promise<string> {
-    // Hard-coded for this trial system - in production, extract from API response
-    return 'CB9980003374';
+    // Check if user is already cached in session
+    const cachedUser = this.authManager.getCurrentUser();
+    if (cachedUser) {
+      this.debug(`👤 Using cached user: ${cachedUser}`);
+      return cachedUser;
+    }
+
+    this.debug('👤 Detecting current user from metadata endpoint...');
+    try {
+      // Get metadata with correct content type
+      const httpResponse = await this.request(
+        '/sap/bc/adt/cts/transportrequests/searchconfiguration/metadata',
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/vnd.sap.adt.configuration.metadata.v1+xml',
+          },
+        }
+      );
+
+      const response = await httpResponse.text();
+      this.debug(
+        `📋 Metadata response (${response.length} chars): ${response.substring(
+          0,
+          500
+        )}...`
+      );
+      // Parse the response to extract the actual user
+      const userMatch = response.match(
+        /<configuration:property key="User"[^>]*>([^<]+)</
+      );
+      if (userMatch && userMatch[1]) {
+        const detectedUser = userMatch[1].trim();
+        this.debug(`👤 Current user detected: ${detectedUser}`);
+
+        // Save user to persistent session
+        this.authManager.saveCurrentUser(detectedUser);
+        return detectedUser;
+      }
+
+      // No user found in metadata response
+      throw new Error('Could not detect current user from metadata response');
+    } catch (error) {
+      this.debug(
+        `❌ Error detecting current user: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+      throw new Error(
+        `Failed to detect current user: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
   }
 }
