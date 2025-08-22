@@ -22,6 +22,7 @@ export interface TransportFilters {
   status?: string;
   maxResults?: number;
   skipCount?: number;
+  debug?: boolean;
 }
 
 export interface TransportList {
