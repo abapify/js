@@ -91,6 +91,7 @@ export class AuthManager {
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
     authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('scope', 'openid'); // Use default scopes
 
     console.log('\n🌐 Opening browser for authentication...');
 
@@ -181,6 +182,7 @@ export class AuthManager {
             token_type: tokenSet.token_type || 'bearer',
             expires_in: tokenSet.expires_in,
             scope: tokenSet.scope || '',
+            refresh_token: tokenSet.refresh_token,
             expires_at: new Date(Date.now() + tokenSet.expires_in * 1000),
           };
 
@@ -267,12 +269,7 @@ export class AuthManager {
       );
     }
 
-    if (session.token && session.token.expires_at < new Date()) {
-      throw new Error(
-        'Token expired. Please login again with "adt auth login --file <service-key>".'
-      );
-    }
-
+    // Don't throw here for expired tokens - let getValidToken handle refresh
     return session;
   }
 
@@ -285,11 +282,47 @@ export class AuthManager {
     const refreshThreshold = new Date(now.getTime() + 60000); // 1 minute
 
     if (expiresAt <= refreshThreshold) {
-      throw new Error(
-        'Token expired. Please login again with "adt auth login --file <service-key>".'
-      );
+      console.log('🔄 Token expired, re-authenticating automatically...');
+
+      try {
+        const newToken = await this.reAuthenticate(session.serviceKey);
+        session.token = newToken;
+        this.saveSession(session);
+        console.log('✅ Re-authentication successful!');
+        return newToken.access_token;
+      } catch (reAuthError) {
+        throw new Error(
+          'Authentication failed. Please run "adt auth login --file <service-key>" to login again.'
+        );
+      }
     }
 
     return session.token!.access_token;
+  }
+
+  private async reAuthenticate(serviceKey: BTPServiceKey): Promise<OAuthToken> {
+    // Generate new PKCE parameters
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = generateCodeChallenge(codeVerifier);
+    const state = generateState();
+
+    // Build authorization URL
+    const authUrl = new URL(`${serviceKey.uaa.url}/oauth/authorize`);
+    authUrl.searchParams.set('client_id', serviceKey.uaa.clientid);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('redirect_uri', OAUTH_REDIRECT_URI);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('scope', 'openid'); // Use default scopes
+
+    console.log('🌐 Opening browser for re-authentication...');
+
+    return this.performBrowserAuth(
+      serviceKey,
+      authUrl.toString(),
+      state,
+      codeVerifier
+    );
   }
 }
