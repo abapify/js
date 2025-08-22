@@ -241,6 +241,7 @@ export class TransportService {
     const endpoint = '/sap/bc/adt/cts/transportrequests';
 
     if (options.debug) {
+      this.adtClient.setDebugMode(true);
       console.log(`Creating transport request at: ${endpoint}`);
     }
 
