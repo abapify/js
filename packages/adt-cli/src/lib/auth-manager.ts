@@ -21,6 +21,7 @@ import {
 interface AuthSession {
   serviceKey: BTPServiceKey;
   token?: OAuthToken;
+  currentUser?: string;
 }
 
 export class AuthManager {
@@ -62,6 +63,24 @@ export class AuthManager {
     this.session = null;
   }
 
+  getCurrentUser(): string | null {
+    if (!this.session) {
+      this.loadSession();
+    }
+    if (!this.session) {
+      return null;
+    }
+    return this.session.currentUser || null;
+  }
+
+  saveCurrentUser(user: string): void {
+    if (!this.session) {
+      throw new Error('No active session to save user to');
+    }
+    this.session.currentUser = user;
+    this.saveSession(this.session);
+  }
+
   async login(serviceKeyPath: string): Promise<void> {
     const filePath = resolve(serviceKeyPath);
 
@@ -72,11 +91,8 @@ export class AuthManager {
     const serviceKeyJson = readFileSync(filePath, 'utf8');
     const serviceKey = ServiceKeyParser.parse(serviceKeyJson);
 
-    console.log(`🔧 System ID: ${serviceKey.systemid}`);
-    console.log(
-      `🌐 ABAP Endpoint: ${serviceKey.endpoints['abap'] || serviceKey.url}`
-    );
-    console.log(`🔐 UAA URL: ${serviceKey.uaa.url}`);
+    console.log(`🔧 System: ${serviceKey.systemid}`);
+    console.log(`🌐 Opening browser for authentication...`);
 
     // Generate PKCE parameters
     const codeVerifier = generateCodeVerifier();
@@ -92,8 +108,6 @@ export class AuthManager {
     authUrl.searchParams.set('code_challenge_method', 'S256');
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('scope', 'openid'); // Use default scopes
-
-    console.log('\n🌐 Opening browser for authentication...');
 
     const token = await this.performBrowserAuth(
       serviceKey,
@@ -229,10 +243,6 @@ export class AuthManager {
       });
 
       server.listen(CALLBACK_SERVER_PORT, () => {
-        console.log(
-          `🎧 Callback server listening on http://localhost:${CALLBACK_SERVER_PORT}`
-        );
-
         // Open browser
         open(authUrl).catch((err) => {
           console.log('⚠️  Could not open browser automatically');
