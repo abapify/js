@@ -29,3 +29,16 @@ export interface TransportList {
   transports: Transport[];
   totalCount?: number;
 }
+
+export interface TransportGetOptions {
+  includeObjects?: boolean;
+  includeTasks?: boolean;
+  debug?: boolean;
+}
+
+export interface TransportGetResult {
+  transport: Transport;
+  requestedNumber: string;
+  isTask: boolean;
+  requestedTask?: Task;
+}
