@@ -6,8 +6,10 @@ A command-line interface for SAP ABAP Development Tools (ADT) services, providin
 
 - 🔐 **OAuth Authentication** - Browser-based login using BTP service keys
 - 🔍 **Service Discovery** - Discover available ADT services and endpoints
+- 🚚 **Transport Management** - List and filter transport requests
 - 💾 **Export Options** - Save discovery data as XML or JSON
-- 🚀 **Modern Architecture** - Built with TypeScript and fast-xml-parser
+- 🔄 **Automatic Re-authentication** - Seamless token renewal when expired
+- 🚀 **Modern Architecture** - Built with TypeScript, service-oriented design, and fast-xml-parser
 
 ## Installation
 
@@ -35,7 +37,13 @@ npx @abapify/adt-cli <command>
    adt discovery
    ```
 
-3. **Save discovery data:**
+3. **List transport requests:**
+
+   ```bash
+   adt transport list
+   ```
+
+4. **Save discovery data:**
 
    ```bash
    # Save as XML
@@ -121,6 +129,57 @@ adt discovery -o discovery.json
      Templates: 8 available
 ```
 
+### Transport Requests
+
+#### `adt transport list [options]` or `adt tr list [options]`
+
+List and filter transport requests assigned to users.
+
+**Options:**
+
+- `-u, --user <user>` - Filter by username
+- `-s, --status <status>` - Filter by status (modifiable, released)
+- `-m, --max <number>` - Maximum number of results (default: 50)
+
+**Examples:**
+
+```bash
+# List all transport requests
+adt transport list
+
+# List transport requests for specific user
+adt transport list --user DEVELOPER01
+
+# List only modifiable transport requests
+adt transport list --status modifiable
+
+# List maximum 10 transport requests
+adt transport list --max 10
+
+# Use alias for shorter command
+adt tr list -u DEVELOPER01 -m 5
+```
+
+**Sample Output:**
+
+```
+📋 Found 3 transport requests:
+
+🚛 DEVK900123
+   Description: Customer Enhancement Project
+   Status: modifiable
+   Owner: DEVELOPER01
+   Created: 8/22/2025
+   Tasks: 2
+
+🚛 DEVK900124
+   Description: Bug Fix for Invoice Processing
+   Status: modifiable
+   Owner: DEVELOPER01
+   Created: 8/21/2025
+   Tasks: 1
+```
+
 ## Authentication Flow
 
 The CLI uses OAuth 2.0 with PKCE (Proof Key for Code Exchange) for secure authentication:
@@ -129,7 +188,7 @@ The CLI uses OAuth 2.0 with PKCE (Proof Key for Code Exchange) for secure authen
 2. **Browser Opens** - Redirects to BTP login page
 3. **User Authentication** - Login with your BTP credentials
 4. **Token Exchange** - CLI receives and stores access/refresh tokens
-5. **Automatic Refresh** - Tokens are refreshed automatically when needed
+5. **Automatic Re-authentication** - When tokens expire, CLI automatically opens browser to re-authenticate using stored service key
 
 ## Configuration
 
@@ -185,7 +244,9 @@ npm test
 
 ## API Reference
 
-The CLI provides programmatic access to its functionality:
+The CLI provides programmatic access to its functionality through service-oriented architecture:
+
+### Authentication
 
 ```typescript
 import { AuthManager } from '@abapify/adt-cli';
@@ -193,6 +254,31 @@ import { AuthManager } from '@abapify/adt-cli';
 const authManager = new AuthManager();
 const session = authManager.getAuthenticatedSession();
 const token = await authManager.getValidToken();
+```
+
+### ADT Services
+
+```typescript
+import {
+  ADTClient,
+  TransportService,
+  DiscoveryService,
+} from '@abapify/adt-cli';
+
+// Initialize client
+const authManager = new AuthManager();
+const adtClient = new ADTClient(authManager);
+
+// Use transport service
+const transportService = new TransportService(adtClient);
+const transports = await transportService.listTransports({
+  user: 'DEVELOPER01',
+  maxResults: 10,
+});
+
+// Use discovery service
+const discoveryService = new DiscoveryService(adtClient);
+const services = await discoveryService.getDiscovery();
 ```
 
 ## Contributing
@@ -206,6 +292,18 @@ const token = await authManager.getValidToken();
 ## License
 
 MIT License - see LICENSE file for details.
+
+## Command Reference
+
+| Command                           | Description                       |
+| --------------------------------- | --------------------------------- |
+| `adt auth login --file <path>`    | Authenticate with BTP service key |
+| `adt auth logout`                 | Clear stored tokens               |
+| `adt discovery`                   | List available ADT services       |
+| `adt discovery -o file.json`      | Export services as JSON           |
+| `adt transport list`              | List transport requests           |
+| `adt transport list -u USER`      | Filter by user                    |
+| `adt tr list --status modifiable` | Filter by status (alias)          |
 
 ## Related Projects
 
