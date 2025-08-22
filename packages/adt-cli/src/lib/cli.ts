@@ -143,6 +143,7 @@ export function createCLI(): Command {
     .option('-u, --user <user>', 'Filter by user')
     .option('-s, --status <status>', 'Filter by status (modifiable, released)')
     .option('-m, --max <number>', 'Maximum number of results', '50')
+    .option('--debug', 'Show debug output for parsing')
     .action(async (options) => {
       try {
         const transportService = new TransportService(adtClient);
@@ -151,9 +152,9 @@ export function createCLI(): Command {
           user: options.user,
           status: options.status,
           maxResults: parseInt(options.max),
+          debug: options.debug,
         };
 
-        console.log('🚚 Fetching transport requests...');
         const result = await transportService.listTransports(filters);
 
         console.log(

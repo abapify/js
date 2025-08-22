@@ -140,6 +140,7 @@ List and filter transport requests assigned to users.
 - `-u, --user <user>` - Filter by username
 - `-s, --status <status>` - Filter by status (modifiable, released)
 - `-m, --max <number>` - Maximum number of results (default: 50)
+- `--debug` - Show debug output for API calls and parsing
 
 **Examples:**
 
@@ -158,25 +159,30 @@ adt transport list --max 10
 
 # Use alias for shorter command
 adt tr list -u DEVELOPER01 -m 5
+
+# Debug API calls and parsing
+adt transport list --debug
 ```
 
 **Sample Output:**
 
 ```
-📋 Found 3 transport requests:
+🚚 Fetching transport requests...
 
-🚛 DEVK900123
-   Description: Customer Enhancement Project
+📋 Found 2 transport requests:
+
+🚛 TRLK907362
+   Description: one more request
    Status: modifiable
-   Owner: DEVELOPER01
+Owner: CB9980003374
+Created: 8/22/2025
+Tasks: 1
+
+🚛 TRLK907354
+   Description: New TR
+   Status: modifiable
+   Owner: CB9980003374
    Created: 8/22/2025
-   Tasks: 2
-
-🚛 DEVK900124
-   Description: Bug Fix for Invoice Processing
-   Status: modifiable
-   Owner: DEVELOPER01
-   Created: 8/21/2025
    Tasks: 1
 ```
 
@@ -304,6 +310,7 @@ MIT License - see LICENSE file for details.
 | `adt transport list`              | List transport requests           |
 | `adt transport list -u USER`      | Filter by user                    |
 | `adt tr list --status modifiable` | Filter by status (alias)          |
+| `adt transport list --debug`      | Show debug output                 |
 
 ## Related Projects
 
