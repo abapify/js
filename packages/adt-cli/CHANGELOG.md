@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Transport Management** - New `adt transport list` command to list and filter transport requests
+- **Full ADT Protocol Support** - Implements complete ADT transport organizer protocol with search configuration
 - **Service-Oriented Architecture** - Refactored to modular service structure for better maintainability
 - **Automatic Re-authentication** - CLI automatically re-authenticates when tokens expire using stored service key
 - **Command Aliases** - Added `adt tr` as alias for `adt transport`
 - **Advanced Filtering** - Transport list supports filtering by user, status, and result limits
+- **Debug Mode** - Added `--debug` flag for troubleshooting API calls and XML parsing
 - **Comprehensive Documentation** - Updated README with new commands and API reference
 
 ### Changed
