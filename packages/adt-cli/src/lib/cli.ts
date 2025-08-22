@@ -280,6 +280,71 @@ export function createCLI(): Command {
       }
     });
 
+  transportCmd
+    .command('create')
+    .description('Create a new transport request')
+    .option(
+      '-d, --description <description>',
+      'Transport description (required)'
+    )
+    .option(
+      '-t, --type <type>',
+      'Transport type: K (Workbench) or W (Customizing)',
+      'K'
+    )
+    .option('--target <target>', 'Target system', 'LOCAL')
+    .option('--project <project>', 'CTS project name')
+    .option('--owner <owner>', 'Task owner (defaults to current user)')
+    .option('--json', 'Output as JSON')
+    .option('--debug', 'Show debug output')
+    .action(async (options) => {
+      try {
+        if (!options.description) {
+          console.error(
+            '❌ Description is required. Use -d or --description option.'
+          );
+          process.exit(1);
+        }
+
+        const transportService = new TransportService(adtClient);
+
+        console.log(`🚚 Creating transport request: "${options.description}"`);
+
+        const result = await transportService.createTransport({
+          description: options.description,
+          type: options.type,
+          target: options.target,
+          project: options.project,
+          owner: options.owner,
+          debug: options.debug,
+        });
+
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+
+        console.log(`\n✅ Transport request created successfully!`);
+        console.log(`\n🚛 Transport Request: ${result.transport.number}`);
+        console.log(`   Description: ${result.transport.description}`);
+        console.log(`   Status: ${result.transport.status}`);
+        console.log(`   Owner: ${result.transport.owner}`);
+        console.log(`   Type: ${result.transport.type || 'K'}`);
+        console.log(`   Target: ${result.transport.target || 'LOCAL'}`);
+
+        console.log(`\n📋 Task: ${result.task.number}`);
+        console.log(`   Description: ${result.task.description}`);
+        console.log(`   Owner: ${result.task.owner}`);
+        console.log(`   Type: ${result.task.type}`);
+      } catch (error) {
+        console.error(
+          '❌ Failed to create transport request:',
+          error instanceof Error ? error.message : String(error)
+        );
+        process.exit(1);
+      }
+    });
+
   return program;
 }
 
