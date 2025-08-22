@@ -7,7 +7,28 @@ export interface ADTRequestOptions {
 }
 
 export class ADTClient {
+  private cookies = new Map<string, string>();
+  private debugMode: boolean = false;
+
   constructor(private authManager: AuthManager) {}
+
+  private debug(message: string): void {
+    if (this.debugMode) {
+      console.log(this.sanitizeForLogging(message));
+    }
+  }
+
+  private sanitizeForLogging(message: string): string {
+    return (
+      message
+        // Mask CSRF tokens (keep first 6 chars)
+        .replace(/([A-Za-z0-9+/]{6})[A-Za-z0-9+/=]{10,}/g, '$1***')
+        // Mask cookie values (keep cookie names but hide values)
+        .replace(/(sap-[^=]+)=([^;,\s]+)/g, '$1=***')
+        // Mask URLs to show only the path
+        .replace(/https:\/\/[^\/]+/g, 'https://***')
+    );
+  }
 
   async request(
     endpoint: string,
@@ -20,11 +41,21 @@ export class ADTClient {
       session.serviceKey.endpoints['abap'] || session.serviceKey.url;
     const fullUrl = `${abapEndpoint}${endpoint}`;
 
-    const defaultHeaders = {
+    const defaultHeaders: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       'User-Agent': 'ADT-CLI/1.0.0',
       Accept: 'application/xml',
+      'sap-client': '100',
+      'sap-language': 'EN',
+      'X-sap-adt-sessiontype': 'stateful',
     };
+
+    // Add cookies for session management
+    if (this.cookies.size > 0) {
+      const cookieString = Array.from(this.cookies.values()).join('; ');
+      defaultHeaders['Cookie'] = cookieString;
+      this.debug(`🍪 Sending cookies: ${cookieString}`);
+    }
 
     const response = await fetch(fullUrl, {
       method: options.method || 'GET',
@@ -44,6 +75,9 @@ export class ADTClient {
       );
     }
 
+    // Capture cookies for session management
+    this.updateCookies(response);
+
     return response;
   }
 
@@ -51,23 +85,164 @@ export class ADTClient {
     endpoint: string,
     headers?: Record<string, string>
   ): Promise<string> {
-    const response = await this.request(endpoint, {
-      method: 'GET',
-      headers,
-    });
+    const response = await this.request(endpoint, { method: 'GET', headers });
     return response.text();
   }
 
   async post(
     endpoint: string,
     body: string,
-    headers?: Record<string, string>
+    headers?: Record<string, string>,
+    debug: boolean = false
   ): Promise<string> {
-    const response = await this.request(endpoint, {
-      method: 'POST',
-      body,
-      headers,
-    });
-    return response.text();
+    this.debugMode = debug;
+    return this.postWithRetry(endpoint, body, headers, false);
+  }
+
+  private async postWithRetry(
+    endpoint: string,
+    body: string,
+    headers?: Record<string, string>,
+    isRetry: boolean = false
+  ): Promise<string> {
+    try {
+      // Get CSRF token from the target endpoint
+      const csrfToken = await this.fetchCsrfToken(endpoint);
+
+      // Make POST request with CSRF token
+      const response = await this.request(endpoint, {
+        method: 'POST',
+        body,
+        headers: {
+          ...headers,
+          'x-csrf-token': csrfToken,
+        },
+      });
+      return response.text();
+    } catch (error) {
+      // Retry once on 403 by re-establishing session
+      if (!isRetry && error instanceof Error && error.message.includes('403')) {
+        this.debug('🔄 403 error, attempting to re-establish session...');
+
+        // Clear cookies and initialize session
+        this.cookies.clear();
+        await this.get('/sap/bc/adt/compatibility/graph');
+
+        // Retry once
+        return this.postWithRetry(endpoint, body, headers, true);
+      }
+
+      throw error;
+    }
+  }
+
+  private async fetchCsrfToken(endpoint: string): Promise<string> {
+    const session = this.authManager.getAuthenticatedSession();
+    const token = await this.authManager.getValidToken();
+    const abapEndpoint =
+      session.serviceKey.endpoints['abap'] || session.serviceKey.url;
+
+    // Try different endpoints to get CSRF token
+    const csrfEndpoints = [endpoint, '/sap/bc/adt/compatibility/graph'];
+
+    for (const csrfEndpoint of csrfEndpoints) {
+      try {
+        const fullUrl = `${abapEndpoint}${csrfEndpoint}`;
+        this.debug(`🔒 Trying CSRF fetch from: ${csrfEndpoint}`);
+
+        // GET request to fetch CSRF token
+        const response = await fetch(fullUrl, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'User-Agent': 'ADT-CLI/1.0.0',
+            'x-csrf-token': 'fetch',
+            Accept: 'application/xml',
+            'sap-client': '100',
+            'sap-language': 'EN',
+            'x-sap-security-session': 'use',
+            'X-sap-adt-sessiontype': 'stateful',
+          },
+        });
+
+        this.debug(
+          `🔒 CSRF response: ${response.status} ${response.statusText}`
+        );
+
+        // Update cookies from CSRF response
+        this.updateCookies(response);
+
+        // Extract CSRF token from cookies (SAP stores it there)
+        const xsrfCookie = Array.from(this.cookies.entries()).find(
+          ([key]) => key.includes('XSRF') || key.includes('csrf')
+        );
+
+        if (xsrfCookie) {
+          const cookieValue = xsrfCookie[1].split('=')[1];
+          const decodedToken = decodeURIComponent(cookieValue || '');
+          this.debug(`🔒 CSRF cookie value: ${decodedToken}`);
+
+          // Extract just the token part (before timestamp)
+          const tokenMatch = decodedToken.match(/^([A-Za-z0-9+/]+=*)/);
+          const actualToken = tokenMatch ? tokenMatch[1] : decodedToken;
+          this.debug(`🔒 CSRF token extracted: ${actualToken}`);
+
+          if (
+            actualToken &&
+            actualToken !== 'Required' &&
+            actualToken !== 'fetch'
+          ) {
+            this.debug(`✅ CSRF token obtained from cookie`);
+            return actualToken;
+          }
+        }
+
+        // Fallback to header token
+        const headerToken = response.headers.get('x-csrf-token');
+        if (
+          headerToken &&
+          headerToken !== 'Required' &&
+          headerToken !== 'fetch'
+        ) {
+          this.debug(`✅ CSRF token obtained from header`);
+          return headerToken;
+        }
+      } catch (error) {
+        this.debug(
+          `❌ CSRF fetch failed from ${csrfEndpoint}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+
+    throw new Error('Failed to obtain valid CSRF token');
+  }
+
+  private updateCookies(response: Response): void {
+    const setCookieHeaders = response.headers.get('set-cookie');
+    if (setCookieHeaders) {
+      this.debug(`🍪 Raw set-cookie: ${setCookieHeaders}`);
+
+      const cookies = setCookieHeaders.split(',');
+      cookies.forEach((cookie) => {
+        const cleaned = cookie
+          .replace(/path=\/,/g, '')
+          .replace(/path=\//g, '')
+          .split(';')[0];
+        const [key] = cookie.split('=', 1);
+        if (key) {
+          this.cookies.set(key.trim(), cleaned.trim());
+          this.debug(`🍪 Stored: ${key.trim()}`);
+        }
+      });
+
+      this.debug(`🍪 Total cookies: ${this.cookies.size}`);
+    }
+  }
+
+  async getCurrentUser(): Promise<string> {
+    // Hard-coded for this trial system - in production, extract from API response
+    return 'CB9980003374';
   }
 }

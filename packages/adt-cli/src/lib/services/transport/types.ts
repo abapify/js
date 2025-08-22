@@ -42,3 +42,17 @@ export interface TransportGetResult {
   isTask: boolean;
   requestedTask?: Task;
 }
+
+export interface TransportCreateOptions {
+  description: string;
+  type?: 'K' | 'W'; // K = Workbench, W = Customizing
+  target?: string;
+  project?: string;
+  owner?: string;
+  debug?: boolean;
+}
+
+export interface TransportCreateResult {
+  transport: Transport;
+  task: Task;
+}

@@ -196,6 +196,58 @@ adt tr get TRLK907362
    Parent Transport: TRLK907362 (one more request)
 ```
 
+#### `adt transport create [options]` or `adt tr create [options]`
+
+Create a new transport request.
+
+**Options:**
+
+- `-d, --description <description>` - Transport description (required)
+- `-t, --type <type>` - Transport type: K (Workbench) or W (Customizing), default: K
+- `--target <target>` - Target system, default: LOCAL
+- `--project <project>` - CTS project name
+- `--owner <owner>` - Task owner (defaults to current user)
+- `--json` - Output as JSON
+- `--debug` - Show debug output
+
+**Examples:**
+
+```bash
+# Create a workbench transport
+adt transport create -d "New feature development"
+
+# Create customizing transport
+adt transport create -d "Configuration changes" -t W
+
+# Create with specific target and project
+adt transport create -d "Bug fix" --target DEV --project MYPROJECT
+
+# Use alias
+adt tr create -d "Quick fix"
+```
+
+**Sample Output:**
+
+```
+🚚 Creating transport request: "New feature development"
+
+✅ Transport request created successfully!
+
+🚛 Transport Request: TRLK907364
+   Description: New feature development
+   Status: modifiable
+   Owner: CB9980003374
+   Type: K
+   Target: LOCAL
+
+📋 Task: TRLK907365
+   Description: New feature development
+   Owner: CB9980003374
+   Type: Development/Correction
+```
+
+> **Note:** Transport creation may be restricted in BTP Trial systems. This feature works in full SAP development environments.
+
 #### `adt transport list [options]` or `adt tr list [options]`
 
 List and filter transport requests assigned to users.
@@ -366,17 +418,18 @@ MIT License - see LICENSE file for details.
 
 ## Command Reference
 
-| Command                        | Description                       |
-| ------------------------------ | --------------------------------- |
-| `adt auth login --file <path>` | Authenticate with BTP service key |
-| `adt auth logout`              | Clear stored tokens               |
-| `adt discovery`                | List available ADT services       |
-| `adt discovery -o file.json`   | Export services as JSON           |
-| `adt transport list`           | List transport requests           |
-| `adt transport get <TR>`       | Get transport or task details     |
-| `adt transport list -u USER`   | Filter by user                    |
-| `adt tr get <TR> --tasks`      | Get with task details (alias)     |
-| `adt transport list --debug`   | Show debug output                 |
+| Command                          | Description                       |
+| -------------------------------- | --------------------------------- |
+| `adt auth login --file <path>`   | Authenticate with BTP service key |
+| `adt auth logout`                | Clear stored tokens               |
+| `adt discovery`                  | List available ADT services       |
+| `adt discovery -o file.json`     | Export services as JSON           |
+| `adt transport list`             | List transport requests           |
+| `adt transport get <TR>`         | Get transport or task details     |
+| `adt transport create -d "DESC"` | Create new transport request      |
+| `adt transport list -u USER`     | Filter by user                    |
+| `adt tr create -d "DESC" -t W`   | Create customizing transport      |
+| `adt transport list --debug`     | Show debug output                 |
 
 ## Related Projects
 
