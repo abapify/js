@@ -11,5 +11,6 @@
   ],
   "eslint.validate": ["json"],
   "typescript.tsdk": "node_modules/typescript/lib",
-  "nxConsole.generateAiAgentRules": true
+  "nxConsole.generateAiAgentRules": true,
+  "vitest.disableWorkspaceWarning": true
 }

@@ -38,4 +38,8 @@
 
 ## AMP
 
-- Always propose a plan and confirm it with me before executing it by showing OK button
+- Always propose a plan and confirm it with me before executing
+
+# Documentation
+
+- Do not forget to update README.md not only for a main repo but also for subpackages if you make some essential changes
