@@ -206,17 +206,17 @@ export class AuthManager {
             <html>
               <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
                 <h2>✅ Authentication Successful!</h2>
-                <p>You can close this window and return to the terminal.</p>
+                <p>You can close this tab and return to the terminal.</p>
                 <script>setTimeout(() => window.close(), 2000);</script>
               </body>
             </html>
           `);
 
-          setTimeout(() => {
-            server.close(() => {
-              resolve(token);
-            });
-          }, 1000);
+          // Close server immediately after sending response
+          server.closeAllConnections?.();
+          server.close(() => {
+            resolve(token);
+          });
         } catch (error) {
           console.error(
             '❌ Authentication failed:',
@@ -236,6 +236,7 @@ export class AuthManager {
             </html>
           `);
 
+          server.closeAllConnections?.();
           server.close(() => {
             reject(error);
           });
