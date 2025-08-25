@@ -1,0 +1,32 @@
+import { BaseObject } from '../base/base-object';
+import { PackageData } from './types';
+
+export class DevcObject extends BaseObject<PackageData> {
+  async read(name: string): Promise<PackageData> {
+    console.log(`📦 Reading package: ${name}`);
+
+    try {
+      // Packages use: /sap/bc/adt/packages/{name}
+      const sourceUri = `/sap/bc/adt/packages/${name}`;
+      const xmlData = await this.fetchFromAdt(
+        sourceUri,
+        'application/vnd.sap.adt.packages.v2+xml'
+      );
+
+      return {
+        name,
+        description: `Package ${name}`, // Will be populated from search result
+        source: xmlData.trim(), // For packages, we store the XML metadata
+        metadata: {
+          type: 'DEVC',
+        },
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to read package ${name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+}

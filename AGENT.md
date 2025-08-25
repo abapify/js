@@ -43,3 +43,7 @@
 # Documentation
 
 - Do not forget to update README.md not only for a main repo but also for subpackages if you make some essential changes
+
+# Experiments and temporary data
+
+- all temporary files, outputs of commands and etc should be placed in `tmp` directory that's how we don't mess the git tree and won't commit them accidentally
