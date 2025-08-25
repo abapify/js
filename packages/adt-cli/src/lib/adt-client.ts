@@ -38,51 +38,82 @@ export class ADTClient {
     endpoint: string,
     options: ADTRequestOptions = {}
   ): Promise<Response> {
-    const session = this.authManager.getAuthenticatedSession();
-    const token = await this.authManager.getValidToken();
+    const maxRetries = 2;
+    let lastError: Error | null = null;
 
-    const abapEndpoint =
-      session.serviceKey.endpoints['abap'] || session.serviceKey.url;
-    const fullUrl = `${abapEndpoint}${endpoint}`;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const session = this.authManager.getAuthenticatedSession();
+        const token = await this.authManager.getValidToken();
 
-    const defaultHeaders: Record<string, string> = {
-      Authorization: `Bearer ${token}`,
-      'User-Agent': 'ADT-CLI/1.0.0',
-      Accept: 'application/xml',
-      'sap-client': '100',
-      'sap-language': 'EN',
-      'X-sap-adt-sessiontype': 'stateful',
-    };
+        const abapEndpoint =
+          session.serviceKey.endpoints['abap'] || session.serviceKey.url;
+        const fullUrl = `${abapEndpoint}${endpoint}`;
 
-    // Add cookies for session management
-    if (this.cookies.size > 0) {
-      const cookieString = Array.from(this.cookies.values()).join('; ');
-      defaultHeaders['Cookie'] = cookieString;
-      this.debug(`🍪 Sending cookies: ${cookieString}`);
+        const defaultHeaders: Record<string, string> = {
+          Authorization: `Bearer ${token}`,
+          'User-Agent': 'ADT-CLI/1.0.0',
+          Accept: 'application/xml',
+          'sap-client': '100',
+          'sap-language': 'EN',
+          'X-sap-adt-sessiontype': 'stateful',
+        };
+
+        // Add cookies for session management
+        if (this.cookies.size > 0) {
+          const cookieString = Array.from(this.cookies.values()).join('; ');
+          defaultHeaders['Cookie'] = cookieString;
+          this.debug(`🍪 Sending cookies: ${cookieString}`);
+        }
+
+        const response = await fetch(fullUrl, {
+          method: options.method || 'GET',
+          headers: {
+            ...defaultHeaders,
+            ...options.headers,
+          },
+          body: options.body,
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          const errorMessage = `ADT request failed: ${response.status} ${
+            response.statusText
+          }\nURL: ${fullUrl}\nResponse: ${errorBody.substring(0, 500)}`;
+
+          // On 403, clear session and retry if we haven't exhausted attempts
+          if (response.status === 403 && attempt < maxRetries) {
+            this.debug(
+              `🔄 Got 403 on attempt ${attempt}, clearing session and retrying...`
+            );
+            this.cookies.clear();
+            lastError = new Error(errorMessage);
+            continue; // Try again
+          }
+
+          throw new Error(errorMessage);
+        }
+
+        // Success - capture cookies for session management
+        this.updateCookies(response);
+        return response;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Only retry on 403 errors
+        if (attempt < maxRetries && lastError.message.includes('403')) {
+          this.debug(`🔄 Error on attempt ${attempt}, retrying...`);
+          this.cookies.clear();
+          continue;
+        }
+
+        // If we've exhausted retries or it's not a 403, throw
+        throw lastError;
+      }
     }
 
-    const response = await fetch(fullUrl, {
-      method: options.method || 'GET',
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-      body: options.body,
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `ADT request failed: ${response.status} ${
-          response.statusText
-        }\nURL: ${fullUrl}\nResponse: ${errorBody.substring(0, 500)}`
-      );
-    }
-
-    // Capture cookies for session management
-    this.updateCookies(response);
-
-    return response;
+    // This should never be reached, but just in case
+    throw lastError || new Error('Request failed after all retries');
   }
 
   async get(
@@ -97,54 +128,44 @@ export class ADTClient {
     endpoint: string,
     body: string,
     headers?: Record<string, string>,
-    debug: boolean = false
+    debug?: boolean
   ): Promise<string> {
-    this.debugMode = debug;
-    return this.postWithRetry(endpoint, body, headers, false);
-  }
-
-  private async postWithRetry(
-    endpoint: string,
-    body: string,
-    headers?: Record<string, string>,
-    isRetry: boolean = false
-  ): Promise<string> {
-    try {
-      // Get CSRF token from the target endpoint
-      const csrfToken = await this.fetchCsrfToken(endpoint);
-
-      // Make POST request with CSRF token
-      const response = await this.request(endpoint, {
-        method: 'POST',
-        body,
-        headers: {
-          ...headers,
-          'x-csrf-token': csrfToken,
-        },
-      });
-      return response.text();
-    } catch (error) {
-      // Retry once on 403 by re-establishing session
-      if (!isRetry && error instanceof Error && error.message.includes('403')) {
-        this.debug('🔄 403 error, attempting to re-establish session...');
-
-        // Clear cookies and initialize session
-        this.cookies.clear();
-        await this.get('/sap/bc/adt/compatibility/graph');
-
-        // Retry once
-        return this.postWithRetry(endpoint, body, headers, true);
-      }
-
-      throw error;
+    if (debug !== undefined) {
+      this.debugMode = debug;
     }
+
+    this.debug(`🔄 POST to: ${endpoint}`);
+
+    // Get CSRF token from the target endpoint
+    const csrfToken = await this.fetchCsrfToken(endpoint, false);
+
+    // Make POST request with CSRF token - retry logic is in request()
+    const response = await this.request(endpoint, {
+      method: 'POST',
+      body,
+      headers: {
+        ...headers,
+        'x-csrf-token': csrfToken,
+      },
+    });
+
+    return response.text();
   }
 
-  private async fetchCsrfToken(endpoint: string): Promise<string> {
+  private async fetchCsrfToken(
+    endpoint: string,
+    clearSession: boolean = false
+  ): Promise<string> {
     const session = this.authManager.getAuthenticatedSession();
     const token = await this.authManager.getValidToken();
     const abapEndpoint =
       session.serviceKey.endpoints['abap'] || session.serviceKey.url;
+
+    // If requested, clear session first
+    if (clearSession) {
+      this.debug('🔄 Clearing session for fresh CSRF token...');
+      this.cookies.clear();
+    }
 
     // Try different endpoints to get CSRF token
     const csrfEndpoints = [endpoint, '/sap/bc/adt/compatibility/graph'];
@@ -155,23 +176,38 @@ export class ADTClient {
         this.debug(`🔒 Trying CSRF fetch from: ${csrfEndpoint}`);
 
         // GET request to fetch CSRF token
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${token}`,
+          'User-Agent': 'ADT-CLI/1.0.0',
+          'x-csrf-token': 'fetch',
+          Accept: 'application/xml',
+          'sap-client': '100',
+          'sap-language': 'EN',
+          'x-sap-security-session': 'use',
+          'X-sap-adt-sessiontype': 'stateful',
+        };
+
+        // Add cookies for session management
+        if (this.cookies.size > 0) {
+          const cookieString = Array.from(this.cookies.values()).join('; ');
+          headers['Cookie'] = cookieString;
+          this.debug(`🍪 Sending cookies for CSRF fetch: ${cookieString}`);
+        }
+
         const response = await fetch(fullUrl, {
           method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'User-Agent': 'ADT-CLI/1.0.0',
-            'x-csrf-token': 'fetch',
-            Accept: 'application/xml',
-            'sap-client': '100',
-            'sap-language': 'EN',
-            'x-sap-security-session': 'use',
-            'X-sap-adt-sessiontype': 'stateful',
-          },
+          headers,
         });
 
         this.debug(
           `🔒 CSRF response: ${response.status} ${response.statusText}`
         );
+
+        // If we get 403 during CSRF fetch, that's unusual but continue to next endpoint
+        if (response.status === 403) {
+          this.debug('🔄 Got 403 during CSRF fetch, trying next endpoint...');
+          continue;
+        }
 
         // Update cookies from CSRF response
         this.updateCookies(response);
@@ -187,7 +223,7 @@ export class ADTClient {
           this.debug(`🔒 CSRF cookie value: ${decodedToken}`);
 
           // Extract just the token part (before timestamp)
-          const tokenMatch = decodedToken.match(/^([A-Za-z0-9+/]+=*)/);
+          const tokenMatch = decodedToken.match(/^([A-Za-z0-9+/_-]+=*)/);
           const actualToken = tokenMatch ? tokenMatch[1] : decodedToken;
           this.debug(`🔒 CSRF token extracted: ${actualToken}`);
 
@@ -217,6 +253,7 @@ export class ADTClient {
             error instanceof Error ? error.message : String(error)
           }`
         );
+        continue; // Try next endpoint
       }
     }
 

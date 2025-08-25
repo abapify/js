@@ -71,7 +71,9 @@ export class SearchService {
 
     try {
       const searchUrl = this.buildSearchUrl(options);
-      console.log(`🌐 Search URL: ${searchUrl.substring(0, 100)}...`);
+      if (options.debug) {
+        console.log(`🌐 Search URL: ${searchUrl.substring(0, 100)}...`);
+      }
 
       const response = await this.adtClient.request(searchUrl, {
         method: 'GET',
@@ -81,11 +83,13 @@ export class SearchService {
       });
 
       const xmlContent = await response.text();
-      console.log(
-        `📄 Search response (${
-          xmlContent.length
-        } chars): ${xmlContent.substring(0, 200)}...`
-      );
+      if (options.debug) {
+        console.log(
+          `📄 Search response (${
+            xmlContent.length
+          } chars): ${xmlContent.substring(0, 200)}...`
+        );
+      }
 
       return this.parseSearchResults(xmlContent);
     } catch (error) {
