@@ -2,9 +2,20 @@ import { BaseFormat, FormatResult, ObjectReference } from '../base-format';
 import { ObjectData } from '../../objects/base/types';
 import { IconRegistry } from '../../utils/icon-registry';
 
+/**
+ * ⚠️ EXPERIMENTAL DEMO FORMAT ⚠️
+ *
+ * This abapGit format implementation is provided for DEMONSTRATION PURPOSES ONLY
+ * to showcase the plugin architecture capabilities of the OAT framework.
+ *
+ * This is NOT a fully working abapGit solution and should NOT be used in production.
+ * It generates simplified XML metadata that may not be compatible with real abapGit.
+ *
+ * For production abapGit usage, use the official abapGit tools.
+ */
 export class AbapGitFormat extends BaseFormat {
   name = 'abapgit';
-  description = 'abapGit-compatible format with src/ structure';
+  description = '⚠️ DEMO: abapGit-like format (experimental proof-of-concept)';
 
   // abapGit can filter object types if needed
   protected shouldSupportObjectType(objectType: string): boolean {
@@ -18,6 +29,9 @@ export class AbapGitFormat extends BaseFormat {
     objectType: string,
     outputPath: string
   ): Promise<FormatResult> {
+    // Show warning for experimental format
+    console.log('⚠️ WARNING: Using experimental abapGit format (demo only)');
+
     const fs = require('fs');
     const path = require('path');
 
@@ -196,6 +210,19 @@ export class AbapGitFormat extends BaseFormat {
     outputPath: string,
     result: FormatResult
   ): Promise<void> {
+    console.log('');
+    console.log('⚠️ IMPORTANT DISCLAIMER:');
+    console.log(
+      'This abapGit format is EXPERIMENTAL and for DEMONSTRATION only.'
+    );
+    console.log(
+      'It is NOT compatible with real abapGit and should NOT be used in production.'
+    );
+    console.log(
+      'For real abapGit functionality, use the official abapGit tools.'
+    );
+    console.log('');
+
     // Create .abapgit.xml project file
     const fs = require('fs');
     const path = require('path');
