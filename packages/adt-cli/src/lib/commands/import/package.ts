@@ -17,7 +17,11 @@ export const importPackageCommand = new Command('package')
     'Comma-separated object types (e.g., CLAS,INTF,DDLS). Default: all supported by format'
   )
   .option('--sub-packages', 'Include subpackages', false)
-  .option('--format <format>', 'Output format (oat|abapgit|json)', 'oat')
+  .option(
+    '--format <format>',
+    'Output format: oat (production) | abapgit (experimental demo) | json',
+    'oat'
+  )
   .option('--debug', 'Enable debug output', false)
   .action(async (packageName, targetFolder, options) => {
     try {
