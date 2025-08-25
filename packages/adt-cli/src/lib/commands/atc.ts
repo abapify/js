@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import { AtcService } from '../services/atc/service';
 import { adtClient } from '../shared/clients';
+import { outputGitLabCodeQuality } from '../formatters/gitlab-formatter';
+import { outputSarifReport } from '../formatters/sarif-formatter';
 
 export const atcCommand = new Command('atc')
   .description('⚠️ EXPERIMENTAL: Run ABAP Test Cockpit (ATC) checks')
@@ -8,7 +10,12 @@ export const atcCommand = new Command('atc')
   .option('-t, --transport <transport>', 'Run ATC on transport request')
   .option('--variant <variant>', 'ATC check variant to use')
   .option('--max-results <number>', 'Maximum number of results', '100')
-  .option('--json', 'Output as JSON', false)
+  .option(
+    '--format <format>',
+    'Output format: console, json, gitlab, sarif',
+    'console'
+  )
+  .option('--output <file>', 'Output file (required for gitlab format)')
   .option('--debug', 'Enable debug output', false)
   .action(async (options) => {
     try {
@@ -19,6 +26,24 @@ export const atcCommand = new Command('atc')
 
       if (options.package && options.transport) {
         console.error('❌ Cannot specify both --package and --transport');
+        process.exit(1);
+      }
+
+      // Validate format and output options
+      if (
+        (options.format === 'gitlab' || options.format === 'sarif') &&
+        !options.output
+      ) {
+        console.error(
+          `❌ --output <file> is required when using --format=${options.format}`
+        );
+        process.exit(1);
+      }
+
+      if (!['console', 'json', 'gitlab', 'sarif'].includes(options.format)) {
+        console.error(
+          '❌ Invalid format. Use: console, json, gitlab, or sarif'
+        );
         process.exit(1);
       }
 
@@ -48,9 +73,13 @@ export const atcCommand = new Command('atc')
         debug: options.debug,
       });
 
-      // Display results
-      if (options.json) {
+      // Display results based on format
+      if (options.format === 'json') {
         console.log(JSON.stringify(result, null, 2));
+      } else if (options.format === 'gitlab') {
+        await outputGitLabCodeQuality(result, options.output);
+      } else if (options.format === 'sarif') {
+        await outputSarifReport(result, options.output, targetName);
       } else {
         displayAtcResults(result);
       }
