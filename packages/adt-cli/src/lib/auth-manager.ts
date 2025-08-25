@@ -92,7 +92,6 @@ export class AuthManager {
     const serviceKey = ServiceKeyParser.parse(serviceKeyJson);
 
     console.log(`🔧 System: ${serviceKey.systemid}`);
-    console.log(`🌐 Opening browser for authentication...`);
 
     // Generate PKCE parameters
     const codeVerifier = generateCodeVerifier();
@@ -108,6 +107,8 @@ export class AuthManager {
     authUrl.searchParams.set('code_challenge_method', 'S256');
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('scope', 'openid'); // Use default scopes
+
+    console.log(`🌐 Opening browser for authentication...`);
 
     const token = await this.performBrowserAuth(
       serviceKey,

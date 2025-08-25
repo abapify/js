@@ -6,6 +6,9 @@ import { AuthManager } from './auth-manager';
 import { ADTClient } from './adt-client';
 import { TransportService } from './services/transport';
 import { DiscoveryService } from './services/discovery';
+import { ImportService } from './services/import/service';
+import { SearchService } from './services/search/service';
+import { IconRegistry } from './utils/icon-registry';
 
 const authManager = new AuthManager();
 const adtClient = new ADTClient(authManager);
@@ -125,6 +128,75 @@ export function createCLI(): Command {
       } catch (error) {
         console.error(
           '❌ Discovery failed:',
+          error instanceof Error ? error.message : String(error)
+        );
+        process.exit(1);
+      }
+    });
+
+  // Search command
+  program
+    .command('search [searchTerm]')
+    .description('Search ABAP objects using ADT Repository Information System')
+    .option('-p, --package <package>', 'Filter by package name')
+    .option(
+      '-t, --object-type <type>',
+      'Filter by object type (CLAS, INTF, PROG, etc.)'
+    )
+    .option('-m, --max-results <number>', 'Maximum number of results', '100')
+    .option('--no-description', 'Exclude descriptions from results')
+    .option('--debug', 'Enable debug output', false)
+    .action(async (searchTerm, options) => {
+      try {
+        const searchService = new SearchService(adtClient);
+
+        console.log(`🔍 Searching ABAP objects...`);
+
+        const searchOptions = {
+          operation: 'quickSearch' as const,
+          query: searchTerm,
+          packageName: options.package,
+          objectType: options.objectType,
+          maxResults: parseInt(options.maxResults),
+          noDescription: options.noDescription,
+          debug: options.debug,
+        };
+
+        const result = await searchService.searchObjects(searchOptions);
+
+        if (result.objects.length === 0) {
+          console.log('No objects found matching the search criteria.');
+          return;
+        }
+
+        console.log(`\n📋 Found ${result.totalCount} objects:\n`);
+
+        // Group by object type for better display
+        const groupedObjects = result.objects.reduce((groups, obj) => {
+          const type = obj.type;
+          if (!groups[type]) groups[type] = [];
+          groups[type].push(obj);
+          return groups;
+        }, {} as Record<string, typeof result.objects>);
+
+        for (const [objectType, objects] of Object.entries(groupedObjects)) {
+          const icon = IconRegistry.getIcon(objectType);
+          console.log(`${icon} ${objectType} (${objects.length} objects):`);
+          for (const obj of objects) {
+            console.log(`   ${obj.name}`);
+            if (obj.description) {
+              console.log(`     📝 ${obj.description}`);
+            }
+            console.log(`     📦 Package: ${obj.packageName}`);
+            if (options.debug) {
+              console.log(`     🔗 URI: ${obj.uri}`);
+            }
+            console.log();
+          }
+        }
+      } catch (error) {
+        console.error(
+          `❌ Search failed:`,
           error instanceof Error ? error.message : String(error)
         );
         process.exit(1);
@@ -339,6 +411,76 @@ export function createCLI(): Command {
       } catch (error) {
         console.error(
           '❌ Failed to create transport request:',
+          error instanceof Error ? error.message : String(error)
+        );
+        process.exit(1);
+      }
+    });
+
+  // Import commands
+  const importCmd = program
+    .command('import')
+    .alias('exp')
+    .description('Import ABAP objects to OAT format (Open ABAP Tooling)');
+
+  importCmd
+    .command('package <packageName> [targetFolder]')
+    .description('Import an ABAP package and its contents')
+    .option(
+      '-o, --output <path>',
+      'Output directory (overrides targetFolder)',
+      ''
+    )
+    .option(
+      '-t, --object-types <types>',
+      'Comma-separated object types (e.g., CLAS,INTF,DDLS). Default: all supported by plugin'
+    )
+    .option('--sub-packages', 'Include subpackages', false)
+    .option('--format <format>', 'Output format (oat|abapgit|json)', 'oat')
+    .option('--debug', 'Enable debug output', false)
+    .action(async (packageName, targetFolder, options) => {
+      try {
+        const importService = new ImportService(adtClient);
+
+        // Determine output path: --output option, targetFolder argument, or default
+        const outputPath =
+          options.output ||
+          targetFolder ||
+          `./oat-${packageName.toLowerCase().replace('$', '')}`;
+
+        console.log(`🚀 Starting import of package: ${packageName}`);
+        console.log(`📁 Target folder: ${outputPath}`);
+
+        // Parse object types if provided
+        const objectTypes = options.objectTypes
+          ? options.objectTypes
+              .split(',')
+              .map((t: string) => t.trim().toUpperCase())
+          : undefined;
+
+        const result = await importService.importPackage({
+          packageName,
+          outputPath,
+          objectTypes,
+          includeSubpackages: options.subPackages,
+          format: options.format,
+          debug: options.debug,
+        });
+
+        console.log(`\n✅ Import completed successfully!`);
+        console.log(`📁 Package: ${result.packageName}`);
+        console.log(`📝 Description: ${result.description}`);
+        console.log(`📊 Total objects: ${result.totalObjects}`);
+        console.log(`✅ Processed: ${result.processedObjects}`);
+
+        // Show objects by type
+        for (const [type, count] of Object.entries(result.objectsByType)) {
+          const icon = IconRegistry.getIcon(type);
+          console.log(`${icon} ${type}: ${count}`);
+        }
+      } catch (error) {
+        console.error(
+          `❌ Import failed:`,
           error instanceof Error ? error.message : String(error)
         );
         process.exit(1);
