@@ -5,6 +5,8 @@ import {
   importPackageCommand,
   searchCommand,
   discoveryCommand,
+  getCommand,
+  atcCommand,
   loginCommand,
   logoutCommand,
   transportListCommand,
@@ -32,6 +34,12 @@ export function createCLI(): Command {
   // Discovery command
   program.addCommand(discoveryCommand);
 
+  // Object inspector command
+  program.addCommand(getCommand);
+
+  // ATC (ABAP Test Cockpit) command
+  program.addCommand(atcCommand);
+
   // Search command
   program.addCommand(searchCommand);
 
@@ -48,7 +56,6 @@ export function createCLI(): Command {
   // Import commands
   const importCmd = program
     .command('import')
-    .alias('exp')
     .description('Import ABAP objects to various formats (OAT, abapGit, etc.)');
 
   importCmd.addCommand(importPackageCommand);

@@ -4,9 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./sample-node"
-    },
-    {
       "path": "./packages/sample-tsdown"
     }
   ]

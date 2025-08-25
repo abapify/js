@@ -29,4 +29,20 @@ export class DiscoveryService {
       );
     }
   }
+
+  async getDiscoveryXml(): Promise<string> {
+    const endpoint = '/sap/bc/adt/discovery';
+
+    try {
+      return await this.adtClient.get(endpoint, {
+        Accept: 'application/atomsvc+xml',
+      });
+    } catch (error) {
+      throw new Error(
+        `Discovery XML failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
 }

@@ -11,8 +11,9 @@
     "vscode": {
       "extensions": ["nrwl.angular-console"]
     }
-  }
-  // "runArgs": []
+  },
+
+  "runArgs": ["--network=host"]
 
   // Features to add to the dev container. More info: https://containers.dev/features.
   // "features": {},
