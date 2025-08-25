@@ -63,10 +63,7 @@ export class OatFormat extends BaseFormat {
     fs.writeFileSync(metadataFile, serialized.content);
     filesCreated.push(metadataFile);
 
-    const icon = IconRegistry.getIcon(objectType);
-    console.log(
-      `${icon} [OAT] Created ${objectType}: objects/${objectType}/${objectData.name}/`
-    );
+    // Only show detailed output in debug mode - format will be silent by default
 
     return {
       filesCreated,
@@ -178,6 +175,6 @@ export class OatFormat extends BaseFormat {
 
     const manifestFile = path.join(outputPath, '.oat.json');
     fs.writeFileSync(manifestFile, JSON.stringify(oatManifest, null, 2));
-    console.log(`🌾 [OAT] Created project manifest: ${manifestFile}`);
+    // Project manifest creation is silent - only show in debug mode if needed
   }
 }

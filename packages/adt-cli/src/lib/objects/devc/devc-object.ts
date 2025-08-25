@@ -3,7 +3,7 @@ import { PackageData } from './types';
 
 export class DevcObject extends BaseObject<PackageData> {
   async read(name: string): Promise<PackageData> {
-    console.log(`📦 Reading package: ${name}`);
+    // Reading is silent - only show in debug mode if needed
 
     try {
       // Packages use: /sap/bc/adt/packages/{name}
