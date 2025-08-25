@@ -2,6 +2,7 @@ import { ADTClient } from '../../adt-client';
 import { SearchService, ADTObject } from '../search/service';
 import { ObjectRegistry } from '../../objects/registry';
 import { FormatRegistry } from '../../formats/format-registry';
+import { IconRegistry } from '../../utils/icon-registry';
 
 export interface ImportOptions {
   packageName: string;
@@ -38,7 +39,9 @@ export class ImportService {
 
     try {
       // Discover all objects in package using SearchService
-      console.log(`📦 Discovering package: ${options.packageName}`);
+      if (options.debug) {
+        console.log(`📦 Discovering package: ${options.packageName}`);
+      }
       const searchResult = await this.searchService.searchByPackage(
         options.packageName,
         {
@@ -46,7 +49,9 @@ export class ImportService {
         }
       );
 
-      console.log(`✅ Found ${searchResult.totalCount} total objects`);
+      if (options.debug) {
+        console.log(`✅ Found ${searchResult.totalCount} total objects`);
+      }
 
       // Set up output directory and get plugin
       const fs = require('fs');
@@ -56,9 +61,11 @@ export class ImportService {
       const format = options.format || 'oat';
       const formatHandler = FormatRegistry.get(format);
 
-      console.log(
-        `🎨 Using format: ${formatHandler.name} - ${formatHandler.description}`
-      );
+      if (options.debug) {
+        console.log(
+          `🎨 Using format: ${formatHandler.name} - ${formatHandler.description}`
+        );
+      }
 
       // Filter objects based on both format support and ADT handler support
       const objectsToProcess = searchResult.objects.filter((obj) => {
@@ -71,7 +78,36 @@ export class ImportService {
         return supportedByFormat && supportedByADT && includeByOptions;
       });
 
-      console.log(`🎯 Processing ${objectsToProcess.length} supported objects`);
+      // Show compact progress info
+      const objectCounts = objectsToProcess.reduce((counts, obj) => {
+        counts[obj.type] = (counts[obj.type] || 0) + 1;
+        return counts;
+      }, {} as Record<string, number>);
+
+      const formatName = formatHandler.name.toUpperCase();
+      const objectSummary = Object.entries(objectCounts)
+        .map(
+          ([type, count]) =>
+            `${count} ${type.toLowerCase()}${count > 1 ? 's' : ''}`
+        )
+        .join(', ');
+
+      console.log(`📦 Importing package ${options.packageName}`);
+
+      // Show what will actually be imported (scalable for many types)
+      if (Object.keys(objectCounts).length <= 3) {
+        // Simple format for few types
+        console.log(
+          `🔍 Importing ${objectsToProcess.length} objects: ${objectSummary}`
+        );
+      } else {
+        // Structured format for many types
+        console.log(`🔍 Importing ${objectsToProcess.length} objects:`);
+        Object.entries(objectCounts).forEach(([type, count]) => {
+          const icon = IconRegistry.getIcon(type);
+          console.log(`   ${icon} ${type}: ${count}`);
+        });
+      }
 
       // Format preprocessing
       if (formatHandler.beforeImport) {
@@ -121,8 +157,7 @@ export class ImportService {
         await formatHandler.afterImport(baseDir, totalResult);
       }
 
-      console.log(`📁 Files exported to: ${baseDir}`);
-      console.log(`✅ Package ${options.packageName} exported successfully!`);
+      console.log(`✅ Import complete`);
 
       return {
         packageName: options.packageName,

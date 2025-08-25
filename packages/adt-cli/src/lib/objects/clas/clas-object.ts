@@ -3,7 +3,7 @@ import { ClassData } from './types';
 
 export class ClasObject extends BaseObject<ClassData> {
   async read(name: string): Promise<ClassData> {
-    console.log(`🏛️ Reading class: ${name}`);
+    // Reading is silent - only show in debug mode if needed
 
     try {
       // Classes use: /sap/bc/adt/oo/classes/{name}/source/main

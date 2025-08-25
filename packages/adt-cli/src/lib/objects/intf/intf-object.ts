@@ -3,7 +3,7 @@ import { InterfaceData } from './types';
 
 export class IntfObject extends BaseObject<InterfaceData> {
   async read(name: string): Promise<InterfaceData> {
-    console.log(`🔌 Reading interface: ${name}`);
+    // Reading is silent - only show in debug mode if needed
 
     try {
       // Interfaces use: /sap/bc/adt/oo/interfaces/{name}/source/main

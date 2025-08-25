@@ -33,8 +33,11 @@ export const importPackageCommand = new Command('package')
         targetFolder ||
         `./oat-${packageName.toLowerCase().replace('$', '')}`;
 
-      console.log(`🚀 Starting import of package: ${packageName}`);
-      console.log(`📁 Target folder: ${outputPath}`);
+      // Only show start message in debug mode
+      if (options.debug) {
+        console.log(`🚀 Starting import of package: ${packageName}`);
+        console.log(`📁 Target folder: ${outputPath}`);
+      }
 
       // Parse object types if provided
       const objectTypes = options.objectTypes
@@ -52,16 +55,19 @@ export const importPackageCommand = new Command('package')
         debug: options.debug,
       });
 
-      console.log(`\n✅ Import completed successfully!`);
-      console.log(`📁 Package: ${result.packageName}`);
-      console.log(`📝 Description: ${result.description}`);
-      console.log(`📊 Total objects: ${result.totalObjects}`);
-      console.log(`✅ Processed: ${result.processedObjects}`);
+      // Compact success message - details only in debug mode
+      if (options.debug) {
+        console.log(`\n✅ Import completed successfully!`);
+        console.log(`📁 Package: ${result.packageName}`);
+        console.log(`📝 Description: ${result.description}`);
+        console.log(`📊 Total objects: ${result.totalObjects}`);
+        console.log(`✅ Processed: ${result.processedObjects}`);
 
-      // Show objects by type
-      for (const [type, count] of Object.entries(result.objectsByType)) {
-        const icon = IconRegistry.getIcon(type);
-        console.log(`${icon} ${type}: ${count}`);
+        // Show objects by type
+        for (const [type, count] of Object.entries(result.objectsByType)) {
+          const icon = IconRegistry.getIcon(type);
+          console.log(`${icon} ${type}: ${count}`);
+        }
       }
     } catch (error) {
       console.error(

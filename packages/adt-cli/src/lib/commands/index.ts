@@ -2,6 +2,8 @@
 export { importPackageCommand } from './import/package';
 export { searchCommand } from './search';
 export { discoveryCommand } from './discovery';
+export { getCommand } from './get';
+export { atcCommand } from './atc';
 export { loginCommand } from './auth/login';
 export { logoutCommand } from './auth/logout';
 export { transportListCommand } from './transport/list';

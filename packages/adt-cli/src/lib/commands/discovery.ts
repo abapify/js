@@ -9,7 +9,7 @@ export const discoveryCommand = new Command('discovery')
   .action(async (options) => {
     try {
       const discoveryService = new DiscoveryService(adtClient);
-      const result = await discoveryService.discover();
+      const result = await discoveryService.getDiscovery();
 
       if (options.output) {
         // Save to file
