@@ -238,15 +238,20 @@ export class AtcService {
   ): Promise<Partial<AtcResult>> {
     if (options.debug) {
       console.log(`📋 Step 4: Polling for ATC results...`);
+    } else {
+      process.stdout.write('⏳ Analyzing code');
     }
 
     const includeExempted = options.includeExempted ? 'true' : 'false';
-    const endpoint = `/sap/bc/adt/atc/worklists/${worklistId}?includeExemptedFindings=${includeExempted}`;
+    const endpoint = `/sap/bc/adt/atc/worklists/${worklistId}?includeExemptedFindings=${includeExempted}&usedObjectSet=99999999999999999999999999999999`;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         if (options.debug) {
           console.log(`🔄 Polling attempt ${attempt}/${maxAttempts}...`);
+        } else {
+          // Show progress dots
+          process.stdout.write('.');
         }
 
         const response = await this.adtClient.request(endpoint, {
@@ -262,19 +267,61 @@ export class AtcService {
           console.log(
             `📄 Results received (${
               xmlContent.length
-            } chars): ${xmlContent.substring(0, 300)}...`
+            } chars): ${xmlContent.substring(0, 200)}...`
           );
         }
 
         // Parse results
         const results = this.parseAtcResults(xmlContent);
 
-        // If we got results, return them
-        if ((results.totalFindings ?? -1) >= 0) {
+        // Check if ATC run is complete by looking at the XML structure
+        // Only return results if we have a complete worklist with objectSetIsComplete="true"
+        const parsed = this.xmlParser.parse(xmlContent);
+        const worklist = parsed['atcworklist:worklist'] || parsed.worklist;
+        const isComplete =
+          worklist?.['@atcworklist:objectSetIsComplete'] === true ||
+          worklist?.['@objectSetIsComplete'] === true;
+
+        if (options.debug) {
+          console.log(
+            `🔍 ATC run complete: ${isComplete}, findings: ${
+              results.totalFindings ?? 0
+            }`
+          );
+        }
+
+        // Check if we have the Last Check Run object set available
+        const usedObjectSet = worklist?.['@atcworklist:usedObjectSet'];
+        const hasLastCheckRun =
+          usedObjectSet === '99999999999999999999999999999999' ||
+          usedObjectSet === 9.999999999999999e31 ||
+          String(usedObjectSet) === '1e+32';
+
+        if (options.debug) {
+          console.log(
+            `🔍 Has Last Check Run: ${hasLastCheckRun}, Used ObjectSet: ${worklist?.['@atcworklist:usedObjectSet']}`
+          );
+        }
+
+        // Only return if the ATC run is actually complete AND we have the Last Check Run results
+        if (
+          isComplete &&
+          hasLastCheckRun &&
+          (results.totalFindings ?? -1) >= 0
+        ) {
           if (options.debug) {
             console.log(`✅ ATC results ready after ${attempt} attempts`);
+          } else {
+            // Clear progress line
+            process.stdout.write('\r\x1b[K');
           }
           return results;
+        }
+
+        if (options.debug && !hasLastCheckRun) {
+          console.log(`⏳ Waiting for Last Check Run object set...`);
+        } else if (options.debug && !isComplete) {
+          console.log(`⏳ ATC run still processing, waiting...`);
         }
 
         // Wait before next attempt (except last attempt)
@@ -291,6 +338,10 @@ export class AtcService {
       }
     }
 
+    // Clear progress line on error too
+    if (!options.debug) {
+      process.stdout.write('\r\x1b[K');
+    }
     throw new Error(`ATC results not ready after ${maxAttempts} attempts`);
   }
 
