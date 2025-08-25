@@ -47,3 +47,9 @@
 # Experiments and temporary data
 
 - all temporary files, outputs of commands and etc should be placed in `tmp` directory that's how we don't mess the git tree and won't commit them accidentally
+
+# NodeJS/Typescript
+
+- always prefer to use the most recent native APIs if that is possible
+- async is preferred over callbacks and syncronous calls
+- please assest all range of availabkle APIs, such as generators, iterators including async versions
