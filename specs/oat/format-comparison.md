@@ -8,12 +8,12 @@
 oat-package/
 ├── .oat.json
 └── objects/
-    ├── CLAS/
-    │   └── ZCL_EXAMPLE/
+    ├── clas/
+    │   └── zcl_example/
     │       ├── zcl_example.clas.abap
     │       └── zcl_example.clas.yaml
-    └── INTF/
-        └── ZIF_EXAMPLE/
+    └── intf/
+        └── zif_example/
             ├── zif_example.intf.abap
             └── zif_example.intf.yaml
 ```
@@ -104,7 +104,7 @@ spec:
 ```bash
 # Clean, predictable commands
 adt import package ZFINANCE --format=oat
-ls objects/CLAS/  # Easy to see all classes
+ls objects/clas/  # Easy to see all classes
 ```
 
 ### abapGit Workflow
