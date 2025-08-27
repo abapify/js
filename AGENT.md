@@ -39,6 +39,7 @@
 ## AMP
 
 - Always propose a plan and confirm it with me before executing
+- Never forget to rebuild the package before running it
 
 # Documentation
 
