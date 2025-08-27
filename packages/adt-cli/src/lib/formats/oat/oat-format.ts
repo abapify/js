@@ -18,12 +18,12 @@ export class OatFormat extends BaseFormat {
     const fs = require('fs');
     const path = require('path');
 
-    // OAT structure: objects/TYPE/NAME/
+    // OAT structure: objects/type/name/ (all lowercase)
     const objectDir = path.join(
       outputPath,
       'objects',
-      objectType,
-      objectData.name
+      objectType.toLowerCase(),
+      objectData.name.toLowerCase()
     );
     fs.mkdirSync(objectDir, { recursive: true });
 
@@ -79,8 +79,13 @@ export class OatFormat extends BaseFormat {
     const fs = require('fs');
     const path = require('path');
 
-    // OAT structure: objects/TYPE/NAME/
-    const objectDir = path.join(projectPath, 'objects', objectType, objectName);
+    // OAT structure: objects/type/name/ (all lowercase)
+    const objectDir = path.join(
+      projectPath,
+      'objects',
+      objectType.toLowerCase(),
+      objectName.toLowerCase()
+    );
     const objectNameLower = objectName.toLowerCase();
     const typeExtension = objectType.toLowerCase();
 
@@ -170,7 +175,7 @@ export class OatFormat extends BaseFormat {
       version: '1.0.0',
       generator: 'adt-cli',
       objectsProcessed: result.objectsProcessed,
-      structure: 'objects/TYPE/NAME/',
+      structure: 'objects/type/name/',
     };
 
     const manifestFile = path.join(outputPath, '.oat.json');

@@ -8,7 +8,7 @@ OAT is a Git-friendly serialization format for ABAP objects, designed as part of
 
 ### 1. Clean Directory Structure
 
-OAT organizes objects by type in a predictable `objects/TYPE/NAME/` hierarchy, making it easy to navigate and understand project contents.
+OAT organizes objects by type in a predictable `objects/type/name/` hierarchy, making it easy to navigate and understand project contents.
 
 ### 2. Kubernetes-Inspired Metadata
 
