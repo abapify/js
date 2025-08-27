@@ -8,21 +8,21 @@ The OAT format uses a clean, type-based directory structure for organizing ABAP 
 oat-package-name/
 ├── .oat.json            # OAT project manifest
 ├── objects/             # All ABAP objects organized by type
-│   ├── CLAS/           # Classes
-│   │   └── ZCL_EXAMPLE/
+│   ├── clas/           # Classes
+│   │   └── zcl_example/
 │   │       ├── zcl_example.clas.abap  # Source code
 │   │       └── zcl_example.clas.yaml  # Metadata
-│   ├── INTF/           # Interfaces
-│   │   └── ZIF_EXAMPLE/
+│   ├── intf/           # Interfaces
+│   │   └── zif_example/
 │   │       ├── zif_example.intf.abap
 │   │       └── zif_example.intf.yaml
-│   ├── DEVC/           # Packages
-│   │   └── ZPACKAGE/
+│   ├── devc/           # Packages
+│   │   └── zpackage/
 │   │       └── zpackage.devc.yaml     # Package metadata only
-│   ├── TABL/           # Tables
-│   ├── DTEL/           # Data elements
-│   ├── DOMA/           # Domains
-│   └── FUGR/           # Function groups
+│   ├── tabl/           # Tables
+│   ├── dtel/           # Data elements
+│   ├── doma/           # Domains
+│   └── fugr/           # Function groups
 └── README.md           # Optional project documentation
 ```
 
@@ -51,7 +51,7 @@ Generated automatically by ADT CLI during import:
   "version": "1.0.0",
   "generator": "adt-cli",
   "objectsProcessed": 25,
-  "structure": "objects/TYPE/NAME/"
+  "structure": "objects/type/name/"
 }
 ```
 
@@ -60,7 +60,7 @@ Generated automatically by ADT CLI during import:
 ### Class Example
 
 ```
-objects/CLAS/ZCL_INVOICE_PROCESSOR/
+objects/clas/zcl_invoice_processor/
 ├── zcl_invoice_processor.clas.abap    # ABAP source code
 └── zcl_invoice_processor.clas.yaml    # Object metadata
 ```
@@ -92,7 +92,7 @@ spec:
 ### Package Example
 
 ```
-objects/DEVC/ZFINANCE/
+objects/devc/zfinance/
 └── zfinance.devc.yaml                 # Package metadata only
 ```
 
@@ -121,4 +121,4 @@ YAML metadata contains only essential information (name, description), keeping f
 
 ### No Deep Nesting
 
-The three-level structure (`objects/TYPE/NAME/`) provides organization without complexity, making navigation and tooling development straightforward.
+The three-level structure (`objects/type/name/`) provides organization without complexity, making navigation and tooling development straightforward.
