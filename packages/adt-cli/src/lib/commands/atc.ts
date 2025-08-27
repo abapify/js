@@ -64,6 +64,9 @@ export const atcCommand = new Command('atc')
         console.log(`🚛 Target: Transport ${targetName}`);
       }
 
+      const checkVariant = options.variant || 'ABAP_CLOUD_DEVELOPMENT_DEFAULT';
+      console.log(`🎯 Check variant: ${checkVariant}`);
+
       const result = await atcService.runAtcCheck({
         target,
         targetName,
@@ -95,8 +98,18 @@ export const atcCommand = new Command('atc')
 function displayAtcResults(result: any): void {
   if (result.totalFindings === 0) {
     console.log(`\n✅ ATC check passed - No issues found!`);
+    console.log(
+      `   🎯 Variant: ${
+        result.checkVariant || 'ABAP_CLOUD_DEVELOPMENT_DEFAULT'
+      }`
+    );
   } else {
     console.log(`\n📊 ATC Results Summary:`);
+    console.log(
+      `   🎯 Variant: ${
+        result.checkVariant || 'ABAP_CLOUD_DEVELOPMENT_DEFAULT'
+      }`
+    );
     if (result.errorCount > 0)
       console.log(`   ❌ Errors: ${result.errorCount}`);
     if (result.warningCount > 0)
