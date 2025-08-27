@@ -5,17 +5,20 @@
 ### OAT Format
 
 ```
-oat-package/
+oat-project/
 ├── .oat.json
-└── objects/
-    ├── clas/
-    │   └── zcl_example/
-    │       ├── zcl_example.clas.abap
-    │       └── zcl_example.clas.yaml
-    └── intf/
-        └── zif_example/
-            ├── zif_example.intf.abap
-            └── zif_example.intf.yaml
+└── packages/
+    └── zpackage/
+        ├── zpackage.devc.yaml
+        └── objects/
+            ├── clas/
+            │   └── zcl_example/
+            │       ├── zcl_example.clas.abap
+            │       └── zcl_example.clas.yaml
+            └── intf/
+                └── zif_example/
+                    ├── zif_example.intf.abap
+                    └── zif_example.intf.yaml
 ```
 
 ### abapGit Format
@@ -39,12 +42,12 @@ Transport Request DEVK123456 containing multiple objects
 
 ## File Organization
 
-| Aspect          | OAT                    | abapGit               | gCTS               |
-| --------------- | ---------------------- | --------------------- | ------------------ |
-| **Structure**   | Type-based directories | Flat `/src` directory | Transport-based    |
-| **Metadata**    | Separate YAML files    | Embedded XML          | Transport metadata |
-| **File naming** | Lowercase with dots    | Complex schemes       | N/A                |
-| **Navigation**  | Easy type browsing     | All objects mixed     | Transport UI only  |
+| Aspect          | OAT                          | abapGit               | gCTS               |
+| --------------- | ---------------------------- | --------------------- | ------------------ |
+| **Structure**   | Package + type directories   | Flat `/src` directory | Transport-based    |
+| **Metadata**    | Separate YAML files          | Embedded XML          | Transport metadata |
+| **File naming** | Lowercase with dots          | Complex schemes       | N/A                |
+| **Navigation**  | Easy package + type browsing | All objects mixed     | Transport UI only  |
 
 ## Metadata Handling
 
@@ -104,7 +107,7 @@ spec:
 ```bash
 # Clean, predictable commands
 adt import package ZFINANCE --format=oat
-ls objects/clas/  # Easy to see all classes
+ls packages/zfinance/objects/clas/  # Easy to see all classes in package
 ```
 
 ### abapGit Workflow

@@ -18,9 +18,12 @@ export class OatFormat extends BaseFormat {
     const fs = require('fs');
     const path = require('path');
 
-    // OAT structure: objects/type/name/ (all lowercase)
+    // OAT structure: packages/pkg/objects/type/name/ (all lowercase)
+    const packageName = objectData.package.toLowerCase();
     const objectDir = path.join(
       outputPath,
+      'packages',
+      packageName,
       'objects',
       objectType.toLowerCase(),
       objectData.name.toLowerCase()
@@ -79,13 +82,46 @@ export class OatFormat extends BaseFormat {
     const fs = require('fs');
     const path = require('path');
 
-    // OAT structure: objects/type/name/ (all lowercase)
-    const objectDir = path.join(
-      projectPath,
-      'objects',
-      objectType.toLowerCase(),
-      objectName.toLowerCase()
-    );
+    // OAT structure: packages/pkg/objects/type/name/ (all lowercase)
+    // Need to find the object across all packages
+    const packagesDir = path.join(projectPath, 'packages');
+
+    if (!fs.existsSync(packagesDir)) {
+      throw new Error(
+        `OAT project packages directory not found: ${packagesDir}`
+      );
+    }
+
+    // Scan all packages to find the object
+    const packageNames = fs
+      .readdirSync(packagesDir, { withFileTypes: true })
+      .filter((dirent: any) => dirent.isDirectory())
+      .map((dirent: any) => dirent.name);
+
+    let objectDir: string | null = null;
+    let packageName = '';
+
+    for (const pkg of packageNames) {
+      const candidateDir = path.join(
+        packagesDir,
+        pkg,
+        'objects',
+        objectType.toLowerCase(),
+        objectName.toLowerCase()
+      );
+
+      if (fs.existsSync(candidateDir)) {
+        objectDir = candidateDir;
+        packageName = pkg;
+        break;
+      }
+    }
+
+    if (!objectDir) {
+      throw new Error(
+        `Object ${objectType} ${objectName} not found in any package`
+      );
+    }
     const objectNameLower = objectName.toLowerCase();
     const typeExtension = objectType.toLowerCase();
 
@@ -118,6 +154,7 @@ export class OatFormat extends BaseFormat {
       name: objectName,
       description: metadata.spec?.description || `${objectType} ${objectName}`,
       source,
+      package: packageName.toUpperCase(), // Convert back to SAP convention for metadata
       metadata: {
         type: objectType,
         kind: metadata.kind,
@@ -130,31 +167,46 @@ export class OatFormat extends BaseFormat {
     const path = require('path');
 
     const objects: ObjectReference[] = [];
-    const objectsDir = path.join(projectPath, 'objects');
+    const packagesDir = path.join(projectPath, 'packages');
 
-    if (!fs.existsSync(objectsDir)) {
+    if (!fs.existsSync(packagesDir)) {
       return objects;
     }
 
-    // Scan objects/TYPE/ directories
-    const objectTypes = fs
-      .readdirSync(objectsDir, { withFileTypes: true })
+    // Scan packages/PKG/ directories
+    const packageNames = fs
+      .readdirSync(packagesDir, { withFileTypes: true })
       .filter((dirent: any) => dirent.isDirectory())
       .map((dirent: any) => dirent.name);
 
-    for (const objectType of objectTypes) {
-      const typeDir = path.join(objectsDir, objectType);
-      const objectNames = fs
-        .readdirSync(typeDir, { withFileTypes: true })
+    for (const packageName of packageNames) {
+      const packageDir = path.join(packagesDir, packageName);
+      const objectsDir = path.join(packageDir, 'objects');
+
+      if (!fs.existsSync(objectsDir)) {
+        continue;
+      }
+
+      // Scan objects/TYPE/ directories within each package
+      const objectTypes = fs
+        .readdirSync(objectsDir, { withFileTypes: true })
         .filter((dirent: any) => dirent.isDirectory())
         .map((dirent: any) => dirent.name);
 
-      for (const objectName of objectNames) {
-        objects.push({
-          type: objectType,
-          name: objectName,
-          path: path.join(typeDir, objectName),
-        });
+      for (const objectType of objectTypes) {
+        const typeDir = path.join(objectsDir, objectType);
+        const objectNames = fs
+          .readdirSync(typeDir, { withFileTypes: true })
+          .filter((dirent: any) => dirent.isDirectory())
+          .map((dirent: any) => dirent.name);
+
+        for (const objectName of objectNames) {
+          objects.push({
+            type: objectType,
+            name: objectName,
+            path: path.join(typeDir, objectName),
+          });
+        }
       }
     }
 
@@ -165,21 +217,51 @@ export class OatFormat extends BaseFormat {
     outputPath: string,
     result: FormatResult
   ): Promise<void> {
-    // Create OAT project manifest
     const fs = require('fs');
     const path = require('path');
 
+    // Create OAT project manifest
     const oatManifest = {
       format: 'oat',
       tooling: 'Open ABAP Tooling',
       version: '1.0.0',
       generator: 'adt-cli',
       objectsProcessed: result.objectsProcessed,
-      structure: 'objects/type/name/',
+      structure: 'packages/pkg/objects/type/name/',
     };
 
     const manifestFile = path.join(outputPath, '.oat.json');
     fs.writeFileSync(manifestFile, JSON.stringify(oatManifest, null, 2));
+
+    // Create package.yaml for each package
+    const packagesDir = path.join(outputPath, 'packages');
+    if (fs.existsSync(packagesDir)) {
+      const packageNames = fs
+        .readdirSync(packagesDir, { withFileTypes: true })
+        .filter((dirent: any) => dirent.isDirectory())
+        .map((dirent: any) => dirent.name);
+
+      const serializer = SerializerRegistry.get('oat');
+
+      for (const pkg of packageNames) {
+        const packageMetadata = {
+          kind: 'DEVC',
+          spec: {
+            name: pkg.toUpperCase(),
+            description: `Package ${pkg.toUpperCase()}`,
+          },
+        };
+
+        const serialized = serializer.serialize(packageMetadata);
+        const packageFile = path.join(
+          packagesDir,
+          pkg,
+          `${pkg}.devc${serialized.extension}`
+        );
+        fs.writeFileSync(packageFile, serialized.content);
+      }
+    }
+
     // Project manifest creation is silent - only show in debug mode if needed
   }
 }

@@ -17,6 +17,7 @@ export class DevcObject extends BaseObject<PackageData> {
         name,
         description: `Package ${name}`, // Will be populated from search result
         source: xmlData.trim(), // For packages, we store the XML metadata
+        package: '', // Packages belong to themselves, will be populated from search result
         metadata: {
           type: 'DEVC',
         },

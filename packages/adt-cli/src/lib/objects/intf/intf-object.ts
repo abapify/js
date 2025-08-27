@@ -14,6 +14,7 @@ export class IntfObject extends BaseObject<InterfaceData> {
         name,
         description: `Interface ${name}`, // Will be populated from search result
         source: source.trim(),
+        package: '', // Will be populated from search result
         metadata: {
           type: 'INTF',
         },
