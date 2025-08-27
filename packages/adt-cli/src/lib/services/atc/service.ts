@@ -13,6 +13,7 @@ export interface AtcOptions {
 export interface AtcResult {
   runId: string;
   worklistId: string;
+  checkVariant: string;
   status: 'success' | 'error' | 'running';
   totalFindings: number;
   errorCount: number;
@@ -48,10 +49,14 @@ export class AtcService {
     // Set debug mode globally on client for proper CSRF handling
     this.adtClient.setDebugMode(options.debug || false);
 
+    const checkVariant =
+      options.checkVariant || 'ABAP_CLOUD_DEVELOPMENT_DEFAULT';
+
     if (options.debug) {
       console.log(
         `🔍 Starting ATC workflow for ${options.target}: ${options.targetName}`
       );
+      console.log(`🎯 Using check variant: ${checkVariant}`);
     }
 
     try {
@@ -81,6 +86,7 @@ export class AtcService {
       return {
         runId,
         worklistId,
+        checkVariant,
         status: 'success',
         totalFindings: results.totalFindings ?? 0,
         errorCount: results.errorCount ?? 0,
@@ -132,6 +138,10 @@ export class AtcService {
     const checkVariant =
       options.checkVariant || 'ABAP_CLOUD_DEVELOPMENT_DEFAULT';
     const endpoint = `/sap/bc/adt/atc/worklists?checkVariant=${checkVariant}`;
+
+    if (options.debug) {
+      console.log(`🎯 Check variant: ${checkVariant}`);
+    }
 
     const xmlContent = await this.adtClient.post(endpoint, '', {
       Accept: 'text/plain',
