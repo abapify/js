@@ -111,7 +111,7 @@ Reads object source code and metadata through ADT REST APIs, handling CSRF token
 
 ### Directory Organization
 
-The `objects/type/name/` structure enables:
+The `packages/pkg/objects/type/name/` structure enables:
 
 - **Easy navigation**: Find objects by type and name
 - **Clean diffs**: Changes isolated to specific object directories

@@ -3,6 +3,8 @@ import { SearchService, ADTObject } from '../search/service';
 import { ObjectRegistry } from '../../objects/registry';
 import { FormatRegistry } from '../../formats/format-registry';
 import { IconRegistry } from '../../utils/icon-registry';
+import { ConfigLoader } from '../../config/loader';
+import { PackageMapper } from '../../config/package-mapper';
 
 export interface ImportOptions {
   packageName: string;
@@ -24,6 +26,7 @@ export interface ImportResult {
 
 export class ImportService {
   private searchService: SearchService;
+  private packageMapper?: PackageMapper;
 
   constructor(private adtClient: ADTClient) {
     this.searchService = new SearchService(adtClient);
@@ -35,6 +38,15 @@ export class ImportService {
       console.log(`🔍 Importing package: ${options.packageName}`);
       console.log(`📁 Output path: ${options.outputPath}`);
       console.log(`🎯 Format: ${options.format || 'oat'}`);
+    }
+
+    // Load config and set up package mapping
+    const config = await ConfigLoader.load();
+    if (config.oat?.packageMapping) {
+      this.packageMapper = new PackageMapper(config.oat.packageMapping);
+      if (options.debug) {
+        console.log(`⚙️ Package mapping configured`);
+      }
     }
 
     try {
@@ -125,8 +137,14 @@ export class ImportService {
           const handler = ObjectRegistry.get(obj.type, this.adtClient);
           const objectData = await handler.read(obj.name);
 
-          // Merge description from search result
+          // Merge description and package from search result
           objectData.description = obj.description || objectData.description;
+
+          // Apply package mapping if configured
+          const localPackageName = this.packageMapper
+            ? this.packageMapper.toLocal(obj.packageName)
+            : obj.packageName.toLowerCase();
+          objectData.package = localPackageName;
 
           // Format handler serializes the object data
           const formatResult = await formatHandler.serialize(

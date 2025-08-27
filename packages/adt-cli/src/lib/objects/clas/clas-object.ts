@@ -17,6 +17,7 @@ export class ClasObject extends BaseObject<ClassData> {
         name,
         description: `Class ${name}`, // Will be populated from search result
         source: source.trim(),
+        package: '', // Will be populated from search result
         metadata: {
           type: 'CLAS',
         },
