@@ -2,27 +2,31 @@
 
 ## Directory Layout
 
-The OAT format uses a clean, type-based directory structure for organizing ABAP objects:
+The OAT format uses a clean, package-based directory structure for organizing ABAP objects:
 
 ```
-oat-package-name/
+oat-project-name/
 ├── .oat.json            # OAT project manifest
-├── objects/             # All ABAP objects organized by type
-│   ├── clas/           # Classes
-│   │   └── zcl_example/
-│   │       ├── zcl_example.clas.abap  # Source code
-│   │       └── zcl_example.clas.yaml  # Metadata
-│   ├── intf/           # Interfaces
-│   │   └── zif_example/
-│   │       ├── zif_example.intf.abap
-│   │       └── zif_example.intf.yaml
-│   ├── devc/           # Packages
-│   │   └── zpackage/
-│   │       └── zpackage.devc.yaml     # Package metadata only
-│   ├── tabl/           # Tables
-│   ├── dtel/           # Data elements
-│   ├── doma/           # Domains
-│   └── fugr/           # Function groups
+├── packages/            # All packages in the project
+│   ├── zfinance/       # Finance package
+│   │   ├── zfinance.devc.yaml # Package metadata
+│   │   └── objects/    # Objects in this package
+│   │       ├── clas/   # Classes
+│   │       │   └── zcl_invoice_processor/
+│   │       │       ├── zcl_invoice_processor.clas.abap
+│   │       │       └── zcl_invoice_processor.clas.yaml
+│   │       └── intf/   # Interfaces
+│   │           └── zif_payment_gateway/
+│   │               ├── zif_payment_gateway.intf.abap
+│   │               └── zif_payment_gateway.intf.yaml
+│   └── zbasis/         # Basis package
+│       ├── zbasis.devc.yaml
+│       └── objects/
+│           ├── clas/
+│           │   └── zcl_utility_helper/
+│           │       ├── zcl_utility_helper.clas.abap
+│           │       └── zcl_utility_helper.clas.yaml
+│           └── fugr/   # Function groups
 └── README.md           # Optional project documentation
 ```
 
@@ -51,7 +55,7 @@ Generated automatically by ADT CLI during import:
   "version": "1.0.0",
   "generator": "adt-cli",
   "objectsProcessed": 25,
-  "structure": "objects/type/name/"
+  "structure": "packages/pkg/objects/type/name/"
 }
 ```
 
@@ -60,7 +64,7 @@ Generated automatically by ADT CLI during import:
 ### Class Example
 
 ```
-objects/clas/zcl_invoice_processor/
+packages/zfinance/objects/clas/zcl_invoice_processor/
 ├── zcl_invoice_processor.clas.abap    # ABAP source code
 └── zcl_invoice_processor.clas.yaml    # Object metadata
 ```
@@ -121,4 +125,4 @@ YAML metadata contains only essential information (name, description), keeping f
 
 ### No Deep Nesting
 
-The three-level structure (`objects/type/name/`) provides organization without complexity, making navigation and tooling development straightforward.
+The package-based structure (`packages/pkg/objects/type/name/`) provides clear separation between packages while maintaining organized object storage within each package.
