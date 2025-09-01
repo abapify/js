@@ -13,7 +13,10 @@
     }
   },
 
-  "runArgs": ["--network=host"]
+  "runArgs": ["--network=host"],
+  "features": {
+    "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {}
+  }
 
   // Features to add to the dev container. More info: https://containers.dev/features.
   // "features": {},
