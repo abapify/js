@@ -186,6 +186,13 @@ The Abapify ecosystem follows a modular architecture:
 
 ### Prerequisites
 
+## 📂 File Storage Practices
+
+To maintain a clean workspace and prevent unnecessary files from being committed to the repository:
+
+- All temporary outputs, such as command results or log files, should be stored in the `/tmp` directory.
+- Example for storing an output file: `adt get ZCL_TEST -o /tmp/class.xml`
+- This practice helps ensure only relevant project files are tracked in version control.
 - Node.js 18+
 - npm or yarn
 - NX CLI (optional, for development)

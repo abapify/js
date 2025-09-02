@@ -31,7 +31,7 @@ export class DevcObject extends BaseObject<PackageData> {
     }
   }
 
-  override async getAdtXml(name: string): Promise<string> {
+  override async getAdtXml(name: string, uri?: string): Promise<string> {
     try {
       // Fetch ADT XML from package URI
       const packageUri = `/sap/bc/adt/packages/${name}`;
