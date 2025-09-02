@@ -27,4 +27,23 @@ export class IntfObject extends BaseObject<InterfaceData> {
       );
     }
   }
+
+  override async getAdtXml(name: string): Promise<string> {
+    try {
+      // Fetch ADT XML from main object URI
+      const metadataUri = `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`;
+      const adtXml = await this.fetchFromAdt(
+        metadataUri,
+        'application/vnd.sap.adt.oo.interface+xml'
+      );
+
+      return adtXml;
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch ADT XML for interface ${name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
 }
