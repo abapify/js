@@ -28,16 +28,16 @@ export class IntfObject extends BaseObject<InterfaceData> {
     }
   }
 
-  override async getAdtXml(name: string): Promise<string> {
+  override async getAdtXml(name: string, uri?: string): Promise<string> {
     try {
-      // Fetch ADT XML from main object URI
-      const metadataUri = `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`;
-      const adtXml = await this.fetchFromAdt(
-        metadataUri,
-        'application/vnd.sap.adt.oo.interface+xml'
-      );
+      // Simply get the source code and wrap it in XML
+      const sourceUri = `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`;
+      const sourceText = await this.fetchFromAdt(sourceUri, 'text/plain');
 
-      return adtXml;
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<interface name="${name}">
+  <source><![CDATA[${sourceText}]]></source>
+</interface>`;
     } catch (error) {
       throw new Error(
         `Failed to fetch ADT XML for interface ${name}: ${
