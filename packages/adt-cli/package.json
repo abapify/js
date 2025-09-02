@@ -20,7 +20,8 @@
     "tslib": "^2.3.0"
   },
   "scripts": {
-    "build": "tsdown"
+    "build": "tsdown",
+    "watch": "tsdown --watch src/index.ts"
   },
   "bin": {
     "adt": "./dist/bin/adt.mjs"

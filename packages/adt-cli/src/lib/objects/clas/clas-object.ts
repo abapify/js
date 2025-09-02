@@ -30,4 +30,32 @@ export class ClasObject extends BaseObject<ClassData> {
       );
     }
   }
+
+  override async getAdtXml(name: string): Promise<string> {
+    try {
+      // Try to fetch ADT XML from the source endpoint with XML Accept header
+      const sourceUri = `/sap/bc/adt/oo/classes/${name.toLowerCase()}/source/main`;
+
+      // Try with XML Accept header to get ADT XML format
+      try {
+        const adtXml = await this.fetchFromAdt(sourceUri, 'application/xml');
+        return adtXml;
+      } catch (error) {
+        // If that fails, try the default text/plain to at least get something
+        console.log(`⚠️ XML fetch failed, falling back to text format...`);
+        const sourceText = await this.fetchFromAdt(sourceUri, 'text/plain');
+        // Wrap the source code in a simple XML structure
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<class name="${name}">
+  <source><![CDATA[${sourceText}]]></source>
+</class>`;
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch ADT XML for class ${name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
 }
