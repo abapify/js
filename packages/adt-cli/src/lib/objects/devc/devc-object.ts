@@ -30,4 +30,23 @@ export class DevcObject extends BaseObject<PackageData> {
       );
     }
   }
+
+  override async getAdtXml(name: string): Promise<string> {
+    try {
+      // Fetch ADT XML from package URI
+      const packageUri = `/sap/bc/adt/packages/${name}`;
+      const adtXml = await this.fetchFromAdt(
+        packageUri,
+        'application/vnd.sap.adt.packages.v2+xml'
+      );
+
+      return adtXml;
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch ADT XML for package ${name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
 }
