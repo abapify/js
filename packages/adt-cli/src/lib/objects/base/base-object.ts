@@ -6,7 +6,7 @@ export abstract class BaseObject<T extends ObjectData> {
 
   abstract read(name: string): Promise<T>;
 
-  async getAdtXml(name: string): Promise<string> {
+  async getAdtXml(name: string, uri?: string): Promise<string> {
     throw new Error(`ADT XML fetching not implemented for this object type`);
   }
 
