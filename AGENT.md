@@ -48,6 +48,8 @@
 # Experiments and temporary data
 
 - all temporary files, outputs of commands and etc should be placed in `tmp` directory that's how we don't mess the git tree and won't commit them accidentally
+- when testing CLI commands with `-o` output options, always use `tmp/` directory for output files
+- example: `adt get ZCL_TEST -o tmp/class.xml` instead of `adt get ZCL_TEST -o class.xml`
 
 # NodeJS/Typescript
 
