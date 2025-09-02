@@ -13,6 +13,7 @@ export const getCommand = new Command('get')
   .option('--source', 'Show source code preview', false)
   .option('--json', 'Output as JSON', false)
   .option('--debug', 'Enable debug output', false)
+  .option('--structure', 'Show object structure information', false)
   .option(
     '-o, --output <file>',
     'Save ADT XML to file instead of displaying details'
@@ -57,28 +58,44 @@ export const getCommand = new Command('get')
       // Handle output to file option
       if (options.output) {
         try {
-          if (!ObjectRegistry.isSupported(exactMatch.type)) {
-            console.log(
-              `❌ ADT XML export not supported for object type: ${exactMatch.type}`
-            );
-            return;
-          }
+          let xmlContent: string;
 
-          const objectHandler = ObjectRegistry.get(exactMatch.type, adtClient);
-          const adtXml = await objectHandler.getAdtXml(exactMatch.name);
+          // If structure flag is set and it's a class, get structure XML
+          if (options.structure && exactMatch.type === 'CLAS') {
+            const structureUri = `/sap/bc/adt/oo/classes/${exactMatch.name.toLowerCase()}/objectstructure?version=active&withShortDescriptions=true`;
+            xmlContent = await adtClient.get(structureUri);
+          } else {
+            // Otherwise get the regular ADT XML
+            if (!ObjectRegistry.isSupported(exactMatch.type)) {
+              console.log(
+                `❌ ADT XML export not supported for object type: ${exactMatch.type}`
+              );
+              return;
+            }
+
+            const objectHandler = ObjectRegistry.get(
+              exactMatch.type,
+              adtClient
+            );
+            xmlContent = await objectHandler.getAdtXml(
+              exactMatch.name,
+              exactMatch.uri
+            );
+          }
 
           // Ensure directory exists
           const outputDir = path.dirname(options.output);
           await fs.mkdir(outputDir, { recursive: true });
 
           // Write XML to file
-          await fs.writeFile(options.output, adtXml, 'utf8');
+          await fs.writeFile(options.output, xmlContent, 'utf8');
 
-          console.log(`✅ ADT XML saved to: ${options.output}`);
+          const contentType = options.structure ? 'structure XML' : 'ADT XML';
+          console.log(`✅ ${contentType} saved to: ${options.output}`);
           return;
         } catch (error) {
           console.error(
-            `❌ Failed to save ADT XML: ${
+            `❌ Failed to save XML: ${
               error instanceof Error ? error.message : String(error)
             }`
           );
@@ -119,6 +136,28 @@ export const getCommand = new Command('get')
         console.log(`🌐 Web ADT: ${webAdtUrl}`);
       } catch (error) {
         console.log(`🔗 ADT URI: ${exactMatch.uri}`);
+      }
+
+      // Show object structure if requested
+      if (options.structure && exactMatch.type === 'CLAS') {
+        try {
+          const structureUri = `/sap/bc/adt/oo/classes/${exactMatch.name.toLowerCase()}/objectstructure?version=active&withShortDescriptions=true`;
+          const structureXml = await adtClient.get(structureUri);
+
+          console.log(`\n🏗️ Object Structure:`);
+          console.log('─'.repeat(60));
+          console.log(structureXml);
+        } catch (error) {
+          console.log(
+            `⚠️ Could not fetch structure: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+      } else if (options.structure && exactMatch.type !== 'CLAS') {
+        console.log(
+          `⚠️ Structure information only available for classes (CLAS)`
+        );
       }
 
       // Show source code preview if requested and object is supported
