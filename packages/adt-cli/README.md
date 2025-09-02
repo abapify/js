@@ -291,9 +291,9 @@ adt transport list --debug
 🚛 TRLK907362
    Description: one more request
    Status: modifiable
-Owner: CB9980003374
-Created: 8/22/2025
-Tasks: 1
+   Owner: CB9980003374
+   Created: 8/22/2025
+   Tasks: 1
 
 🚛 TRLK907354
    Description: New TR
@@ -301,6 +301,180 @@ Tasks: 1
    Owner: CB9980003374
    Created: 8/22/2025
    Tasks: 1
+```
+
+### Object Inspection
+
+#### `adt get <objectName> [options]`
+
+Get details about a specific ABAP object and optionally save its ADT XML representation.
+
+**Supported Object Types:**
+
+- `CLAS` - Classes
+- `INTF` - Interfaces
+- `DEVC` - Packages
+
+**Options:**
+
+- `--source` - Show source code preview
+- `--json` - Output object details as JSON
+- `--debug` - Enable debug output
+- `-o, --output <file>` - Save ADT XML to file instead of displaying details
+
+**Examples:**
+
+```bash
+# Get class details
+adt get ZCL_MY_CLASS
+
+# Get interface details with source preview
+adt get ZIF_MY_INTERFACE --source
+
+# Save ADT XML to file
+adt get ZCL_MY_CLASS -o /tmp/ZCL_MY_CLASS.xml
+
+# Get package details as JSON
+adt get $PACKAGE --json
+
+# Debug mode
+adt get ZCL_MY_CLASS --debug
+```
+
+**Sample Output - Object Details:**
+
+```
+🏷️  ZCL_TEST_CLASS (CLAS)
+📝 Test class for unit tests
+📦 Package: $TMP
+🔗 Open in ADT: https://adt.example.com/sap/bc/adt/oo/classes/zcl_test_class
+🌐 Web ADT: https://webide.example.com/editor/ZCL_TEST_CLASS
+```
+
+**Sample Output - With ADT XML Export:**
+
+```bash
+adt get ZCL_TEST_CLASS -o /tmp/class.xml
+```
+
+```
+✅ ADT XML saved to: /tmp/class.xml
+```
+
+### Object Inspection
+
+#### `adt get <objectName> [options]`
+
+Get details about a specific ABAP object and optionally save its ADT XML representation.
+
+**Supported Object Types:**
+
+- `CLAS` - Classes
+- `INTF` - Interfaces
+- `DEVC` - Packages
+
+**Options:**
+
+- `--source` - Show source code preview
+- `--json` - Output object details as JSON
+- `--debug` - Enable debug output
+- `-o, --output <file>` - Save ADT XML to file instead of displaying details
+
+**Examples:**
+
+```bash
+# Get class details
+adt get ZCL_MY_CLASS
+
+# Get interface details with source preview
+adt get ZIF_MY_INTERFACE --source
+
+# Save ADT XML to file
+adt get ZCL_MY_CLASS -o /tmp/ZCL_MY_CLASS.xml
+
+# Get package details as JSON
+adt get $PACKAGE --json
+
+# Debug mode
+adt get ZCL_MY_CLASS --debug
+```
+
+**Sample Output - Object Details:**
+
+```
+🏷️  ZCL_TEST_CLASS (CLAS)
+📝 Test class for unit tests
+📦 Package: $TMP
+🔗 Open in ADT: https://adt.example.com/sap/bc/adt/oo/classes/zcl_test_class
+🌐 Web ADT: https://webide.example.com/editor/ZCL_TEST_CLASS
+```
+
+**Sample Output - With ADT XML Export:**
+
+```bash
+adt get ZCL_TEST_CLASS -o /tmp/class.xml
+```
+
+```
+✅ ADT XML saved to: /tmp/class.xml
+```
+
+### Object Inspection
+
+#### `adt get <objectName> [options]`
+
+Get details about a specific ABAP object and optionally save its ADT XML representation.
+
+**Supported Object Types:**
+
+- `CLAS` - Classes
+- `INTF` - Interfaces
+- `DEVC` - Packages
+
+**Options:**
+
+- `--source` - Show source code preview
+- `--json` - Output object details as JSON
+- `--debug` - Enable debug output
+- `-o, --output <file>` - Save ADT XML to file instead of displaying details
+
+**Examples:**
+
+```bash
+# Get class details
+adt get ZCL_MY_CLASS
+
+# Get interface details with source preview
+adt get ZIF_MY_INTERFACE --source
+
+# Save ADT XML to file
+adt get ZCL_MY_CLASS -o /tmp/ZCL_MY_CLASS.xml
+
+# Get package details as JSON
+adt get $PACKAGE --json
+
+# Debug mode
+adt get ZCL_MY_CLASS --debug
+```
+
+**Sample Output - Object Details:**
+
+```
+🏷️  ZCL_TEST_CLASS (CLAS)
+📝 Test class for unit tests
+📦 Package: $TMP
+🔗 Open in ADT: https://adt.example.com/sap/bc/adt/oo/classes/zcl_test_class
+🌐 Web ADT: https://webide.example.com/editor/ZCL_TEST_CLASS
+```
+
+**Sample Output - With ADT XML Export:**
+
+```bash
+adt get ZCL_TEST_CLASS -o /tmp/class.xml
+```
+
+```
+✅ ADT XML saved to: /tmp/class.xml
 ```
 
 ## Authentication Flow
@@ -424,6 +598,8 @@ MIT License - see LICENSE file for details.
 | `adt auth logout`                | Clear stored tokens               |
 | `adt discovery`                  | List available ADT services       |
 | `adt discovery -o file.json`     | Export services as JSON           |
+| `adt get <object>`               | Get ABAP object details           |
+| `adt get <object> -o file.xml`   | Save ADT XML to file              |
 | `adt transport list`             | List transport requests           |
 | `adt transport get <TR>`         | Get transport or task details     |
 | `adt transport create -d "DESC"` | Create new transport request      |

@@ -4,6 +4,8 @@ import { ObjectRegistry } from '../objects/registry';
 import { IconRegistry } from '../utils/icon-registry';
 import { AdtUrlGenerator } from '../utils/adt-url-generator';
 import { adtClient, authManager } from '../shared/clients';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 
 export const getCommand = new Command('get')
   .argument('<objectName>', 'ABAP object name to inspect')
@@ -11,6 +13,10 @@ export const getCommand = new Command('get')
   .option('--source', 'Show source code preview', false)
   .option('--json', 'Output as JSON', false)
   .option('--debug', 'Enable debug output', false)
+  .option(
+    '-o, --output <file>',
+    'Save ADT XML to file instead of displaying details'
+  )
   .action(async (objectName, options) => {
     try {
       const searchService = new SearchService(adtClient);
@@ -46,6 +52,38 @@ export const getCommand = new Command('get')
           });
         }
         return;
+      }
+
+      // Handle output to file option
+      if (options.output) {
+        try {
+          if (!ObjectRegistry.isSupported(exactMatch.type)) {
+            console.log(
+              `❌ ADT XML export not supported for object type: ${exactMatch.type}`
+            );
+            return;
+          }
+
+          const objectHandler = ObjectRegistry.get(exactMatch.type, adtClient);
+          const adtXml = await objectHandler.getAdtXml(exactMatch.name);
+
+          // Ensure directory exists
+          const outputDir = path.dirname(options.output);
+          await fs.mkdir(outputDir, { recursive: true });
+
+          // Write XML to file
+          await fs.writeFile(options.output, adtXml, 'utf8');
+
+          console.log(`✅ ADT XML saved to: ${options.output}`);
+          return;
+        } catch (error) {
+          console.error(
+            `❌ Failed to save ADT XML: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+          process.exit(1);
+        }
       }
 
       if (options.json) {
