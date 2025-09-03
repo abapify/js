@@ -2,7 +2,7 @@ import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
 import { ADTClient } from '../adt-client';
 import { AdkObjectHandler } from './adk-bridge';
-import { ClassAdtAdapter } from '@abapify/adk';
+import { ClassAdtAdapter, InterfaceAdtAdapter } from '@abapify/adk';
 
 export class ObjectRegistry {
   private static handlers = new Map<
@@ -22,8 +22,17 @@ export class ObjectRegistry {
         )
     );
 
-    // TODO: Migrate INTF and DEVC to ADK when adapters are available
-    // this.handlers.set('INTF', (client) => new AdkObjectHandler(...));
+    this.handlers.set(
+      'INTF',
+      (client) =>
+        new AdkObjectHandler(
+          client,
+          (xml) => InterfaceAdtAdapter.fromAdtXML(xml),
+          (name) => `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`
+        )
+    );
+
+    // TODO: Migrate DEVC to ADK when adapter is available
     // this.handlers.set('DEVC', (client) => new AdkObjectHandler(...));
   }
 
