@@ -1,9 +1,8 @@
 import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
-import { ClasObject } from './clas/clas-object';
-import { IntfObject } from './intf/intf-object';
-import { DevcObject } from './devc/devc-object';
 import { ADTClient } from '../adt-client';
+import { AdkObjectHandler } from './adk-bridge';
+import { ClassAdtAdapter } from '@abapify/adk';
 
 export class ObjectRegistry {
   private static handlers = new Map<
@@ -12,10 +11,20 @@ export class ObjectRegistry {
   >();
 
   static {
-    // Register object type handlers
-    this.handlers.set('CLAS', (client) => new ClasObject(client));
-    this.handlers.set('INTF', (client) => new IntfObject(client));
-    this.handlers.set('DEVC', (client) => new DevcObject(client));
+    // ADK-based object handlers (native ADT format parsing)
+    this.handlers.set(
+      'CLAS',
+      (client) =>
+        new AdkObjectHandler(
+          client,
+          (xml) => ClassAdtAdapter.fromAdtXML(xml),
+          (name) => `/sap/bc/adt/oo/classes/${name.toLowerCase()}`
+        )
+    );
+
+    // TODO: Migrate INTF and DEVC to ADK when adapters are available
+    // this.handlers.set('INTF', (client) => new AdkObjectHandler(...));
+    // this.handlers.set('DEVC', (client) => new AdkObjectHandler(...));
   }
 
   static get(objectType: string, adtClient: ADTClient): BaseObject<ObjectData> {

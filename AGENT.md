@@ -2,6 +2,12 @@
 
 ## Essential Commands (HIGHEST PRIORITY)
 
+**Package Manager**: This project uses **npm workspaces** (NOT pnpm)
+
+- `workspace:*` dependencies are NOT supported with npm
+- Use npm commands, not pnpm commands
+- For workspace dependencies, use `*` instead of `workspace:*`
+
 **Development**
 
 - `nx build` - Build all packages
@@ -64,6 +70,43 @@
 2. Modularity (small focused files)
 3. Reusability
 4. Readability
+
+## ADK ↔ ADT CLI Integration (Sep 2025)
+
+**Clean Separation Achieved:**
+
+- **ADK**: TypeScript types + native ADT XML parsing/rendering
+- **OAT**: Git-friendly project structure (packages/pkg/objects/type/name/)
+- **ADT CLI**: HTTP client + CLI commands + orchestration
+
+**Key Decisions:**
+
+- ADK replaces manual XML parsing (eliminated ~400 lines)
+- `AdkObjectHandler` bridge pattern connects ADK adapters to CLI
+- No feature flags - ADK is the standard parsing layer
+- Legacy `ClasObject`/`IntfObject`/`DevcObject` removed
+
+**Bridge Pattern:**
+
+```typescript
+// In ObjectRegistry
+this.handlers.set(
+  'CLAS',
+  (client) =>
+    new AdkObjectHandler(
+      client,
+      (xml) => ClassAdtAdapter.fromAdtXML(xml),
+      (name) => `/sap/bc/adt/oo/classes/${name.toLowerCase()}`
+    )
+);
+```
+
+**Benefits Proven:**
+
+- Type safety throughout pipeline
+- Native ADT compatibility
+- Reduced code complexity
+- Maintainable architecture
 
 ## Workflow Rules
 
