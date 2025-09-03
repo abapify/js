@@ -10,6 +10,10 @@ export abstract class BaseObject<T extends ObjectData> {
     throw new Error(`ADT XML fetching not implemented for this object type`);
   }
 
+  async getStructure(name: string): Promise<void> {
+    throw new Error(`Structure information not available for this object type`);
+  }
+
   protected async fetchFromAdt(
     uri: string,
     accept: string = 'text/plain'

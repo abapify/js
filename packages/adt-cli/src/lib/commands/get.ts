@@ -110,9 +110,11 @@ export const getCommand = new Command('get')
 
       // Display object details
       const icon = IconRegistry.getIcon(exactMatch.type);
-      console.log(`\n${icon} ${exactMatch.name} (${exactMatch.type})`);
-      console.log(`📝 ${exactMatch.description || 'No description'}`);
-      console.log(`📦 Package: ${exactMatch.packageName}`);
+      console.log(`\n${icon} ${exactMatch.name} (${exactMatch.type}):`);
+      console.log(
+        `\t📝 Description: ${exactMatch.description || 'No description'}`
+      );
+      console.log(`\t📦 Package: ${exactMatch.packageName}`);
 
       // Generate clickable ADT URLs
       try {
@@ -132,32 +134,34 @@ export const getCommand = new Command('get')
           exactMatch.name
         );
 
-        console.log(`🔗 Open in ADT: ${adtIdeUrl}`);
-        console.log(`🌐 Web ADT: ${webAdtUrl}`);
+        console.log(`\t🔗 Open in ADT: ${adtIdeUrl}`);
+        console.log(`\t🌐 Web ADT: ${webAdtUrl}`);
       } catch (error) {
         console.log(`🔗 ADT URI: ${exactMatch.uri}`);
       }
 
       // Show object structure if requested
-      if (options.structure && exactMatch.type === 'CLAS') {
-        try {
-          const structureUri = `/sap/bc/adt/oo/classes/${exactMatch.name.toLowerCase()}/objectstructure?version=active&withShortDescriptions=true`;
-          const structureXml = await adtClient.get(structureUri);
-
-          console.log(`\n🏗️ Object Structure:`);
-          console.log('─'.repeat(60));
-          console.log(structureXml);
-        } catch (error) {
+      if (options.structure) {
+        if (ObjectRegistry.isSupported(exactMatch.type)) {
+          try {
+            console.log(`\n🏗️ Object Structure:`);
+            const objectHandler = ObjectRegistry.get(
+              exactMatch.type,
+              adtClient
+            );
+            await objectHandler.getStructure(exactMatch.name);
+          } catch (error) {
+            console.log(
+              `⚠️ Could not fetch structure: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        } else {
           console.log(
-            `⚠️ Could not fetch structure: ${
-              error instanceof Error ? error.message : String(error)
-            }`
+            `⚠️ Structure information not supported for object type: ${exactMatch.type}`
           );
         }
-      } else if (options.structure && exactMatch.type !== 'CLAS') {
-        console.log(
-          `⚠️ Structure information only available for classes (CLAS)`
-        );
       }
 
       // Show source code preview if requested and object is supported
