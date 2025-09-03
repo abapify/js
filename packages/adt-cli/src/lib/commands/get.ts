@@ -14,7 +14,7 @@ export const getCommand = new Command('get')
   .option('--source', 'Show source code preview', false)
   .option('--json', 'Output as JSON', false)
   .option('--debug', 'Enable debug output', false)
-  .option('--structure', 'Show object structure information', false)
+  .option('--outline', 'Show object outline structure', false)
   .option(
     '--properties',
     'Show object properties (package, application, etc.)',
@@ -66,8 +66,8 @@ export const getCommand = new Command('get')
         try {
           let xmlContent: string;
 
-          // If structure flag is set and it's a class, get structure XML
-          if (options.structure && exactMatch.type === 'CLAS') {
+          // If outline flag is set and it's a class, get structure XML
+          if (options.outline && exactMatch.type === 'CLAS') {
             const structureUri = `/sap/bc/adt/oo/classes/${exactMatch.name.toLowerCase()}/objectstructure?version=active&withShortDescriptions=true`;
             xmlContent = await adtClient.get(structureUri);
           } else {
@@ -96,7 +96,7 @@ export const getCommand = new Command('get')
           // Write XML to file
           await fs.writeFile(options.output, xmlContent, 'utf8');
 
-          const contentType = options.structure ? 'structure XML' : 'ADT XML';
+          const contentType = options.outline ? 'structure XML' : 'ADT XML';
           console.log(`✅ ${contentType} saved to: ${options.output}`);
           return;
         } catch (error) {
@@ -146,11 +146,11 @@ export const getCommand = new Command('get')
         console.log(`🔗 ADT URI: ${exactMatch.uri}`);
       }
 
-      // Show object structure if requested
-      if (options.structure) {
+      // Show object outline if requested
+      if (options.outline) {
         if (ObjectRegistry.isSupported(exactMatch.type)) {
           try {
-            console.log(`\n🏗️ Object Structure:`);
+            console.log(`\n🏗️ Object Outline:`);
             const objectHandler = ObjectRegistry.get(
               exactMatch.type,
               adtClient
@@ -158,14 +158,14 @@ export const getCommand = new Command('get')
             await objectHandler.getStructure(exactMatch.name);
           } catch (error) {
             console.log(
-              `⚠️ Could not fetch structure: ${
+              `⚠️ Could not fetch outline: ${
                 error instanceof Error ? error.message : String(error)
               }`
             );
           }
         } else {
           console.log(
-            `⚠️ Structure information not supported for object type: ${exactMatch.type}`
+            `⚠️ Outline not supported for object type: ${exactMatch.type}`
           );
         }
       }
@@ -174,6 +174,8 @@ export const getCommand = new Command('get')
       if (options.properties) {
         try {
           console.log(`\n🏷️ Object Properties:`);
+
+          // Get package hierarchy first to build breadcrumb
           const encodedUri = encodeURIComponent(exactMatch.uri);
           const propertiesUri = `/sap/bc/adt/repository/informationsystem/objectproperties/values?uri=${encodedUri}&facet=package&facet=appl`;
           const propertiesXml = await adtClient.get(propertiesUri, {
@@ -181,7 +183,7 @@ export const getCommand = new Command('get')
               'application/vnd.sap.adt.repository.objproperties.result.v1+xml',
           });
 
-          // Parse and display properties in a readable format
+          // Parse properties
           const parser = new XMLParser({
             ignoreAttributes: false,
             attributeNamePrefix: '@_',
@@ -194,7 +196,7 @@ export const getCommand = new Command('get')
             ? properties
             : [properties];
 
-          // Separate packages to show hierarchy
+          // Separate packages and applications
           const packages = propertyArray.filter(
             (prop: any) => prop['@_facet'] === 'PACKAGE'
           );
@@ -202,42 +204,49 @@ export const getCommand = new Command('get')
             (prop: any) => prop['@_facet'] === 'APPL'
           );
 
+          // Build package breadcrumb path (like IDE)
+          if (packages.length > 0) {
+            const packagePath = packages
+              .map((pkg: any) => pkg['@_displayName'])
+              .reverse()
+              .join(' -> ');
+            console.log(`\t📦 Package: ${packagePath}`);
+          } else {
+            console.log(`\t📦 Package: ${exactMatch.packageName}`);
+          }
+
+          console.log(`\t📋 Version: Active`);
+          console.log(
+            `\t📝 Description: ${exactMatch.description || 'No description'}`
+          );
+
           applications.forEach((prop: any) => {
             console.log(`\t📱 Application: ${prop['@_text']}`);
           });
 
-          if (packages.length > 0) {
-            console.log(`\t📦 Package Hierarchy:`);
-
-            // Find parent packages (those with children)
-            const parentPackages = packages.filter(
-              (prop: any) => prop['@_hasChildrenOfSameFacet'] === 'true'
-            );
-            const childPackages = packages.filter(
-              (prop: any) => prop['@_hasChildrenOfSameFacet'] !== 'true'
-            );
-
-            // Display hierarchy properly
-            parentPackages.forEach((parent: any) => {
-              console.log(
-                `    📦 ${parent['@_displayName']} - ${parent['@_text']}`
+          // Get additional metadata from object if supported
+          if (ObjectRegistry.isSupported(exactMatch.type)) {
+            try {
+              const objectHandler = ObjectRegistry.get(
+                exactMatch.type,
+                adtClient
               );
+              const objectData = await objectHandler.read(exactMatch.name);
 
-              // Show child packages indented under parent
-              childPackages.forEach((child: any) => {
-                console.log(
-                  `        └─ ${child['@_displayName']} - ${child['@_text']}`
-                );
-              });
-            });
-
-            // If no parent packages, just show flat list
-            if (parentPackages.length === 0) {
-              childPackages.forEach((prop: any) => {
-                console.log(
-                  `    └─ ${prop['@_displayName']} - ${prop['@_text']}`
-                );
-              });
+              if (objectData.responsible) {
+                console.log(`\t👤 Responsible: ${objectData.responsible}`);
+              }
+              if (objectData.createdOn) {
+                console.log(`\t📅 Created on: ${objectData.createdOn}`);
+              }
+              if (objectData.changedBy) {
+                console.log(`\t✏️ Last changed by: ${objectData.changedBy}`);
+              }
+              if (objectData.changedOn) {
+                console.log(`\t🕐 Last changed on: ${objectData.changedOn}`);
+              }
+            } catch (error) {
+              // Continue with properties even if object read fails
             }
           }
         } catch (error) {
