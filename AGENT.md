@@ -1,66 +1,79 @@
 # AGENT.md
 
-## Commands
+## Essential Commands (HIGHEST PRIORITY)
+
+**Development**
+
+- `nx build` - Build all packages
+- `nx build [package-name]` - Build specific package (e.g., `nx build adt-cli`)
+- `nx typecheck` - Type check all TypeScript code
+- `nx lint` - Lint and fix all projects
+
+**Testing**
 
 - `nx test` - Run all tests with coverage
-- `nx test [project-name]` - Run tests for a specific package (e.g., `nx test adk`)
-- `nx run-many --target=test` - Run all tests
-- `nx lint` - Lint and fix all projects
-- `nx build` - Build all packages
-- `nx build [project-name]` - Build specific package
-- `nx typecheck` - Type check all TypeScript code
+- `nx test [package-name]` - Run tests for specific package
 
-## Architecture
+**File Organization**
 
-- **Monorepo**: NX-managed workspace with packages in `packages/` and samples in `samples/`
-- **Core packages**: ADK (ABAP Development Kit), CDS2ABAP converter, Components library, SK service key parser
-- **Languages**: TypeScript with ES2015 target, decorators enabled
-- **Build tools**: NX, Rollup for bundling, SWC for transpilation
-- **Testing**: Jest with coverage, Vitest for some packages
-- **Path aliases**: Use `@abapify/[package-name]` for internal imports
+- All temporary files → `tmp/` directory
+- CLI output files → `tmp/` (e.g., `adt get ZCL_TEST -o tmp/class.xml`)
 
-## Code Style
+## Monorepo Structure (CRITICAL)
 
-- **Imports**: Relative imports (`../`) for internal files, path aliases for cross-package imports
-- **Types**: Generic constraints with `extends`, utility types, interface-based design
-- **Classes**: Abstract base classes, private properties, getter methods
-- **Naming**: PascalCase for types/classes, camelCase for variables/methods
-- **Formatting**: Prettier with 2-space indents, ESLint with NX rules
-- **Error handling**: TypeScript strict mode enabled
+```
+/workspaces/abapify-js/
+├── packages/           # Core libraries
+│   ├── adk/           # ABAP Development Kit
+│   ├── adt-cli/       # ADT CLI tool
+│   ├── cds2abap/      # CDS to ABAP converter
+│   └── sample-tsdown/ # Template for new packages
+├── samples/           # Example implementations
+└── tmp/              # Temporary files only
+```
 
-## NX guidelines
+**Import Rules**
 
-- As a template for a new library please use `sample-tsdown` package located in `packages/sample-tsdown` folder
-- Use a command like `npx nx g @nx/node:library --directory=packages/sample-tsdown --no-interactive`
-- We will use a custom build using `tsdown`. For that purpose we'll need a `tsdown.config.ts` to be copied from a sample package
-- Please note that script must be adjusted too `"build": "tsdown"` in `package.json`
-- Please check that `skipNodeModulesBundle: true` is used in a config - we don't want too much dependencies
+- Cross-package: `@abapify/[package-name]`
+- Internal files: `../relative/path`
 
-## AMP
+## New Package Creation
 
-- Always propose a plan and confirm it with me before executing
-- Never forget to rebuild the package before running it
+**Template**: Copy `packages/sample-tsdown`
 
-# Documentation
+1. `npx nx g @nx/node:library --directory=packages/[name] --no-interactive`
+2. Copy `tsdown.config.ts` from sample package
+3. Update `package.json`: `"build": "tsdown"`
+4. Ensure `skipNodeModulesBundle: true` in config
 
-- Do not forget to update README.md not only for a main repo but also for subpackages if you make some essential changes
+## Code Standards
 
-# Experiments and temporary data
+**Language**: TypeScript (ES2015, strict mode, decorators enabled)
 
-- all temporary files, outputs of commands and etc should be placed in `tmp` directory that's how we don't mess the git tree and won't commit them accidentally
-- when testing CLI commands with `-o` output options, always use `tmp/` directory for output files
-- example: `adt get ZCL_TEST -o tmp/class.xml` instead of `adt get ZCL_TEST -o class.xml`
+**Style**
 
-# NodeJS/Typescript
+- PascalCase: types, classes, interfaces
+- camelCase: variables, methods, functions
+- 2-space indentation (Prettier)
+- Async over callbacks/sync calls
+- Use native APIs when possible
 
-- always prefer to use the most recent native APIs if that is possible
-- async is preferred over callbacks and syncronous calls
-- please assest all range of availabkle APIs, such as generators, iterators including async versions
+**Architecture Principles**
 
-# Code guidelines
+1. Minimalism
+2. Modularity (small focused files)
+3. Reusability
+4. Readability
 
-- Typescript first
-- Minimalism is a key
-- Reusability
-- Readability
-- Modularity ( better more small pieces than one large file )
+## Workflow Rules
+
+**Before Code Changes**
+
+1. Always propose plan and get confirmation
+2. Update relevant README.md files for significant changes
+
+**After Code Changes**
+
+1. Rebuild package: `nx build [package-name]`
+2. Run type check: `nx typecheck`
+3. Test: `nx test [package-name]`
