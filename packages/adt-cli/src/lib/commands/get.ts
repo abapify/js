@@ -6,6 +6,7 @@ import { AdtUrlGenerator } from '../utils/adt-url-generator';
 import { adtClient, authManager } from '../shared/clients';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { XMLParser } from 'fast-xml-parser';
 
 export const getCommand = new Command('get')
   .argument('<objectName>', 'ABAP object name to inspect')
@@ -14,6 +15,11 @@ export const getCommand = new Command('get')
   .option('--json', 'Output as JSON', false)
   .option('--debug', 'Enable debug output', false)
   .option('--structure', 'Show object structure information', false)
+  .option(
+    '--properties',
+    'Show object properties (package, application, etc.)',
+    false
+  )
   .option(
     '-o, --output <file>',
     'Save ADT XML to file instead of displaying details'
@@ -160,6 +166,85 @@ export const getCommand = new Command('get')
         } else {
           console.log(
             `⚠️ Structure information not supported for object type: ${exactMatch.type}`
+          );
+        }
+      }
+
+      // Show object properties if requested
+      if (options.properties) {
+        try {
+          console.log(`\n🏷️ Object Properties:`);
+          const encodedUri = encodeURIComponent(exactMatch.uri);
+          const propertiesUri = `/sap/bc/adt/repository/informationsystem/objectproperties/values?uri=${encodedUri}&facet=package&facet=appl`;
+          const propertiesXml = await adtClient.get(propertiesUri, {
+            Accept:
+              'application/vnd.sap.adt.repository.objproperties.result.v1+xml',
+          });
+
+          // Parse and display properties in a readable format
+          const parser = new XMLParser({
+            ignoreAttributes: false,
+            attributeNamePrefix: '@_',
+          });
+          const parsed = parser.parse(propertiesXml);
+
+          const properties =
+            parsed['opr:objectProperties']?.['opr:property'] || [];
+          const propertyArray = Array.isArray(properties)
+            ? properties
+            : [properties];
+
+          // Separate packages to show hierarchy
+          const packages = propertyArray.filter(
+            (prop: any) => prop['@_facet'] === 'PACKAGE'
+          );
+          const applications = propertyArray.filter(
+            (prop: any) => prop['@_facet'] === 'APPL'
+          );
+
+          applications.forEach((prop: any) => {
+            console.log(`\t📱 Application: ${prop['@_text']}`);
+          });
+
+          if (packages.length > 0) {
+            console.log(`\t📦 Package Hierarchy:`);
+
+            // Find parent packages (those with children)
+            const parentPackages = packages.filter(
+              (prop: any) => prop['@_hasChildrenOfSameFacet'] === 'true'
+            );
+            const childPackages = packages.filter(
+              (prop: any) => prop['@_hasChildrenOfSameFacet'] !== 'true'
+            );
+
+            // Display hierarchy properly
+            parentPackages.forEach((parent: any) => {
+              console.log(
+                `    📦 ${parent['@_displayName']} - ${parent['@_text']}`
+              );
+
+              // Show child packages indented under parent
+              childPackages.forEach((child: any) => {
+                console.log(
+                  `        └─ ${child['@_displayName']} - ${child['@_text']}`
+                );
+              });
+            });
+
+            // If no parent packages, just show flat list
+            if (parentPackages.length === 0) {
+              childPackages.forEach((prop: any) => {
+                console.log(
+                  `    └─ ${prop['@_displayName']} - ${prop['@_text']}`
+                );
+              });
+            }
+          }
+        } catch (error) {
+          console.log(
+            `⚠️ Could not fetch properties: ${
+              error instanceof Error ? error.message : String(error)
+            }`
           );
         }
       }

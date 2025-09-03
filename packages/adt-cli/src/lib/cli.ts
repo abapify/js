@@ -6,6 +6,7 @@ import {
   searchCommand,
   discoveryCommand,
   getCommand,
+  outlineCommand,
   atcCommand,
   loginCommand,
   logoutCommand,
@@ -36,6 +37,9 @@ export function createCLI(): Command {
 
   // Object inspector command
   program.addCommand(getCommand);
+
+  // Object outline command
+  program.addCommand(outlineCommand);
 
   // ATC (ABAP Test Cockpit) command
   program.addCommand(atcCommand);
