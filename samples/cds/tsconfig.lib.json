@@ -17,5 +17,10 @@
     "src/**/*.spec.js",
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx"
+  ],
+  "references": [
+    {
+      "path": "../../packages/cds2abap/tsconfig.lib.json"
+    }
   ]
 }
