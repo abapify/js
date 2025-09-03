@@ -20,6 +20,12 @@
 - `nx test` - Run all tests with coverage
 - `nx test [package-name]` - Run tests for specific package
 
+**ADT CLI Features** (Sep 2025)
+
+- `adt get <object> --properties` - Show package hierarchy & application component
+- `adt outline <object>` - Visual tree structure (methods, attributes, hierarchy)
+- Object types supported: CLAS (classes), INTF (interfaces)
+
 **File Organization**
 
 - All temporary files → `tmp/` directory

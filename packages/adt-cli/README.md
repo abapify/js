@@ -7,6 +7,8 @@ A command-line interface for SAP ABAP Development Tools (ADT) services, providin
 - 🔐 **OAuth Authentication** - Browser-based login using BTP service keys
 - 🔍 **Service Discovery** - Discover available ADT services and endpoints
 - 🚚 **Transport Management** - List and filter transport requests
+- 📋 **Object Inspection** - Get object details, properties, source code, and structure
+- 🌳 **Object Outline** - Visual tree structure showing methods, attributes, and hierarchy
 - 💾 **Export Options** - Save discovery data as XML or JSON
 - 🔄 **Automatic Re-authentication** - Seamless token renewal when expired
 - 🚀 **Modern Architecture** - Built with TypeScript, service-oriented design, and fast-xml-parser
@@ -43,13 +45,25 @@ npx @abapify/adt-cli <command>
    adt transport list
    ```
 
-4. **Get transport details:**
+4. **Get object details:**
+
+   ```bash
+   adt get ZCL_MY_CLASS --properties
+   ```
+
+5. **View object outline:**
+
+   ```bash
+   adt outline ZIF_MY_INTERFACE
+   ```
+
+6. **Get transport details:**
 
    ```bash
    adt transport get TRLK907362
    ```
 
-5. **Save discovery data:**
+7. **Save discovery data:**
 
    ```bash
    # Save as XML
@@ -133,6 +147,65 @@ adt discovery -o discovery.json
   └─ CDS Views (/sap/bc/adt/cds/views)
      Category: CDSViews
      Templates: 8 available
+```
+
+### Object Inspection
+
+#### `adt get <object> [options]`
+
+Get details about a specific ABAP object.
+
+**Options:**
+
+- `--source` - Show source code preview
+- `--structure` - Show object structure information
+- `--properties` - Show object properties (package hierarchy, application component)
+- `--json` - Output as JSON
+- `-o, --output <file>` - Save ADT XML to file
+
+**Examples:**
+
+```bash
+# Get basic object info
+adt get ZCL_MY_CLASS
+
+# Show object properties
+adt get ZCL_MY_CLASS --properties
+
+# Show structure with source preview
+adt get ZCL_MY_CLASS --structure --source
+
+# Export ADT XML
+adt get ZCL_MY_CLASS -o tmp/class.xml
+```
+
+#### `adt outline <object>`
+
+Display object structure as a visual tree outline.
+
+**Visual Encoding:**
+
+- Shape: ● = instance, ■ = static
+- Color: 🟢 = public, 🔴 = private, 🟡 = protected
+- Icons: ℹ️ = interface, 🏛️ = class, ⚙️ = method
+
+**Examples:**
+
+```bash
+# Show interface outline
+adt outline ZIF_MY_INTERFACE
+
+# Show class outline
+adt outline ZCL_MY_CLASS
+```
+
+**Sample Output:**
+
+```
+ℹ️  ZIF_MY_INTERFACE [interface]
+├─ 🟢  GET_DATA [public method]
+├─ 🟩  VALIDATE [public static method]
+└─ 🔴  INTERNAL_HELPER [private method]
 ```
 
 ### Transport Requests
