@@ -3,6 +3,7 @@ export { importPackageCommand } from './import/package';
 export { searchCommand } from './search';
 export { discoveryCommand } from './discovery';
 export { getCommand } from './get';
+export { outlineCommand } from './outline';
 export { atcCommand } from './atc';
 export { loginCommand } from './auth/login';
 export { logoutCommand } from './auth/logout';
