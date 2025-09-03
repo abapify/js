@@ -88,6 +88,7 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
     const elementType = element['adtcore:type'];
     const visibility = element.visibility || 'public';
     const level = element.level;
+    const description = element['adtcore:description'] || element.description;
 
     // Format the display based on element type and visibility
     let icon = '📁';
@@ -120,8 +121,14 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
       if (elementType === 'CLAS/OR') {
         icon = 'ℹ️'; // interface reference
         typeInfo = 'interface';
-      } else if (elementType?.includes('CLAS')) {
+      } else if (elementType === 'CLAS/OC') {
         icon = '🏛️'; // class
+        typeInfo = 'class';
+      } else if (elementType === 'CLAS/OCX') {
+        // Skip class implementation section - it's internal
+        return;
+      } else if (elementType?.includes('CLAS')) {
+        icon = '🏛️'; // other class types
         typeInfo = 'class';
       } else if (elementType?.includes('INTF')) {
         icon = 'ℹ️'; // interface
@@ -131,7 +138,13 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
 
     // Build display string
     let displayStr = `${indent}${icon}  ${elementName}`;
-    if (typeInfo) displayStr += ` [${typeInfo}]`;
+
+    // Use description if available, otherwise fall back to typeInfo
+    if (description) {
+      displayStr += ` [${description}]`;
+    } else if (typeInfo) {
+      displayStr += ` [${typeInfo}]`;
+    }
     // displayStr += ` {${elementType}}`; // temporary debug
 
     console.log(`\t${displayStr}`);
