@@ -5,7 +5,6 @@ import { ObjectRegistry } from '../objects/registry';
 
 export class FormatRegistry {
   private static formatInstances = new Map<string, BaseFormat>();
-  private static initialized = false;
 
   static {
     this.initializeFormats();
@@ -42,8 +41,6 @@ export class FormatRegistry {
     this.formatInstances.set('abapgit', abapgitFormat);
 
     // Future: gcts, steampunk, custom formats
-
-    this.initialized = true;
   }
 
   static getSupportedFormats(): string[] {

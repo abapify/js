@@ -1,7 +1,6 @@
 import { BaseFormat, FormatResult, ObjectReference } from '../base-format';
 import { ObjectData } from '../../objects/base/types';
 import { SerializerRegistry } from '../../serializers/serializer-registry';
-import { IconRegistry } from '../../utils/icon-registry';
 
 export class OatFormat extends BaseFormat {
   name = 'oat';

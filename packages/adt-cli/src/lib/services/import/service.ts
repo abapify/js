@@ -96,7 +96,6 @@ export class ImportService {
         return counts;
       }, {} as Record<string, number>);
 
-      const formatName = formatHandler.name.toUpperCase();
       const objectSummary = Object.entries(objectCounts)
         .map(
           ([type, count]) =>

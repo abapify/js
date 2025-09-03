@@ -7,6 +7,9 @@
   "include": [],
   "references": [
     {
+      "path": "../../packages/cds2abap"
+    },
+    {
       "path": "./tsconfig.lib.json"
     },
     {
