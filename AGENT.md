@@ -56,3 +56,11 @@
 - always prefer to use the most recent native APIs if that is possible
 - async is preferred over callbacks and syncronous calls
 - please assest all range of availabkle APIs, such as generators, iterators including async versions
+
+# Code guidelines
+
+- Typescript first
+- Minimalism is a key
+- Reusability
+- Readability
+- Modularity ( better more small pieces than one large file )
