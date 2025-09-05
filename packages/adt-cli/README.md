@@ -10,6 +10,7 @@ A command-line interface for SAP ABAP Development Tools (ADT) services, providin
 - 📋 **Object Inspection** - Get object details, properties, source code, and structure
 - 🌳 **Object Outline** - Visual tree structure showing methods, attributes, and hierarchy
 - 💾 **Export Options** - Save discovery data as XML or JSON
+- 📤 **Object Export** - Create/update ABAP objects in SAP from local files
 - 🔄 **Automatic Re-authentication** - Seamless token renewal when expired
 - 🚀 **Modern Architecture** - Built with TypeScript, service-oriented design, and fast-xml-parser
 
@@ -71,6 +72,13 @@ npx @abapify/adt-cli <command>
 
    # Save as JSON (parsed)
    adt discovery -o services.json
+   ```
+
+8. **Export objects to SAP:**
+
+   ```bash
+   # Create objects in SAP from local files
+   adt export package ZTEST_PKG ./oat-ztest_pkg --create --transport NPLK900123
    ```
 
 ## Commands
@@ -148,6 +156,78 @@ adt discovery -o discovery.json
      Category: CDSViews
      Templates: 8 available
 ```
+
+### Package Import/Export
+
+#### `adt import package <packageName> [targetFolder] [options]`
+
+Import an ABAP package and its contents from SAP to local files.
+
+**Options:**
+
+- `-o, --output <path>` - Output directory (overrides targetFolder)
+- `-t, --object-types <types>` - Comma-separated object types (e.g., CLAS,INTF,DDLS)
+- `--sub-packages` - Include subpackages
+- `--format <format>` - Output format: oat (production) | abapgit (experimental) | json
+- `--debug` - Enable debug output
+
+**Examples:**
+
+```bash
+# Import entire package
+adt import package ZTEST_PKG
+
+# Import specific object types only
+adt import package ZTEST_PKG --object-types CLAS,INTF
+
+# Import to specific directory
+adt import package ZTEST_PKG ./my-output --format oat
+
+# Debug mode
+adt import package ZTEST_PKG --debug
+```
+
+#### `adt export package <packageName> [sourceFolder] [options]`
+
+Export an ABAP package and create objects in SAP from local files.
+
+**Options:**
+
+- `-i, --input <path>` - Input directory (overrides sourceFolder)
+- `-t, --object-types <types>` - Comma-separated object types (e.g., CLAS,INTF,DDLS)
+- `--sub-packages` - Include subpackages
+- `--format <format>` - Input format: oat (production) | abapgit (experimental) | json
+- `--transport <request>` - Transport request for object creation/updates
+- `--create` - Actually create/update objects in SAP (default: dry run)
+- `--debug` - Enable debug output
+
+**Examples:**
+
+```bash
+# Dry run (default) - process files but don't create objects
+adt export package ZTEST_PKG ./oat-ztest_pkg
+
+# Create objects in SAP
+adt export package ZTEST_PKG ./oat-ztest_pkg --create
+
+# Create objects with transport request
+adt export package ZTEST_PKG ./oat-ztest_pkg --create --transport NPLK900123
+
+# Filter object types and debug
+adt export package ZTEST_PKG ./oat-ztest_pkg --create --object-types CLAS,INTF --debug
+```
+
+**Supported Object Types for Export:**
+
+- **CLAS** - ABAP Classes
+- **INTF** - ABAP Interfaces
+- **DOMA** - Domains (when ADK support is available)
+
+**Export Workflow:**
+
+1. **Import**: Download objects from SAP → `adt import package ZPKG`
+2. **Modify**: Edit local files using your preferred tools
+3. **Export**: Upload changes back to SAP → `adt export package ZPKG --create --transport TR123`
 
 ### Object Inspection
 
@@ -665,20 +745,22 @@ MIT License - see LICENSE file for details.
 
 ## Command Reference
 
-| Command                          | Description                       |
-| -------------------------------- | --------------------------------- |
-| `adt auth login --file <path>`   | Authenticate with BTP service key |
-| `adt auth logout`                | Clear stored tokens               |
-| `adt discovery`                  | List available ADT services       |
-| `adt discovery -o file.json`     | Export services as JSON           |
-| `adt get <object>`               | Get ABAP object details           |
-| `adt get <object> -o file.xml`   | Save ADT XML to file              |
-| `adt transport list`             | List transport requests           |
-| `adt transport get <TR>`         | Get transport or task details     |
-| `adt transport create -d "DESC"` | Create new transport request      |
-| `adt transport list -u USER`     | Filter by user                    |
-| `adt tr create -d "DESC" -t W`   | Create customizing transport      |
-| `adt transport list --debug`     | Show debug output                 |
+| Command                             | Description                       |
+| ----------------------------------- | --------------------------------- |
+| `adt auth login --file <path>`      | Authenticate with BTP service key |
+| `adt auth logout`                   | Clear stored tokens               |
+| `adt discovery`                     | List available ADT services       |
+| `adt discovery -o file.json`        | Export services as JSON           |
+| `adt get <object>`                  | Get ABAP object details           |
+| `adt get <object> -o file.xml`      | Save ADT XML to file              |
+| `adt transport list`                | List transport requests           |
+| `adt transport get <TR>`            | Get transport or task details     |
+| `adt transport create -d "DESC"`    | Create new transport request      |
+| `adt transport list -u USER`        | Filter by user                    |
+| `adt tr create -d "DESC" -t W`      | Create customizing transport      |
+| `adt transport list --debug`        | Show debug output                 |
+| `adt import package <pkg>`          | Import package from SAP           |
+| `adt export package <pkg> --create` | Create objects in SAP from files  |
 
 ## Related Projects
 

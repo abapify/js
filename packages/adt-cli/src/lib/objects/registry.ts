@@ -28,7 +28,7 @@ export class ObjectRegistry {
         new AdkObjectHandler(
           client,
           (xml) => InterfaceAdtAdapter.fromAdtXML(xml),
-          (name) => `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`
+          (name) => `/sap/bc/adt/oo/interfaces`
         )
     );
 

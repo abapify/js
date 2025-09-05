@@ -128,7 +128,8 @@ export class ADTClient {
     endpoint: string,
     body: string,
     headers?: Record<string, string>,
-    debug?: boolean
+    debug?: boolean,
+    sessionMode?: 'stateful' | 'stateless'
   ): Promise<string> {
     if (debug !== undefined) {
       this.debugMode = debug;
@@ -136,12 +137,45 @@ export class ADTClient {
 
     this.debug(`🔄 POST to: ${endpoint}`);
 
-    // Get CSRF token from the target endpoint
+    // Get CSRF token - fetchCsrfToken has built-in fallback logic
     const csrfToken = await this.fetchCsrfToken(endpoint, false);
+
+    // Prepare headers with session mode override
+    const requestHeaders = { ...headers, 'x-csrf-token': csrfToken };
+
+    // Override session type if specified
+    if (sessionMode === 'stateless') {
+      requestHeaders['X-sap-adt-sessiontype'] = 'stateless';
+    }
 
     // Make POST request with CSRF token - retry logic is in request()
     const response = await this.request(endpoint, {
       method: 'POST',
+      body,
+      headers: requestHeaders,
+    });
+
+    return response.text();
+  }
+
+  async put(
+    endpoint: string,
+    body: string,
+    headers?: Record<string, string>,
+    debug?: boolean
+  ): Promise<string> {
+    if (debug !== undefined) {
+      this.debugMode = debug;
+    }
+
+    this.debug(`🔄 PUT to: ${endpoint}`);
+
+    // Get CSRF token from the target endpoint
+    const csrfToken = await this.fetchCsrfToken(endpoint, false);
+
+    // Make PUT request with CSRF token - retry logic is in request()
+    const response = await this.request(endpoint, {
+      method: 'PUT',
       body,
       headers: {
         ...headers,
@@ -183,8 +217,6 @@ export class ADTClient {
           Accept: 'application/xml',
           'sap-client': '100',
           'sap-language': 'EN',
-          'x-sap-security-session': 'use',
-          'X-sap-adt-sessiontype': 'stateful',
         };
 
         // Add cookies for session management
