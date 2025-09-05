@@ -1,7 +1,7 @@
 import { ADTClient } from '../../adt-client';
 import { BaseObject } from '../base/base-object';
 import { ObjectData } from '../base/types';
-import { Spec, Kind } from '@abapify/adk';
+import { ClassAdtAdapter, DomainAdtAdapter, Kind, Spec } from '@abapify/adk';
 
 export class AdkObjectHandler extends BaseObject<ObjectData> {
   constructor(
@@ -64,6 +64,164 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
         kind: spec.kind,
       },
     };
+  }
+
+  override async create(
+    objectData: ObjectData,
+    transportRequest?: string
+  ): Promise<void> {
+    const spec = this.objectDataToSpec(objectData);
+    const xml = this.generateAdtXml(spec);
+    const uri = this.uriFactory(objectData.name);
+    const contentType = this.getContentTypeForObjectType(
+      objectData.metadata?.type || 'UNKNOWN'
+    );
+
+    console.log('🔍 Generated XML:', xml);
+    console.log('🔍 URI:', uri);
+    console.log('🔍 Content-Type:', contentType);
+
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      Accept: 'application/xml',
+    };
+
+    if (transportRequest) {
+      headers['sap-adt-corrnr'] = transportRequest;
+    }
+
+    try {
+      // Try to create the object - use stateless mode for interface creation
+      const sessionMode =
+        objectData.metadata?.type === 'INTF' ? 'stateless' : undefined;
+      await this.adtClient.post(uri, xml, headers, true, sessionMode);
+      console.log('✅ Successfully created object:', objectData.name);
+    } catch (error) {
+      // If creation fails, check if object exists and try to update
+      if (error instanceof Error && error.message.includes('403')) {
+        console.log('🔄 Creation failed, checking if object exists...');
+        try {
+          // Try to get the object to see if it exists
+          await this.adtClient.get(uri);
+          console.log('📝 Object exists, attempting update...');
+          // Object exists, try to update it
+          await this.adtClient.put(uri, xml, headers);
+          console.log('✅ Successfully updated object:', objectData.name);
+        } catch (getError) {
+          console.log('❌ Object does not exist, rethrowing original error');
+          throw error; // Rethrow original creation error
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  override async update(
+    objectData: ObjectData,
+    transportRequest?: string
+  ): Promise<void> {
+    const spec = this.objectDataToSpec(objectData);
+    const xml = this.generateAdtXml(spec);
+
+    const uri = this.uriFactory(objectData.name);
+    const contentType = this.getContentTypeForObjectType(
+      objectData.metadata?.type || 'UNKNOWN'
+    );
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      Accept: 'application/xml',
+    };
+
+    if (transportRequest) {
+      headers['sap-adt-corrnr'] = transportRequest;
+    }
+
+    await this.adtClient.put(uri, xml, headers);
+  }
+
+  private objectDataToSpec(objectData: ObjectData): Spec<any, Kind> {
+    // Convert ObjectData back to ADK Spec format
+    const kind = this.getKindFromAdtType(
+      objectData.metadata?.type || 'UNKNOWN'
+    );
+
+    return {
+      kind,
+      metadata: {
+        name: objectData.name,
+        description: objectData.description,
+      },
+      spec: {
+        // This would need to be populated based on the object type
+        // For now, we'll use a basic structure
+        source: objectData.source || '',
+      },
+      package: objectData.package,
+    } as Spec<any, Kind>;
+  }
+
+  private generateAdtXml(spec: Spec<any, Kind>): string {
+    // Generate proper SAP ADT XML format
+    try {
+      switch (spec.kind) {
+        case Kind.Interface:
+          return this.generateInterfaceXml(spec as any);
+        case Kind.Class:
+          const classAdapter = new ClassAdtAdapter(spec as any);
+          return classAdapter.toAdtXML();
+        case Kind.Domain:
+          const domainAdapter = new DomainAdtAdapter(spec as any);
+          return domainAdapter.toAdtXML();
+        default:
+          throw new Error(
+            `Unsupported object kind for XML generation: ${spec.kind}`
+          );
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to generate ADT XML: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  private generateInterfaceXml(spec: any): string {
+    const name = spec.metadata?.name || 'UNNAMED';
+    const description = spec.metadata?.description || '';
+    const packageName = spec.package || 'ZPETSTORE';
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<intf:abapInterface xmlns:intf="http://www.sap.com/adt/oo/interfaces" xmlns:adtcore="http://www.sap.com/adt/core" adtcore:type="INTF/OI" adtcore:description="${description}" adtcore:name="${name}">
+  <adtcore:packageRef adtcore:name="${packageName}"/>
+</intf:abapInterface>`;
+  }
+
+  private getKindFromAdtType(adtType: string): Kind {
+    switch (adtType) {
+      case 'CLAS':
+        return Kind.Class;
+      case 'INTF':
+        return Kind.Interface;
+      case 'DOMA':
+        return Kind.Domain;
+      default:
+        throw new Error(`Unknown ADT type: ${adtType}`);
+    }
+  }
+
+  private getContentTypeForObjectType(objectType: string): string {
+    switch (objectType) {
+      case 'CLAS':
+        return 'application/vnd.sap.adt.oo.classes.v1+xml';
+      case 'INTF':
+        return 'application/vnd.sap.adt.oo.interfaces.v1+xml';
+      case 'DOMA':
+        return 'application/vnd.sap.adt.ddic.domains.v1+xml';
+      default:
+        return 'application/xml';
+    }
   }
 
   private getAdtTypeFromKind(kind: Kind): string {
@@ -156,7 +314,6 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
       childArray.forEach((child: any, index: number) => {
         const isLast = index === childArray.length - 1;
         const childIndent = indent + (isLast ? '└─ ' : '├─ ');
-        const nextIndent = indent + (isLast ? '   ' : '│  ');
         this.displayStructureElement(child, childIndent, name);
       });
     }

@@ -10,8 +10,68 @@ export class YamlSerializer extends BaseSerializer {
   }
 
   deserialize(content: string): any {
-    // TODO: Implement YAML parsing when needed for adt export
-    throw new Error('YAML deserialization not yet implemented');
+    return this.parseYaml(content);
+  }
+
+  private parseYaml(content: string): any {
+    const lines = content
+      .split('\n')
+      .filter((line) => line.trim() && !line.trim().startsWith('#'));
+    const result: any = {};
+    const stack: Array<{ obj: any; indent: number }> = [
+      { obj: result, indent: -1 },
+    ];
+
+    for (const line of lines) {
+      const indent = line.length - line.trimStart().length;
+      const trimmed = line.trim();
+
+      if (!trimmed) continue;
+
+      // Pop stack until we find the right parent level
+      while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+        stack.pop();
+      }
+
+      const current = stack[stack.length - 1].obj;
+
+      if (trimmed.includes(':')) {
+        const colonIndex = trimmed.indexOf(':');
+        const key = trimmed.substring(0, colonIndex).trim();
+        const value = trimmed.substring(colonIndex + 1).trim();
+
+        if (value === '' || value === '{}' || value === '[]') {
+          // Object or array - prepare for nested content
+          current[key] = value === '[]' ? [] : {};
+          stack.push({ obj: current[key], indent });
+        } else {
+          // Simple value
+          current[key] = this.parseYamlValue(value);
+        }
+      } else if (trimmed.startsWith('- ')) {
+        // Array item
+        const value = trimmed.substring(2).trim();
+        if (Array.isArray(current)) {
+          current.push(this.parseYamlValue(value));
+        }
+      }
+    }
+
+    return result;
+  }
+
+  private parseYamlValue(value: string): any {
+    if (value.startsWith('"') && value.endsWith('"')) {
+      return value.slice(1, -1);
+    }
+    if (value.startsWith("'") && value.endsWith("'")) {
+      return value.slice(1, -1);
+    }
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (value === 'null') return null;
+    if (!isNaN(Number(value))) return Number(value);
+    return value;
   }
 
   getFileExtension(): string {
