@@ -9,5 +9,9 @@
       "extensions": ["nrwl.angular-console"]
     }
   },
-  "runArgs": ["--network=host", "--cap-add=SYS_ADMIN"]
+  "runArgs": ["--network=host", "--cap-add=SYS_ADMIN"],
+  "mounts": [
+    "source=${localEnv:HOME}/.gitconfig,target=/home/node/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached"
+  ]
 }
