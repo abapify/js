@@ -14,6 +14,14 @@ export abstract class BaseObject<T extends ObjectData> {
     throw new Error(`Structure information not available for this object type`);
   }
 
+  async create(objectData: T, transportRequest?: string): Promise<void> {
+    throw new Error(`Object creation not implemented for this object type`);
+  }
+
+  async update(objectData: T, transportRequest?: string): Promise<void> {
+    throw new Error(`Object update not implemented for this object type`);
+  }
+
   protected async fetchFromAdt(
     uri: string,
     accept: string = 'text/plain'
