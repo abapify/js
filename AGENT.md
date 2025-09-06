@@ -1,5 +1,18 @@
 # AGENT.md
 
+## Project Context & Goals
+
+**Primary Mission**: Build efficient CI/CD pipeline for ABAP development using GitLab
+
+**Current Focus**: GitLab CI/CD pipeline for code review with:
+
+- ATC runs visualization (source code + findings overlay)
+- Delta analysis (before/after comparison for each task/TR)
+- Code coverage integration (lower priority)
+- Future AI integration for quality check summaries
+
+**DevOps-First Design**: All tools (especially ADT CLI) are built to be DevOps-friendly and automation-ready
+
 ## Essential Commands (HIGHEST PRIORITY)
 
 **Package Manager**: This project uses **npm workspaces** (NOT pnpm)
@@ -114,15 +127,39 @@ this.handlers.set(
 - Reduced code complexity
 - Maintainable architecture
 
+## Specification-Driven Development
+
+**Core Principle**: All development must align with project specifications in `/specs/` directory
+
+**Specification Compliance Process**:
+
+1. **Check Existing Specs**: Before any code changes, review relevant specifications in `/specs/`
+2. **Spec Alignment**: Ensure proposed changes align with documented specifications
+3. **Spec Negotiation**: If changes conflict with specs, negotiate spec updates FIRST
+4. **No Spec Violations**: Never implement code that contradicts existing specifications
+
+**Key Specifications**:
+
+- `/specs/cicd/abap-cicd-pipeline.md` - Core ABAP CI/CD architecture and principles
+- `/specs/oat/` - OAT format specifications and documentation
+- Additional specs as they are created
+
 ## Workflow Rules
 
 **Before Code Changes**
 
-1. Always propose plan and get confirmation
-2. Update relevant README.md files for significant changes
+1. **Review Specifications**: Check `/specs/` for relevant documentation
+2. **Spec Compliance Check**: Ensure changes align with documented architecture
+3. **Spec Update Process**: If changes require spec modifications:
+   - Discuss spec changes with user FIRST
+   - Update specification documents
+   - Only then proceed with code implementation
+4. Always propose plan and get confirmation
+5. Update relevant README.md files for significant changes
 
 **After Code Changes**
 
 1. Rebuild package: `nx build [package-name]`
 2. Run type check: `nx typecheck`
 3. Test: `nx test [package-name]`
+4. **Spec Validation**: Confirm implementation matches updated specifications
