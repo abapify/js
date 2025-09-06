@@ -1,0 +1,61 @@
+# GitLab CI/CD Pipeline for ABAP Code Review
+# Provides ATC quality checks and transport content visualization
+
+stages:
+  - authenticate
+  - import
+  - quality-check
+  - report
+
+variables:
+  # Extract transport number from merge request title (format: "Feature XYZ - TR NPLK123456")
+  TR_NUMBER: '${CI_MERGE_REQUEST_TITLE##*TR }'
+  ATC_REPORT: 'atc-quality-report.json'
+  TRANSPORT_CONTENT_DIR: 'transport-content'
+  NODE_VERSION: '18'
+
+# Cache node_modules and ADT CLI authentication
+cache:
+  paths:
+    - node_modules/
+    - ~/.config/adt-cli/
+
+before_script:
+  - echo "🚛 Processing Transport Request: $TR_NUMBER"
+  - echo "🔗 Merge Request: $CI_MERGE_REQUEST_TITLE"
+
+# Stage 1: Authenticate with SAP system
+authenticate:
+  stage: authenticate
+  image: node:${NODE_VERSION}
+  script:
+    - npm install -g @abapify/adt-cli
+    - echo "🔐 Authenticating with SAP BTP..."
+    - adt auth login --file $BTP_SERVICE_KEY
+    - echo "✅ Authentication successful"
+  artifacts:
+    paths:
+      - ~/.config/adt-cli/
+    expire_in: 1 hour
+  only:
+    - merge_requests
+  variables:
+    BTP_SERVICE_KEY: $BTP_SERVICE_KEY # Set in GitLab CI/CD variables
+
+# Stage 2: Import transport content for review
+import_transport:
+  stage: import
+  image: node:${NODE_VERSION}
+  dependencies:
+    - authenticate
+  script:
+    - echo "📦 Importing transport $TR_NUMBER content..."
+    - adt import transport $TR_NUMBER --format oat --output $TRANSPORT_CONTENT_DIR
+    - echo "📊 Transport content imported to $TRANSPORT_CONTENT_DIR"
+    - find $TRANSPORT_CONTENT_DIR -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | wc -l | xargs echo "📄 Files imported:"
+  artifacts:
+    paths:
+      - $TRANSPORT_CONTENT_DIR/
+    expire_in: 1 week
+  only:
+    - merge_requests

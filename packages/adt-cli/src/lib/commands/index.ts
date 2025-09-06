@@ -1,5 +1,6 @@
 // Export all commands directly
 export { importPackageCommand } from './import/package';
+export { importTransportCommand } from './import/transport';
 export { exportPackageCommand } from './export/package';
 export { searchCommand } from './search';
 export { discoveryCommand } from './discovery';
