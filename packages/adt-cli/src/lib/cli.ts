@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import {
   importPackageCommand,
+  importTransportCommand,
   exportPackageCommand,
   searchCommand,
   discoveryCommand,
@@ -64,6 +65,7 @@ export function createCLI(): Command {
     .description('Import ABAP objects to various formats (OAT, abapGit, etc.)');
 
   importCmd.addCommand(importPackageCommand);
+  importCmd.addCommand(importTransportCommand);
 
   // Export commands
   const exportCmd = program
