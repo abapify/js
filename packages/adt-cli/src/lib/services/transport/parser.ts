@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import { Transport, Task, TransportList } from './types';
+import { Transport, Task, TransportList, TransportObject } from './types';
 
 export class TransportParser {
   private parser: XMLParser;
@@ -235,5 +235,125 @@ export class TransportParser {
     }
 
     return tasks;
+  }
+
+  parseTransportObjects(xmlContent: string, debug = false): TransportObject[] {
+    const result = this.parser.parse(xmlContent);
+
+    if (debug) {
+      console.log(
+        '📄 Received',
+        xmlContent.length,
+        'bytes of transport objects XML'
+      );
+      console.log('First 500 chars of XML:', xmlContent.substring(0, 500));
+      console.log(
+        'Transport objects XML structure:',
+        JSON.stringify(result, null, 2)
+      );
+    }
+
+    const objects: TransportObject[] = [];
+
+    // Parse transport objects from ADT XML structure
+    // The structure may vary depending on the ADT API version and transport type
+    const root = result['tm:root'] || result.root;
+    if (root) {
+      // Look for object entries in various possible locations
+      const objectEntries = this.findObjectEntries(root, debug);
+
+      for (const entry of objectEntries) {
+        const obj = this.parseTransportObject(entry);
+        if (obj) {
+          objects.push(obj);
+        }
+      }
+    }
+
+    if (debug) {
+      console.log(`Parsed ${objects.length} transport objects`);
+    }
+
+    return objects;
+  }
+
+  private findObjectEntries(root: any, debug = false): any[] {
+    const entries: any[] = [];
+
+    // Common ADT patterns for transport object entries
+    const possiblePaths = [
+      'tm:objects.tm:object',
+      'tm:object',
+      'objects.object',
+      'object',
+      'tm:entries.tm:entry',
+      'tm:entry',
+      'entries.entry',
+      'entry',
+    ];
+
+    for (const path of possiblePaths) {
+      const pathParts = path.split('.');
+      let current = root;
+
+      for (const part of pathParts) {
+        if (current && current[part]) {
+          current = current[part];
+        } else {
+          current = null;
+          break;
+        }
+      }
+
+      if (current) {
+        if (Array.isArray(current)) {
+          entries.push(...current);
+        } else {
+          entries.push(current);
+        }
+
+        if (debug) {
+          console.log(`Found object entries at path: ${path}`);
+        }
+        break; // Use first matching path
+      }
+    }
+
+    return entries;
+  }
+
+  private parseTransportObject(entry: any): TransportObject | null {
+    try {
+      // Extract object information from ADT XML entry
+      const name = entry['@adtcore:name'] || entry['@name'] || entry.name || '';
+      const type = entry['@adtcore:type'] || entry['@type'] || entry.type || '';
+      const description =
+        entry['@adtcore:description'] ||
+        entry['@description'] ||
+        entry.description ||
+        '';
+      const packageName =
+        entry['@adtcore:package'] || entry['@package'] || entry.package || '';
+      const uri = entry['@adtcore:uri'] || entry['@uri'] || entry.uri || '';
+
+      // Build fullType from type and subtype if available
+      const subtype = entry['@adtcore:subtype'] || entry['@subtype'] || '';
+      const fullType = subtype ? `${type}/${subtype}` : type;
+
+      if (!name || !type) {
+        return null; // Skip entries without essential information
+      }
+
+      return {
+        name,
+        type,
+        description,
+        packageName,
+        uri,
+        fullType,
+      };
+    } catch (error) {
+      return null; // Skip malformed entries
+    }
   }
 }
