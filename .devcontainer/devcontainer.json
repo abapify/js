@@ -4,6 +4,9 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
+  "mounts": [
+    "source=/home/${localEnv:USER}/.codeium,target=/home/node/.codeium,type=bind,consistency=cached"
+  ],
   "customizations": {
     "vscode": {
       "extensions": ["nrwl.angular-console"]
