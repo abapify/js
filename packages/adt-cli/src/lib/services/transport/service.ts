@@ -389,6 +389,72 @@ export class TransportService {
     return [];
   }
 
+  async getTransportObjectsFromDetail(
+    trNumber: string,
+    options: { debug?: boolean } = {}
+  ): Promise<TransportObject[]> {
+    try {
+      // Get the transport detail which includes task information
+      const result = await this.getTransport(trNumber, {
+        includeTasks: true,
+        includeObjects: true,
+        debug: options.debug,
+      });
+
+      const objects: TransportObject[] = [];
+
+      // If this is a task request, get the task XML directly
+      if (result.isTask && result.requestedTask) {
+        const taskObjects = await this.getTaskObjects(trNumber, options);
+        objects.push(...taskObjects);
+      } else {
+        // For transport requests, get objects from all tasks
+        if (result.transport.tasks) {
+          for (const task of result.transport.tasks) {
+            const taskObjects = await this.getTaskObjects(task.number, options);
+            objects.push(...taskObjects);
+          }
+        }
+      }
+
+      return objects;
+    } catch (error) {
+      if (options.debug) {
+        console.log(`Failed to get objects from transport detail: ${error}`);
+      }
+      return [];
+    }
+  }
+
+  private async getTaskObjects(
+    taskNumber: string,
+    options: { debug?: boolean } = {}
+  ): Promise<TransportObject[]> {
+    try {
+      // Get the task detail which includes the tm:abap_object array
+      const endpoint = `/sap/bc/adt/cts/transportrequests/${taskNumber}`;
+      const xmlContent = await this.adtClient.get(endpoint, {
+        Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+      });
+
+      if (options.debug) {
+        console.log(`📄 Getting objects for task ${taskNumber}`);
+      }
+
+      // Parse the XML to extract objects from tm:task.tm:abap_object
+      const result = this.parser.parseTransportObjects(
+        xmlContent,
+        options.debug
+      );
+      return result;
+    } catch (error) {
+      if (options.debug) {
+        console.log(`Failed to get objects for task ${taskNumber}: ${error}`);
+      }
+      return [];
+    }
+  }
+
   private escapeXml(text: string): string {
     return text
       .replace(/&/g, '&amp;')
