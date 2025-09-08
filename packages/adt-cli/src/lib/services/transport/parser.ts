@@ -117,8 +117,8 @@ export class TransportParser {
       if (node && typeof node === 'object') {
         const transport = this.parseTransport(node);
         if (transport && transport.number) {
-          // If this was a task request, we need to make sure the task is included
-          if (requestedIsTask && root?.['tm:task']) {
+          // Always check for tasks at the root level (tm:root/tm:task)
+          if (root?.['tm:task']) {
             const taskData = root['tm:task'];
             const task = this.parseTask(taskData);
             if (task) {
@@ -268,6 +268,27 @@ export class TransportParser {
           objects.push(obj);
         }
       }
+
+      // Also check for objects in task structure (tm:task.tm:abap_object)
+      if (root['tm:task'] && root['tm:task']['tm:abap_object']) {
+        const taskObjects = root['tm:task']['tm:abap_object'];
+        const taskObjectArray = Array.isArray(taskObjects)
+          ? taskObjects
+          : [taskObjects];
+
+        for (const taskObj of taskObjectArray) {
+          const obj = this.parseTransportObject(taskObj);
+          if (obj) {
+            objects.push(obj);
+          }
+        }
+
+        if (debug) {
+          console.log(
+            `Found ${taskObjectArray.length} objects in task structure`
+          );
+        }
+      }
     }
 
     if (debug) {
@@ -282,6 +303,7 @@ export class TransportParser {
 
     // Common ADT patterns for transport object entries
     const possiblePaths = [
+      'tm:abap_object', // Objects in tasks
       'tm:objects.tm:object',
       'tm:object',
       'objects.object',
@@ -325,20 +347,38 @@ export class TransportParser {
   private parseTransportObject(entry: any): TransportObject | null {
     try {
       // Extract object information from ADT XML entry
-      const name = entry['@adtcore:name'] || entry['@name'] || entry.name || '';
-      const type = entry['@adtcore:type'] || entry['@type'] || entry.type || '';
+      // Handle both ADT format and transport task format
+      const name =
+        entry['@adtcore:name'] ||
+        entry['@name'] ||
+        entry['@tm:name'] ||
+        entry.name ||
+        '';
+      const type =
+        entry['@adtcore:type'] ||
+        entry['@type'] ||
+        entry['@tm:type'] ||
+        entry.type ||
+        '';
       const description =
         entry['@adtcore:description'] ||
         entry['@description'] ||
+        entry['@tm:obj_desc'] ||
         entry.description ||
         '';
       const packageName =
         entry['@adtcore:package'] || entry['@package'] || entry.package || '';
-      const uri = entry['@adtcore:uri'] || entry['@uri'] || entry.uri || '';
+      const uri =
+        entry['@adtcore:uri'] ||
+        entry['@uri'] ||
+        entry['@tm:dummy_uri'] ||
+        entry.uri ||
+        '';
 
       // Build fullType from type and subtype if available
       const subtype = entry['@adtcore:subtype'] || entry['@subtype'] || '';
-      const fullType = subtype ? `${type}/${subtype}` : type;
+      const wbtype = entry['@tm:wbtype'] || '';
+      const fullType = subtype ? `${type}/${subtype}` : wbtype || type;
 
       if (!name || !type) {
         return null; // Skip entries without essential information
