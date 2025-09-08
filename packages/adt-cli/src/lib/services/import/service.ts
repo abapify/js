@@ -243,11 +243,12 @@ export class ImportService {
         { includeObjects: true, debug: options.debug }
       );
 
-      // Extract objects from transport using the new transport objects endpoint
-      const transportObjects = await this.transportService.getTransportObjects(
-        options.transportNumber,
-        { debug: options.debug }
-      );
+      // Extract objects from transport using the new detail-based method that handles tasks
+      const transportObjects = await (
+        this.transportService as any
+      ).getTransportObjectsFromDetail(options.transportNumber, {
+        debug: options.debug,
+      });
 
       // Convert TransportObject[] to ADTObject[] format expected by the rest of the system
       const searchObjects: ADTObject[] = transportObjects.map((obj) => ({
