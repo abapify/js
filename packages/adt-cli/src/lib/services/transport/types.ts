@@ -56,3 +56,12 @@ export interface TransportCreateResult {
   transport: Transport;
   task: Task;
 }
+
+export interface TransportObject {
+  name: string;
+  type: string;
+  description: string;
+  packageName: string;
+  uri: string;
+  fullType: string; // e.g., "CLAS/OC"
+}

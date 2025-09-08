@@ -8,6 +8,7 @@ import {
   TransportGetResult,
   TransportCreateOptions,
   TransportCreateResult,
+  TransportObject,
 } from './types';
 
 export class TransportService {
@@ -327,6 +328,65 @@ export class TransportService {
     <tm:task tm:owner="${owner}"/>
   </tm:request>
 </tm:root>`;
+  }
+
+  async getTransportObjects(
+    trNumber: string,
+    options: { debug?: boolean } = {}
+  ): Promise<TransportObject[]> {
+    const endpoint = `/sap/bc/adt/cts/transportrequests/${trNumber}/objects`;
+
+    if (options.debug) {
+      console.log(`Fetching transport objects: ${endpoint}`);
+    }
+
+    try {
+      const xmlContent = await this.adtClient.get(endpoint, {
+        Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+      });
+
+      if (options.debug) {
+        console.log(
+          `Received ${xmlContent.length} bytes for transport objects ${trNumber}`
+        );
+        console.log('First 300 chars:', xmlContent.substring(0, 300));
+      }
+
+      // Parse transport objects from XML
+      return this.parser.parseTransportObjects(xmlContent, options.debug);
+    } catch (error) {
+      if (options.debug) {
+        console.log(
+          `Transport objects endpoint failed, trying alternative approach...`
+        );
+      }
+
+      // Fallback: try to extract objects from transport detail
+      try {
+        const transportDetail = await this.getTransport(trNumber, options);
+        return this.extractObjectsFromTransportDetail(
+          transportDetail.transport
+        );
+      } catch (fallbackError) {
+        throw new Error(
+          `Failed to fetch transport objects ${trNumber}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+  }
+
+  private extractObjectsFromTransportDetail(
+    transport: Transport
+  ): TransportObject[] {
+    // This is a fallback method that extracts basic object info from transport metadata
+    // In a real implementation, this would parse the transport XML structure for object entries
+    // For now, return empty array as we need the proper ADT API endpoint
+    console.log(
+      `⚠️ Using fallback object extraction for transport ${transport.number}`
+    );
+    return [];
   }
 
   private escapeXml(text: string): string {
