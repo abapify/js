@@ -243,15 +243,27 @@ export class ImportService {
         { includeObjects: true, debug: options.debug }
       );
 
-      // For now, create a minimal implementation that works
-      // TODO: Implement proper object extraction from transport when transport service supports it
-      const searchObjects: ADTObject[] = [];
+      // Extract objects from transport using the new transport objects endpoint
+      const transportObjects = await this.transportService.getTransportObjects(
+        options.transportNumber,
+        { debug: options.debug }
+      );
+
+      // Convert TransportObject[] to ADTObject[] format expected by the rest of the system
+      const searchObjects: ADTObject[] = transportObjects.map((obj) => ({
+        name: obj.name,
+        type: obj.type,
+        description: obj.description,
+        packageName: obj.packageName,
+        uri: obj.uri,
+        fullType: obj.fullType,
+      }));
 
       if (options.debug) {
-        console.log(`⚠️ Transport object extraction not yet implemented`);
         console.log(
-          `📝 Using transport: ${transportDetails.transport.description}`
+          `✅ Extracted ${searchObjects.length} objects from transport`
         );
+        console.log(`📝 Transport: ${transportDetails.transport.description}`);
       }
 
       // Set up output directory and get plugin
