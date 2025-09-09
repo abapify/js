@@ -35,6 +35,18 @@
     },
     {
       "path": "./packages/plugins/abapgit"
+    },
+    {
+      "path": "./packages/plugins/oat"
+    },
+    {
+      "path": "./packages/plugins/abapgit"
+    },
+    {
+      "path": "./packages/plugins/gcts"
+    },
+    {
+      "path": "./packages/plugins/oat"
     }
   ]
 }
