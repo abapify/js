@@ -29,6 +29,12 @@
     },
     {
       "path": "./packages/sk"
+    },
+    {
+      "path": "./packages/plugins/oat"
+    },
+    {
+      "path": "./packages/plugins/abapgit"
     }
   ]
 }
