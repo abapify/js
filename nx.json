@@ -14,7 +14,12 @@
           "configName": "tsconfig.lib.json"
         }
       },
-      "exclude": ["samples/cds/*"]
+      "exclude": [
+        "samples/cds/*",
+        "packages/plugins/oat/*",
+        "packages/plugins/abapgit/*",
+        "packages/plugins/gcts/*"
+      ]
     },
     {
       "plugin": "@nx/rollup/plugin",
@@ -26,6 +31,19 @@
       "plugin": "@nx/eslint/plugin",
       "options": {
         "targetName": "lint"
+      }
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "include": [
+        "packages/plugins/oat/*",
+        "packages/plugins/abapgit/*",
+        "packages/plugins/gcts/*"
+      ],
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        }
       }
     }
   ],
