@@ -221,22 +221,47 @@ adt report delta --transport TR001 --baseline TR000
 
 ## Integration Architecture
 
+### With ADT Client
+
+**Abstracted ADT Communication**
+
+- ADT CLI initializes and manages ADT Client instances
+- ADT Client handles all SAP ADT API communication
+- Plugins receive initialized ADT Client for operations
+- Clean separation between CLI orchestration and ADT communication
+- **Specification**: See [ADT Client Specification](../adt-client/README.md)
+
+```typescript
+// CLI initializes ADT Client
+const adtClient = new AdtClient();
+await adtClient.connect(connectionConfig);
+
+// Plugins receive client instance
+const plugin = pluginRegistry.getPlugin(format);
+await plugin.exportObject({
+  objectType: 'CLAS',
+  objectName: 'ZCL_EXAMPLE',
+  adtClient: adtClient,
+  targetPath: './output',
+});
+```
+
 ### With ADK (ABAP Development Kit)
 
 **Type-Safe Object Processing**
 
 - ADK provides type-safe ABAP object specifications
-- ADT CLI uses ADK adapters for object serialization/parsing
+- ADT Client uses ADK adapters for object serialization/parsing
 - Compile-time validation of object structures
 - Consistent object representation across operations
 
 ```typescript
-// Bridge pattern integration
+// Bridge pattern integration via ADT Client
 class AdkObjectHandler<T extends Spec<unknown, Kind>> {
   constructor(
-    private client: AdtClient,
+    private adtClient: AdtClient,
     private parser: (xml: string) => T,
-    private urlBuilder: (name: string) => string
+    private objectType: string
   ) {}
 }
 ```
