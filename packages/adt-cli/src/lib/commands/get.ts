@@ -1,9 +1,8 @@
 import { Command } from 'commander';
-import { SearchService } from '../services/search/service';
 import { ObjectRegistry } from '../objects/registry';
 import { IconRegistry } from '../utils/icon-registry';
 import { AdtUrlGenerator } from '../utils/adt-url-generator';
-import { adtClient, authManager } from '../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { XMLParser } from 'fast-xml-parser';
@@ -13,7 +12,6 @@ export const getCommand = new Command('get')
   .description('Get details about a specific ABAP object')
   .option('--source', 'Show source code preview', false)
   .option('--json', 'Output as JSON', false)
-  .option('--debug', 'Enable debug output', false)
   .option('--outline', 'Show object outline structure', false)
   .option(
     '--properties',
@@ -24,20 +22,26 @@ export const getCommand = new Command('get')
     '-o, --output <file>',
     'Save ADT XML to file instead of displaying details'
   )
-  .action(async (objectName, options) => {
+  .action(async (objectName, options, command) => {
+    const logger = command.parent?.logger;
     try {
-      const searchService = new SearchService(adtClient);
-
       // Search for the specific object by name
-      const searchResult = await searchService.searchObjects({
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
+      });
+
+      const searchOptions = {
         operation: 'quickSearch',
         query: objectName,
         maxResults: 10,
-        debug: options.debug,
-      });
+      };
+      const result = await adtClient.repository.searchObjectsDetailed(
+        searchOptions
+      );
 
       // Find exact match
-      const exactMatch = searchResult.objects.find(
+      const exactMatch = result.objects.find(
         (obj) => obj.name.toUpperCase() === objectName.toUpperCase()
       );
 
@@ -45,7 +49,7 @@ export const getCommand = new Command('get')
         console.log(`❌ Object '${objectName}' not found`);
 
         // Show similar objects if any
-        const similarObjects = searchResult.objects.filter((obj) =>
+        const similarObjects = result.objects.filter((obj) =>
           obj.name.toUpperCase().includes(objectName.toUpperCase())
         );
 
