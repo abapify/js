@@ -12,3 +12,5 @@ export { logoutCommand } from './auth/logout';
 export { transportListCommand } from './transport/list';
 export { transportGetCommand } from './transport/get';
 export { transportCreateCommand } from './transport/create';
+export { createTestLogCommand } from './test-log';
+export { createTestAdtCommand } from './test-adt';

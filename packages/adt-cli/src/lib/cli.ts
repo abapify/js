@@ -15,7 +15,44 @@ import {
   transportListCommand,
   transportGetCommand,
   transportCreateCommand,
+  createExportCommand,
+  createSearchCommand,
+  createTestLogCommand,
+  createTestAdtCommand,
 } from './commands';
+import {
+  createCliLogger,
+  parseComponents,
+  AVAILABLE_COMPONENTS,
+} from './utils/logger-config';
+import { setGlobalLogger } from './shared/clients.js';
+
+// Add global options help to all commands using afterAll hook
+function addGlobalOptionsHelpToAll(rootProgram: Command): void {
+  // Get global options from root program
+  const globalOptions = rootProgram.options
+    .filter(
+      (option) =>
+        !option.flags.includes('-h, --help') &&
+        !option.flags.includes('-V, --version')
+    )
+    .map((option) => `  ${option.flags.padEnd(30)} ${option.description}`)
+    .join('\n');
+
+  if (globalOptions) {
+    rootProgram.addHelpText('afterAll', (context) => {
+      // Skip the main program to avoid duplicate global options
+      if (context.command === rootProgram) {
+        return '';
+      }
+
+      return `
+Global Options:
+${globalOptions}
+`;
+    });
+  }
+}
 
 // Create main program
 export function createCLI(): Command {
@@ -24,7 +61,24 @@ export function createCLI(): Command {
   program
     .name('adt')
     .description('ADT CLI tool for managing SAP ADT services')
-    .version('1.0.0');
+    .version('1.0.0')
+    .option(
+      '-v, --verbose [components]',
+      `Enable verbose logging. Optionally filter by components: ${AVAILABLE_COMPONENTS.join(
+        ', '
+      )} or 'all'`
+    )
+    .hook('preAction', (thisCommand) => {
+      const opts = thisCommand.optsWithGlobals();
+
+      // Create logger based on global options
+      const logger = createCliLogger({
+        verbose: opts.verbose,
+      });
+
+      // Store logger for use in commands
+      thisCommand.logger = logger;
+    });
 
   // Auth commands
   const authCmd = program
@@ -74,11 +128,36 @@ export function createCLI(): Command {
 
   exportCmd.addCommand(exportPackageCommand);
 
+  // Test commands for debugging
+  program.addCommand(createTestLogCommand());
+  program.addCommand(createTestAdtCommand());
+
+  // Apply global options help to all commands using afterAll hook
+  addGlobalOptionsHelpToAll(program);
+
   return program;
 }
 
 // Main execution function
 export async function main(): Promise<void> {
   const program = createCLI();
+
+  // Add a hook to set up logger before command execution
+  program.hook('preAction', (thisCommand, actionCommand) => {
+    // Set CLI mode for ADT client logger to enable pretty formatting
+    process.env.ADT_CLI_MODE = 'true';
+
+    // Get global options from root program
+    let rootCmd = actionCommand;
+    while (rootCmd.parent) {
+      rootCmd = rootCmd.parent;
+    }
+    const globalOptions = rootCmd.opts();
+
+    // Create and set global logger for ADT client
+    const logger = createCliLogger({ verbose: globalOptions.verbose });
+    setGlobalLogger(logger);
+  });
+
   await program.parseAsync(process.argv);
 }
