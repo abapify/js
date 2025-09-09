@@ -1,0 +1,36 @@
+{
+  "name": "@abapify/adt-client",
+  "version": "0.0.1",
+  "description": "Abstracted ADT client for SAP ABAP Development Tools communication",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "abapify": "./src/index.ts",
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.5",
+    "open": "^8.4.2",
+    "pino": "^8.17.2",
+    "tslib": "^2.3.0"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "watch": "tsdown --watch src/index.ts",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "pino-pretty": "^10.3.1",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  }
+}

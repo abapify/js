@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { ExportService } from '../../services/export/service';
 import { IconRegistry } from '../../utils/icon-registry';
-import { adtClient } from '../../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 
 export const exportPackageCommand = new Command('package')
   .argument('<packageName>', 'ABAP package name to export')
@@ -29,9 +29,14 @@ export const exportPackageCommand = new Command('package')
     'Actually create/update objects in SAP (default: dry run)',
     false
   )
-  .option('--debug', 'Enable debug output', false)
-  .action(async (packageName, sourceFolder, options) => {
+  .action(async (packageName, sourceFolder, options, command) => {
+    const logger = command.parent?.parent?.logger;
+
     try {
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
+      });
       const exportService = new ExportService(adtClient);
 
       // Determine input path: --input option, sourceFolder argument, or default
@@ -40,11 +45,9 @@ export const exportPackageCommand = new Command('package')
         sourceFolder ||
         `./oat-${packageName.toLowerCase().replace('$', '')}`;
 
-      // Only show start message in debug mode
-      if (options.debug) {
-        console.log(`🚀 Starting export of package: ${packageName}`);
-        console.log(`📁 Source folder: ${inputPath}`);
-      }
+      // Show start message
+      console.log(`🚀 Starting export of package: ${packageName}`);
+      console.log(`📁 Source folder: ${inputPath}`);
 
       // Parse object types if provided
       const objectTypes = options.objectTypes

@@ -1,12 +1,7 @@
 import { Command } from 'commander';
-import { TransportService } from '../../services/transport';
-import { adtClient } from '../../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 
-async function displayTaskObjects(
-  transportService: TransportService,
-  result: any,
-  debug: boolean
-) {
+async function displayTaskObjects(result: any, adtClient: AdtClientImpl) {
   console.log(`\n📦 Objects in Transport:`);
 
   if (!result.transport.tasks || result.transport.tasks.length === 0) {
@@ -20,11 +15,8 @@ async function displayTaskObjects(
     const taskIndent = isLastTask ? '    ' : '│   ';
 
     try {
-      // Use the private method through reflection or create a public wrapper
-      const taskObjects = await (transportService as any).getTaskObjects(
-        task.number,
-        { debug }
-      );
+      // Use the client's getTransportObjects method
+      const taskObjects = await adtClient.cts.getTransportObjects(task.number);
 
       console.log(
         `${taskPrefix} 📝 Task: ${task.number} (${taskObjects.length} objects)`
@@ -64,87 +56,82 @@ async function displayTaskObjects(
 }
 
 export const transportGetCommand = new Command('get')
-  .argument('<trNumber>', 'Transport request or task number')
-  .description('Get details of a transport request or task')
-  .option('--objects', 'Include objects in the transport', false)
-  .option('--tasks', 'Include task details', false)
-  .option('--full', 'Include all details (objects + tasks)', false)
+  .argument('<transportId>', 'Transport request ID')
+  .description('Get details of a transport request')
+  .option('--objects', 'Show objects in transport', false)
   .option('--json', 'Output as JSON', false)
-  .option('--debug', 'Enable debug output', false)
-  .action(async (trNumber, options) => {
-    try {
-      const transportService = new TransportService(adtClient);
+  .action(async (transportId, options, command) => {
+    const logger = command.parent?.parent?.logger;
 
-      console.log(`🚚 Fetching transport request: ${trNumber}`);
-      const result = await transportService.getTransport(trNumber, {
-        includeObjects: options.objects || options.full,
-        includeTasks: options.tasks || options.full,
-        debug: options.debug,
+    try {
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
       });
+
+      console.log(`🚚 Fetching transport request: ${transportId}`);
+
+      // For now, use the transport list to get basic info
+      // TODO: Implement getTransport method in client if needed
+      const transportList = await adtClient.cts.listTransports({
+        user: undefined,
+        status: undefined,
+        maxResults: 100,
+      });
+
+      const transport = transportList.transports.find(
+        (t) => t.number === transportId
+      );
+
+      if (!transport) {
+        console.error(`❌ Transport ${transportId} not found`);
+        process.exit(1);
+      }
+
+      const result = { transport };
 
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));
         return;
       }
 
-      // Check if requested number is a task, not the main transport
-      const isTask = result.transport.number !== trNumber;
-      const requestedTask = isTask
-        ? result.transport.tasks?.find((t) => t.number === trNumber)
-        : null;
+      console.log(`\n🚛 Transport Request: ${result.transport.number}`);
+      console.log(`   Description: ${result.transport.description}`);
+      console.log(`   Status: ${result.transport.status}`);
+      console.log(`   Owner: ${result.transport.owner}`);
+      console.log(`   Target: ${result.transport.target || 'LOCAL'}`);
 
-      if (isTask && requestedTask) {
-        console.log(`\n📋 Task Details:`);
-        console.log(`🚛 Task: ${requestedTask.number}`);
-        console.log(`   Description: ${requestedTask.description}`);
-        console.log(`   Owner: ${requestedTask.owner}`);
-        console.log(`   Type: ${requestedTask.type}`);
-        console.log(`   Status: ${requestedTask.status}`);
-        console.log(`\n🚛 Parent Transport: ${result.transport.number}`);
-        console.log(`   Description: ${result.transport.description}`);
-      } else {
-        console.log(`\n🚛 Transport Request: ${result.transport.number}`);
-        console.log(`   Description: ${result.transport.description}`);
-        console.log(`   Status: ${result.transport.status}`);
-        console.log(`   Owner: ${result.transport.owner}`);
-        console.log(`   Target: ${result.transport.target || 'LOCAL'}`);
+      if (result.transport.tasks && result.transport.tasks.length > 0) {
+        console.log(`\n📋 Tasks (${result.transport.tasks.length}):`);
+        result.transport.tasks.forEach((task, index) => {
+          const isLast = index === (result.transport.tasks?.length || 0) - 1;
+          const prefix = isLast ? '└──' : '├──';
 
-        if (result.transport.tasks && result.transport.tasks.length > 0) {
-          console.log(`\n📋 Tasks (${result.transport.tasks.length}):`);
-          result.transport.tasks.forEach((task, index) => {
-            const isLast = index === (result.transport.tasks?.length || 0) - 1;
-            const prefix = isLast ? '└──' : '├──';
+          console.log(`${prefix} 📝 Task: ${task.number}`);
+          console.log(
+            `${isLast ? '    ' : '│   '}   📄 ${
+              task.description || 'No description'
+            }`
+          );
+          console.log(`${isLast ? '    ' : '│   '}   👤 Owner: ${task.owner}`);
+          console.log(
+            `${isLast ? '    ' : '│   '}   🔒 Status: ${
+              task.status || 'Unknown'
+            }`
+          );
+          console.log(
+            `${isLast ? '    ' : '│   '}   🏷️  Type: ${task.type || 'Unknown'}`
+          );
 
-            console.log(`${prefix} 📝 Task: ${task.number}`);
-            console.log(
-              `${isLast ? '    ' : '│   '}   📄 ${
-                task.description || 'No description'
-              }`
-            );
-            console.log(
-              `${isLast ? '    ' : '│   '}   👤 Owner: ${task.owner}`
-            );
-            console.log(
-              `${isLast ? '    ' : '│   '}   🔒 Status: ${
-                task.status || 'Unknown'
-              }`
-            );
-            console.log(
-              `${isLast ? '    ' : '│   '}   🏷️  Type: ${
-                task.type || 'Unknown'
-              }`
-            );
+          if (index < (result.transport.tasks?.length || 0) - 1) {
+            console.log('│');
+          }
+        });
+      }
 
-            if (index < (result.transport.tasks?.length || 0) - 1) {
-              console.log('│');
-            }
-          });
-        }
-
-        // Display objects if requested
-        if (options.objects || options.full) {
-          await displayTaskObjects(transportService, result, options.debug);
-        }
+      // Display objects if requested
+      if (options.objects) {
+        await displayTaskObjects(result, adtClient);
       }
     } catch (error) {
       console.error(

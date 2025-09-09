@@ -675,6 +675,60 @@ Common issues and solutions:
 
 **Solution:** Check your network connection and BTP instance URL.
 
+## Logging and Debugging
+
+### Verbose Mode
+
+Enable detailed logging for troubleshooting:
+
+```bash
+# Enable verbose logging for all components
+adt auth login --file service-key.json --verbose
+
+# Enable verbose logging for specific components
+adt transport list --verbose=auth,http
+
+# Available components: auth, connection, cts, atc, repository, discovery, http, xml, cli, error
+```
+
+### Environment Variables
+
+Control logging behavior:
+
+```bash
+# Set log level (trace, debug, info, warn, error, fatal)
+ADT_LOG_LEVEL=debug adt discovery
+
+# Filter specific components
+ADT_LOG_COMPONENTS=auth,connection adt auth login --file service-key.json
+
+# Enable development formatting
+NODE_ENV=development adt transport list
+```
+
+### Command Development
+
+When developing new commands, use the shared utilities:
+
+```typescript
+import {
+  createComponentLogger,
+  handleCommandError,
+} from '../utils/command-helpers.js';
+
+export const myCommand = new Command('my-command').action(
+  async (options, command) => {
+    try {
+      const logger = createComponentLogger(command, 'my-component');
+      // Command logic here
+      console.log('✅ Operation completed!');
+    } catch (error) {
+      handleCommandError(error, 'My operation');
+    }
+  }
+);
+```
+
 ## Development
 
 ### Building from Source

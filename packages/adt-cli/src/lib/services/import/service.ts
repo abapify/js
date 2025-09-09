@@ -1,6 +1,5 @@
-import { ADTClient } from '../../adt-client';
-import { SearchService, ADTObject } from '../search/service';
-import { TransportService } from '../transport/service';
+import { adtClient } from '../../shared/clients';
+import type { ADTObjectInfo } from '@abapify/adt-client';
 import { ObjectRegistry } from '../../objects/registry';
 import { FormatRegistry } from '../../formats/format-registry';
 import { IconRegistry } from '../../utils/icon-registry';
@@ -43,18 +42,15 @@ export interface ImportResult {
 }
 
 export class ImportService {
-  private searchService: SearchService;
-  private transportService: TransportService;
   private packageMapper?: PackageMapper;
 
-  constructor(private adtClient: ADTClient) {
-    this.searchService = new SearchService(adtClient);
-    this.transportService = new TransportService(adtClient);
+  constructor() {
+    // Transport operations now use the shared adtClient
   }
 
   async importPackage(options: ImportOptions): Promise<ImportResult> {
     if (options.debug) {
-      this.adtClient.setDebugMode(true);
+      adtClient.setDebugMode(true);
       console.log(`🔍 Importing package: ${options.packageName}`);
       console.log(`📁 Output path: ${options.outputPath}`);
       console.log(`🎯 Format: ${options.format || 'oat'}`);
@@ -74,11 +70,9 @@ export class ImportService {
       if (options.debug) {
         console.log(`📦 Discovering package: ${options.packageName}`);
       }
-      const searchResult = await this.searchService.searchByPackage(
+      const searchResult = await adtClient.searchByPackage(
         options.packageName,
-        {
-          debug: options.debug,
-        }
+        {}
       );
 
       if (options.debug) {
@@ -153,7 +147,7 @@ export class ImportService {
       for (const obj of objectsToProcess) {
         try {
           // Get object data from ADT using object handler
-          const handler = ObjectRegistry.get(obj.type, this.adtClient);
+          const handler = ObjectRegistry.get(obj.type);
           const objectData = await handler.read(obj.name);
 
           // Merge description and package from search result
@@ -217,7 +211,7 @@ export class ImportService {
     options: TransportImportOptions
   ): Promise<ImportResult> {
     if (options.debug) {
-      this.adtClient.setDebugMode(true);
+      adtClient.setDebugMode(true);
       console.log(`🔍 Importing transport: ${options.transportNumber}`);
       console.log(`📁 Output path: ${options.outputPath}`);
       console.log(`🎯 Format: ${options.format || 'oat'}`);
@@ -238,20 +232,13 @@ export class ImportService {
         console.log(`🚛 Getting transport details: ${options.transportNumber}`);
       }
 
-      const transportDetails = await this.transportService.getTransport(
-        options.transportNumber,
-        { includeObjects: true, debug: options.debug }
+      // Get transport objects using the client's transport service
+      const transportObjects = await adtClient.cts.getTransportObjects(
+        options.transportNumber
       );
 
-      // Extract objects from transport using the new detail-based method that handles tasks
-      const transportObjects = await (
-        this.transportService as any
-      ).getTransportObjectsFromDetail(options.transportNumber, {
-        debug: options.debug,
-      });
-
-      // Convert TransportObject[] to ADTObject[] format expected by the rest of the system
-      const searchObjects: ADTObject[] = transportObjects.map((obj) => ({
+      // Convert TransportObject[] to ADTObjectInfo[] format expected by the rest of the system
+      const searchObjects: ADTObjectInfo[] = transportObjects.map((obj) => ({
         name: obj.name,
         type: obj.type,
         description: obj.description,
@@ -338,7 +325,7 @@ export class ImportService {
       for (const obj of objectsToProcess) {
         try {
           // Get object data from ADT using object handler
-          const handler = ObjectRegistry.get(obj.type, this.adtClient);
+          const handler = ObjectRegistry.get(obj.type);
           const objectData = await handler.read(obj.name);
 
           // Merge description and package from transport result
@@ -400,7 +387,10 @@ export class ImportService {
     }
   }
 
-  private shouldIncludeObject(obj: ADTObject, options: ImportOptions): boolean {
+  private shouldIncludeObject(
+    obj: ADTObjectInfo,
+    options: ImportOptions
+  ): boolean {
     // Dynamic filtering based on objectTypes array
     if (options.objectTypes) {
       // If specific types specified, only include those
@@ -412,7 +402,7 @@ export class ImportService {
   }
 
   private shouldIncludeObjectForTransport(
-    obj: ADTObject,
+    obj: ADTObjectInfo,
     options: TransportImportOptions
   ): boolean {
     // Dynamic filtering based on objectTypes array
