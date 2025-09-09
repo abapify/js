@@ -1,7 +1,6 @@
 import { Command } from 'commander';
-import { SearchService } from '../services/search/service';
 import { IconRegistry } from '../utils/icon-registry';
-import { adtClient } from '../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 
 export const searchCommand = new Command('search')
   .argument('[searchTerm]', 'Search term (optional)')
@@ -13,10 +12,14 @@ export const searchCommand = new Command('search')
   )
   .option('-m, --max-results <number>', 'Maximum number of results', '100')
   .option('--no-description', 'Exclude descriptions from results')
-  .option('--debug', 'Enable debug output', false)
-  .action(async (searchTerm, options) => {
+  .action(async (searchTerm, options, command) => {
+    const logger = command.parent?.logger;
+
     try {
-      const searchService = new SearchService(adtClient);
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
+      });
 
       console.log(`🔍 Searching ABAP objects...`);
 
@@ -27,10 +30,11 @@ export const searchCommand = new Command('search')
         objectType: options.objectType,
         maxResults: parseInt(options.maxResults),
         noDescription: options.noDescription,
-        debug: options.debug,
       };
 
-      const result = await searchService.searchObjects(searchOptions);
+      const result = await adtClient.repository.searchObjectsDetailed(
+        searchOptions
+      );
 
       if (result.objects.length === 0) {
         console.log('No objects found matching the search criteria.');

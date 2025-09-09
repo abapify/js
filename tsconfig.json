@@ -25,6 +25,9 @@
       "path": "./packages/adk"
     },
     {
+      "path": "./packages/adt-client"
+    },
+    {
       "path": "./samples/cds"
     },
     {

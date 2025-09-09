@@ -1,4 +1,4 @@
-import { ADTClient } from '../../adt-client';
+import { adtClient } from '../../shared/clients';
 import { FormatRegistry } from '../../formats/format-registry';
 import { IconRegistry } from '../../utils/icon-registry';
 import { ObjectRegistry } from '../../objects/registry';
@@ -31,11 +31,11 @@ export interface ExportResult {
 export class ExportService {
   private packageMapper?: PackageMapper;
 
-  constructor(private adtClient: ADTClient) {}
+  constructor() {}
 
   async exportPackage(options: ExportOptions): Promise<ExportResult> {
     if (options.debug) {
-      this.adtClient.setDebugMode(true);
+      adtClient.setDebugMode(true);
       console.log(`📦 Exporting package: ${options.packageName}`);
       console.log(`📁 Input path: ${options.inputPath}`);
       console.log(`🎯 Format: ${options.format || 'oat'}`);
@@ -113,7 +113,7 @@ export class ExportService {
 
         // Create object in SAP if requested
         if (options.createObjects) {
-          const handler = ObjectRegistry.get(fileInfo.type, this.adtClient);
+          const handler = ObjectRegistry.get(fileInfo.type);
 
           try {
             // Try to read existing object first to determine if we should create or update

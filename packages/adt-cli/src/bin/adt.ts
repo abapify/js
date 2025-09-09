@@ -1,5 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S npx tsx
 
-import { main } from '../lib/cli';
+// Set CLI mode before importing any modules
+process.env.ADT_CLI_MODE = 'true';
 
-main().catch(console.error);
+import { main } from '../lib/cli.js';
+
+main().catch((error) => {
+  console.error('❌ CLI Error:', error.message);
+  process.exit(1);
+});

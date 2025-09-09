@@ -1,15 +1,31 @@
-import { ADTClient } from '../../adt-client';
+import { adtClient } from '../../shared/clients';
 import { BaseObject } from '../base/base-object';
 import { ObjectData } from '../base/types';
-import { ClassAdtAdapter, DomainAdtAdapter, Kind, Spec } from '@abapify/adk';
+// Temporarily disable ADK imports due to const enum issues
+// import { Kind, Spec } from '@abapify/adk';
+
+// Local type definitions for now
+enum Kind {
+  Domain = 'Domain',
+  Class = 'Class',
+  Interface = 'Interface',
+}
+
+type Spec<T, K extends Kind = Kind> = {
+  kind: K;
+  metadata: {
+    name: string;
+    description?: string;
+  };
+  spec: T;
+};
 
 export class AdkObjectHandler extends BaseObject<ObjectData> {
   constructor(
-    adtClient: ADTClient,
     private parseXmlToSpec: (xml: string) => Spec<any, Kind>,
     private uriFactory: (name: string) => string
   ) {
-    super(adtClient);
+    super();
   }
 
   override async read(name: string): Promise<ObjectData> {
@@ -168,11 +184,11 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
         case Kind.Interface:
           return this.generateInterfaceXml(spec as any);
         case Kind.Class:
-          const classAdapter = new ClassAdtAdapter(spec as any);
-          return classAdapter.toAdtXML();
+          // TODO: Implement ClassAdtAdapter when available
+          throw new Error('Class ADT adapter not yet implemented');
         case Kind.Domain:
-          const domainAdapter = new DomainAdtAdapter(spec as any);
-          return domainAdapter.toAdtXML();
+          // TODO: Implement DomainAdtAdapter when available
+          throw new Error('Domain ADT adapter not yet implemented');
         default:
           throw new Error(
             `Unsupported object kind for XML generation: ${spec.kind}`

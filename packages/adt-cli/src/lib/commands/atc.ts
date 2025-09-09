@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { AtcService } from '../services/atc/service';
-import { adtClient } from '../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 import { outputGitLabCodeQuality } from '../formatters/gitlab-formatter';
 import { outputSarifReport } from '../formatters/sarif-formatter';
 
@@ -16,8 +16,8 @@ export const atcCommand = new Command('atc')
     'console'
   )
   .option('--output <file>', 'Output file (required for gitlab format)')
-  .option('--debug', 'Enable debug output', false)
-  .action(async (options) => {
+  .action(async (options, command) => {
+    const logger = command.parent?.logger;
     try {
       if (!options.package && !options.transport) {
         console.error('❌ Either --package or --transport is required');
@@ -47,6 +47,10 @@ export const atcCommand = new Command('atc')
         process.exit(1);
       }
 
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
+      });
       const atcService = new AtcService(adtClient);
 
       console.log('🔍 Running ABAP Test Cockpit checks...');
