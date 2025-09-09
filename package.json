@@ -72,6 +72,7 @@
     "dset": "^3.1.4",
     "fast-xml-parser": "^4.5.0",
     "fxmlp": "^1.0.7",
+    "nx-mcp": "^0.6.3",
     "open": "^10.2.0",
     "openid-client": "^6.6.4",
     "qs": "^6.13.1",
@@ -83,7 +84,9 @@
     "samples/*",
     "tools/*",
     "e2e/*",
-    "sample-node"
+    "sample-node",
+    "packages/plugins/oat",
+    "packages/plugins/abapgit"
   ],
   "version": "0.1.1"
 }
