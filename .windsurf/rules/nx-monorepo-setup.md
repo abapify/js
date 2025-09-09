@@ -14,7 +14,7 @@
 ### 1. Generate Base Package
 
 ```bash
-npx nx g @nx/js:lib --name=[library-name] --directory=[path] --importPath=@abapify/[library-name] --bundler=none --unitTestRunner=vitest --linter=eslint
+npx nx g @nx/js:lib --name=[library-name] --directory=[path] --importPath=@abapify/[library-name] --bundler=none --unitTestRunner=none --linter=eslint
 ```
 
 **Key Parameters:**
@@ -23,7 +23,7 @@ npx nx g @nx/js:lib --name=[library-name] --directory=[path] --importPath=@abapi
 - `--directory`: Path relative to workspace root (e.g., `packages/plugins/oat`)
 - `--importPath`: Full npm package name (e.g., `@abapify/oat`)
 - `--bundler=none`: We use tsdown instead of default tsc
-- `--unitTestRunner=vitest`: Use Vitest for testing
+- `--unitTestRunner=none`: Avoid vitest generator loop, add manually later
 - `--linter=eslint`: Enable ESLint
 
 ### 2. Configure tsdown Build System
@@ -64,13 +64,13 @@ For creating plugin packages in `packages/plugins/`:
 mkdir -p packages/plugins
 
 # Generate OAT plugin
-npx nx g @nx/js:lib --name=oat --directory=packages/plugins/oat --importPath=@abapify/oat --bundler=none --unitTestRunner=vitest --linter=eslint
+npx nx g @nx/js:lib --name=oat --directory=packages/plugins/oat --importPath=@abapify/oat --bundler=none --unitTestRunner=none --linter=eslint
 
 # Generate abapGit plugin
-npx nx g @nx/js:lib --name=abapgit --directory=packages/plugins/abapgit --importPath=@abapify/abapgit --bundler=none --unitTestRunner=vitest --linter=eslint
+npx nx g @nx/js:lib --name=abapgit --directory=packages/plugins/abapgit --importPath=@abapify/abapgit --bundler=none --unitTestRunner=none --linter=eslint
 
 # Generate GCTS plugin
-npx nx g @nx/js:lib --name=gcts --directory=packages/plugins/gcts --importPath=@abapify/gcts --bundler=none --unitTestRunner=vitest --linter=eslint
+npx nx g @nx/js:lib --name=gcts --directory=packages/plugins/gcts --importPath=@abapify/gcts --bundler=none --unitTestRunner=none --linter=eslint
 ```
 
 ## Package Configuration Template
@@ -108,11 +108,12 @@ export default defineConfig({
 
 ## Development Workflow
 
-1. **Generate package**: `npx nx g @nx/js:lib --name=[name] --directory=[path] --importPath=@abapify/[name] --bundler=none --unitTestRunner=vitest --linter=eslint`
+1. **Generate package**: `npx nx g @nx/js:lib --name=[name] --directory=[path] --importPath=@abapify/[name] --bundler=none --unitTestRunner=none --linter=eslint`
 2. **Configure tsdown**: Copy from sample-tsdown
-3. **Build**: `npx nx build [library-name]`
-4. **Test**: `npx nx test [library-name]`
-5. **Typecheck**: `npx nx typecheck`
+3. **Add Vitest manually**: Copy vitest config from existing package (avoids nx vitest generator loop)
+4. **Build**: `npx nx build [library-name]`
+5. **Test**: `npx nx test [library-name]`
+6. **Typecheck**: `npx nx typecheck`
 
 ## Import Rules
 
