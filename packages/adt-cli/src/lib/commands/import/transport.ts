@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { ImportService } from '../../services/import/service';
 import { IconRegistry } from '../../utils/icon-registry';
-import { adtClient } from '../../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 
 export const importTransportCommand = new Command('transport')
   .argument('<transportNumber>', 'Transport request number to import')
@@ -21,9 +21,14 @@ export const importTransportCommand = new Command('transport')
     'Output format: oat (production) | abapgit (experimental demo) | json',
     'oat'
   )
-  .option('--debug', 'Enable debug output', false)
-  .action(async (transportNumber, targetFolder, options) => {
+  .action(async (transportNumber, targetFolder, options, command) => {
+    const logger = command.parent?.parent?.logger;
+
     try {
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
+      });
       const importService = new ImportService(adtClient);
 
       // Determine output path: --output option, targetFolder argument, or default
@@ -32,11 +37,9 @@ export const importTransportCommand = new Command('transport')
         targetFolder ||
         `./tr-${transportNumber.toLowerCase()}`;
 
-      // Only show start message in debug mode
-      if (options.debug) {
-        console.log(`🚀 Starting import of transport: ${transportNumber}`);
-        console.log(`📁 Target folder: ${outputPath}`);
-      }
+      // Show start message
+      console.log(`🚀 Starting import of transport: ${transportNumber}`);
+      console.log(`📁 Target folder: ${outputPath}`);
 
       // Parse object types if provided
       const objectTypes = options.objectTypes

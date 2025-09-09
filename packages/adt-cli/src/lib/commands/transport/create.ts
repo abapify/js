@@ -1,6 +1,5 @@
 import { Command } from 'commander';
-import { TransportService } from '../../services/transport';
-import { adtClient } from '../../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 
 export const transportCreateCommand = new Command('create')
   .description('Create a new transport request')
@@ -10,8 +9,9 @@ export const transportCreateCommand = new Command('create')
   .option('--project <project>', 'CTS project')
   .option('--owner <owner>', 'Task owner (default: current user)')
   .option('--json', 'Output as JSON', false)
-  .option('--debug', 'Enable debug output', false)
-  .action(async (options) => {
+  .action(async (options, command) => {
+    const logger = command.parent?.parent?.logger;
+
     try {
       if (!options.description) {
         console.error(
@@ -20,17 +20,19 @@ export const transportCreateCommand = new Command('create')
         process.exit(1);
       }
 
-      const transportService = new TransportService(adtClient);
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
+      });
 
       console.log(`🚚 Creating transport request: "${options.description}"`);
 
-      const result = await transportService.createTransport({
+      const result = await adtClient.cts.createTransport({
         description: options.description,
         type: options.type,
         target: options.target,
         project: options.project,
         owner: options.owner,
-        debug: options.debug,
       });
 
       if (options.json) {

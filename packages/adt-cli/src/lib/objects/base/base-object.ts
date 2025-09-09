@@ -1,8 +1,8 @@
-import { ADTClient } from '../../adt-client';
+import { adtClient } from '../../shared/clients';
 import { ObjectData } from './types';
 
 export abstract class BaseObject<T extends ObjectData> {
-  constructor(protected adtClient: ADTClient) {}
+  constructor() {}
 
   abstract read(name: string): Promise<T>;
 
@@ -27,7 +27,7 @@ export abstract class BaseObject<T extends ObjectData> {
     accept: string = 'text/plain'
   ): Promise<string> {
     try {
-      const response = await this.adtClient.request(uri, {
+      const response = await adtClient.request(uri, {
         method: 'GET',
         headers: { Accept: accept },
       });

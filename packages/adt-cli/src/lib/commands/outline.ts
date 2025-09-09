@@ -1,27 +1,32 @@
 import { Command } from 'commander';
-import { SearchService } from '../services/search/service';
 import { ObjectRegistry } from '../objects/registry';
 import { IconRegistry } from '../utils/icon-registry';
-import { adtClient } from '../shared/clients';
+import { AdtClientImpl } from '@abapify/adt-client';
 
 export const outlineCommand = new Command('outline')
   .argument('<objectName>', 'ABAP object name to show outline for')
   .description('Show object structure outline (methods, attributes, etc.)')
-  .option('--debug', 'Enable debug output', false)
-  .action(async (objectName, options) => {
+  .action(async (objectName, options, command) => {
+    const logger = command.parent?.logger;
+
     try {
-      const searchService = new SearchService(adtClient);
+      // Create ADT client with logger
+      const adtClient = new AdtClientImpl({
+        logger: logger?.child({ component: 'cli' }),
+      });
 
       // Search for the specific object by name
-      const searchResult = await searchService.searchObjects({
+      const searchOptions = {
         operation: 'quickSearch',
         query: objectName,
         maxResults: 10,
-        debug: options.debug,
-      });
+      };
+      const result = await adtClient.repository.searchObjectsDetailed(
+        searchOptions
+      );
 
       // Find exact match
-      const exactMatch = searchResult.objects.find(
+      const exactMatch = result.objects.find(
         (obj) => obj.name.toUpperCase() === objectName.toUpperCase()
       );
 
@@ -29,7 +34,7 @@ export const outlineCommand = new Command('outline')
         console.log(`❌ Object '${objectName}' not found`);
 
         // Show similar objects if any
-        const similarObjects = searchResult.objects.filter((obj) =>
+        const similarObjects = result.objects.filter((obj) =>
           obj.name.toUpperCase().includes(objectName.toUpperCase())
         );
 

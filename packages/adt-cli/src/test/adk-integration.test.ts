@@ -1,6 +1,6 @@
 import { ObjectRegistry } from '../lib/objects/registry';
 import { AdkObjectHandler } from '../lib/objects/adk-bridge';
-import { ADTClient } from '../lib/adt-client';
+import { adtClient } from '../lib/shared/clients';
 
 // Mock ADTClient for testing
 class MockADTClient extends ADTClient {
