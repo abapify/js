@@ -1,9 +1,0 @@
-{
-  "executors": {
-    "cds2abap": {
-      "implementation": "./src/executor/executor",
-      "schema": "./src/executor/schema.json",
-      "description": "Generate ABAP artifacts from CAP CDS (executor)"
-    }
-  }
-}

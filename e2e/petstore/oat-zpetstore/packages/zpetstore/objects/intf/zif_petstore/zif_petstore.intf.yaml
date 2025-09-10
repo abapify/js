@@ -1,4 +1,0 @@
-kind: INTF
-spec:
-  name: ZIF_PETSTORE
-  description: Petstore API Interface for managing pets, orders, and users
