@@ -1,7 +1,7 @@
 {
-  "name": "adt-cli",
+  "name": "adt-client",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/adt-cli/src",
+  "sourceRoot": "packages/adt-client/src",
   "projectType": "library",
   "release": {
     "version": {
@@ -21,7 +21,7 @@
       "executor": "@nx/vite:test",
       "outputs": ["{options.reportsDirectory}"],
       "options": {
-        "reportsDirectory": "../../coverage/packages/adt-cli"
+        "reportsDirectory": "../../coverage/packages/adt-client"
       }
     }
   }

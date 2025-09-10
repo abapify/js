@@ -191,14 +191,18 @@ export class TransportService {
   private parseTransportList(xmlContent: string): TransportList {
     const transportData = XmlParser.parseTransportList(xmlContent);
     const transports: Transport[] = transportData.map((item: any) => ({
-      transportNumber: XmlParser.extractAttribute(item, 'number') || '',
+      number: XmlParser.extractAttribute(item, 'number') || '',
       description: XmlParser.extractAttribute(item, 'description') || '',
       owner: XmlParser.extractAttribute(item, 'owner') || '',
-      status: XmlParser.extractAttribute(item, 'status') || '',
-      type: XmlParser.extractAttribute(item, 'type') || 'K',
+      status:
+        (XmlParser.extractAttribute(item, 'status') as
+          | 'modifiable'
+          | 'released'
+          | 'protected') || 'modifiable',
+      created: new Date(
+        XmlParser.extractAttribute(item, 'created') || Date.now()
+      ),
       target: XmlParser.extractAttribute(item, 'target') || '',
-      createdAt: XmlParser.extractAttribute(item, 'created') || '',
-      lastChangedAt: XmlParser.extractAttribute(item, 'changed') || '',
       tasks: [], // Tasks would be parsed separately if needed
     }));
 
