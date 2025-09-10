@@ -78,7 +78,7 @@ export class YamlSerializer extends BaseSerializer {
     return '.yaml';
   }
 
-  private toYaml(obj: any, indent: string = ''): string {
+  private toYaml(obj: any, indent = ''): string {
     const yaml = [];
 
     for (const [key, value] of Object.entries(obj)) {

@@ -171,7 +171,7 @@ export class AtcService {
   private async pollForResults(
     worklistId: string,
     options: AtcOptions,
-    maxAttempts: number = 10
+    maxAttempts = 10
   ): Promise<Partial<AtcResult>> {
     const includeExempted = options.includeExempted ? 'true' : 'false';
     const endpoint = `/sap/bc/adt/atc/worklists/${worklistId}?includeExemptedFindings=${includeExempted}&usedObjectSet=99999999999999999999999999999999`;

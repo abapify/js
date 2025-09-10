@@ -2,7 +2,7 @@ import { ConnectionManager } from './connection-manager.js';
 
 export class SessionManager {
   private connectionManager?: ConnectionManager;
-  private sessionValid: boolean = false;
+  private sessionValid = false;
   private lastValidation?: Date;
   private validationInterval: number = 5 * 60 * 1000; // 5 minutes
 

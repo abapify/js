@@ -47,7 +47,7 @@ export class AdtUrlGenerator {
     baseUrl: string,
     objectType: string,
     objectName: string,
-    client: string = '100'
+    client = '100'
   ): string {
     // Convert abap endpoint to abap-web endpoint for web ADT
     const webBaseUrl = baseUrl
