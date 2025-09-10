@@ -11,7 +11,7 @@ export class ConnectionManager {
   private authManager: AuthManager;
   private config?: AdtConnectionConfig;
   private cookies = new Map<string, string>();
-  private debugMode: boolean = false;
+  private debugMode = false;
   private logger: any;
 
   constructor(logger?: any) {
@@ -54,7 +54,7 @@ export class ConnectionManager {
         // Mask cookie values (keep cookie names but hide values)
         .replace(/(sap-[^=]+)=([^;,\s]+)/g, '$1=***')
         // Mask URLs to show only the path
-        .replace(/https:\/\/[^\/]+/g, 'https://***')
+        .replace(/https:\/\/[^/]+/g, 'https://***')
     );
   }
 
