@@ -1,16 +1,8 @@
 import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
-import { adtClient } from '../shared/clients';
+import { getAdtClient } from '../shared/clients';
 import { AdkObjectHandler } from './adk-bridge';
-// Temporarily disable ADK imports due to const enum issues
-// import { Kind } from '@abapify/adk';
-
-// Local type definition for now
-enum Kind {
-  Domain = 'Domain',
-  Class = 'Class',
-  Interface = 'Interface',
-}
+import { ClassAdtAdapter } from '@abapify/adk';
 
 export class ObjectRegistry {
   private static handlers = new Map<string, () => BaseObject<any>>();
@@ -21,19 +13,22 @@ export class ObjectRegistry {
       'CLAS',
       () =>
         new AdkObjectHandler(
-          (xml) => ClassAdtAdapter.fromAdtXML(xml),
-          (name) => `/sap/bc/adt/oo/classes/${name.toLowerCase()}`
+          ClassAdtAdapter.parseXmlToSpec,
+          ClassAdtAdapter.uriFactory,
+          getAdtClient()
         )
     );
 
-    this.handlers.set(
-      'INTF',
-      () =>
-        new AdkObjectHandler(
-          (xml) => InterfaceAdtAdapter.fromAdtXML(xml),
-          (name) => `/sap/bc/adt/oo/interfaces`
-        )
-    );
+    // TODO: Add InterfaceAdtAdapter when available in ADK
+    // this.handlers.set(
+    //   'INTF',
+    //   () =>
+    //     new AdkObjectHandler(
+    //       InterfaceAdtAdapter.parseXmlToSpec,
+    //       InterfaceAdtAdapter.uriFactory,
+    //       getAdtClient()
+    //     )
+    // );
 
     // TODO: Migrate DEVC to ADK when adapter is available
     // this.handlers.set('DEVC', (client) => new AdkObjectHandler(...));
