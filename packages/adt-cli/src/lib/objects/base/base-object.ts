@@ -2,7 +2,9 @@ import { adtClient } from '../../shared/clients';
 import { ObjectData } from './types';
 
 export abstract class BaseObject<T extends ObjectData> {
-  constructor() {}
+  constructor() {
+    // Base constructor - no initialization needed
+  }
 
   abstract read(name: string): Promise<T>;
 
@@ -24,7 +26,7 @@ export abstract class BaseObject<T extends ObjectData> {
 
   protected async fetchFromAdt(
     uri: string,
-    accept: string = 'text/plain'
+    accept = 'text/plain'
   ): Promise<string> {
     try {
       const response = await adtClient.request(uri, {
