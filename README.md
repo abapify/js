@@ -2,6 +2,26 @@
 
 A comprehensive collection of TypeScript libraries and tools for SAP ABAP development, providing modern tooling for ABAP object modeling, ADT integration, and development workflows.
 
+## 🤖 Agentic AI Development Experience
+
+**⚠️ AI-Powered Development Notice**: This project is actively developed using agentic AI assistants for code generation, documentation, and architectural decisions. Our development workflow leverages AI to maintain consistency, quality, and adherence to project specifications.
+
+### AI Development Setup
+
+- **Specification-First Paradigm**: AI assistants must review and align with project specifications before any code changes
+- **Test-Driven Development**: AI follows strict TDD workflows with failing tests before implementation
+- **Markdown-Based Planning**: AI uses structured markdown files in `/docs/planning/` for project coordination
+- **Memory Persistence**: Project knowledge is maintained through comprehensive documentation and planning files
+- **Quality Gates**: All AI-generated code must pass type checking, linting, and comprehensive test suites
+
+### AI Workflow Rules
+
+- Always check existing specifications in `/docs/specs/` before making changes
+- Create specifications before implementation if missing
+- Use `/tmp/` directory for all temporary outputs and experiments
+- Follow NX monorepo build patterns with `npx nx build <package-name>`
+- Maintain clean git history with proper commit messages and PR descriptions
+
 ## 📦 Packages
 
 ### Core Libraries
@@ -48,6 +68,10 @@ const parsed = adapter.fromAdt(adtObject); // Parse ADT object
 
 Command-line interface for SAP ABAP Development Tools (ADT) services with BTP authentication.
 
+#### [@abapify/adt-client](./packages/adt-client) - ADT Client Library
+
+Abstracted ADT connection and service layer for programmatic access to SAP systems.
+
 **Features:**
 
 - 🔐 OAuth authentication with BTP service keys
@@ -72,27 +96,13 @@ adt transport create -d "Bug fix for issue #123"
 
 ### Specialized Libraries
 
-#### [@abapify/cds2abap](./packages/cds2abap) - CDS to ABAP Converter
-
-Convert SAP CDS (Core Data Services) models to ABAP objects with type safety.
-
-#### [@abapify/components](./packages/components) - UI Components
-
-Reusable UI components for ABAP development tools and applications.
-
-#### [@abapify/btp-service-key-parser](./packages/sk) - BTP Service Key Parser
-
-Parse and validate SAP Business Technology Platform service keys.
-
 #### [@abapify/asjson-parser](./packages/asjson-parser) - ASJSON Parser
 
 Parse and process ABAP serialized JSON format.
 
-### Development Tools
+#### [@abapify/plugins](./packages/plugins) - ADT CLI Plugins
 
-#### [@abapify/nx](./tools/nx-cds2abap) - NX Plugin
-
-NX workspace plugin for CDS to ABAP conversion workflows.
+Extensible plugin system for ADT CLI with custom operations and workflows.
 
 ## 🚀 Quick Start
 
@@ -156,9 +166,11 @@ const domainXml = new DomainAdtAdapter(statusDomain).toAdtXML();
 const classXml = new ClassAdtAdapter(utilityClass).toAdtXML();
 ```
 
-## 🏗️ Architecture
+## 🏗️ Project Structure & Architecture
 
-The Abapify ecosystem follows a modular architecture:
+### Core Components
+
+The Abapify ecosystem follows a modular NX monorepo architecture:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
@@ -168,11 +180,134 @@ The Abapify ecosystem follows a modular architecture:
          ▲                        ▲
          │                        │
 ┌─────────────────┐    ┌──────────────────┐
-│@abapify/cds2abap│    │ @abapify/        │
-│ (CDS Convert)   │    │ components       │
-└─────────────────┘    │ (UI Components)  │
-                       └──────────────────┘
+│@abapify/        │    │ @abapify/        │
+│adt-client       │    │ plugins          │
+│ (ADT Services)  │    │ (Extensions)     │
+└─────────────────┘    └──────────────────┘
 ```
+
+### Project Setup (NX Monorepo)
+
+This project uses **NX monorepo** with **npm workspaces** for efficient development:
+
+```bash
+# Install dependencies
+npm install
+
+# Build all packages
+npx nx build
+
+# Build specific package
+npx nx build adt-cli
+
+# Run tests
+npx nx test
+
+# Type checking
+npx nx typecheck
+
+# Linting
+npx nx lint
+```
+
+**Important**: Use `npm` (not pnpm) and avoid `workspace:*` dependencies.
+
+### Directory Structure
+
+```
+abapify-js/
+├── packages/              # Core packages
+│   ├── adk/              # ABAP Development Kit
+│   ├── adt-cli/          # ADT Command Line Interface
+│   ├── adt-client/       # ADT Client Library
+│   ├── asjson-parser/    # ASJSON Parser
+│   └── plugins/          # ADT CLI Plugins
+├── docs/                 # Documentation & Planning
+│   ├── specs/            # Design Specifications
+│   ├── planning/         # Project Management
+│   └── history/          # Daily Summaries
+├── samples/              # Example Applications
+├── e2e/                  # End-to-End Tests
+├── tmp/                  # Temporary Files (gitignored)
+└── tools/                # Build Tools & NX Plugins
+```
+
+## 📋 Project Guidelines
+
+### Specification-First Development
+
+**Core Philosophy**: Specifications are design contracts that define WHAT and WHY before coding HOW.
+
+- **Specifications** (`/docs/specs/`): Stable, versioned design contracts
+- **Documentation** (`/docs/`): Living implementation descriptions
+- **Planning** (`/docs/planning/`): Project coordination and sprint management
+
+**Workflow**:
+
+1. Check existing specifications in `/docs/specs/`
+2. Create specification BEFORE implementation if missing
+3. Negotiate spec updates FIRST if changes conflict
+4. Never implement code that contradicts existing specifications
+
+### Test-Driven Development (TDD)
+
+**Strict TDD Workflow**:
+
+1. Read/create specifications first
+2. Write failing tests that describe expected behavior
+3. Write minimal code to make tests pass
+4. Refactor while keeping tests green
+5. Repeat Red → Green → Refactor cycle
+
+**Zero Failing Tests Policy**: Tests can fail during active development but must pass before work is considered complete.
+
+### Planning Using Markdown (AI-Friendly)
+
+**Three-Tier Knowledge Management**:
+
+1. **`/docs/specs/`** - Design Contracts (WHAT & WHY)
+
+   - Stable, versioned specifications
+   - Architectural decisions and interfaces
+   - Change-resistant design contracts
+
+2. **`/docs/planning/`** - Project Management (WHEN & HOW)
+
+   - [`current-sprint.md`](./docs/planning/current-sprint.md) - Active development focus
+   - [`abap-code-review.md`](./docs/planning/abap-code-review.md) - Main project kanban
+   - [`roadmap.md`](./docs/planning/roadmap.md) - Long-term milestones
+
+3. **`/docs/history/`** - Historical Context (WHAT HAPPENED)
+   - Daily summaries with technical decisions
+   - Implementation details and lessons learned
+   - Institutional knowledge preservation
+
+### Code Standards
+
+**Language**: TypeScript (ES2015, strict mode)
+
+**Style Guidelines**:
+
+- PascalCase: types, classes, interfaces
+- camelCase: variables, methods, functions
+- 2-space indentation (Prettier)
+- Async over callbacks/sync calls
+- Use native APIs when possible
+
+**Architecture Principles**:
+
+1. **Minimalism** - Keep it simple
+2. **Modularity** - Small, focused files
+3. **Reusability** - Design for reuse
+4. **Readability** - Code as documentation
+
+### File Organization Rules
+
+- **Temporary files**: Always use `/tmp/` directory
+- **CLI outputs**: `adt get ZCL_TEST -o tmp/class.xml`
+- **Test artifacts**: `./tmp/test-results/`
+- **Cross-package imports**: `@abapify/[package-name]`
+- **Internal imports**: `../relative/path`
 
 ### Key Principles
 
@@ -181,20 +316,14 @@ The Abapify ecosystem follows a modular architecture:
 - **Extensibility**: Clean architecture allows easy extension
 - **Testing**: Comprehensive test coverage with Vitest
 - **Modern Tooling**: Built with cutting-edge TypeScript tools
+- **DevOps-First**: All tools built for automation and CI/CD integration
 
 ## 🔧 Development
 
 ### Prerequisites
 
-## 📂 File Storage Practices
-
-To maintain a clean workspace and prevent unnecessary files from being committed to the repository:
-
-- All temporary outputs, such as command results or log files, should be stored in the `/tmp` directory.
-- Example for storing an output file: `adt get ZCL_TEST -o /tmp/class.xml`
-- This practice helps ensure only relevant project files are tracked in version control.
 - Node.js 18+
-- npm or yarn
+- npm (not pnpm or yarn)
 - NX CLI (optional, for development)
 
 ### Getting Started
@@ -235,31 +364,32 @@ npx nx build my-package
 npx nx test my-package
 ```
 
-### Project Structure
+### New Package Creation
 
-```
-abapify-js/
-├── packages/           # Core packages
-│   ├── adk/           # ABAP Development Kit
-│   ├── adt-cli/       # ADT Command Line Interface
-│   ├── cds2abap/      # CDS to ABAP converter
-│   ├── components/    # UI components
-│   └── sk/            # BTP Service Key parser
-├── tools/             # Build tools and NX plugins
-├── samples/           # Example applications
-├── e2e/               # End-to-end tests
-└── docs/              # Documentation
+**Template**: Copy `packages/sample-tsdown` or use NX generators
+
+```bash
+# Create new package with NX
+npx nx g @nx/node:library --directory=packages/[name] --no-interactive
+
+# Copy build configuration
+cp packages/sample-tsdown/tsdown.config.ts packages/[name]/
+
+# Update package.json build script
+"build": "tsdown"
+
+# Ensure skipNodeModulesBundle: true in config
 ```
 
 ## 📊 Package Comparison
 
-| Package                 | Use Case        | Dependencies | Bundle Size | TypeScript   |
-| ----------------------- | --------------- | ------------ | ----------- | ------------ |
-| **@abapify/adk**        | Object modeling | Minimal      | 19KB        | Full support |
-| **@abapify/adt-cli**    | ADT integration | Medium       | 45KB        | Full support |
-| **@abapify/cds2abap**   | CDS conversion  | Medium       | 32KB        | Full support |
-| **@abapify/components** | UI development  | React        | 28KB        | Full support |
-| **@abapify/sk**         | Service keys    | None         | 8KB         | Full support |
+| Package                    | Use Case        | Dependencies | Bundle Size | TypeScript   |
+| -------------------------- | --------------- | ------------ | ----------- | ------------ |
+| **@abapify/adk**           | Object modeling | Minimal      | 19KB        | Full support |
+| **@abapify/adt-cli**       | ADT integration | Medium       | 45KB        | Full support |
+| **@abapify/adt-client**    | ADT services    | Medium       | 32KB        | Full support |
+| **@abapify/asjson-parser** | ASJSON parsing  | None         | 8KB         | Full support |
+| **@abapify/plugins**       | CLI extensions  | Low          | 15KB        | Full support |
 
 ## 🎯 Use Cases
 
