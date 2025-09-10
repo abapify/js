@@ -120,7 +120,9 @@ function createFilteredLogger(
  * Create a no-op logger that doesn't log anything
  */
 function createNoOpLogger(): Logger {
-  const noop = () => { /* no-op */ };
+  const noop = () => {
+    /* no-op */
+  };
   return {
     trace: noop,
     debug: noop,
