@@ -90,7 +90,10 @@ export class AtcService {
     // Extract worklist ID from response (could be plain text or XML)
     let worklistId: string;
 
-    if (xmlContent.trim().match(/^[A-F0-9]{32}$/)) {
+    if (
+      xmlContent.trim().match(/^[A-F0-9]{32}$/) ||
+      xmlContent.trim().match(/^WL\d+$/)
+    ) {
       // Plain text response - just the ID
       worklistId = xmlContent.trim();
     } else {
@@ -98,7 +101,7 @@ export class AtcService {
       try {
         const parsed = this.xmlParser.parse(xmlContent);
         worklistId =
-          parsed['atc:worklist']?.['@id'] || parsed.worklist?.['@id'];
+          parsed['atc:worklist']?.['@_id'] || parsed.worklist?.['@_id'];
       } catch (error) {
         throw new Error(
           `Failed to parse worklist response: ${xmlContent.substring(

@@ -1,15 +1,7 @@
-import { adtClient } from '../../shared/clients';
 import { BaseObject } from '../base/base-object';
 import { ObjectData } from '../base/types';
-// Temporarily disable ADK imports due to const enum issues
-// import { Kind, Spec } from '@abapify/adk';
-
-// Local type definitions for now
-enum Kind {
-  Domain = 'Domain',
-  Class = 'Class',
-  Interface = 'Interface',
-}
+import { Kind } from '@abapify/adk';
+import type { AdtClient } from '@abapify/adt-client';
 
 type Spec<T, K extends Kind = Kind> = {
   kind: K;
@@ -23,7 +15,8 @@ type Spec<T, K extends Kind = Kind> = {
 export class AdkObjectHandler extends BaseObject<ObjectData> {
   constructor(
     private parseXmlToSpec: (xml: string) => Spec<any, Kind>,
-    private uriFactory: (name: string) => string
+    private uriFactory: (name: string) => string,
+    private adtClient: AdtClient
   ) {
     super();
   }
@@ -107,10 +100,12 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
     }
 
     try {
-      // Try to create the object - use stateless mode for interface creation
-      const sessionMode =
-        objectData.metadata?.type === 'INTF' ? 'stateless' : undefined;
-      await this.adtClient.post(uri, xml, headers, true, sessionMode);
+      // Try to create the object using the request method
+      await this.adtClient.request(uri, {
+        method: 'POST',
+        body: xml,
+        headers,
+      });
       console.log('✅ Successfully created object:', objectData.name);
     } catch (error) {
       // If creation fails, check if object exists and try to update
@@ -118,10 +113,14 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
         console.log('🔄 Creation failed, checking if object exists...');
         try {
           // Try to get the object to see if it exists
-          await this.adtClient.get(uri);
+          await this.adtClient.request(uri, { method: 'GET' });
           console.log('📝 Object exists, attempting update...');
           // Object exists, try to update it
-          await this.adtClient.put(uri, xml, headers);
+          await this.adtClient.request(uri, {
+            method: 'PUT',
+            body: xml,
+            headers,
+          });
           console.log('✅ Successfully updated object:', objectData.name);
         } catch (getError) {
           console.log('❌ Object does not exist, rethrowing original error');
@@ -153,7 +152,11 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
       headers['sap-adt-corrnr'] = transportRequest;
     }
 
-    await this.adtClient.put(uri, xml, headers);
+    await this.adtClient.request(uri, {
+      method: 'PUT',
+      body: xml,
+      headers,
+    });
   }
 
   private objectDataToSpec(objectData: ObjectData): Spec<any, Kind> {
