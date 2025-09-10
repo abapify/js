@@ -31,11 +31,12 @@ export interface ExportResult {
 export class ExportService {
   private packageMapper?: PackageMapper;
 
-  constructor() {}
+  constructor() {
+    // Export service constructor - no initialization needed
+  }
 
   async exportPackage(options: ExportOptions): Promise<ExportResult> {
     if (options.debug) {
-      adtClient.setDebugMode(true);
       console.log(`📦 Exporting package: ${options.packageName}`);
       console.log(`📁 Input path: ${options.inputPath}`);
       console.log(`🎯 Format: ${options.format || 'oat'}`);
