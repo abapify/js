@@ -2,11 +2,12 @@ import { adtClient } from '../../shared/clients';
 import type { AtcOptions, AtcResult } from '@abapify/adt-client';
 
 export class AtcService {
-  constructor() {}
+  constructor() {
+    // Service constructor - no initialization needed
+  }
 
   async runAtcCheck(options: AtcOptions): Promise<AtcResult> {
-    // Set debug mode globally on client for proper CSRF handling
-    adtClient.setDebugMode(options.debug || false);
+    // Debug mode is handled by individual service calls
 
     if (options.debug) {
       console.log(
