@@ -102,12 +102,24 @@ export function getLogger(component: string) {
   if (!isComponentEnabled(component)) {
     // Return no-op logger
     return {
-      trace: () => { /* no-op */ },
-      debug: () => { /* no-op */ },
-      info: () => { /* no-op */ },
-      warn: () => { /* no-op */ },
-      error: () => { /* no-op */ },
-      fatal: () => { /* no-op */ },
+      trace: () => {
+        /* no-op */
+      },
+      debug: () => {
+        /* no-op */
+      },
+      info: () => {
+        /* no-op */
+      },
+      warn: () => {
+        /* no-op */
+      },
+      error: () => {
+        /* no-op */
+      },
+      fatal: () => {
+        /* no-op */
+      },
       child: () => getLogger(component),
     };
   }
