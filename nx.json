@@ -50,7 +50,6 @@
     "@nx/vite:test": {
       "cache": true,
       "inputs": ["default", "^default"],
-      "dependsOn": ["build"],
       "options": {
         "run": true
       }
