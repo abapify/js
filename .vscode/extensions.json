@@ -5,6 +5,7 @@
     "larshp.standalone-abap-development",
     "vitest.explorer",
     "connor4312.nodejs-testing",
-    "eamodio.gitlens"
+    "eamodio.gitlens",
+    "dbaeumer.vscode-eslint"
   ]
 }

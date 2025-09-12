@@ -1,5 +1,6 @@
 {
   "name": "@abapify/adk",
+  "type": "module",
   "version": "0.0.1",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
