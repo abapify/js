@@ -16,21 +16,18 @@
   },
   "dependencies": {
     "fast-xml-parser": "^5.2.5",
+    "jsonc-eslint-parser": "^2.4.0",
     "open": "^8.4.2",
     "pino": "^8.17.2",
-    "tslib": "^2.3.0"
+    "tsdown": "^0.15.0"
   },
   "scripts": {
     "build": "tsdown",
-    "watch": "tsdown --watch src/index.ts",
-    "test": "vitest run --reporter=basic",
-    "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage"
+    "watch": "tsdown --watch src/index.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "pino-pretty": "^10.3.1",
-    "vitest": "^1.0.0",
-    "@vitest/coverage-v8": "^1.0.0"
+    "@vitest/coverage-v8": "^2.1.2"
   }
 }
