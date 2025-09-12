@@ -20,8 +20,6 @@
   },
   "dependencies": {},
   "scripts": {
-    "build": "tsdown",
-    "test": "vitest run --reporter=basic --passWithNoTests",
-    "test:run": "vitest run"
+    "build": "tsdown"
   }
 }
