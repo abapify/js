@@ -1,5 +1,5 @@
 {
-  "name": "adt-cli",
+  "name": "cli",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/adt-cli/src",
   "projectType": "library",
