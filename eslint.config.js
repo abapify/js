@@ -1,11 +1,25 @@
-const nx = require('@nx/eslint-plugin');
+import nx from '@nx/eslint-plugin';
+import jsoncParser from 'jsonc-eslint-parser';
 
-module.exports = [
+export default [
   {
     files: ['**/*.json'],
-    // Override or add rules here
-    rules: {},
-    languageOptions: { parser: require('jsonc-eslint-parser') },
+    rules: {
+      '@nx/dependency-checks': [
+        'error',
+        {
+          ignoredFiles: [
+            '{projectRoot}/*.config.{js,ts,mjs,mts,cjs,cts}',
+            '{projectRoot}/**/eslint.config.{js,ts,mjs,mts,cjs,cts}',
+            '{projectRoot}/**/vitest.config.{js,ts,mjs,mts,cjs,cts}',
+            '{projectRoot}/**/vite.config.{js,ts,mjs,mts,cjs,cts}',
+          ],
+        },
+      ],
+    },
+    languageOptions: {
+      parser: jsoncParser,
+    },
   },
 
   ...nx.configs['flat/base'],
