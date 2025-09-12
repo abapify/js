@@ -3,7 +3,7 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "test": "nx run-many --target=test --exclude=${npm_package_name} --coverage",
+    "test": "nx run-many --target=test --exclude=${npm_package_name}",
     "prepare": "husky",
     "precommit": "nx format:check --uncommitted",
     "lint": "nx run-many --target=lint --fix --exclude=${npm_package_name}",
@@ -25,7 +25,7 @@
     "@nx/node": "21.5.1",
     "@nx/plugin": "21.5.1",
     "@nx/rollup": "21.5.1",
-    "@nx/vite": "21.5.1",
+    "@nx/vite": "^21.5.1",
     "@nx/web": "21.5.1",
     "@swc-node/register": "~1.9.1",
     "@swc/cli": "0.6.0",
@@ -51,7 +51,7 @@
     "swc-loader": "0.1.15",
     "ts-jest": "29.4.1",
     "ts-node": "10.9.1",
-    "tsdown": "^0.14.1",
+    "tsdown": "^0.15.0",
     "tslib": "^2.3.0",
     "tsx": "^4.19.2",
     "typescript": "5.9.2",
@@ -83,9 +83,7 @@
     "samples/*",
     "tools/*",
     "e2e/*",
-    "sample-node",
-    "packages/plugins/*",
-    "packages/plugins/abapgit"
+    "packages/plugins/*"
   ],
   "version": "0.1.1"
 }

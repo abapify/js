@@ -17,11 +17,8 @@
     "@abapify/adk": "*",
     "@abapify/adt-client": "*",
     "commander": "^12.0.0",
-    "fast-xml-parser": "^4.3.6",
-    "open": "^8.4.2",
     "pino": "^8.17.2",
-    "pino-pretty": "^10.3.1",
-    "tslib": "^2.3.0"
+    "fast-xml-parser": "^5.2.5"
   },
   "scripts": {
     "build": "tsdown",

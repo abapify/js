@@ -21,7 +21,7 @@
   "dependencies": {},
   "scripts": {
     "build": "tsdown",
-    "test": "vitest",
+    "test": "vitest run --reporter=basic --passWithNoTests",
     "test:run": "vitest run"
   }
 }

@@ -13,13 +13,7 @@
           "targetName": "build",
           "configName": "tsconfig.lib.json"
         }
-      },
-      "exclude": [
-        "samples/cds/*",
-        "packages/plugins/oat/*",
-        "packages/plugins/abapgit/*",
-        "packages/plugins/gcts/*"
-      ]
+      }
     },
     {
       "plugin": "@nx/rollup/plugin",
@@ -34,16 +28,13 @@
       }
     },
     {
-      "plugin": "@nx/js/typescript",
-      "include": [
-        "packages/plugins/oat/*",
-        "packages/plugins/abapgit/*",
-        "packages/plugins/gcts/*"
-      ],
+      "plugin": "@nx/vite/plugin",
       "options": {
-        "typecheck": {
-          "targetName": "typecheck"
-        }
+        "buildTargetName": "build",
+        "previewTargetName": "preview",
+        "testTargetName": "test",
+        "serveTargetName": "serve",
+        "serveStaticTargetName": "serve-static"
       }
     }
   ],
@@ -55,7 +46,10 @@
   "targetDefaults": {
     "@nx/vite:test": {
       "cache": true,
-      "inputs": ["default", "^default"]
+      "inputs": ["default", "^default"],
+      "options": {
+        "run": true
+      }
     },
     "nx-release-publish": {
       "dependsOn": ["build", "test"]
@@ -83,5 +77,8 @@
       "dependsOn": ["^build"],
       "inputs": ["default", "^default"]
     }
+  },
+  "tui": {
+    "enabled": false
   }
 }
