@@ -1,11 +1,10 @@
-import { defineConfig } from 'vitest/config';
+import { createVitestConfig } from '../../vitest.base.config.mjs';
 
-export default defineConfig({
+export default createVitestConfig({
   test: {
-    globals: true,
-    environment: 'node',
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
     coverage: {
+      reportsDirectory: '../../coverage/packages/adt-cli',
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
