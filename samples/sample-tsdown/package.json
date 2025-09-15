@@ -16,8 +16,5 @@
   },
   "dependencies": {
     "tslib": "^2.3.0"
-  },
-  "scripts": {
-    "build": "tsdown"
   }
 }

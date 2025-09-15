@@ -17,10 +17,7 @@
   "dependencies": {
     "fxmlp": "^1.0.0",
     "fast-xml-parser": "^4.5.0",
-    "tsdown": "^0.14.1",
     "vitest": "^2.1.2"
   },
-  "scripts": {
-    "build": "tsdown"
-  }
+  "scripts": {}
 }

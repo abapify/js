@@ -62,11 +62,11 @@ export class ConnectionManager {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<Response> {
+    // Allow lazy initialization: if not explicitly connected, proceed using
+    // authenticated session and sensible defaults. This enables CLI commands
+    // (which set up AuthManager) to work without requiring connect().
     if (!this.config) {
-      throw this.createError(
-        'connection',
-        'Not connected. Call connect() first.'
-      );
+      this.config = { retryAttempts: 2 } as AdtConnectionConfig;
     }
 
     const maxRetries = this.config.retryAttempts || 2;
