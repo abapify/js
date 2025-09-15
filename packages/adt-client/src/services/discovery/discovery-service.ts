@@ -1,84 +1,162 @@
 import { ConnectionManager } from '../../client/connection-manager.js';
-import { SystemInfo, ADTDiscoveryService } from './types.js';
+import {
+  SystemInfo,
+  ADTDiscoveryService,
+  ADTWorkspace,
+  ADTCollection,
+  ADTCategory,
+  ADTTemplateLink,
+} from './types.js';
 import { XmlParser } from '../../utils/xml-parser.js';
 import { ErrorHandler } from '../../utils/error-handler.js';
 
 export class DiscoveryService {
   constructor(private connectionManager: ConnectionManager) {}
 
-  async getDiscovery(): Promise<ADTDiscoveryService> {
+  async getSystemInfo(): Promise<SystemInfo> {
     try {
       const url = '/sap/bc/adt/discovery';
       const response = await this.connectionManager.request(url);
-
       if (!response.ok) {
         throw await ErrorHandler.handleHttpError(response);
       }
-
       const xmlContent = await response.text();
       const parsed = XmlParser.parse(xmlContent);
-
-      // Parse discovery information from ADT discovery endpoint
-      const discoveryInfo = this.parseDiscoveryInfo(parsed);
-
-      return discoveryInfo;
+      return this.parseSystemInfo(parsed);
     } catch (error) {
-      if (error instanceof Error && 'category' in error) {
-        throw error;
-      }
+      if (error instanceof Error && 'category' in error) throw error;
       throw ErrorHandler.handleNetworkError(error as Error);
     }
   }
 
-  private parseDiscoveryInfo(parsed: any): SystemInfo {
-    // Default system info structure
-    const systemInfo: SystemInfo = {
-      systemId: '',
-      client: '',
-      release: '',
-      supportPackage: '',
-      patchLevel: '',
-      adtVersion: '',
-      supportedFeatures: [],
-    };
+  async getDiscovery(): Promise<ADTDiscoveryService> {
+    try {
+      const url = '/sap/bc/adt/discovery';
+      const response = await this.connectionManager.request(url);
+      if (!response.ok) {
+        throw await ErrorHandler.handleHttpError(response);
+      }
+      const xmlContent = await response.text();
+      const parsed = XmlParser.parse(xmlContent);
+      return this.parseDiscovery(parsed);
+    } catch (error) {
+      if (error instanceof Error && 'category' in error) throw error;
+      throw ErrorHandler.handleNetworkError(error as Error);
+    }
+  }
 
-    // Navigate through the discovery XML to extract system information
-    if (parsed['app:service']) {
-      const service = parsed['app:service'];
+  private parseSystemInfo(parsed: any): SystemInfo {
+    const systemInfo: SystemInfo = {} as any;
 
-      // Extract system ID from various possible locations
-      systemInfo.systemId =
-        XmlParser.extractAttribute(service, 'systemId') ||
-        XmlParser.extractAttribute(service, 'id') ||
-        'Unknown';
+    const service = parsed['app:service'] || parsed.service;
+    if (!service) return systemInfo;
 
-      // Extract version information
-      systemInfo.adtVersion =
-        XmlParser.extractAttribute(service, 'version') || '1.0';
+    // Try common attributes
+    (systemInfo as any).systemId =
+      XmlParser.extractAttribute(service, 'systemId') ||
+      XmlParser.extractAttribute(service, 'id');
+    (systemInfo as any).adtVersion = XmlParser.extractAttribute(
+      service,
+      'version'
+    );
 
-      // Extract supported features from workspace elements
-      if (service['app:workspace']) {
-        const workspaces = Array.isArray(service['app:workspace'])
-          ? service['app:workspace']
-          : [service['app:workspace']];
+    // Supported features from collections hrefs
+    const workspaces = service['app:workspace'] || service.workspace;
+    const supported: string[] = [];
+    const wsArray = Array.isArray(workspaces)
+      ? workspaces
+      : workspaces
+      ? [workspaces]
+      : [];
+    for (const ws of wsArray) {
+      const collections = ws['app:collection'] || ws.collection;
+      const collArray = Array.isArray(collections)
+        ? collections
+        : collections
+        ? [collections]
+        : [];
+      for (const coll of collArray) {
+        const href = XmlParser.extractAttribute(coll, 'href');
+        if (href) supported.push(href);
+      }
+    }
+    (systemInfo as any).supportedFeatures = supported;
 
-        for (const workspace of workspaces) {
-          const collection = workspace['app:collection'];
-          if (collection) {
-            const collections = Array.isArray(collection)
-              ? collection
-              : [collection];
-            for (const coll of collections) {
-              const href = XmlParser.extractAttribute(coll, 'href');
-              if (href) {
-                systemInfo.supportedFeatures.push(href);
-              }
-            }
-          }
-        }
+    return systemInfo;
+  }
+
+  private parseDiscovery(parsed: any): ADTDiscoveryService {
+    const service = parsed['app:service'] || parsed.service;
+    const workspaces = service?.['app:workspace'] || service?.workspace || [];
+    const parsedWorkspaces: ADTWorkspace[] = [];
+
+    const wsArray = Array.isArray(workspaces)
+      ? workspaces
+      : workspaces
+      ? [workspaces]
+      : [];
+    for (const ws of wsArray) {
+      parsedWorkspaces.push(this.parseWorkspace(ws));
+    }
+
+    return { workspaces: parsedWorkspaces };
+  }
+
+  private parseWorkspace(workspace: any): ADTWorkspace {
+    const title = workspace['atom:title'] || workspace.title || 'Unknown';
+    const collections =
+      workspace['app:collection'] || workspace.collection || [];
+
+    const parsedCollections: ADTCollection[] = [];
+    const collArray = Array.isArray(collections)
+      ? collections
+      : collections
+      ? [collections]
+      : [];
+    for (const coll of collArray) {
+      parsedCollections.push(this.parseCollection(coll));
+    }
+
+    return { title, collections: parsedCollections };
+  }
+
+  private parseCollection(collection: any): ADTCollection {
+    const title = collection['atom:title'] || collection.title || 'Unknown';
+    const href = collection['@href'] || '';
+    const accept = collection['app:accept'] || collection.accept;
+
+    let category: ADTCategory | undefined;
+    const cat = collection['atom:category'] || collection.category;
+    if (cat) {
+      category = {
+        term: cat['@term'] || '',
+        scheme: cat['@scheme'] || '',
+      };
+    }
+
+    let templateLinks: ADTTemplateLink[] = [];
+    const tlinks =
+      collection['adtcomp:templateLinks'] || collection.templateLinks;
+    if (tlinks) {
+      const links = tlinks['adtcomp:templateLink'] || tlinks.templateLink;
+      if (Array.isArray(links)) {
+        templateLinks = links.map((l: any) => ({
+          rel: l['@rel'] || '',
+          template: l['@template'] || '',
+        }));
+      } else if (links) {
+        templateLinks = [
+          { rel: links['@rel'] || '', template: links['@template'] || '' },
+        ];
       }
     }
 
-    return systemInfo;
+    return {
+      title,
+      href,
+      accept,
+      category,
+      templateLinks: templateLinks.length ? templateLinks : undefined,
+    };
   }
 }
