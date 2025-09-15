@@ -6,4 +6,6 @@ export default defineConfig({
   sourcemap: true,
   tsconfig: 'tsconfig.lib.json',
   skipNodeModulesBundle: true,
+  external: ['@abapify/adk', '@abapify/adt-client'],
+  dts: true,
 });

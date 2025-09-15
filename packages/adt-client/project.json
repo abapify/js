@@ -12,6 +12,18 @@
   },
   "tags": [],
   "targets": {
+    "build": {
+      "executor": "@nx/workspace:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "packages/adt-client",
+        "commands": [
+          {
+            "command": "npm run build"
+          }
+        ]
+      }
+    },
     "nx-release-publish": {
       "options": {
         "packageRoot": "dist/{projectRoot}"
