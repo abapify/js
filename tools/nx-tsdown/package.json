@@ -1,0 +1,49 @@
+{
+  "name": "nx-tsdown",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "abapify": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "@nx/js:tsc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "tools/nx-tsdown/dist",
+          "main": "tools/nx-tsdown/src/index.ts",
+          "tsConfig": "tools/nx-tsdown/tsconfig.lib.json",
+          "rootDir": "tools/nx-tsdown/src",
+          "generatePackageJson": false,
+          "assets": [
+            {
+              "input": "./tools/nx-tsdown/src",
+              "glob": "**/!(*.ts)",
+              "output": "."
+            },
+            {
+              "input": "./tools/nx-tsdown/src",
+              "glob": "**/*.d.ts",
+              "output": "."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}

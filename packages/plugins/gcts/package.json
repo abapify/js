@@ -18,8 +18,5 @@
   "nx": {
     "name": "gcts"
   },
-  "dependencies": {},
-  "scripts": {
-    "build": "tsdown"
-  }
+  "dependencies": {}
 }

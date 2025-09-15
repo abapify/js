@@ -16,6 +16,9 @@
       }
     },
     {
+      "plugin": "./tools/nx-tsdown/src/index.ts"
+    },
+    {
       "plugin": "@nx/rollup/plugin",
       "options": {
         "buildTargetName": "build"

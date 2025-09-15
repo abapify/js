@@ -14,6 +14,7 @@ import type {
   ADTCollection,
   ADTCategory,
   ADTTemplateLink,
+  SystemInfo,
 } from '../services/discovery/types.js';
 import { ConnectionManager } from './connection-manager.js';
 import { AuthManager } from './auth-manager.js';
@@ -136,8 +137,6 @@ export class AdtClientImpl implements AdtClient {
     this.discovery = {
       getSystemInfo: () => this.getSystemInfo(),
       getDiscovery: () => this.getDiscovery(),
-      getWorkspaces: () => this.getWorkspaces(),
-      getCollections: (workspaceId) => this.getCollections(workspaceId),
     };
 
     // Expose test service directly
@@ -167,20 +166,11 @@ export class AdtClientImpl implements AdtClient {
 
   // Keep these methods for internal use by service accessors
   async getSystemInfo(): Promise<SystemInfo> {
-    return await this.discoveryService.getDiscovery();
+    return await this.discoveryService.getSystemInfo();
   }
 
   async getDiscovery(): Promise<ADTDiscoveryService> {
-    // Get raw discovery XML and parse it to ADT discovery format
-    const url = '/sap/bc/adt/discovery';
-    const response = await this.connectionManager.request(url);
-
-    if (!response.ok) {
-      throw await ErrorHandler.handleHttpError(response);
-    }
-
-    const xmlContent = await response.text();
-    return this.parseDiscoveryXml(xmlContent);
+    return await this.discoveryService.getDiscovery();
   }
 
   private parseDiscoveryXml(xmlContent: string): ADTDiscoveryService {

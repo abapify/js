@@ -1,6 +1,4 @@
 import { BaseFormat } from './base-format';
-import { OatFormat } from './oat/oat-format';
-import { AbapGitFormat } from './abapgit/abapgit-format';
 import { ObjectRegistry } from '../objects/registry';
 
 export class FormatRegistry {
@@ -26,19 +24,30 @@ export class FormatRegistry {
     // Create format instances and auto-register available object types
     const availableObjectTypes = ObjectRegistry.getSupportedTypes();
 
-    // Create OAT format instance
-    const oatFormat = new OatFormat();
-    availableObjectTypes.forEach((objectType) =>
-      oatFormat.registerObjectType(objectType)
-    );
-    this.formatInstances.set('oat', oatFormat);
+    // Optionally register OAT format
+    try {
+      // Use dynamic import pattern that bundlers won't resolve eagerly
+      const oatModule = require('./oat/oat-format');
+      if (oatModule?.OatFormat) {
+        const oatFormat: BaseFormat = new oatModule.OatFormat();
+        availableObjectTypes.forEach((objectType) =>
+          oatFormat.registerObjectType(objectType)
+        );
+        this.formatInstances.set('oat', oatFormat);
+      }
+    } catch {}
 
-    // Create abapGit format instance
-    const abapgitFormat = new AbapGitFormat();
-    availableObjectTypes.forEach((objectType) =>
-      abapgitFormat.registerObjectType(objectType)
-    );
-    this.formatInstances.set('abapgit', abapgitFormat);
+    // Optionally register abapGit format
+    try {
+      const abapgitModule = require('./abapgit/abapgit-format');
+      if (abapgitModule?.AbapGitFormat) {
+        const abapgitFormat: BaseFormat = new abapgitModule.AbapGitFormat();
+        availableObjectTypes.forEach((objectType) =>
+          abapgitFormat.registerObjectType(objectType)
+        );
+        this.formatInstances.set('abapgit', abapgitFormat);
+      }
+    } catch {}
 
     // Future: gcts, steampunk, custom formats
   }
