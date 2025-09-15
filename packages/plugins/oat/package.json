@@ -1,25 +1,38 @@
 {
   "name": "@abapify/oat",
-  "version": "0.0.1",
-  "private": true,
+  "version": "1.0.0",
+  "description": "OAT format plugin for ADT CLI",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "abapify": "./src/index.ts",
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "default": "./dist/index.mjs"
-    }
-  },
-  "nx": {
-    "name": "oat"
-  },
-  "dependencies": {},
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsdown"
-  }
+    "test": "vitest run --reporter=basic --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.5",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@abapify/adt-cli": "*"
+  },
+  "keywords": [
+    "abap",
+    "sap",
+    "adt",
+    "oat",
+    "plugin",
+    "format"
+  ],
+  "author": "Abapify Team",
+  "license": "MIT"
 }
