@@ -1,1 +1,1 @@
-export * from './lib/oat.js';
+export { default } from './plugin';

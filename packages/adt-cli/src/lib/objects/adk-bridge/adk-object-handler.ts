@@ -25,7 +25,8 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
     const xml = await this.getAdtXml(name);
     const spec = this.parseXmlToSpec(xml);
 
-    return this.specToObjectData(spec);
+    // Enhanced conversion that preserves ADK context
+    return this.specToObjectData(spec, xml);
   }
 
   override async getAdtXml(name: string): Promise<string> {
@@ -62,7 +63,10 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
     }
   }
 
-  private specToObjectData(spec: Spec<any, Kind>): ObjectData {
+  private specToObjectData(
+    spec: Spec<any, Kind>,
+    originalXml?: string
+  ): ObjectData {
     return {
       name: spec.metadata.name,
       description: spec.metadata.description || '',
@@ -71,6 +75,10 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
       metadata: {
         type: this.getAdtTypeFromKind(spec.kind),
         kind: spec.kind,
+        // Preserve original ADT XML context for round-trip compatibility
+        adtXml: originalXml,
+        // Include full ADK spec for enhanced serialization
+        adkSpec: spec.spec,
       },
     };
   }
