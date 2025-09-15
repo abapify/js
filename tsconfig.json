@@ -4,19 +4,7 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/sample-tsdown"
-    },
-    {
       "path": "./packages/asjson-parser"
-    },
-    {
-      "path": "./packages/components"
-    },
-    {
-      "path": "./packages/cds2abap"
-    },
-    {
-      "path": "./tools/nx-cds2abap"
     },
     {
       "path": "./packages/adt-cli"
@@ -28,12 +16,6 @@
       "path": "./packages/adt-client"
     },
     {
-      "path": "./samples/cds"
-    },
-    {
-      "path": "./packages/sk"
-    },
-    {
       "path": "./packages/plugins/oat"
     },
     {
@@ -41,6 +23,12 @@
     },
     {
       "path": "./packages/plugins/gcts"
+    },
+    {
+      "path": "./tools/nx-tsdown"
+    },
+    {
+      "path": "./samples/sample-tsdown"
     }
   ]
 }

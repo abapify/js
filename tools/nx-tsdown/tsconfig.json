@@ -1,11 +1,8 @@
 {
-  "extends": "../../../tsconfig.base.json",
+  "extends": "../../tsconfig.base.json",
   "files": [],
   "include": [],
   "references": [
-    {
-      "path": "../../adt-cli"
-    },
     {
       "path": "./tsconfig.lib.json"
     }
