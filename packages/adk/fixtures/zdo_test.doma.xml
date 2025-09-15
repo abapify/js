@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ddic:domain
+        xmlns:ddic="http://www.sap.com/adt/ddic"
+        adtcore:responsible="CB9980003374"
+        adtcore:masterLanguage="EN"
+        adtcore:masterSystem="TRL"
+        adtcore:abapLanguageVersion="cloudDevelopment"
+        adtcore:name="ZDO_PEPL_TEST_DOMAIN"
+        adtcore:type="DOMA/DD"
+        adtcore:changedAt="2025-09-12T15:53:46Z"
+        adtcore:version="inactive"
+        adtcore:createdAt="2025-09-12T00:00:00Z"
+        adtcore:changedBy="CB9980003374"
+        adtcore:createdBy="CB9980003374"
+        adtcore:description="Test PEPL domain"
+        adtcore:descriptionTextLimit="60"
+        adtcore:language="EN"
+        xmlns:adtcore="http://www.sap.com/adt/core">
+    <atom:link
+            xmlns:atom="http://www.w3.org/2005/Atom"
+            href="source/main/versions"
+            rel="http://www.sap.com/adt/relations/versions" />
+    <atom:link
+            xmlns:atom="http://www.w3.org/2005/Atom"
+            href="source/main"
+            rel="http://www.sap.com/adt/relations/source"
+            type="text/plain"
+            etag="202509121553460001" />
+    <adtcore:packageRef
+            adtcore:uri="/sap/bc/adt/packages/zpepl_test"
+            adtcore:type="DEVC/K"
+            adtcore:name="ZPEPL_TEST" />
+    <ddic:dataType>CHAR</ddic:dataType>
+    <ddic:length>10</ddic:length>
+    <ddic:decimals>0</ddic:decimals>
+    <ddic:outputLength>10</ddic:outputLength>
+    <ddic:conversionExit>ALPHA</ddic:conversionExit>
+    <ddic:valueTable>MARA</ddic:valueTable>
+    <ddic:fixedValues>
+        <ddic:fixedValue>
+            <ddic:lowValue>01</ddic:lowValue>
+            <ddic:highValue></ddic:highValue>
+            <ddic:description>Option 1</ddic:description>
+        </ddic:fixedValue>
+        <ddic:fixedValue>
+            <ddic:lowValue>02</ddic:lowValue>
+            <ddic:highValue></ddic:highValue>
+            <ddic:description>Option 2</ddic:description>
+        </ddic:fixedValue>
+    </ddic:fixedValues>
+</ddic:domain>
