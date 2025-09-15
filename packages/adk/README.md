@@ -1,15 +1,15 @@
 # @abapify/adk (ABAP Development Kit)
 
-A comprehensive TypeScript library for modeling, generating, and parsing ABAP objects with SAP ADT (ABAP Development Tools) XML support.
+A modern TypeScript-first library for representing SAP ABAP objects with accurate ADT (ABAP Development Tools) XML parsing and serialization.
 
 ## Features
 
-- 🎯 **Type-Safe ABAP Object Modeling** - Strongly typed specifications for ABAP objects
-- 🔄 **Bidirectional ADT Transformation** - Generate and parse SAP ADT XML format
-- 🏗️ **Extensible Architecture** - Clean adapter pattern for multiple output formats
-- ⚡ **Modern Build System** - Built with tsdown for optimal performance
-- ✅ **Comprehensive Testing** - Full test coverage with Vitest
-- 📦 **Zero Runtime Dependencies** - Only XML processing dependencies
+- 🎯 **TypeScript-First Design** - Clean, strongly typed ADT object representations
+- 🔄 **Accurate XML Processing** - Faithful parsing and rendering of real ADT XML payloads
+- 🏗️ **Minimalist Architecture** - Focused on representation, not communication
+- ⚡ **Namespace-Aware** - Proper handling of ADT XML namespaces (adtcore, abapsource, atom)
+- ✅ **Comprehensive Testing** - Full test coverage with real XML fixtures
+- 📦 **Separation of Concerns** - ADK handles representation, ADT client handles communication
 
 ## Installation
 
@@ -19,337 +19,321 @@ npm install @abapify/adk
 
 ## Supported ABAP Objects
 
-| Object Type   | Generate XML | Parse XML | Spec Definition                     |
-| ------------- | ------------ | --------- | ----------------------------------- |
-| **Domain**    | ✅           | ✅        | Complete type and value information |
-| **Class**     | ✅           | ✅        | Methods, attributes, events, types  |
-| **Interface** | ✅           | ✅        | Abstract methods, events, types     |
+| Object Type   | Parse XML | Generate XML | TypeScript Types | Real XML Fixtures |
+| ------------- | --------- | ------------ | ---------------- | ----------------- |
+| **Interface** | ✅        | ✅           | ✅               | ✅                |
+| **Class**     | ✅        | ✅           | ✅               | ✅                |
+| **Domain**    | ✅        | ✅           | ✅               | ✅                |
 
 ## Quick Start
 
-### Working with Domains
+### Working with Interfaces
 
 ```typescript
-import { DomainAdtAdapter, Kind } from '@abapify/adk';
+import { Interface } from '@abapify/adk';
 
-// Create a domain specification
-const domainSpec = {
-  kind: Kind.Domain,
-  metadata: {
-    name: 'Z_STATUS_DOMAIN',
-    description: 'Status values for custom applications',
-  },
-  spec: {
-    typeInformation: {
-      datatype: 'CHAR',
-      length: 1,
-      decimals: 0,
-    },
-    outputInformation: {
-      length: 1,
-      style: 'UPPER',
-      signExists: false,
-      lowercase: false,
-      ampmFormat: false,
-    },
-    valueInformation: {
-      appendExists: false,
-      fixValues: [
-        { position: 1, low: 'A', text: 'Active' },
-        { position: 2, low: 'I', text: 'Inactive' },
-        { position: 3, low: 'P', text: 'Pending' },
-      ],
-    },
-  },
-};
+// Parse from real ADT XML
+const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<intf:abapInterface xmlns:intf="http://www.sap.com/adt/oo/interfaces"
+    abapoo:modeled="false"
+    abapsource:sourceUri="source/main"
+    adtcore:name="ZIF_MY_INTERFACE"
+    adtcore:type="INTF/OI"
+    adtcore:description="My custom interface"
+    xmlns:abapoo="http://www.sap.com/adt/oo"
+    xmlns:abapsource="http://www.sap.com/adt/abapsource"
+    xmlns:adtcore="http://www.sap.com/adt/core">
+  <adtcore:packageRef adtcore:name="ZPACKAGE" adtcore:type="DEVC/K" />
+</intf:abapInterface>`;
 
-// Generate ADT XML
-const adapter = new DomainAdtAdapter(domainSpec);
-const xml = adapter.toAdtXML();
-console.log(xml);
+const intf = Interface.fromXml(xml);
 
-// Parse ADT XML back to specification
-const parsedSpec = DomainAdtAdapter.fromAdtXML(xml);
+// Access strongly typed properties
+console.log(intf.name); // "ZIF_MY_INTERFACE"
+console.log(intf.description); // "My custom interface"
+console.log(intf.sourceUri); // "source/main"
+console.log(intf.isModeled); // false
+
+// Manage source code
+intf.setSourceMain('interface ZIF_MY_INTERFACE public.\nendinterface.');
+console.log(intf.getSourceMain());
+
+// Generate XML back
+const generatedXml = intf.toXml();
 ```
 
 ### Working with Classes
 
 ```typescript
-import { ClassAdtAdapter, Kind } from '@abapify/adk';
+import { Class } from '@abapify/adk';
 
-const classSpec = {
-  kind: Kind.Class,
-  metadata: {
-    name: 'ZCL_UTILITY_CLASS',
-    description: 'Utility class for common operations',
+// Create from constructor
+const cls = new Class(
+  {
+    name: 'ZCL_MY_CLASS',
+    type: 'CLAS/OC',
+    description: 'My custom class',
+    masterLanguage: 'EN',
+    version: 'inactive',
   },
-  spec: {
-    visibility: 'PUBLIC' as const,
-    isFinal: false,
-    isAbstract: false,
-    superclass: 'CL_OBJECT',
-    interfaces: ['ZIF_LOGGER'],
-    components: {
-      methods: [
-        {
-          name: 'CONSTRUCTOR',
-          visibility: 'PUBLIC' as const,
-          isStatic: false,
-          isAbstract: false,
-          isFinal: false,
-          parameters: [
-            {
-              name: 'IV_CONFIG',
-              type: 'IMPORTING' as const,
-              dataType: 'STRING',
-              isOptional: true,
-              description: 'Configuration parameter',
-            },
-          ],
-          exceptions: ['CX_SY_CREATE_OBJECT_ERROR'],
-          description: 'Class constructor',
-        },
-      ],
-      attributes: [
-        {
-          name: 'MV_CONFIG',
-          visibility: 'PRIVATE' as const,
-          isStatic: false,
-          isReadOnly: false,
-          dataType: 'STRING',
-          description: 'Configuration data',
-        },
-      ],
-      events: [],
-      types: [],
-    },
-  },
-};
+  { modeled: false },
+  { sourceUri: 'source/main' }
+);
 
-const adapter = new ClassAdtAdapter(classSpec);
-const xml = adapter.toAdtXML();
+// Access properties
+console.log(cls.name); // "ZCL_MY_CLASS"
+console.log(cls.isModeled); // false
+
+// Parse from XML
+const classXml = `<?xml version="1.0" encoding="UTF-8"?>
+<class:abapClass xmlns:class="http://www.sap.com/adt/oo/classes"
+    adtcore:name="ZCL_EXISTING_CLASS"
+    adtcore:type="CLAS/OC"
+    xmlns:adtcore="http://www.sap.com/adt/core">
+</class:abapClass>`;
+
+const parsedClass = Class.fromXml(classXml);
 ```
 
-### Working with Interfaces
+### Working with Domains
 
 ```typescript
-import { InterfaceAdtAdapter, Kind } from '@abapify/adk';
+import { Domain } from '@abapify/adk';
 
-const interfaceSpec = {
-  kind: Kind.Interface,
-  metadata: {
-    name: 'ZIF_DATA_PROCESSOR',
-    description: 'Interface for data processing operations',
+// Create domain with fixed values
+const domain = new Domain(
+  {
+    name: 'ZDO_STATUS',
+    type: 'DOMA/DD',
+    description: 'Status domain',
+    masterLanguage: 'EN',
   },
-  spec: {
-    category: 'IF' as const,
-    interfaces: [], // No parent interfaces
-    components: {
-      methods: [
-        {
-          name: 'PROCESS_DATA',
-          isAbstract: true,
-          parameters: [
-            {
-              name: 'IT_DATA',
-              type: 'IMPORTING' as const,
-              dataType: 'TY_DATA_TABLE',
-              isOptional: false,
-            },
-            {
-              name: 'RT_RESULT',
-              type: 'RETURNING' as const,
-              dataType: 'TY_RESULT_TABLE',
-              isOptional: false,
-            },
-          ],
-          exceptions: ['CX_PROCESSING_ERROR'],
-          description: 'Process input data and return results',
-        },
-      ],
-      attributes: [],
-      events: [],
-      types: [
-        {
-          name: 'TY_DATA_TABLE',
-          definition: 'TABLE OF STRING',
-          description: 'Input data table type',
-        },
-      ],
-    },
-  },
-};
+  {
+    dataType: 'CHAR',
+    length: 1,
+    decimals: 0,
+    fixedValues: [
+      { lowValue: 'A', description: 'Active' },
+      { lowValue: 'I', description: 'Inactive' },
+    ],
+  }
+);
 
-const adapter = new InterfaceAdtAdapter(interfaceSpec);
-const xml = adapter.toAdtXML();
+// Access domain properties
+console.log(domain.dataType); // "CHAR"
+console.log(domain.length); // 1
+console.log(domain.fixedValues); // Array of fixed values
+
+// Generate XML
+const domainXml = domain.toXml();
 ```
 
 ## Architecture
 
 ### Core Concepts
 
-**Spec Pattern**: All ABAP objects follow a consistent specification pattern:
+The new ADK follows a **TypeScript-first, minimalist architecture** focused on accurate ADT XML representation:
+
+**Base Class Pattern**: All ADT objects extend a common base class:
 
 ```typescript
-type Spec<T, K extends Kind = Kind> = {
-  kind: K; // Object type (Domain, Class, Interface)
-  metadata: {
-    // Common metadata
-    name: string;
-    description?: string;
-  };
-  spec: T; // Object-specific specification
-};
+abstract class AdtObject<TSections> {
+  protected adtcore: AdtCoreAttributes;
+  protected sections: TSections;
+  protected packageRef?: PackageReference;
+  protected links: AtomLink[] = [];
+
+  // Common ADT properties
+  get name(): string {
+    return this.adtcore.name;
+  }
+  get type(): string {
+    return this.adtcore.type;
+  }
+  get description(): string | undefined {
+    return this.adtcore.description;
+  }
+
+  // Abstract methods for XML processing
+  abstract toXml(): string;
+  static fromXml<T extends AdtObject>(xml: string): T;
+}
 ```
 
-**Adapter Pattern**: Each object type has an adapter for different output formats:
-
-```
-BaseAdapter
-├── AdtAdapter (abstract)
-    ├── DomainAdtAdapter
-    ├── ClassAdtAdapter
-    └── InterfaceAdtAdapter
-```
-
-### Object Type System
+**Namespace-Specific Interfaces**: Clean separation of ADT XML namespaces:
 
 ```typescript
-// Strongly typed kinds
-enum Kind {
-  Domain = 'Domain',
-  Class = 'Class',
-  Interface = 'Interface',
+// adtcore namespace - common to all ADT objects
+interface AdtCoreAttributes {
+  name: string;
+  type: string;
+  description?: string;
+  language?: string;
+  masterLanguage?: string;
+  responsible?: string;
+  changedBy?: string;
+  createdBy?: string;
+  changedAt?: Date;
+  createdAt?: Date;
+  version?: 'active' | 'inactive';
 }
 
-// Type-safe specifications
-type DomainSpec = Spec<Domain, Kind.Domain>;
-type ClassSpec = Spec<Class, Kind.Class>;
-type InterfaceSpec = Spec<Interface, Kind.Interface>;
+// abapsource namespace - ABAP-specific attributes
+interface AbapSourceAttributes {
+  sourceUri: string;
+  fixPointArithmetic?: boolean;
+  activeUnicodeCheck?: boolean;
+}
+
+// atom namespace - link elements
+interface AtomLink {
+  href: string;
+  rel: string;
+  type?: string;
+  title?: string;
+  etag?: string;
+}
+```
+
+**Typed Sections**: Object-specific data organized in sections:
+
+```typescript
+// Interface sections
+interface InterfaceSections {
+  sourceMain?: string; // Source code content
+  syntaxConfiguration?: SyntaxConfiguration;
+}
+
+// Domain sections
+interface DomainSections {
+  dataType?: string;
+  length?: number;
+  decimals?: number;
+  fixedValues?: DomainFixedValue[];
+}
 ```
 
 ## API Reference
 
 ### Base Classes
 
-#### `AdtAdapter<T>`
+#### `AdtObject<TSections>`
 
-Abstract base class for ADT format adapters.
+Abstract base class for all ADT objects with common properties and XML processing.
 
 ```typescript
-abstract class AdtAdapter<T extends Spec<unknown, Kind>> {
-  // Generate ADT object structure
-  abstract toAdt(): Record<string, unknown>;
+abstract class AdtObject<TSections> {
+  protected adtcore: AdtCoreAttributes;
+  protected sections: TSections;
+  protected packageRef?: PackageReference;
+  protected links: AtomLink[] = [];
 
-  // Parse ADT object to specification
-  abstract fromAdt(adtObject: Record<string, unknown>): T;
+  // Common getters
+  get name(): string;
+  get type(): string;
+  get description(): string | undefined;
+  get language(): string | undefined;
+  get masterLanguage(): string | undefined;
+  get responsible(): string | undefined;
+  get changedBy(): string | undefined;
+  get createdBy(): string | undefined;
+  get changedAt(): Date | undefined;
+  get createdAt(): Date | undefined;
+  get version(): 'active' | 'inactive' | undefined;
 
-  // Generate ADT XML string
-  toAdtXML(): string;
+  // Package and links
+  get packageRef(): PackageReference | undefined;
+  get links(): AtomLink[];
 
-  // Parse ADT XML to specification (static method)
-  static fromAdtXML<TSpec>(xml: string): TSpec;
+  // Sections access
+  getSections(): TSections;
 
-  // Get ADT core metadata
-  get adtcore(): Record<string, unknown>;
+  // Abstract methods (must be implemented by concrete classes)
+  abstract toXml(): string;
+  static fromXml<T extends AdtObject>(xml: string): T;
 }
 ```
 
-### Domain Objects
+### Concrete ADT Objects
 
-#### `DomainSpec`
+#### `Interface`
 
-Complete domain specification with type, output, and value information.
+ABAP Interface ADT object with proper TypeScript types.
 
 ```typescript
-interface Domain {
-  typeInformation: {
-    datatype: string; // ABAP data type (CHAR, NUMC, etc.)
-    length: number; // Field length
-    decimals: number; // Decimal places
-  };
-  outputInformation: {
-    length: number; // Output length
-    style: string; // Output style
-    conversionExit?: string; // Conversion exit
-    signExists: boolean; // Sign indicator
-    lowercase: boolean; // Allow lowercase
-    ampmFormat: boolean; // AM/PM time format
-  };
-  valueInformation: {
-    valueTableRef?: string; // Value table reference
-    appendExists: boolean; // Append structure exists
-    fixValues: Array<{
-      // Fixed values
-      position: number;
-      low: string;
-      high?: string;
-      text: string;
-    }>;
-  };
+class Interface extends AdtObject<InterfaceSections> {
+  constructor(
+    adtcore: AdtCoreAttributes,
+    abapoo: { modeled: boolean },
+    abapsource: AbapSourceAttributes,
+    sections?: InterfaceSections
+  );
+
+  // ABAP-specific getters
+  get sourceUri(): string;
+  get isModeled(): boolean;
+  get fixPointArithmetic(): boolean | undefined;
+  get activeUnicodeCheck(): boolean | undefined;
+
+  // Source management
+  getSourceMain(): string | undefined;
+  setSourceMain(source: string): void;
+
+  // XML processing
+  toXml(): string;
+  static fromXml(xml: string): Interface;
 }
 ```
 
-#### `DomainAdtAdapter`
+#### `Class`
+
+ABAP Class ADT object following the same pattern as Interface.
 
 ```typescript
-class DomainAdtAdapter extends AdtAdapter<DomainSpec> {
-  toAdt(): Record<string, unknown>;
-  fromAdt(adtObject: Record<string, unknown>): DomainSpec;
+class Class extends AdtObject<ClassSections> {
+  constructor(
+    adtcore: AdtCoreAttributes,
+    abapoo: { modeled: boolean },
+    abapsource: AbapSourceAttributes,
+    sections?: ClassSections
+  );
+
+  // Same interface as Interface class
+  get sourceUri(): string;
+  get isModeled(): boolean;
+  getSourceMain(): string | undefined;
+  setSourceMain(source: string): void;
+
+  toXml(): string;
+  static fromXml(xml: string): Class;
 }
 ```
 
-### Class Objects
+#### `Domain`
 
-#### `ClassSpec`
-
-Complete class specification with all OOP features.
+ABAP Domain ADT object with domain-specific properties.
 
 ```typescript
-interface Class {
-  visibility: 'PUBLIC' | 'PRIVATE';
-  isFinal: boolean;
-  isAbstract: boolean;
-  superclass?: string;
-  interfaces: string[];
-  components: {
-    methods: ClassMethod[];
-    attributes: ClassAttribute[];
-    events: ClassEvent[];
-    types: ClassType[];
-  };
+class Domain extends AdtObject<DomainSections> {
+  constructor(adtcore: AdtCoreAttributes, sections?: DomainSections);
+
+  // Domain-specific getters
+  get dataType(): string | undefined;
+  get length(): number | undefined;
+  get decimals(): number | undefined;
+  get outputLength(): number | undefined;
+  get conversionExit(): string | undefined;
+  get valueTable(): string | undefined;
+  get fixedValues(): DomainFixedValue[];
+
+  toXml(): string;
+  static fromXml(xml: string): Domain;
 }
-```
 
-#### Method Parameters
-
-```typescript
-interface MethodParameter {
-  name: string;
-  type: 'IMPORTING' | 'EXPORTING' | 'CHANGING' | 'RETURNING';
-  dataType: string;
-  isOptional: boolean;
-  defaultValue?: string;
+interface DomainFixedValue {
+  lowValue: string;
+  highValue?: string;
   description?: string;
-}
-```
-
-### Interface Objects
-
-#### `InterfaceSpec`
-
-Interface specification with abstract methods and components.
-
-```typescript
-interface Interface {
-  category: 'IF' | 'CA'; // Interface or Category
-  interfaces: string[]; // Parent interfaces
-  components: {
-    methods: InterfaceMethod[];
-    attributes: InterfaceAttribute[];
-    events: InterfaceEvent[];
-    types: InterfaceType[];
-  };
 }
 ```
 
@@ -357,86 +341,118 @@ interface Interface {
 
 ### Custom Object Types
 
-Extend the ADK to support additional ABAP object types:
+Extend the ADK to support additional ABAP object types by following the established pattern:
 
 ```typescript
-// 1. Add to Kind enum
-enum Kind {
-  Domain = 'Domain',
-  Class = 'Class',
-  Interface = 'Interface',
-  Table = 'Table', // New object type
+// 1. Define sections interface
+interface TableSections {
+  sourceMain?: string;
+  fields?: TableField[];
+  keys?: TableKey[];
 }
 
-// 2. Define specification
-interface Table {
-  fields: TableField[];
-  keys: TableKey[];
-}
-
-type TableSpec = Spec<Table, Kind.Table>;
-
-// 3. Create adapter
-class TableAdtAdapter extends AdtAdapter<TableSpec> {
-  toAdt(): Record<string, unknown> {
-    // Implementation
+// 2. Create ADT object class
+class Table extends AdtObject<TableSections> {
+  constructor(adtcore: AdtCoreAttributes, sections: TableSections = {}) {
+    super(adtcore, sections);
   }
 
-  fromAdt(adtObject: Record<string, unknown>): TableSpec {
-    // Implementation
+  // Table-specific getters
+  get fields(): TableField[] {
+    return this.sections.fields || [];
+  }
+  get keys(): TableKey[] {
+    return this.sections.keys || [];
+  }
+
+  // XML processing
+  toXml(): string {
+    // Generate table XML following ADT format
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<ddic:table xmlns:ddic="http://www.sap.com/adt/ddic"
+    adtcore:name="${this.name}"
+    adtcore:type="TABL/DT"
+    xmlns:adtcore="http://www.sap.com/adt/core">
+  <!-- Table-specific XML content -->
+</ddic:table>`;
+  }
+
+  static fromXml(xml: string): Table {
+    const parsed = AdtObject.parseXml(xml);
+    // Parse table-specific XML structure
+    // Return new Table instance
   }
 }
 ```
 
-### XML Processing Options
+### Round-trip XML Processing
 
-Customize XML generation and parsing:
+The ADK ensures data integrity through parse → serialize → parse cycles:
 
 ```typescript
-import { toXML, fromXML } from '@abapify/adk';
+// Parse original ADT XML
+const original = Interface.fromXml(adtXml);
 
-// Custom XML generation
-const customXml = toXML(adtObject, {
-  format: true,
-  ignoreAttributes: false,
-});
+// Serialize back to XML
+const serializedXml = original.toXml();
 
-// Custom XML parsing
-const parsed = fromXML(xml, {
-  removeNSPrefix: true,
-  parseAttributeValue: true,
-});
+// Parse serialized XML
+const reparsed = Interface.fromXml(serializedXml);
+
+// Verify key attributes are preserved
+console.assert(reparsed.name === original.name);
+console.assert(reparsed.sourceUri === original.sourceUri);
+console.assert(reparsed.packageRef?.name === original.packageRef?.name);
 ```
 
-### Validation and Type Guards
+### Integration with ADT Client
+
+The ADK is designed to work seamlessly with ADT client libraries:
 
 ```typescript
-import { Kind } from '@abapify/adk';
+import { AdtClient } from '@abapify/adt-client';
+import { Interface } from '@abapify/adk';
 
-function isDomainSpec(spec: any): spec is DomainSpec {
-  return spec?.kind === Kind.Domain;
-}
+const client = new AdtClient(/* connection config */);
 
-function validateClassSpec(spec: ClassSpec): boolean {
-  return spec.spec.components.methods.every(
-    (method) => method.name && method.visibility
-  );
-}
+// Fetch interface XML from ADT
+const xml = await client.getObject('ZIF_MY_INTERFACE');
+
+// Parse to ADK object
+const intf = Interface.fromXml(xml);
+
+// Modify source code
+intf.setSourceMain(
+  'interface ZIF_MY_INTERFACE public.\n  methods: process.\nendinterface.'
+);
+
+// Generate updated XML
+const updatedXml = intf.toXml();
+
+// Send back to ADT
+await client.updateObject('ZIF_MY_INTERFACE', updatedXml);
 ```
 
 ## Error Handling
 
-The ADK provides clear error messages for common issues:
+The ADK provides clear error messages for XML parsing and validation issues:
 
 ```typescript
 try {
-  const spec = adapter.fromAdt(invalidAdtObject);
+  const intf = Interface.fromXml(invalidXml);
 } catch (error) {
   if (error.message.includes('missing')) {
-    // Handle missing required fields
-  } else if (error.message.includes('invalid')) {
-    // Handle invalid object structure
+    // Handle missing required XML elements
+    console.error('Required XML element missing:', error.message);
+  } else if (error.message.includes('Invalid ADT object')) {
+    // Handle invalid XML structure
+    console.error('XML structure invalid:', error.message);
   }
+}
+
+// Validate parsed objects
+function validateInterface(intf: Interface): boolean {
+  return intf.name && intf.type === 'INTF/OI' && intf.sourceUri;
 }
 ```
 
@@ -448,35 +464,47 @@ Run the test suite:
 # Run all ADK tests
 npm run test
 
-# Run with coverage
-npm run test:coverage
-
-# Run specific test file
-npm run test domain/adapters/adt.test.ts
+# Run specific test files
+npx vitest run src/adt/oo/interfaces/interface.test.ts --reporter=basic
+npx vitest run src/adt/oo/classes/class.test.ts --reporter=basic
+npx vitest run src/adt/ddic/domains/domain.test.ts --reporter=basic
 ```
 
-Example test structure:
+Example test structure using real XML fixtures:
 
 ```typescript
-import { describe, it, expect } from 'vitest';
-import { DomainAdtAdapter, Kind } from '@abapify/adk';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { Interface } from './interface';
 
-describe('DomainAdtAdapter', () => {
-  it('should generate valid ADT XML', () => {
-    const spec = createMockDomainSpec();
-    const adapter = new DomainAdtAdapter(spec);
-    const xml = adapter.toAdtXML();
+describe('Interface', () => {
+  let realXmlFixture: string;
 
-    expect(xml).toContain('<?xml version="1.0"');
-    expect(xml).toContain('doma:domain');
+  beforeEach(() => {
+    // Load real ADT XML fixture
+    realXmlFixture = readFileSync(
+      join(__dirname, '../../../../fixtures/zif_test.intf.xml'),
+      'utf-8'
+    );
   });
 
-  it('should parse ADT XML correctly', () => {
-    const xml = getValidDomainXml();
-    const spec = DomainAdtAdapter.fromAdtXML(xml);
+  it('should parse Interface from real ADT XML', () => {
+    const intf = Interface.fromXml(realXmlFixture);
 
-    expect(spec.kind).toBe(Kind.Domain);
-    expect(spec.metadata.name).toBe('TEST_DOMAIN');
+    expect(intf.name).toBe('ZIF_PEPL_TEST_NESTED1');
+    expect(intf.type).toBe('INTF/OI');
+    expect(intf.sourceUri).toBe('source/main');
+    expect(intf.isModeled).toBe(false);
+  });
+
+  it('should maintain data integrity through round-trip processing', () => {
+    const original = Interface.fromXml(realXmlFixture);
+    const serialized = original.toXml();
+    const reparsed = Interface.fromXml(serialized);
+
+    expect(reparsed.name).toBe(original.name);
+    expect(reparsed.sourceUri).toBe(original.sourceUri);
   });
 });
 ```
