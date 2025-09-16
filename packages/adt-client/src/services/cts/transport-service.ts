@@ -263,15 +263,17 @@ export class TransportService {
     try {
       const url = '/sap/bc/adt/cts/transportrequests';
 
-      const xmlPayload = this.buildCreateTransportXml(options);
+      const xmlPayload = await this.buildCreateTransportXml(options);
 
       const response = await this.connectionManager.request(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/plain',
+          'Content-Type': 'application/xml',
           Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
-          'x-sap-security-session': 'use',
           'sap-cancel-on-close': 'true',
+          saplb: 'appserver-5lcng',
+          'saplb-options': 'REDISPATCH_ON_SHUTDOWN',
+          'sap-adt-saplib': 'fetch',
         },
         body: xmlPayload,
       });
@@ -281,7 +283,47 @@ export class TransportService {
       }
 
       const xmlContent = await response.text();
-      const transport = XmlParser.parseTransportDetail(xmlContent);
+      this.logger.debug(`📋 Transport creation response: ${xmlContent}`);
+
+      // Use fast-xml-parser for reliable XML parsing
+      const { XMLParser } = await import('fast-xml-parser');
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '@_',
+        textNodeName: '#text',
+      });
+
+      let transport;
+      try {
+        const parsed = parser.parse(xmlContent);
+        const tmRequest = parsed['tm:root']['tm:request'];
+
+        transport = {
+          number: tmRequest['@_tm:number'],
+          description: tmRequest['@_tm:desc'],
+          status: 'Modifiable',
+          owner: await this.getCurrentUser(),
+          created: new Date().toISOString(),
+          type:
+            tmRequest['@_tm:type'] === 'K'
+              ? 'Workbench Request'
+              : 'Customizing Request',
+          target: tmRequest['@_tm:target'] || 'LOCAL',
+          tasks: [],
+        };
+
+        this.logger.debug(
+          `✅ Successfully parsed transport: ${transport.number}`
+        );
+      } catch (parseError) {
+        this.logger.error(
+          'Failed to parse transport creation response:',
+          parseError
+        );
+        throw new Error(
+          `Failed to parse transport creation response: ${parseError}`
+        );
+      }
 
       if (!transport) {
         throw new Error('Failed to parse created transport response');
@@ -404,11 +446,27 @@ export class TransportService {
 </cts:object>`;
   }
 
-  private buildCreateTransportXml(options: TransportCreateOptions): string {
+  private async buildCreateTransportXml(
+    options: TransportCreateOptions
+  ): Promise<string> {
     const type = options.type || 'K';
     const target = options.target || 'LOCAL';
     const project = options.project || '';
-    const owner = options.owner || 'DEVELOPER';
+
+    // Get the real current user instead of hardcoded DEVELOPER
+    let owner = options.owner;
+    if (!owner) {
+      try {
+        // Get the real current user from connection manager
+        const currentUser = await this.getCurrentUser();
+        owner = currentUser;
+      } catch (error) {
+        this.logger.warn(
+          'Failed to detect current user, using DEVELOPER as fallback'
+        );
+        owner = 'DEVELOPER';
+      }
+    }
 
     return `<?xml version="1.0" encoding="ASCII"?>
 <tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:useraction="newrequest">
@@ -449,5 +507,56 @@ export class TransportService {
 
   private mapLockStatus(status: string): 'locked' | 'unlocked' {
     return status?.toLowerCase() === 'locked' ? 'locked' : 'unlocked';
+  }
+
+  /**
+   * Get current user from the system - enhanced version from working implementation
+   */
+  async getCurrentUser(): Promise<string> {
+    try {
+      this.logger.debug('👤 Detecting current user from metadata endpoint...');
+
+      // Get metadata with correct content type
+      const response = await this.connectionManager.request(
+        '/sap/bc/adt/cts/transportrequests/searchconfiguration/metadata',
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/vnd.sap.adt.configuration.metadata.v1+xml',
+          },
+        }
+      );
+
+      const xmlContent = await response.text();
+      this.logger.debug(
+        `📋 Metadata response (${
+          xmlContent.length
+        } chars): ${xmlContent.substring(0, 500)}...`
+      );
+
+      // Parse the response to extract the actual user
+      const userMatch = xmlContent.match(
+        /<configuration:property key="User"[^>]*>([^<]+)</
+      );
+      if (userMatch && userMatch[1]) {
+        const detectedUser = userMatch[1].trim();
+        this.logger.debug(`👤 Current user detected: ${detectedUser}`);
+        return detectedUser;
+      }
+
+      // No user found in metadata response
+      throw new Error('Could not detect current user from metadata response');
+    } catch (error) {
+      this.logger.error(
+        `❌ Error detecting current user: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+      throw new Error(
+        `Failed to detect current user: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
   }
 }
