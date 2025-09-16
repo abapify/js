@@ -25,6 +25,7 @@ import { DiscoveryService } from '../services/discovery/discovery-service.js';
 import { ObjectService } from '../services/repository/object-service.js';
 import { SearchService } from '../services/repository/search-service.js';
 import { TestService } from '../services/test/test-service.js';
+import { ObjectDeploymentService } from '../services/objects/object-deployment-service.js';
 import { createLogger } from '../utils/logger.js';
 import { SessionManager } from './session-manager.js';
 import { ErrorHandler } from '../utils/error-handler.js';
@@ -45,6 +46,7 @@ export interface AdtClient {
   readonly atc: AtcOperations; // ABAP Test Cockpit
   readonly repository: RepositoryOperations; // All object operations
   readonly discovery: DiscoveryOperations; // System discovery
+  readonly objects: ObjectDeploymentService; // Object deployment operations
   readonly test: TestService; // Test operations for debugging
 
   // Low-level access for advanced use cases
@@ -60,6 +62,7 @@ export class AdtClientImpl implements AdtClient {
   private discoveryService: DiscoveryService;
   private atcService: AtcService;
   private testService: TestService;
+  private objectDeploymentService: ObjectDeploymentService;
   private debugMode = false;
   private logger: any;
 
@@ -68,6 +71,7 @@ export class AdtClientImpl implements AdtClient {
   readonly atc: AtcOperations;
   readonly repository: RepositoryOperations;
   readonly discovery: DiscoveryOperations;
+  readonly objects: ObjectDeploymentService;
   readonly test: TestService;
 
   constructor(config: AdtClientConfig = {}) {
@@ -91,6 +95,10 @@ export class AdtClientImpl implements AdtClient {
     );
     this.testService = new TestService(
       this.logger.child({ component: 'test' })
+    );
+    this.objectDeploymentService = new ObjectDeploymentService(
+      this.connectionManager,
+      this.logger.child({ component: 'objects' })
     );
 
     // Initialize service accessors
@@ -140,6 +148,7 @@ export class AdtClientImpl implements AdtClient {
     };
 
     // Expose test service directly
+    this.objects = this.objectDeploymentService;
     this.test = this.testService;
   }
 
