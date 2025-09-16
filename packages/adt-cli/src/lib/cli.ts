@@ -15,16 +15,11 @@ import {
   transportListCommand,
   transportGetCommand,
   transportCreateCommand,
-  createExportCommand,
-  createSearchCommand,
   createTestLogCommand,
   createTestAdtCommand,
 } from './commands';
-import {
-  createCliLogger,
-  parseComponents,
-  AVAILABLE_COMPONENTS,
-} from './utils/logger-config';
+import { deployCommand } from './commands/deploy/index.js';
+import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setGlobalLogger } from './shared/clients.js';
 
 // Add global options help to all commands using afterAll hook
@@ -55,7 +50,7 @@ ${globalOptions}
 }
 
 // Create main program
-export function createCLI(): Command {
+export async function createCLI(): Promise<Command> {
   const program = new Command();
 
   program
@@ -77,7 +72,7 @@ export function createCLI(): Command {
       });
 
       // Store logger for use in commands
-      thisCommand.logger = logger;
+      (thisCommand as any).logger = logger;
     });
 
   // Auth commands
@@ -128,6 +123,9 @@ export function createCLI(): Command {
 
   exportCmd.addCommand(exportPackageCommand);
 
+  // Deploy command
+  program.addCommand(deployCommand);
+
   // Test commands for debugging
   program.addCommand(createTestLogCommand());
   program.addCommand(createTestAdtCommand());
@@ -140,7 +138,7 @@ export function createCLI(): Command {
 
 // Main execution function
 export async function main(): Promise<void> {
-  const program = createCLI();
+  const program = await createCLI();
 
   // Add a hook to set up logger before command execution
   program.hook('preAction', (thisCommand, actionCommand) => {

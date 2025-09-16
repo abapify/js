@@ -642,6 +642,98 @@ The CLI uses OAuth 2.0 with PKCE (Proof Key for Code Exchange) for secure authen
 
 ## Configuration
 
+### Configuration Files
+
+The ADT CLI supports flexible configuration through TypeScript and YAML files. Configuration files are discovered in this order:
+
+1. **`adt.config.ts`** (Primary) - TypeScript configuration with full type safety and IntelliSense
+2. **`adt.config.yaml`** (Legacy) - YAML configuration for simple setups
+3. **`adt.config.yml`** (Legacy) - Alternative YAML extension
+
+### TypeScript Configuration (Recommended)
+
+Create an `adt.config.ts` file for enhanced flexibility and type safety:
+
+```typescript
+import type { CliConfig } from '@abapify/adt-cli/config/interfaces';
+
+const config: CliConfig = {
+  auth: {
+    type: 'btp',
+    btp: {
+      serviceKey: process.env.BTP_SERVICE_KEY_PATH || './service-key.json',
+    },
+  },
+
+  plugins: {
+    formats: [
+      {
+        name: '@abapify/oat',
+        config: {
+          enabled: true,
+          options: {
+            fileStructure: 'hierarchical',
+            includeMetadata: true,
+            packageMapping: {
+              finance: 'ZTEAMA_FIN',
+              basis: 'ZTEAMA_BASIS',
+
+              // Dynamic transform function
+              transform: (remotePkg: string) => {
+                return remotePkg
+                  .toLowerCase()
+                  .replace(/^z(teama|dev|prd)_/, '')
+                  .replace(/_/g, '-');
+              },
+            },
+            objectFilters: {
+              include: ['CLAS', 'INTF', 'FUGR', 'TABL'],
+              exclude: ['DEVC'],
+            },
+          },
+        },
+      },
+    ],
+  },
+
+  defaults: {
+    format: 'oat',
+    outputPath: './output',
+  },
+};
+
+export default config;
+```
+
+### YAML Configuration (Legacy)
+
+For simpler setups, you can still use YAML:
+
+```yaml
+# adt.config.yaml
+auth:
+  type: btp
+  btp:
+    serviceKey: ${BTP_SERVICE_KEY_PATH}
+
+plugins:
+  formats:
+    - name: '@abapify/oat'
+      config:
+        enabled: true
+        options:
+          fileStructure: hierarchical
+          packageMapping:
+            finance: ZTEAMA_FIN
+            basis: ZTEAMA_BASIS
+
+defaults:
+  format: oat
+  outputPath: ./output
+```
+
+### Authentication Storage
+
 Authentication tokens are stored in your system's configuration directory:
 
 - **Linux/macOS:** `~/.config/adt-cli/`
