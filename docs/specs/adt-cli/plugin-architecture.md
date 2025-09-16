@@ -1,450 +1,396 @@
-# ADT CLI Plugin Architecture Specification
+# ADT CLI Plugin System - Complete Specification
 
-**Version**: 1.0  
-**Status**: Draft  
-**Created**: 2025-01-09
+**Version**: 2.1  
+**Status**: Implementation Complete  
+**Created**: 2025-01-09  
+**Updated**: 2025-09-16
 
 ## Overview
 
-The ADT CLI implements a pluggable architecture that delegates format-specific operations to dedicated plugins. This enables support for multiple ABAP object serialization formats (OAT, abapGit, GCTS) while maintaining a clean separation of concerns.
+The ADT CLI implements a dynamic plugin system that enables configuration-driven format plugin management with runtime loading capabilities. This system provides complete separation between CLI core, ADT operations, and format-specific serialization.
 
-## Architecture Overview
-
-The ADT CLI plugin architecture consists of four main components:
-
-1. **ADT CLI Core**: Command-line interface and orchestration
-2. **ADT Client**: Abstracted ADT connection and service layer
-3. **ADK (ABAP Development Kit)**: Interface layer between CLI and plugins
-4. **Format Plugins**: Specialized handlers for different file formats (OAT, abapGit, GCTS)
+## Architecture Components
 
 ### 1. ADT CLI Core
 
 - **Package**: `@abapify/adt-cli`
-- **Role**: Command-line interface and orchestration
-- **Responsibilities**:
-  - Parse CLI commands and options
-  - Initialize ADT client with connection details
-  - Discover and load format plugins
-  - Delegate import/export operations to appropriate plugins
-  - Handle configuration and error management
+- **Role**: Command orchestration and plugin management
+- **Key Classes**: `PluginManager`, `CommandBuilder`, CLI commands
 
 ### 2. ADT Client
 
 - **Package**: `@abapify/adt-client`
-- **Role**: Abstracted ADT connection and service layer
-- **Responsibilities**:
-  - Manage ADT authentication and session handling
-  - Provide high-level ADT service abstractions
-  - Handle ADT endpoint routing and request/response processing
-  - Abstract away connection complexity from plugins
-- **Specification**: See [ADT Client Specification](../adt-client/README.md)
+- **Role**: SAP system connectivity and ADT operations
+- **Abstraction**: Complete isolation from format plugins
 
 ### 3. ADK (ABAP Development Kit)
 
 - **Package**: `@abapify/adk`
-- **Role**: Interface layer between CLI and plugins
-- **Responsibilities**:
-  - Define plugin interfaces and contracts
-  - Provide common utilities for ABAP object handling
-  - Manage plugin lifecycle and registration
-  - Bridge between CLI core and format plugins
+- **Role**: ABAP object type definitions and adapters
+- **Interface**: Plugin-agnostic object representations
 
 ### 4. Format Plugins
 
-- **Packages**: `@abapify/oat`, `@abapify/abapgit`, `@abapify/gcts`
-- **Role**: Format-specific serialization handlers
-- **Responsibilities**:
-  - Implement format-specific import/export logic
-  - Handle object-to-file mapping strategies
-  - Manage format-specific configuration
-  - Provide format validation and transformation
+- **Packages**: `@abapify/oat`, `@abapify/abapgit`, custom plugins
+- **Role**: ADK object ↔ file system serialization
+- **Isolation**: Zero knowledge of CLI or ADT operations
 
-## Plugin Interface
+## Dynamic Plugin System
 
-### Core Plugin Contract
+### Plugin Manager
 
 ```typescript
-interface AdtPlugin {
-  readonly name: string;
-  readonly version: string;
-  readonly supportedFormats: string[];
+class PluginManager {
+  // Configuration-driven plugin loading
+  async loadPluginsFromConfig(config?: CliConfig): Promise<void>;
 
-  // Object import/export operations
-  importObject(params: ImportObjectParams): Promise<ImportResult>;
-  exportObject(params: ExportObjectParams): Promise<ExportResult>;
+  // Runtime plugin loading with @package/plugin syntax
+  async loadPlugin(
+    pluginName: string,
+    options?: Record<string, any>
+  ): Promise<PluginInfo>;
 
-  // Batch operations
-  importObjects?(params: ImportObjectsParams): Promise<ImportResult[]>;
-  exportObjects?(params: ExportObjectsParams): Promise<ExportResult[]>;
+  // Format discovery and validation
+  getAvailableFormats(): string[];
+  getPlugin(shortName: string): PluginInfo | undefined;
 
-  // Configuration and validation
-  validateConfig?(config: PluginConfig): ValidationResult;
-  getDefaultConfig?(): PluginConfig;
+  // Automatic format selection
+  async getDefaultFormat(config?: CliConfig): Promise<string | undefined>;
+  isFormatSelectionRequired(): boolean;
 }
 ```
 
-### Operation Parameters
+### Dynamic Command Generation
 
 ```typescript
-interface ImportObjectParams {
-  objectType: string;
-  objectName: string;
-  sourcePath: string;
-  adtClient: AdtClient;
-  options?: ImportOptions;
-}
+// Async command factory for dynamic option generation
+export async function createImportTransportCommand(): Promise<Command> {
+  const pluginManager = PluginManager.getInstance();
+  await pluginManager.loadPluginsFromConfig();
 
-interface ExportObjectParams {
-  objectType: string;
-  objectName: string;
-  adtClient: AdtClient;
-  targetPath: string;
-  options?: ExportOptions;
-}
+  const availableFormats = pluginManager.getAvailableFormats();
+  const defaultFormat = await pluginManager.getDefaultFormat();
 
-interface ImportResult {
-  success: boolean;
-  objectKey: string;
-  messages: Message[];
-  metadata?: ObjectMetadata;
-}
-
-interface ExportResult {
-  success: boolean;
-  filePaths: string[];
-  messages: Message[];
-  metadata?: ObjectMetadata;
-}
-```
-
-## Object-to-File Mapping Strategies
-
-### 1. Multi-Section File Mapping (OAT)
-
-- Uses YAML format with `kind + metadata + spec` schema structure
-- Objects map to multiple files with content type differentiation
-- File naming pattern: `<object_name>.<object_type>[.<content_type>][.<language>].<extension>`
-- Examples for class `CL_EXAMPLE`:
-  - `cl_example.clas.yml` (main object with kind: Class)
-  - `cl_example.clas.abap` (main source code)
-  - `cl_example.clas.testclasses.abap` (test classes)
-  - `cl_example.clas.texts.en.properties` (text elements)
-- YAML schema structure varies by object kind:
-  ```yaml
-  # Domain example
-  kind: Domain
-  metadata:
-    name: ZAGE_FIXED_VALUES
-    description: 'Fixed values (test)'
-  spec:
-    typeInformation:
-      datatype: 'CHAR'
-      length: 1
-    outputInformation:
-      length: 1
-    valueInformation:
-      fixValues:
-        - low: 'A'
-          text: 'This is A'
-  ```
-  ```yaml
-  # Class example
-  kind: Class
-  metadata:
-    name: ZCL_EXAMPLE
-    description: 'Example class'
-  spec:
-    visibility: 'PUBLIC'
-    isFinal: false
-    isAbstract: false
-    interfaces: []
-    components:
-      methods: []
-      attributes: []
-      events: []
-      types: []
-  ```
-  ```yaml
-  # Interface example
-  kind: Interface
-  metadata:
-    name: ZIF_EXAMPLE
-    description: 'Example interface'
-  spec:
-    category: 'IF'
-    interfaces: []
-    components:
-      methods: []
-      attributes: []
-      events: []
-      types: []
-  ```
-- ADT endpoints provide separate access to each content section:
-  - `/sap/bc/adt/oo/classes/{name}` (metadata)
-  - `/sap/bc/adt/oo/classes/{name}/source/main` (main source)
-  - `/sap/bc/adt/oo/classes/{name}/includes/testclasses` (test classes)
-  - `/sap/bc/adt/oo/classes/{name}/includes/locals_def` (local definitions)
-  - `/sap/bc/adt/oo/classes/{name}/includes/locals_imp` (local implementations)
-  - `/sap/bc/adt/oo/classes/{name}/includes/macros` (macros)
-  - `/sap/bc/adt/oo/classes/{name}/objectstructure` (structure outline)
-- Plugin handles mapping between ADT segments and file sections
-- Each ADT endpoint corresponds to a specific content type in OAT format
-
-### 2. One-to-Many Mapping (abapGit)
-
-- Complex objects split across multiple files
-- Class: `.clas.abap` (main), `.clas.locals_imp.abap` (implementations)
-- Metadata in separate `.clas.xml` files
-
-### 3. Flat File Mapping (GCTS)
-
-- Objects organized by object type in directory hierarchy: `src/objects/{OBJECT_TYPE}/{OBJECT_NAME}/`
-- Uses technical `asx.json` format representing SAP database tables as JSON arrays
-- Format contains multiple SAP tables with their records (not human-readable)
-- Package information stored in object metadata within table records
-- File naming pattern: `{OBJECT_TYPE} {OBJECT_NAME}.asx.json` (note space in filename)
-- Examples:
-  - `src/objects/CLAS/ZCL_EXAMPLE/CLAS ZCL_EXAMPLE.asx.json` (class metadata only)
-  - `src/objects/INTF/ZIF_EXAMPLE/INTF ZIF_EXAMPLE.asx.json` (interface metadata only)
-- Source code is embedded within the asx.json metadata file, not separate .abap files
-- gCTS breaks objects into separate files but stores source within the technical metadata structure
-- Object metadata contains multiple SAP database tables as JSON arrays:
-  ```json
-  [
-    {
-      "table": "DDTYPES",
-      "data": [
-        {
-          "TYPENAME": "ZCL_EXAMPLE",
-          "STATE": "A",
-          "TYPEKIND": "CLAS"
-        }
-      ]
-    },
-    {
-      "table": "SEOCLASS",
-      "data": [
-        {
-          "CLSNAME": "ZCL_EXAMPLE",
-          "CLSTYPE": 0,
-          "UUID": "...",
-          "REMOTE": ""
-        }
-      ]
-    },
-    {
-      "table": "SEOCLASSDF",
-      "data": [
-        {
-          "CLSNAME": "ZCL_EXAMPLE",
-          "VERSION": 1,
-          "CATEGORY": 0,
-          "EXPOSURE": 2,
-          "STATE": 1,
-          "AUTHOR": "SAP",
-          "CREATEDON": "2022-06-01"
-        }
-      ]
-    }
-  ]
-  ```
-- Plugin must parse multiple SAP database tables and reconstruct object structure
-- Each object type uses different combinations of SAP tables
-- Requires deep knowledge of SAP database schema for proper parsing
-
-## Plugin Discovery and Loading
-
-### Registration Mechanism
-
-```typescript
-// Plugin registration in ADK
-export class PluginRegistry {
-  private plugins = new Map<string, AdtPlugin>();
-
-  register(plugin: AdtPlugin): void;
-  getPlugin(format: string): AdtPlugin | undefined;
-  listPlugins(): AdtPlugin[];
-
-  // Auto-discovery from @abapify/* packages
-  async discoverPlugins(): Promise<void>;
-}
-```
-
-### Configuration Integration
-
-```typescript
-// CLI configuration with plugin settings
-interface AdtCliConfig {
-  defaultFormat: string;
-  plugins: {
-    [pluginName: string]: PluginConfig;
-  };
-
-  // Format-specific configurations
-  oat?: OatConfig;
-  abapgit?: AbapGitConfig;
-  gcts?: GctsConfig;
-}
-```
-
-## Command Flow
-
-### Export Operation
-
-1. **CLI** parses `adt export` command with format option
-2. **CLI** initializes **ADT Client** with connection details
-3. **ADK** resolves target plugin based on format
-4. **Plugin** receives export parameters and **ADT Client** instance
-5. **Plugin** fetches object from ABAP system via **ADT Client**
-6. **Plugin** applies format-specific transformation and file mapping
-7. **Plugin** writes files to target directory structure
-8. **CLI** reports operation results to user
-
-### Import Operation
-
-1. **CLI** parses `adt import` command with source path
-2. **CLI** initializes **ADT Client** with connection details
-3. **ADK** detects format from file structure or explicit option
-4. **Plugin** receives import parameters and **ADT Client** instance
-5. **Plugin** validates source files and configuration
-6. **Plugin** reads and parses format-specific files
-7. **Plugin** transforms to ABAP object representation
-8. **Plugin** uploads object to ABAP system via **ADT Client**
-9. **CLI** reports operation results and any conflicts
-
-## Error Handling
-
-### Plugin Error Categories
-
-- **Configuration Errors**: Invalid plugin settings or missing required options
-- **Format Errors**: Malformed files or unsupported object types
-- **System Errors**: ADT connection failures or ABAP system issues
-- **Mapping Errors**: File structure conflicts or naming violations
-
-### Error Propagation
-
-```typescript
-interface PluginError extends Error {
-  readonly category: 'config' | 'format' | 'system' | 'mapping';
-  readonly plugin: string;
-  readonly context?: Record<string, unknown>;
-}
-```
-
-## Extensibility
-
-### Custom Plugin Development
-
-1. Implement `AdtPlugin` interface
-2. Package as npm module with `@abapify/` namespace
-3. Export plugin instance as default export
-4. ADK auto-discovers and registers plugin
-
-### Plugin Hooks
-
-```typescript
-interface PluginHooks {
-  beforeImport?(context: OperationContext): Promise<void>;
-  afterImport?(context: OperationContext, result: ImportResult): Promise<void>;
-  beforeExport?(context: OperationContext): Promise<void>;
-  afterExport?(context: OperationContext, result: ExportResult): Promise<void>;
+  // Dynamic --format option with discovered plugins
+  command.option('--format <format>', formatDescription, defaultFormat);
 }
 ```
 
 ## Configuration Schema
 
-### Plugin Configuration
+### Primary Configuration Format: TypeScript
+
+The ADT CLI prioritizes `adt.config.ts` over YAML for enhanced flexibility, type safety, and IntelliSense support.
 
 ```typescript
-interface PluginConfig {
-  enabled: boolean;
-  priority?: number;
-  options: Record<string, unknown>;
-}
+// adt.config.ts - Primary configuration format
+import type { CliConfig } from '@abapify/adt-cli/config/interfaces';
 
-// Format-specific configurations
-interface OatConfig extends PluginConfig {
-  options: {
-    fileStructure: 'flat' | 'grouped' | 'hierarchical';
-    includeMetadata: boolean;
-    compressionLevel?: number;
-  };
-}
+const config: CliConfig = {
+  auth: {
+    type: 'btp',
+    btp: {
+      serviceKey: process.env.BTP_SERVICE_KEY_PATH || './service-key.json',
+    },
+  },
 
-interface AbapGitConfig extends PluginConfig {
-  options: {
-    packageStructure: boolean;
-    includeLocalClasses: boolean;
-    xmlFormatting: 'compact' | 'pretty';
-  };
-}
+  plugins: {
+    formats: [
+      {
+        name: '@abapify/oat',
+        config: {
+          enabled: true,
+          options: {
+            fileStructure: 'hierarchical',
+            includeMetadata: true,
+            packageMapping: {
+              finance: 'ZTEAMA_FIN',
+              basis: 'ZTEAMA_BASIS',
+              utilities: 'ZTEAMA_UTIL',
 
-interface GctsConfig extends PluginConfig {
-  options: {
-    transportStructure: boolean;
-    includeTransportHeaders: boolean;
-    packageHierarchy: boolean;
+              // Dynamic transform function
+              transform: (remotePkg: string, context?: any) => {
+                return remotePkg
+                  .toLowerCase()
+                  .replace(/^z(teama|dev|prd)_/, '')
+                  .replace(/_/g, '-');
+              },
+            },
+            objectFilters: {
+              include: ['CLAS', 'INTF', 'FUGR', 'TABL'],
+              exclude: ['DEVC'],
+            },
+          },
+        },
+      },
+      {
+        name: '@abapify/abapgit',
+        config: {
+          enabled: true,
+          options: {
+            xmlFormat: true,
+            includeInactive: false,
+          },
+        },
+      },
+    ],
+  },
+
+  defaults: {
+    format: 'oat',
+    outputPath: './output',
+  },
+};
+
+export default config;
+```
+
+### Legacy YAML Configuration (Still Supported)
+
+```yaml
+# adt.config.yaml - Legacy format
+auth:
+  type: btp
+  btp:
+    serviceKey: ${BTP_SERVICE_KEY_PATH}
+
+plugins:
+  formats:
+    - name: '@abapify/oat'
+      config:
+        enabled: true
+        options:
+          fileStructure: hierarchical
+          includeMetadata: true
+          packageMapping:
+            finance: ZTEAMA_FIN
+            basis: ZTEAMA_BASIS
+    - name: '@abapify/abapgit'
+      config:
+        enabled: true
+        options:
+          xmlFormat: true
+          includeInactive: false
+    - name: '@company/custom-format'
+      config:
+        enabled: false
+        options:
+          customOption: value
+
+defaults:
+  format: oat
+  outputPath: ./output
+  objectTypes:
+    - CLAS
+    - INTF
+    - DDLS
+    - FUGR
+```
+
+### Plugin Specification Interface
+
+```typescript
+interface PluginSpec {
+  name: string; // Package name or short name
+  config?: {
+    enabled?: boolean;
+    options?: Record<string, any>;
   };
 }
 ```
 
-## Implementation Guidelines
+## Usage Patterns
 
-### Plugin Development Standards
+### Automatic Format Selection
 
-1. **Stateless Design**: Plugins should not maintain state between operations
-2. **Error Resilience**: Handle partial failures gracefully with detailed error messages
-3. **Performance**: Implement streaming for large objects when possible
-4. **Compatibility**: Support backward compatibility for configuration changes
-5. **Testing**: Provide comprehensive test coverage including edge cases
+```bash
+# Single plugin configured - auto-selected
+npx adt import transport TR123456 ./output
 
-### ADK Integration Points
+# Multiple plugins - requires selection or default
+npx adt import transport TR123456 ./output --format oat
+```
 
-- Use ADK utilities for ADT service communication
-- Leverage ADK object type definitions and validation
-- Utilize ADK configuration management for plugin settings
-- Follow ADK logging and error reporting conventions
+### Dynamic Plugin Loading
 
-## Migration Strategy
+```bash
+# Load external plugin at runtime
+npx adt import transport TR123456 ./output --format @company/custom-format
 
-### Phase 1: Core Architecture
+# Load different abapify plugin
+npx adt import transport TR123456 ./output --format @abapify/gcts
+```
 
-- Implement ADK plugin interfaces and registry
-- Create basic plugin discovery mechanism
-- Establish configuration schema
+### Error Handling
 
-### Phase 2: Plugin Implementation
+```bash
+# Format selection required
+❌ Format selection required. Available formats: oat, abapgit
+   Use --format <format> or configure a default format in adt.config.ts
 
-- Develop OAT plugin with full feature parity
-- Implement abapGit plugin for basic objects
-- Create GCTS plugin foundation
+# Unknown format
+❌ Unknown format 'unknown'. Available: oat, abapgit
 
-### Phase 3: Advanced Features
+# Plugin loading failed
+❌ Failed to load format plugin: Package '@company/missing' not found. Install it with: npm install @company/missing
+```
 
-- Add batch operation support
-- Implement plugin hooks and extensibility
-- Optimize performance for large-scale operations
+## Plugin Interface Contract
 
-## Compatibility Matrix
+### Base Format Plugin
 
-| Plugin  | Object Types                  | File Formats  | Import | Export | Batch |
-| ------- | ----------------------------- | ------------- | ------ | ------ | ----- |
-| OAT     | All                           | YAML/JSON     | ✅     | ✅     | ✅    |
-| abapGit | Classes, Interfaces, Programs | XML/ABAP      | ✅     | ✅     | ✅    |
-| GCTS    | Package-based                 | XML/Transport | ✅     | ✅     | ⚠️    |
+```typescript
+abstract class BaseFormat {
+  abstract readonly name: string;
+  abstract readonly description: string;
 
-## Security Considerations
+  // Core serialization interface
+  abstract serialize(
+    objectData: any,
+    objectType: string,
+    outputDir: string
+  ): Promise<SerializeResult>;
 
-### Plugin Validation
+  // Plugin lifecycle hooks
+  beforeImport?(outputDir: string): Promise<void>;
+  afterImport?(outputDir: string, result: any): Promise<void>;
 
-- Verify plugin signatures and integrity
-- Sandbox plugin execution environment
-- Validate plugin configurations against schema
-- Audit plugin operations and file access
+  // Object type support
+  getSupportedObjectTypes(): string[];
+  registerObjectType(objectType: string): void;
+}
+```
 
-### Credential Management
+### External Plugin Structure
 
-- Plugins receive ADT connections through secure ADK interfaces
-- No direct credential access for plugins
-- Audit trail for all system operations
-- Support for credential rotation and expiration
+```typescript
+// @company/my-format/index.ts
+import { BaseFormat } from '@abapify/adt-cli';
+
+export class MyFormat extends BaseFormat {
+  readonly name = 'my-format';
+  readonly description = 'My custom format';
+
+  constructor(options?: Record<string, any>) {
+    super();
+    // Initialize with options from config
+  }
+
+  async serialize(objectData: any, objectType: string, outputDir: string) {
+    // Implementation
+  }
+}
+
+// Export as default or named export
+export default MyFormat;
+```
+
+## Command Flow
+
+### Import Transport Flow
+
+```
+1. CLI: Parse `adt import transport TR001`
+2. PluginManager: Load plugins from adt.config.ts (or adt.config.yaml)
+3. CLI: Generate dynamic --format option with available plugins
+4. CLI: Handle format selection (auto/explicit/error)
+5. CLI: Load selected plugin (built-in or @package/plugin)
+6. ImportService: Fetch transport objects via ADT Client
+7. ImportService: Convert ADT XML → ADK objects
+8. Plugin: Serialize ADK objects → file system
+9. CLI: Report results with plugin-specific output
+```
+
+### Plugin Loading Sequence
+
+```
+Command Init → Load Config → Discover Plugins → Generate Options → Execute
+     ↓              ↓            ↓               ↓              ↓
+createImport    adt.config.ts    PluginManager   --format      Import
+Transport()     plugins.formats  .loadPlugins()  generation    Service
+```
+
+## Implementation Status
+
+### ✅ Completed Features
+
+- **PluginManager**: Singleton with config-driven loading
+- **Dynamic Commands**: Async command factory with plugin discovery
+- **Format Selection**: Auto-selection, validation, error handling
+- **Runtime Loading**: @package/plugin syntax support
+- **Configuration**: TypeScript config (primary) and YAML config with plugin specifications
+- **CLI Integration**: Updated command registration and execution
+
+### 🔄 Current Architecture
+
+```
+CLI Commands → PluginManager → FormatRegistry (built-in)
+     ↓              ↓              ↓
+  Dynamic        Config-driven   Plugin
+  Options        Discovery       Loading
+```
+
+## Migration Benefits
+
+### From Static to Dynamic
+
+**Before**: Hardcoded format options, static plugin registration
+**After**: Configuration-driven discovery, runtime plugin loading
+
+### User Experience Improvements
+
+1. **Simplified Usage**: Auto-format selection when unambiguous
+2. **Clear Errors**: Actionable error messages with suggestions
+3. **Extensibility**: Easy addition of custom format plugins
+4. **Flexibility**: Runtime plugin loading without CLI updates
+
+### Developer Experience
+
+1. **Plugin Isolation**: Plugins independent of CLI internals
+2. **Configuration Management**: Centralized plugin configuration
+3. **Testing**: Easier plugin testing with mock configurations
+4. **Deployment**: Environment-specific plugin configurations
+
+## Future Enhancements
+
+### Plugin Ecosystem
+
+- Plugin discovery from npm registry
+- Version compatibility checking
+- Plugin marketplace and ratings
+
+### Advanced Features
+
+- Hot plugin reloading
+- Plugin dependency management
+- Performance optimizations (lazy loading, streaming)
+
+### Enterprise Features
+
+- Plugin security validation
+- Corporate plugin repositories
+- Audit logging for plugin usage
+
+## Breaking Changes
+
+### Configuration Required
+
+- Plugins must be configured in `adt.config.yaml`
+- Format selection required when multiple plugins available
+- CLI commands now async for plugin loading
+
+### Migration Path
+
+1. Create `adt.config.yaml` with desired plugins
+2. Update CLI usage to handle format selection
+3. Install external plugins as needed
+4. Test dynamic loading with @package/plugin syntax
+
+## Success Metrics
+
+✅ **Plugin Isolation**: Plugins work independently of CLI core  
+✅ **Configuration-Driven**: All plugins discovered from config  
+✅ **Dynamic Loading**: Runtime @package/plugin support  
+✅ **User Experience**: Auto-selection and clear error messages  
+✅ **Extensibility**: Easy custom plugin development  
+✅ **Backward Compatibility**: Existing commands continue working

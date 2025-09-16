@@ -41,6 +41,8 @@ export interface BTPServiceKey {
   catalogs: Record<string, Catalog>;
   binding: Binding;
   preserve_host_header: boolean;
+  'URL.headers.x-sap-security-session'?: string;
+  [key: string]: any; // Allow additional properties
 }
 
 export interface OAuthToken {
