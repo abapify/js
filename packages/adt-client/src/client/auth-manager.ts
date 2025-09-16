@@ -267,9 +267,15 @@ export class AuthManager {
         );
 
         console.log('🌐 Opening browser for authentication...\n');
+        console.log("🔗 If browser doesn't open automatically, please visit:");
+        console.log(`   ${authUrl}\n`);
 
-        // Open browser
-        open(authUrl)
+        // Open browser - use app.name with BROWSER env var if available
+        const openOptions = process.env.BROWSER
+          ? { app: { name: process.env.BROWSER } }
+          : {};
+
+        open(authUrl, openOptions)
           .then(() => {
             console.log('✅ Browser opened successfully');
           })
@@ -280,7 +286,9 @@ export class AuthManager {
             });
 
             console.log('❌ Failed to open browser automatically');
-            console.log('🔗 Please check your browser or try again\n');
+            console.log(
+              '🔗 Please manually open the URL above in your browser\n'
+            );
           });
       });
 

@@ -2,23 +2,23 @@ import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
 import { getAdtClient } from '../shared/clients';
 import { AdkObjectHandler } from './adk-bridge';
-import { ClassAdtAdapter } from '@abapify/adk';
+// import { ClassAdtAdapter } from '@abapify/adk'; // Not exported yet
 
 export class ObjectRegistry {
   private static handlers = new Map<string, () => BaseObject<any>>();
 
   static {
     // ADK-based object handlers (native ADT format parsing)
-    this.handlers.set(
-      'CLAS',
-      () =>
-        new AdkObjectHandler(
-          ClassAdtAdapter.parseXmlToSpec,
-          ClassAdtAdapter.uriFactory,
-          getAdtClient()
-        )
-    );
-
+    // TODO: Re-enable when ClassAdtAdapter is exported from @abapify/adk
+    // this.handlers.set(
+    //   'CLAS',
+    //   () =>
+    //     new AdkObjectHandler(
+    //       ClassAdtAdapter.parseXmlToSpec,
+    //       ClassAdtAdapter.uriFactory,
+    //       getAdtClient()
+    //     )
+    // );
     // TODO: Add InterfaceAdtAdapter when available in ADK
     // this.handlers.set(
     //   'INTF',
@@ -29,7 +29,6 @@ export class ObjectRegistry {
     //       getAdtClient()
     //     )
     // );
-
     // TODO: Migrate DEVC to ADK when adapter is available
     // this.handlers.set('DEVC', (client) => new AdkObjectHandler(...));
   }

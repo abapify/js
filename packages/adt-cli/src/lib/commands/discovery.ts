@@ -14,29 +14,27 @@ export const discoveryCommand = new Command('discovery')
         logger: logger?.child({ component: 'cli' }),
       });
 
+      if (options.output && !options.output.endsWith('.json')) {
+        // For XML output, go directly to raw XML request - no double call
+        const xmlResponse = await adtClient.request('/sap/bc/adt/discovery', {
+          headers: { Accept: 'application/atomsvc+xml' },
+        });
+        const xmlContent = await xmlResponse.text();
+        writeFileSync(options.output, xmlContent);
+        console.log(`💾 Discovery data saved as XML to: ${options.output}`);
+        return;
+      }
+
+      // For JSON output or console display, use parsed discovery
       const discovery = await adtClient.discovery.getDiscovery();
 
       if (options.output) {
-        // Save to file
+        // Save JSON to file
         const outputData = {
           workspaces: discovery.workspaces,
         };
-
-        if (options.output.endsWith('.json')) {
-          writeFileSync(options.output, JSON.stringify(outputData, null, 2));
-          console.log(`💾 Discovery data saved as JSON to: ${options.output}`);
-        } else {
-          // Save as XML (original format) - get raw XML from connection manager
-          const xmlResponse = await adtClient.connectionManager.request(
-            '/sap/bc/adt/discovery',
-            {
-              headers: { Accept: 'application/atomsvc+xml' },
-            }
-          );
-          const xmlContent = await xmlResponse.text();
-          writeFileSync(options.output, xmlContent);
-          console.log(`💾 Discovery data saved as XML to: ${options.output}`);
-        }
+        writeFileSync(options.output, JSON.stringify(outputData, null, 2));
+        console.log(`💾 Discovery data saved as JSON to: ${options.output}`);
       } else {
         // Display in console
         console.log(`\n📋 Found ${discovery.workspaces.length} workspaces:\n`);
