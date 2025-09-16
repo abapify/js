@@ -161,7 +161,7 @@ export class ConfigLoader implements IConfigLoader {
    * Find configuration file
    */
   private async findConfigFile(): Promise<string | null> {
-    const configNames = ['adt.config.yaml', 'adt.config.yml', 'adt.config.ts'];
+    const configNames = ['adt.config.ts', 'adt.config.yaml', 'adt.config.yml'];
 
     let currentDir = process.cwd();
     const root = path.parse(currentDir).root;

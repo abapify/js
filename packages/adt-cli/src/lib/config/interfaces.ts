@@ -1,4 +1,4 @@
-import { PluginSpec } from '@abapify/adk';
+// Plugin interfaces defined locally for better TypeScript support
 
 /**
  * CLI configuration interface
@@ -51,12 +51,70 @@ export interface PluginsConfig {
 }
 
 /**
- * Default settings
+ * Enhanced plugin specification with TypeScript support
+ */
+export interface PluginSpec {
+  name: string;
+  config?: {
+    enabled?: boolean;
+    options?: Record<string, any>;
+  };
+}
+
+/**
+ * Type-safe plugin options for common formats
+ */
+export interface OatPluginOptions {
+  fileStructure?: 'flat' | 'grouped' | 'hierarchical';
+  includeMetadata?: boolean;
+  packageMapping?: Record<
+    string,
+    string | ((remotePkg: string, context?: any) => string)
+  > & {
+    transform?: (remotePkg: string, context?: any) => string;
+  };
+  objectFilters?: {
+    include?: string[];
+    exclude?: string[];
+  };
+}
+
+export interface AbapGitPluginOptions {
+  xmlFormat?: boolean;
+  includeInactive?: boolean;
+  packageStructure?: boolean;
+}
+
+export interface CustomPluginOptions {
+  auditLogging?: boolean;
+  encryptSensitiveData?: boolean;
+  complianceMode?: 'SOX' | 'GDPR' | 'HIPAA';
+}
+
+/**
+ * Generic plugin options interface for extensibility
+ */
+export interface GenericPluginOptions {
+  [key: string]: any;
+}
+
+/**
+ * Default settings with enhanced type safety
  */
 export interface DefaultsConfig {
   format?: string;
   outputPath?: string;
-  objectTypes?: string[];
+  objectTypes?: Array<
+    | 'CLAS' // Classes
+    | 'INTF' // Interfaces
+    | 'FUGR' // Function Groups
+    | 'DDLS' // CDS Views
+    | 'TABL' // Tables
+    | 'PROG' // Programs
+    | 'FORM' // Forms
+    | 'DEVC' // Packages
+    | string // Allow custom types
+  >;
 }
 
 /**
