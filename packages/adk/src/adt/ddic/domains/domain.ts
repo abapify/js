@@ -1,6 +1,7 @@
 import { AdtObject } from '../../base/adt-object';
 import { AdtCoreAttributes } from '../../namespaces/adtcore';
 import { Kind } from '../../kind';
+import { DomainInput } from '../../base/adt-object-input';
 
 /**
  * Domain-specific sections and types
@@ -25,8 +26,30 @@ export interface DomainFixedValue {
  * ABAP Domain ADT object with proper TypeScript types
  */
 export class Domain extends AdtObject<DomainSections, Kind.Domain> {
-  constructor(adtcore: AdtCoreAttributes, sections: DomainSections = {}) {
-    super(adtcore, sections, Kind.Domain);
+  constructor(input: DomainInput) {
+    // Convert input format to internal sections format
+    const sections: DomainSections = {
+      dataType: input.domain?.dataType,
+      length: input.domain?.length,
+      decimals: input.domain?.decimals,
+      outputLength: input.domain?.outputLength,
+      conversionExit: input.domain?.conversionExit,
+      valueTable: input.domain?.valueTable,
+      fixedValues: input.sections?.fixedValues,
+    };
+
+    super({
+      adtcore: input.adtcore,
+      sections,
+      kind: Kind.Domain,
+    });
+  }
+
+  /**
+   * Static factory method for easier object creation
+   */
+  static create(input: DomainInput): Domain {
+    return new Domain(input);
   }
 
   // Domain-specific getters
@@ -177,9 +200,9 @@ ${fixedValuesXml}
   }
 
   // XML parsing
-  static override fromAdtXml<U extends AdtObject<DomainSections, Kind.Domain>>(
+  static override fromAdtXml<U extends AdtObject<unknown, K>, K extends Kind>(
     xml: string,
-    kind: Kind.Domain
+    kind: K
   ): U {
     const parsed = AdtObject.parseXml(xml);
     const root = parsed['ddic:domain'] as any;
@@ -240,7 +263,20 @@ ${fixedValuesXml}
       }));
     }
 
-    const domain = new this(adtcore, sections);
+    const domain = new this({
+      adtcore,
+      domain: {
+        dataType: sections.dataType,
+        length: sections.length,
+        decimals: sections.decimals,
+        outputLength: sections.outputLength,
+        conversionExit: sections.conversionExit,
+        valueTable: sections.valueTable,
+      },
+      sections: {
+        fixedValues: sections.fixedValues,
+      },
+    });
 
     // Parse package reference
     if (root['adtcore:packageRef']) {

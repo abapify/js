@@ -1,22 +1,27 @@
 import { XMLParser } from 'fast-xml-parser';
-import { AdtCoreAttributes, PackageRef } from '../namespaces/adtcore';
-import { AtomLink } from '../namespaces/atom';
-import { Kind } from '../kind';
+import { AdtCoreAttributes, PackageRef } from '../namespaces/adtcore.js';
+import { AtomLink } from '../namespaces/atom.js';
+import { Kind } from '../kind.js';
+import { AdkObject } from './client-interface.js';
+import { AdtObjectConstructorInput } from './adt-object-input.js';
 
 /**
  * Base abstract class for all ADT objects with common adtcore properties
+ * Implements AdkObject interface for client compatibility
  */
-export abstract class AdtObject<T = unknown, K extends Kind = Kind> {
+export abstract class AdtObject<T = unknown, K extends Kind = Kind>
+  implements AdkObject
+{
   protected adtcore: AdtCoreAttributes;
   protected packageRef?: PackageRef;
   protected links: AtomLink[] = [];
   protected sections: T;
   readonly kind: K;
 
-  constructor(adtcore: AdtCoreAttributes, sections: T, kind: K) {
-    this.kind = kind;
-    this.adtcore = adtcore;
-    this.sections = sections;
+  constructor(input: AdtObjectConstructorInput<T, K>) {
+    this.kind = input.kind;
+    this.adtcore = input.adtcore;
+    this.sections = input.sections;
   }
 
   // ADT Core getters
