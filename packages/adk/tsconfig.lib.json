@@ -10,9 +10,5 @@
     "lib": ["es2022", "dom"]
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    {
-      "path": "../adt-client/tsconfig.lib.json"
-    }
-  ]
+  "references": []
 }
