@@ -19,7 +19,7 @@ export type {
 } from './services/repository/search-service.js';
 export { TransportService } from './services/cts/transport-service.js';
 export { AtcService } from './services/atc/atc-service.js';
-export { ObjectDeploymentService } from './services/objects/object-deployment-service.js';
+export { GenericAdkService } from './services/adk/generic-adk-service.js';
 export type {
   TransportFilters,
   TransportList,

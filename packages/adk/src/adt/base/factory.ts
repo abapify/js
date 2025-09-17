@@ -1,11 +1,13 @@
-import { AdtClient } from '@abapify/adt-client';
-import { AdkObjectBase, ObjectMetadata, objectRegistry } from './registry';
+// TODO: Remove ADT client dependency - ADK should be client-agnostic
+// import { AdtClient } from '@abapify/adt-client';
+import { AdkObjectBase, ObjectMetadata, objectRegistry } from './registry.js';
 
 /**
  * Factory for creating intelligent ADK objects using registry pattern
+ * TODO: Refactor to be client-agnostic or move to ADT client package
  */
 export class AdkObjectFactory {
-  constructor(private adtClient: AdtClient) {}
+  constructor(private adtClient: any) {}
 
   /**
    * Create an intelligent ADK object by fetching from SAP system

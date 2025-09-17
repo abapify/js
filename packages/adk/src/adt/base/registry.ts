@@ -1,4 +1,5 @@
-import { AdtClient } from '@abapify/adt-client';
+// TODO: Remove ADT client dependency - ADK should be client-agnostic
+// import { AdtClient } from '@abapify/adt-client';
 import { XMLParser } from 'fast-xml-parser';
 
 /**
