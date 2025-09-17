@@ -8,13 +8,9 @@ import { AtomLink } from '../../namespaces/atom';
 import { Kind } from '../../kind';
 import { XMLBuilder } from 'fast-xml-parser';
 import { $attr, $xmlns, $namespaces } from 'fxmlp';
-
-const { intf, adtcore, abapsource, atom } = $namespaces([
-  ['intf', { recursive: true }],
-  'adtcore',
-  'abapsource',
-  'atom',
-]);
+import { XmlUtils } from '../../base/xml-utils';
+import { InterfaceInput } from '../../base/adt-object-input';
+import { intf, adtcore, abapsource, atom } from '../../namespaces';
 
 /**
  * Interface-specific sections
@@ -31,15 +27,21 @@ export class Interface extends AdtObject<InterfaceSections, Kind.Interface> {
   private abapoo: { modeled: boolean };
   private abapsource: AbapSourceAttributes;
 
-  constructor(
-    adtcore: AdtCoreAttributes,
-    abapoo: { modeled: boolean },
-    abapsource: AbapSourceAttributes,
-    sections: InterfaceSections = {}
-  ) {
-    super(adtcore, sections, Kind.Interface);
-    this.abapoo = abapoo;
-    this.abapsource = abapsource;
+  constructor(input: InterfaceInput) {
+    super({
+      adtcore: input.adtcore,
+      sections: input.sections || {},
+      kind: Kind.Interface,
+    });
+    this.abapoo = input.abapoo || { modeled: false };
+    this.abapsource = input.abapsource || { sourceUri: 'source/main' };
+  }
+
+  /**
+   * Static factory method for easier object creation
+   */
+  static create(input: InterfaceInput): Interface {
+    return new Interface(input);
   }
 
   // ABAP-specific getters
@@ -83,27 +85,13 @@ export class Interface extends AdtObject<InterfaceSections, Kind.Interface> {
 
   // XML serialization using fxmlp
   toAdtXml(): string {
-    const xmlObject = {
-      'intf:abapInterface': {
+    const xmlObject = intf({
+      abapInterface: {
         ...$attr({
-          // Interface attributes
-          ...intf({
-            modeled: this.abapoo.modeled ? 'true' : 'false',
-          }),
+          // Interface attributes (use abapoo namespace for modeled)
+          'abapoo:modeled': this.abapoo.modeled ? 'true' : 'false',
           // ADT Core attributes
-          ...adtcore({
-            name: this.name,
-            type: this.type,
-            ...(this.description && { description: this.description }),
-            ...(this.language && { language: this.language }),
-            ...(this.masterLanguage && { masterLanguage: this.masterLanguage }),
-            ...(this.responsible && { responsible: this.responsible }),
-            ...(this.changedBy && { changedBy: this.changedBy }),
-            ...(this.createdBy && { createdBy: this.createdBy }),
-            ...(this.changedAt && { changedAt: this.changedAt.toISOString() }),
-            ...(this.createdAt && { createdAt: this.createdAt.toISOString() }),
-            ...(this.version && { version: this.version }),
-          }),
+          ...XmlUtils.serializeAdtCoreAttributes(adtcore, this),
           // ABAP Source attributes
           ...abapsource({
             sourceUri: this.sourceUri,
@@ -117,50 +105,30 @@ export class Interface extends AdtObject<InterfaceSections, Kind.Interface> {
           // XML namespaces
           ...$xmlns({
             intf: 'http://www.sap.com/adt/oo/interfaces',
-            abapsource: 'http://www.sap.com/adt/abapsource',
-            adtcore: 'http://www.sap.com/adt/core',
-            atom: 'http://www.w3.org/2005/Atom',
-            abapoo: 'http://www.sap.com/adt/oo/adtcore',
           }),
+          ...XmlUtils.getCommonNamespaces(),
         }),
 
         // Package reference if exists
-        ...(this.packageRef && {
-          'adtcore:packageRef': {
-            ...$attr({
-              'adtcore:uri': this.packageRef.uri,
-              'adtcore:type': this.packageRef.type,
-              'adtcore:name': this.packageRef.name,
-            }),
-          },
-        }),
+        ...(this.packageRef && XmlUtils.serializePackageRef(this.packageRef)),
 
         // Links
-        ...(this.links.length > 0 && {
-          'atom:link': this.links.map((link) => ({
-            ...$attr({
-              href: link.href,
-              rel: link.rel,
-              ...(link.type && { type: link.type }),
-              ...(link.title && { title: link.title }),
-              ...(link.etag && { etag: link.etag }),
-            }),
-          })),
-        }),
+        ...XmlUtils.serializeAtomLinks(atom, this.links),
 
-        // Syntax configuration if exists
-        ...(this.sections.syntaxConfiguration && {
-          'abapsource:syntaxConfiguration': {
-            'abapsource:language': {
-              'abapsource:version':
-                this.sections.syntaxConfiguration.language.version.toString(),
-              'abapsource:description':
-                this.sections.syntaxConfiguration.language.description,
+        // Syntax configuration if exists (using typed namespace function)
+        ...(this.sections.syntaxConfiguration &&
+          abapsource({
+            syntaxConfiguration: {
+              language: {
+                version:
+                  this.sections.syntaxConfiguration.language.version.toString(),
+                description:
+                  this.sections.syntaxConfiguration.language.description,
+              },
             },
-          },
-        }),
+          })),
       },
-    };
+    });
 
     return (
       `<?xml version="1.0" encoding="UTF-8"?>` +
@@ -169,30 +137,15 @@ export class Interface extends AdtObject<InterfaceSections, Kind.Interface> {
   }
 
   // XML parsing
-  static override fromAdtXml<
-    U extends AdtObject<InterfaceSections, Kind.Interface>
-  >(xml: string, kind: Kind.Interface): U {
+  static override fromAdtXml<U extends AdtObject<unknown, K>, K extends Kind>(
+    xml: string,
+    kind: K
+  ): U {
     const parsed = AdtObject.parseXml(xml);
     const root = parsed['intf:abapInterface'] as any;
 
     // Parse adtcore attributes
-    const adtcore: AdtCoreAttributes = {
-      name: root['@_adtcore:name'],
-      type: root['@_adtcore:type'],
-      description: root['@_adtcore:description'],
-      language: root['@_adtcore:language'],
-      masterLanguage: root['@_adtcore:masterLanguage'],
-      responsible: root['@_adtcore:responsible'],
-      changedBy: root['@_adtcore:changedBy'],
-      createdBy: root['@_adtcore:createdBy'],
-      changedAt: root['@_adtcore:changedAt']
-        ? new Date(root['@_adtcore:changedAt'])
-        : undefined,
-      createdAt: root['@_adtcore:createdAt']
-        ? new Date(root['@_adtcore:createdAt'])
-        : undefined,
-      version: root['@_adtcore:version'],
-    };
+    const adtcore = XmlUtils.parseAdtCoreAttributes(root);
 
     // Parse abapoo attributes
     const abapoo = {
@@ -221,29 +174,18 @@ export class Interface extends AdtObject<InterfaceSections, Kind.Interface> {
       };
     }
 
-    const intf = new this(adtcore, abapoo, abapsource, sections);
+    const intf = new this({
+      adtcore,
+      abapoo,
+      abapsource,
+      sections,
+    });
 
     // Parse package reference
-    if (root['adtcore:packageRef']) {
-      const pkgRef = root['adtcore:packageRef'];
-      intf.packageRef = {
-        uri: pkgRef['@_adtcore:uri'],
-        type: pkgRef['@_adtcore:type'],
-        name: pkgRef['@_adtcore:name'],
-      };
-    }
+    intf.packageRef = XmlUtils.parsePackageRef(root);
 
     // Parse atom links
-    const links = Array.isArray(root['atom:link'])
-      ? root['atom:link']
-      : [root['atom:link']].filter(Boolean);
-    intf.links = links.map((link: any) => ({
-      href: link['@_href'],
-      rel: link['@_rel'],
-      type: link['@_type'],
-      title: link['@_title'],
-      etag: link['@_etag'],
-    }));
+    intf.links = XmlUtils.parseAtomLinks(root);
 
     // Type assertion to handle the generic return type
     return intf as unknown as U;

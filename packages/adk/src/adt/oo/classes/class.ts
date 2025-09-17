@@ -1,13 +1,12 @@
 import { AdtObject } from '../../base/adt-object';
-import { Kind } from '../../kind';
 import { AdtCoreAttributes } from '../../namespaces/adtcore';
-import {
-  AbapSourceAttributes,
-  SyntaxConfiguration,
-} from '../../namespaces/abapsource';
+import { AbapSourceAttributes } from '../../namespaces/abapsource';
 import { AtomLink } from '../../namespaces/atom';
+import { Kind } from '../../kind';
 import { XMLBuilder } from 'fast-xml-parser';
 import { $attr, $xmlns, $namespaces } from 'fxmlp';
+import { XmlUtils } from '../../base/xml-utils';
+import { ClassInput } from '../../base/adt-object-input';
 
 /**
  * Class-specific sections
@@ -49,15 +48,34 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
   private abapoo: { modeled: boolean };
   private abapsource: AbapSourceAttributes;
 
-  constructor(
-    adtcore: AdtCoreAttributes,
-    abapoo: { modeled: boolean },
-    abapsource: AbapSourceAttributes,
-    sections: ClassSections
-  ) {
-    super(adtcore, sections, Kind.Class);
-    this.abapoo = abapoo;
-    this.abapsource = abapsource;
+  constructor(input: ClassInput) {
+    // Convert input format to internal sections format
+    const sections: ClassSections = {
+      class: input.class || {
+        final: false,
+        abstract: false,
+        visibility: 'public',
+        category: 'generalObjectType',
+        hasTests: false,
+        sharedMemoryEnabled: false,
+      },
+      includes: input.sections?.includes || [],
+    };
+
+    super({
+      adtcore: input.adtcore,
+      sections,
+      kind: Kind.Class,
+    });
+    this.abapoo = input.abapoo || { modeled: false };
+    this.abapsource = input.abapsource || { sourceUri: 'source/main' };
+  }
+
+  /**
+   * Static factory method for easier object creation
+   */
+  static create(input: ClassInput): Class {
+    return new Class(input);
   }
 
   // ABAP-specific getters
@@ -132,64 +150,27 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
       ...classNs({
         abapClass: {
           ...$attr({
+            // Class attributes using abapoo namespace for modeled
+            'abapoo:modeled': this.abapoo.modeled ? 'true' : 'false',
             // Namespace attributes using namespace functions
             ...classNs({
               final: this.final ? 'true' : 'false',
               abstract: this.abstract ? 'true' : 'false',
               visibility: this.visibility,
             }),
-            ...adtcore({
-              responsible: this.responsible,
-              masterLanguage: this.masterLanguage,
-              masterSystem: this.masterSystem,
-              name: this.name,
-              type: this.type,
-              changedAt: this.changedAt.toISOString(),
-              version: this.version,
-              createdAt: this.createdAt.toISOString(),
-              changedBy: this.changedBy,
-              createdBy: this.createdBy,
-              description: this.description,
-            }),
+            ...XmlUtils.serializeAdtCoreAttributes(adtcore, this),
             ...abapsource({
               sourceUri: this.sourceUri,
               fixPointArithmetic: this.fixPointArithmetic ? 'true' : 'false',
             }),
             ...$xmlns({
               class: 'http://www.sap.com/adt/oo/classes',
-              abapsource: 'http://www.sap.com/adt/abapsource',
-              adtcore: 'http://www.sap.com/adt/core',
-              atom: 'http://www.w3.org/2005/Atom',
             }),
-          }),
-
-          // Package reference if exists
-          ...(this.packageRef && {
-            ...adtcore({
-              packageRef: {
-                ...$attr({
-                  uri: this.packageRef.uri,
-                  type: this.packageRef.type,
-                  name: this.packageRef.name,
-                }),
-              },
-            }),
+            ...XmlUtils.getCommonNamespaces(),
           }),
 
           // Links
-          ...(this.links.length > 0 && {
-            ...atom({
-              link: this.links.map((link) => ({
-                ...$attr({
-                  href: link.href,
-                  rel: link.rel,
-                  ...(link.type && { type: link.type }),
-                  ...(link.title && { title: link.title }),
-                  ...(link.etag && { etag: link.etag }),
-                }),
-              })),
-            }),
-          }),
+          ...XmlUtils.serializeAtomLinks(atom, this.links),
 
           // Class includes
           ...(this.sections.includes.length > 0 && {
@@ -233,44 +214,29 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
               })),
             }),
           }),
+
+          // Package reference if exists
+          ...(this.packageRef && XmlUtils.serializePackageRef(this.packageRef)),
         },
       }),
     };
 
-    return Class.xmlBuilder.build(xmlObject);
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      Class.xmlBuilder.build(xmlObject)
+    );
   }
 
   // XML parsing
-  static override fromAdtXml<U extends AdtObject<ClassSections, Kind.Class>>(
+  static override fromAdtXml<U extends AdtObject<unknown, K>, K extends Kind>(
     xml: string,
-    kind: Kind.Class
+    kind: K
   ): U {
     const parsed = AdtObject.parseXml(xml);
     const root = parsed['class:abapClass'] as any;
 
     // Parse adtcore attributes
-    const adtcore: AdtCoreAttributes = {
-      name: root['@_adtcore:name'],
-      type: root['@_adtcore:type'],
-      description: root['@_adtcore:description'],
-      language: root['@_adtcore:language'],
-      masterLanguage: root['@_adtcore:masterLanguage'],
-      masterSystem: root['@_adtcore:masterSystem'],
-      abapLanguageVersion: root['@_adtcore:abapLanguageVersion'],
-      responsible: root['@_adtcore:responsible'],
-      changedBy: root['@_adtcore:changedBy'],
-      createdBy: root['@_adtcore:createdBy'],
-      changedAt: root['@_adtcore:changedAt']
-        ? new Date(root['@_adtcore:changedAt'])
-        : undefined,
-      createdAt: root['@_adtcore:createdAt']
-        ? new Date(root['@_adtcore:createdAt'])
-        : undefined,
-      version: root['@_adtcore:version'],
-      descriptionTextLimit: root['@_adtcore:descriptionTextLimit']
-        ? parseInt(root['@_adtcore:descriptionTextLimit'])
-        : undefined,
-    };
+    const adtcore = XmlUtils.parseAdtCoreAttributes(root);
 
     // Parse abapoo attributes
     const abapoo = {
@@ -344,29 +310,19 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
       includes,
     };
 
-    const cls = new this(adtcore, abapoo, abapsource, sections);
+    const cls = new this({
+      adtcore,
+      abapoo,
+      abapsource,
+      class: sections.class,
+      sections: { includes: sections.includes },
+    });
 
     // Parse package reference
-    if (root['adtcore:packageRef']) {
-      const pkgRef = root['adtcore:packageRef'];
-      cls.packageRef = {
-        uri: pkgRef['@_uri'],
-        type: pkgRef['@_type'],
-        name: pkgRef['@_name'],
-      };
-    }
+    cls.packageRef = XmlUtils.parsePackageRef(root);
 
     // Parse atom links
-    const links = Array.isArray(root['atom:link'])
-      ? root['atom:link']
-      : [root['atom:link']].filter(Boolean);
-    cls.links = links.map((link: any) => ({
-      href: link['@_href'],
-      rel: link['@_rel'],
-      type: link['@_type'],
-      title: link['@_title'],
-      etag: link['@_etag'],
-    }));
+    cls.links = XmlUtils.parseAtomLinks(root);
 
     // Type assertion to handle the generic return type
     return cls as unknown as U;
