@@ -1,2 +1,4 @@
-export * from './registry';
-export * from './factory';
+export * from './registry.js';
+export * from './factory.js';
+export * from './client-interface.js';
+export * from './adt-object.js';

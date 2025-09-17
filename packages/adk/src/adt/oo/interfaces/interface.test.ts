@@ -182,19 +182,20 @@ describe('Interface', () => {
   });
 
   describe('Constructor Variations', () => {
-    it('should create Interface with individual parameters', () => {
-      const adtcore = {
-        name: 'ZIF_TEST',
-        type: 'INTF/OI',
-        description: 'Test Interface',
-        masterLanguage: 'EN',
-        version: 'inactive' as const,
+    it('should create Interface with unified input interface', () => {
+      const input = {
+        adtcore: {
+          name: 'ZIF_TEST',
+          type: 'INTF/OI',
+          description: 'Test Interface',
+          masterLanguage: 'EN',
+          version: 'inactive' as const,
+        },
+        abapoo: { modeled: false },
+        abapsource: { sourceUri: 'source/main' },
       };
 
-      const abapoo = { modeled: false };
-      const abapsource = { sourceUri: 'source/main' };
-
-      const intf = new Interface(adtcore, abapoo, abapsource);
+      const intf = new Interface(input);
 
       expect(intf.name).toBe('ZIF_TEST');
       expect(intf.isModeled).toBe(false);

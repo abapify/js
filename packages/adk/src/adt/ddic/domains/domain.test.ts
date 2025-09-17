@@ -172,22 +172,23 @@ describe('Domain', () => {
   });
 
   describe('Constructor Variations', () => {
-    it('should create Domain with individual parameters', () => {
-      const adtcore = {
-        name: 'ZDO_TEST',
-        type: 'DOMA/DD',
-        description: 'Test Domain',
-        masterLanguage: 'EN',
-        version: 'inactive' as const,
+    it('should create Domain with unified input interface', () => {
+      const input = {
+        adtcore: {
+          name: 'ZDO_TEST',
+          type: 'DOMA/DD',
+          description: 'Test Domain',
+          masterLanguage: 'EN',
+          version: 'inactive' as const,
+        },
+        domain: {
+          dataType: 'CHAR',
+          length: 20,
+          decimals: 0,
+        },
       };
 
-      const sections = {
-        dataType: 'CHAR',
-        length: 20,
-        decimals: 0,
-      };
-
-      const domain = new Domain(adtcore, sections);
+      const domain = new Domain(input);
 
       expect(domain.name).toBe('ZDO_TEST');
       expect(domain.dataType).toBe('CHAR');
@@ -196,15 +197,17 @@ describe('Domain', () => {
     });
 
     it('should handle domain without fixed values', () => {
-      const adtcore = {
-        name: 'ZDO_SIMPLE',
-        type: 'DOMA/DD',
-        description: 'Simple Domain',
-        masterLanguage: 'EN',
-        version: 'inactive' as const,
+      const input = {
+        adtcore: {
+          name: 'ZDO_SIMPLE',
+          type: 'DOMA/DD',
+          description: 'Simple Domain',
+          masterLanguage: 'EN',
+          version: 'inactive' as const,
+        },
       };
 
-      const domain = new Domain(adtcore);
+      const domain = new Domain(input);
 
       expect(domain.fixedValues).toEqual([]);
       expect(domain.dataType).toBeUndefined();

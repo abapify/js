@@ -227,18 +227,17 @@ describe('Class', () => {
   });
 
   describe('Constructor Variations', () => {
-    it('should create Class with individual parameters', () => {
-      const adtcore = {
-        name: 'ZCL_TEST',
-        type: 'CLAS/OC',
-        description: 'Test Class',
-        masterLanguage: 'EN',
-        version: 'inactive' as const,
-      };
-
-      const abapoo = { modeled: false };
-      const abapsource = { sourceUri: '' };
-      const sections = {
+    it('should create Class with unified input interface', () => {
+      const input = {
+        adtcore: {
+          name: 'ZCL_TEST',
+          type: 'CLAS/OC',
+          description: 'Test Class',
+          masterLanguage: 'EN',
+          version: 'inactive' as const,
+        },
+        abapoo: { modeled: false },
+        abapsource: { sourceUri: '' },
         class: {
           final: false,
           abstract: false,
@@ -247,10 +246,12 @@ describe('Class', () => {
           hasTests: false,
           sharedMemoryEnabled: false,
         },
-        includes: [],
+        sections: {
+          includes: [],
+        },
       };
 
-      const cls = new Class(adtcore, abapoo, abapsource, sections);
+      const cls = new Class(input);
 
       expect(cls.name).toBe('ZCL_TEST');
       expect(cls.isModeled).toBe(false);
