@@ -1,14 +1,14 @@
-import { AdkBaseObject } from '../../base/adk-object.js';
+import { AdkBaseObject } from '../../base/adk-object';
 import type {
   AbapSourceType,
   SyntaxConfigurationType,
-} from '../../../namespaces/abapsource.js';
-import type { AdtCoreType } from '../../../namespaces/adtcore.js';
-import { Kind } from '../../kind.js';
-import type { AbapOOType } from '../../../namespaces/abapoo.js';
-import type { PackageRefType } from '../../../namespaces/adtcore.js';
-import type { AtomLinkType } from '../../../namespaces/atom.js';
-import { InterfaceXML } from './interface-xml.js';
+} from '../../../namespaces/abapsource';
+import type { AdtCoreType } from '../../../namespaces/adtcore';
+import { Kind } from '../../kind';
+import type { AbapOOType } from '../../../namespaces/abapoo';
+import type { PackageRefType } from '../../../namespaces/adtcore';
+import type { AtomLinkType } from '../../../namespaces/atom';
+import { InterfaceXML } from './interface-xml';
 
 /**
  * Input interface for creating Interface instances
@@ -26,7 +26,7 @@ export interface InterfaceInput {
 
   /** Interface sections */
   sections?: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
 
   /** ABAP object attributes */
@@ -107,7 +107,8 @@ export class Interface extends AdkBaseObject<
   setAtomLinks(links: AtomLinkType[] | undefined) {
     this._links = links || [];
     // Also set the base class property to ensure compatibility
-    (this as any).links = this._links;
+    // @ts-expect-error: Setting internal property for compatibility
+    this.links = this._links;
   }
 
   getPackageRef(): PackageRefType | undefined {

@@ -1,10 +1,10 @@
-import { AdkBaseObject } from '../../base/adk-object.js';
-import { AbapSourceType } from '../../../namespaces/abapsource.js';
-import { AdtCoreType } from '../../../namespaces/adtcore.js';
-import { AtomLinkType } from '../../../namespaces/atom.js';
-import { Kind } from '../../kind.js';
-import { ClassXML } from './class-xml.js';
-import { objectRegistry } from '../../base/object-registry.js';
+import { AdkBaseObject } from '../../base/adk-object';
+import { AbapSourceType } from '../../../namespaces/abapsource';
+import { AdtCoreType } from '../../../namespaces/adtcore';
+import { AtomLinkType } from '../../../namespaces/atom';
+import { Kind } from '../../kind';
+import { ClassXML } from './class-xml';
+import { objectRegistry } from '../../base/object-registry';
 
 /**
  * Input interface for creating Class instances
@@ -70,7 +70,7 @@ interface ClassInclude {
   createdAt?: Date;
   changedBy?: string;
   createdBy?: string;
-  links: AtomLink[];
+  links: AtomLinkType[];
 }
 
 /**
@@ -78,7 +78,7 @@ interface ClassInclude {
  */
 export class Class extends AdkBaseObject<ClassSections, Kind.Class, ClassXML> {
   /** SAP object type identifier for registry */
-  static readonly sapType = 'CLAS';
+  static override readonly sapType = 'CLAS';
 
   constructor(input: ClassInput) {
     // Convert input format to internal sections format
@@ -163,12 +163,12 @@ export class Class extends AdkBaseObject<ClassSections, Kind.Class, ClassXML> {
   override toAdtXml(): string {
     // Create ClassXML from this domain object
     const classXML = ClassXML.fromClass({
-      adtcore: this.adtcore,
-      abapoo: this.abapoo,
-      abapsource: this.abapsource,
+      adtcore: this.xmlRep.core,
+      abapoo: this.xmlRep.oo,
+      abapsource: this.xmlRep.source,
       classAttrs: this.sections.class,
-      links: this.links,
-      packageRef: (this as any).packageRef, // Access inherited property
+      links: this.xmlRep.atomLinks || [],
+      packageRef: this.xmlRep.packageRef, // Access inherited property
       // includes: this.sections.includes, // Skip includes for now
     });
 
@@ -195,10 +195,10 @@ export class Class extends AdkBaseObject<ClassSections, Kind.Class, ClassXML> {
 
     // Set additional properties
     if (classXML.packageRef) {
-      (cls as any).packageRef = classXML.packageRef;
+      (cls.xmlRep as ClassXML).packageRef = classXML.packageRef;
     }
     if (classXML.atomLinks) {
-      (cls as any).links = classXML.atomLinks;
+      (cls.xmlRep as ClassXML).atomLinks = classXML.atomLinks;
     }
 
     // Type assertion to handle the generic return type
