@@ -4,6 +4,9 @@ import { Kind } from '../../kind';
 export type ClassSpec = Spec<Class, Kind.Class>;
 // export * from './adapters'; // Adapters directory doesn't exist yet
 
+// Export the actual Class implementation
+export * from './class.js';
+
 interface Class {
   visibility: 'PUBLIC' | 'PRIVATE';
   isFinal: boolean;

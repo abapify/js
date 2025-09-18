@@ -1,21 +1,4 @@
-import { Kind } from '../kind.js';
-
-/**
- * Client-agnostic interface that any ADK object must implement
- * This allows ADT client to work with objects without knowing specific types
- */
-export interface AdkObject {
-  readonly kind: Kind;
-  readonly name: string;
-  readonly type: string;
-  readonly description?: string;
-  readonly package?: string;
-
-  /**
-   * Serialize to ADT XML format for API calls
-   */
-  toAdtXml(): string;
-}
+import type { AdkObject } from '@abapify/adk';
 
 /**
  * Options for object operations
@@ -67,6 +50,3 @@ export interface AdkClientInterface {
     options?: ObjectOperationOptions
   ): Promise<ObjectOperationResult>;
 }
-
-// Endpoint mapping interfaces moved to ADT client package
-// ADK should only handle object modeling, not HTTP/transport concerns

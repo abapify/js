@@ -1,14 +1,4 @@
 // import { AdtAdapter } from '../../../base/adapters/adt/adapter'; // Missing adapter base class
-import { DomainSpec } from '..';
-import { Kind } from '../../../kind';
-
-import { $attr, $xmlns, $namespaces } from 'fxmlp';
-
-const { doma, adtcore } = $namespaces([
-  ['doma', { recursive: true }],
-  'adtcore',
-  'atom',
-]);
 
 /*
 // Temporarily commented out until AdtAdapter base class is available

@@ -75,7 +75,7 @@ describe.skip('DomainAdtAdapter', () => {
     expect(adtObject).toBeDefined();
     expect(adtObject).toHaveProperty('doma:domain');
 
-    const domainElement = (adtObject as any)['doma:domain'];
+    const domainElement = (adtObject as Record<string, unknown>)['doma:domain'];
     expect(domainElement).toBeDefined();
     // The fxmlp library structures the content differently
     // Check for the presence of expected attributes and content structure

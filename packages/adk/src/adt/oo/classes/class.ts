@@ -1,12 +1,105 @@
-import { AdtObject } from '../../base/adt-object';
-import { AdtCoreAttributes } from '../../namespaces/adtcore';
-import { AbapSourceAttributes } from '../../namespaces/abapsource';
-import { AtomLink } from '../../namespaces/atom';
-import { Kind } from '../../kind';
+import { AdkBaseObject } from '../../base/adk-object.js';
+import { AbapSourceType } from '../../../namespaces/abapsource.js';
+import { AdtCoreType } from '../../../namespaces/adtcore.js';
+import { AtomLinkType } from '../../../namespaces/atom.js';
+import { Kind } from '../../kind.js';
+import { XmlUtils } from '../../base/xml-utils.js';
+import { $attr, $namespaces, $xmlns } from 'fxmlp';
 import { XMLBuilder } from 'fast-xml-parser';
-import { $attr, $xmlns, $namespaces } from 'fxmlp';
-import { XmlUtils } from '../../base/xml-utils';
-import { ClassInput } from '../../base/adt-object-input';
+import { objectRegistry } from '../../base/object-registry.js';
+
+/**
+ * Input interface for creating Class instances
+ * Each object type owns its own input contract
+ */
+export interface ClassInput {
+  /** ADT core attributes - using exact internal type */
+  adtcore: AdtCoreType;
+
+  /** Class-specific attributes */
+  class?: {
+    final?: boolean;
+    abstract?: boolean;
+    visibility?: 'public' | 'protected' | 'private';
+    category?: string;
+    hasTests?: boolean;
+    sharedMemoryEnabled?: boolean;
+  };
+
+  /** Class-specific sections - simplified format that gets converted to internal */
+  sections?: {
+    includes?: ClassInclude[];
+  };
+
+  /** ABAP object attributes */
+  abapoo?: {
+    modeled: boolean;
+  };
+
+  /** ABAP source attributes - using exact internal type */
+  abapsource?: AbapSourceType;
+}
+
+/**
+ * Type for parsed class XML structure
+ */
+type ParsedClassXml = {
+  '@_adtcore:name': string;
+  '@_adtcore:type': string;
+  '@_adtcore:description'?: string;
+  '@_adtcore:language'?: string;
+  '@_adtcore:masterLanguage'?: string;
+  '@_adtcore:responsible'?: string;
+  '@_adtcore:changedBy'?: string;
+  '@_adtcore:createdBy'?: string;
+  '@_adtcore:changedAt'?: string;
+  '@_adtcore:createdAt'?: string;
+  '@_adtcore:version'?: string;
+  '@_abapoo:modeled': string;
+  '@_abapsource:sourceUri': string;
+  '@_abapsource:fixPointArithmetic': string;
+  '@_abapsource:activeUnicodeCheck': string;
+  '@_class:final': string;
+  '@_class:abstract': string;
+  '@_class:visibility': string;
+  '@_class:category'?: string;
+  '@_class:hasTests': string;
+  '@_class:sharedMemoryEnabled': string;
+  'class:include'?: ParsedClassInclude | ParsedClassInclude[];
+  'adtcore:packageRef'?: {
+    '@_adtcore:uri': string;
+    '@_adtcore:type': string;
+    '@_adtcore:name': string;
+  };
+  'atom:link'?: ParsedAtomLink | ParsedAtomLink[];
+};
+
+/**
+ * Type for parsed class include XML
+ */
+type ParsedClassInclude = {
+  '@_class:includeType': string;
+  '@_adtcore:name': string;
+  '@_adtcore:type': string;
+  '@_abapsource:sourceUri': string;
+  '@_adtcore:changedAt'?: string;
+  '@_adtcore:createdAt'?: string;
+  '@_adtcore:changedBy'?: string;
+  '@_adtcore:createdBy'?: string;
+  '@_adtcore:version'?: string;
+  'atom:link'?: ParsedAtomLink | ParsedAtomLink[];
+};
+
+/**
+ * Type for parsed atom link XML
+ */
+type ParsedAtomLink = {
+  '@_href': string;
+  '@_rel': string;
+  '@_type'?: string;
+  '@_title'?: string;
+  '@_etag'?: string;
+};
 
 /**
  * Class-specific sections
@@ -16,9 +109,9 @@ interface ClassSections {
     final: boolean;
     abstract: boolean;
     visibility: 'public' | 'protected' | 'private';
-    category: string;
-    hasTests: boolean;
-    sharedMemoryEnabled: boolean;
+    category?: string;
+    hasTests?: boolean;
+    sharedMemoryEnabled?: boolean;
   };
   includes: ClassInclude[];
 }
@@ -44,18 +137,20 @@ interface ClassInclude {
 /**
  * ABAP Class ADT object with proper TypeScript types
  */
-export class Class extends AdtObject<ClassSections, Kind.Class> {
+export class Class extends AdkBaseObject<ClassSections, Kind.Class> {
+  /** SAP object type identifier for registry */
+  static readonly sapType = 'CLAS';
   private abapoo: { modeled: boolean };
   private abapsource: AbapSourceAttributes;
 
   constructor(input: ClassInput) {
     // Convert input format to internal sections format
     const sections: ClassSections = {
-      class: input.class || {
-        final: false,
-        abstract: false,
-        visibility: 'public',
-        category: 'generalObjectType',
+      class: {
+        final: input.class?.final || false,
+        abstract: input.class?.abstract || false,
+        visibility: input.class?.visibility || 'public',
+        category: input.class?.category,
         hasTests: false,
         sharedMemoryEnabled: false,
       },
@@ -102,13 +197,13 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
   get visibility(): 'public' | 'protected' | 'private' {
     return this.sections.class.visibility;
   }
-  get category(): string {
+  get category(): string | undefined {
     return this.sections.class.category;
   }
-  get hasTests(): boolean {
+  get hasTests(): boolean | undefined {
     return this.sections.class.hasTests;
   }
-  get sharedMemoryEnabled(): boolean {
+  get sharedMemoryEnabled(): boolean | undefined {
     return this.sections.class.sharedMemoryEnabled;
   }
   get includes(): ClassInclude[] {
@@ -122,7 +217,7 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
     format: true,
     suppressEmptyNode: true,
     suppressBooleanAttributes: false,
-    attributeValueProcessor: (name: string, val: any) => {
+    attributeValueProcessor: (name: string, val: unknown) => {
       // Ensure boolean values are always rendered as "true"/"false" strings
       if (typeof val === 'boolean') {
         return val ? 'true' : 'false';
@@ -228,12 +323,12 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
   }
 
   // XML parsing
-  static override fromAdtXml<U extends AdtObject<unknown, K>, K extends Kind>(
-    xml: string,
-    kind: K
-  ): U {
-    const parsed = AdtObject.parseXml(xml);
-    const root = parsed['class:abapClass'] as any;
+  static override fromAdtXml<
+    U extends AdkBaseObject<unknown, K>,
+    K extends Kind
+  >(xml: string): U {
+    const parsed = AdkBaseObject.parseXml(xml);
+    const root = parsed['class:abapClass'] as ParsedClassXml;
 
     // Parse adtcore attributes
     const adtcore = XmlUtils.parseAdtCoreAttributes(root);
@@ -269,41 +364,43 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
       : root['class:include']
       ? [root['class:include']]
       : [];
-    const includes: ClassInclude[] = includesArray.map((include: any) => {
-      const includeLinks = Array.isArray(include['atom:link'])
-        ? include['atom:link']
-        : include['atom:link']
-        ? [include['atom:link']]
-        : [];
+    const includes: ClassInclude[] = includesArray.map(
+      (include: ParsedClassInclude) => {
+        const includeLinks = Array.isArray(include['atom:link'])
+          ? include['atom:link']
+          : include['atom:link']
+          ? [include['atom:link']]
+          : [];
 
-      return {
-        includeType: include['@_class:includeType'] as
-          | 'definitions'
-          | 'implementations'
-          | 'macros'
-          | 'testclasses'
-          | 'main',
-        sourceUri: include['@_abapsource:sourceUri'],
-        name: include['@_adtcore:name'],
-        type: include['@_adtcore:type'],
-        changedAt: include['@_adtcore:changedAt']
-          ? new Date(include['@_adtcore:changedAt'])
-          : undefined,
-        version: include['@_adtcore:version'],
-        createdAt: include['@_adtcore:createdAt']
-          ? new Date(include['@_adtcore:createdAt'])
-          : undefined,
-        changedBy: include['@_adtcore:changedBy'],
-        createdBy: include['@_adtcore:createdBy'],
-        links: includeLinks.map((link: any) => ({
-          href: link['@_href'],
-          rel: link['@_rel'],
-          type: link['@_type'],
-          title: link['@_title'],
-          etag: link['@_etag'],
-        })),
-      };
-    });
+        return {
+          includeType: include['@_class:includeType'] as
+            | 'definitions'
+            | 'implementations'
+            | 'macros'
+            | 'testclasses'
+            | 'main',
+          sourceUri: include['@_abapsource:sourceUri'],
+          name: include['@_adtcore:name'],
+          type: include['@_adtcore:type'],
+          changedAt: include['@_adtcore:changedAt']
+            ? new Date(include['@_adtcore:changedAt'])
+            : undefined,
+          version: include['@_adtcore:version'],
+          createdAt: include['@_adtcore:createdAt']
+            ? new Date(include['@_adtcore:createdAt'])
+            : undefined,
+          changedBy: include['@_adtcore:changedBy'],
+          createdBy: include['@_adtcore:createdBy'],
+          links: includeLinks.map((link: ParsedAtomLink) => ({
+            href: link['@_href'],
+            rel: link['@_rel'],
+            type: link['@_type'],
+            title: link['@_title'],
+            etag: link['@_etag'],
+          })),
+        };
+      }
+    );
 
     const sections: ClassSections = {
       class: classSection,
@@ -328,3 +425,6 @@ export class Class extends AdtObject<ClassSections, Kind.Class> {
     return cls as unknown as U;
   }
 }
+
+// Auto-register Class with the object registry
+objectRegistry.register(Class.sapType, Class);
