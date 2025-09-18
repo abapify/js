@@ -35,5 +35,5 @@ export interface AdtCoreType {
 export const ADTCORE_NAMESPACE_URI = 'http://www.sap.com/adt/core';
 
 // ADT Core decorator
-import { namespace } from '../decorators/index.js';
+import { namespace } from '../decorators';
 export const adtcore = namespace('adtcore', ADTCORE_NAMESPACE_URI);

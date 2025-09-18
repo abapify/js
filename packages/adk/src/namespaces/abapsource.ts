@@ -22,5 +22,5 @@ export interface SyntaxConfigurationType {
 export const ABAPSOURCE_NAMESPACE_URI = 'http://www.sap.com/adt/abapsource';
 
 // ABAP Source decorator
-import { namespace } from '../decorators/index.js';
+import { namespace } from '../decorators';
 export const abapsource = namespace('abapsource', ABAPSOURCE_NAMESPACE_URI);

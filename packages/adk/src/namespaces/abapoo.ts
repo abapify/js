@@ -10,5 +10,5 @@ export interface AbapOOType {
 export const ABAPOO_NAMESPACE_URI = 'http://www.sap.com/adt/oo';
 
 // ABAP OO decorator
-import { namespace } from '../decorators/index.js';
+import { namespace } from '../decorators';
 export const abapoo = namespace('abapoo', ABAPOO_NAMESPACE_URI);

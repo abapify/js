@@ -1,5 +1,5 @@
-import { Spec } from '../base';
-import { Kind } from '../kind';
+import type { Spec } from '../base.js';
+import { Kind } from '../kind.js';
 
 export type DomainSpec = Spec<Domain, Kind.Domain>;
 export * from './adapters';
