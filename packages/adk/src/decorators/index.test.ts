@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { XMLParser } from 'fast-xml-parser';
-import { XMLRoot, attributes, toXML } from './index.js';
+import { XMLRoot, attributes, toXML } from '.';
 import { adtcore } from '../namespaces/adtcore.js';
 import { abapoo } from '../namespaces/abapoo.js';
 import { abapsource } from '../namespaces/abapsource.js';

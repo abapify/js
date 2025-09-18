@@ -1,5 +1,5 @@
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
-import { XMLRoot, attributes, toXML } from '../../../decorators/index.js';
+import { XMLRoot, attributes, toXML } from '../../../decorators';
 import { adtcore } from '../../../namespaces/adtcore.js';
 import { abapoo } from '../../../namespaces/abapoo.js';
 import { abapsource } from '../../../namespaces/abapsource.js';
