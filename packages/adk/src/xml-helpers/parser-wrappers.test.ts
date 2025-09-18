@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { $attr, $elem, $clean } from './parser-wrappers.js';
-import { adtcore, classNs } from './namespaces.js';
+import { adtcore } from '../namespaces/adtcore.js';
+import { abapoo } from '../namespaces/abapoo.js';
 import type { AdtCoreType } from '../namespaces/adtcore.js';
 
 describe('Parser Wrapper Functions', () => {
@@ -123,18 +124,17 @@ describe('Parser Wrapper Functions', () => {
       });
     });
 
-    it('should work with multiple namespaces: $attr({ ...adtcore(a), ...classNs(b) })', () => {
+    it('should work with multiple namespaces: $attr({ ...adtcore(a), ...abapoo(b) })', () => {
       const adtcoreData = adtcore({ name: 'ZCL_TEST', type: 'CLAS/OC' });
-      const classData = classNs({ final: true, abstract: false });
+      const abapooData = abapoo({ modeled: true });
 
-      const combined = { ...adtcoreData, ...classData };
+      const combined = { ...adtcoreData, ...abapooData };
       const result = $attr(combined);
 
       expect(result).toEqual({
         '@_adtcore:name': 'ZCL_TEST',
         '@_adtcore:type': 'CLAS/OC',
-        '@_class:final': 'true',
-        '@_class:abstract': 'false',
+        '@_abapoo:modeled': 'true',
       });
     });
   });

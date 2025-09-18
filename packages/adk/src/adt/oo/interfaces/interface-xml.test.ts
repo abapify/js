@@ -64,9 +64,9 @@ describe('InterfaceXML - Clean Separation of Concerns', () => {
           type: 'text/plain',
         },
       ],
-      packageRefElement: {
+      packageRef: {
         uri: '/sap/bc/adt/packages/ztest',
-        type: 'DEVC/K',
+        type: 'DEVC/K' as const,
         name: 'ZTEST',
       },
     };
@@ -85,7 +85,7 @@ describe('InterfaceXML - Clean Separation of Concerns', () => {
     expect(interfaceXML2.source.activeUnicodeCheck).toBe(true);
     expect(interfaceXML2.atomLinks).toHaveLength(1);
     expect(interfaceXML2.atomLinks[0].href).toBe('source/main');
-    expect(interfaceXML2.packageRefElement?.name).toBe('ZTEST');
+    expect(interfaceXML2.packageRef?.name).toBe('ZTEST');
 
     console.log('🎉 Perfect round-trip! XML layer works flawlessly.');
   });

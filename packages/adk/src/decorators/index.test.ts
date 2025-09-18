@@ -1,15 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { XMLParser } from 'fast-xml-parser';
-import {
-  XMLRoot,
-  attributes,
-  adtcore,
-  abapoo,
-  abapsource,
-  atom,
-  toXML,
-} from './decorators.js';
+import { XMLRoot, attributes, toXML } from './index.js';
+import { adtcore } from '../namespaces/adtcore.js';
+import { abapoo } from '../namespaces/abapoo.js';
+import { abapsource } from '../namespaces/abapsource.js';
+import { atom } from '../namespaces/atom.js';
 import type { AdtCoreType, PackageRefType } from '../namespaces/adtcore.js';
 import type { AbapOOType } from '../namespaces/abapoo.js';
 import type {
@@ -107,19 +103,19 @@ describe('Decorator-based XML Generation', () => {
 
     const content = xml['intf:abapInterface'];
 
-    // Check attributes (from @attributes decorator)
-    expect(content).toHaveProperty('adtcore:name', 'ZIF_PEPL_TEST_NESTED1');
-    expect(content).toHaveProperty('adtcore:type', 'INTF/OI');
-    expect(content).toHaveProperty('abapoo:modeled', 'false');
-    expect(content).toHaveProperty('abapsource:sourceUri', 'source/main');
-    expect(content).toHaveProperty('abapsource:fixPointArithmetic', 'false');
+    // Check attributes (from @attributes decorator) - should use fast-xml-parser format
+    expect(content).toHaveProperty('@_adtcore:name', 'ZIF_PEPL_TEST_NESTED1');
+    expect(content).toHaveProperty('@_adtcore:type', 'INTF/OI');
+    expect(content).toHaveProperty('@_abapoo:modeled', 'false');
+    expect(content).toHaveProperty('@_abapsource:sourceUri', 'source/main');
+    expect(content).toHaveProperty('@_abapsource:fixPointArithmetic', 'false');
 
     // Check elements (from @atom and @adtcoreElement decorators)
     expect(content).toHaveProperty('atom:link');
     expect(content['atom:link']).toHaveLength(2);
     expect(content).toHaveProperty('adtcore:packageRef');
     expect(content['adtcore:packageRef']).toHaveProperty(
-      'adtcore:name',
+      '@_adtcore:name',
       'ZPEPL_TEST'
     );
 
@@ -138,10 +134,10 @@ describe('Decorator-based XML Generation', () => {
     const xml = intf.toXML();
 
     expect(xml['intf:abapInterface']).toMatchObject({
-      'adtcore:name': 'ZIF_SIMPLE',
-      'adtcore:type': 'INTF/OI',
-      'abapoo:modeled': 'true',
-      'abapsource:sourceUri': 'source/main',
+      '@_adtcore:name': 'ZIF_SIMPLE',
+      '@_adtcore:type': 'INTF/OI',
+      '@_abapoo:modeled': 'true',
+      '@_abapsource:sourceUri': 'source/main',
     });
 
     // 🎯 CHECK: xmlns declarations are now included!
@@ -282,11 +278,13 @@ describe('Decorator-based XML Generation', () => {
     // 4. Compare key structures (this is where we'll find the issues!)
     const generated = generatedXml['intf:abapInterface'];
 
-    // Check attributes match
-    expect(generated['adtcore:name']).toBe(interfaceData['@_adtcore:name']);
-    expect(generated['adtcore:type']).toBe(interfaceData['@_adtcore:type']);
-    expect(generated['abapoo:modeled']).toBe(interfaceData['@_abapoo:modeled']);
-    expect(generated['abapsource:sourceUri']).toBe(
+    // Check attributes match (both use fast-xml-parser format)
+    expect(generated['@_adtcore:name']).toBe(interfaceData['@_adtcore:name']);
+    expect(generated['@_adtcore:type']).toBe(interfaceData['@_adtcore:type']);
+    expect(generated['@_abapoo:modeled']).toBe(
+      interfaceData['@_abapoo:modeled']
+    );
+    expect(generated['@_abapsource:sourceUri']).toBe(
       interfaceData['@_abapsource:sourceUri']
     );
 
@@ -305,16 +303,16 @@ describe('Decorator-based XML Generation', () => {
     );
     expect(
       generatedSyntaxConfig['abapsource:language']['atom:link']
-    ).toHaveProperty('atom:href');
+    ).toHaveProperty('@_atom:href');
 
     // All atom links preserved
     expect(generated['atom:link']).toHaveLength(6); // All 6 links from fixture!
 
     // Package reference structure
     expect(generated['adtcore:packageRef']).toMatchObject({
-      'adtcore:uri': '/sap/bc/adt/packages/zpepl_test',
-      'adtcore:type': 'DEVC/K',
-      'adtcore:name': 'ZPEPL_TEST',
+      '@_adtcore:uri': '/sap/bc/adt/packages/zpepl_test',
+      '@_adtcore:type': 'DEVC/K',
+      '@_adtcore:name': 'ZPEPL_TEST',
     });
 
     console.log(

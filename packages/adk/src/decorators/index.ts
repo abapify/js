@@ -36,15 +36,64 @@ export function attributes(target: any, propertyKey: string) {
 }
 
 // Generic namespace decorator with URI - defaults to elements
+// Also works as a transformation function when called with data
 export function namespace(ns: string, uri: string) {
-  return function (target: any, propertyKey: string) {
+  function decorator(target: any, propertyKey: string) {
     const existing = getMetadata(target, propertyKey) || {};
     setMetadata(target, propertyKey, {
       type: existing.type || 'elements', // Default to elements
       namespace: ns,
       uri,
     });
+  }
+
+  // Add transformation capability
+  decorator.transform = function (data: any) {
+    return renderNamespaceAsAttributes(ns, data);
   };
+
+  // Helper to recursively add namespace to nested objects
+  function addNamespaceToNested(data: any, namespace: string): any {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+      return data;
+    }
+
+    const result: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value === undefined || value === null) continue;
+
+      const namespacedKey = `${namespace}:${key}`;
+
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        // For nested objects, recursively add namespace to their properties too
+        result[namespacedKey] = addNamespaceToNested(value, namespace);
+      } else {
+        result[namespacedKey] = value;
+      }
+    }
+    return result;
+  }
+
+  // Make it callable as a transformation function
+  function namespaceFn(dataOrTarget: any, propertyKey?: string) {
+    if (propertyKey !== undefined) {
+      // Called as decorator
+      return decorator(dataOrTarget, propertyKey);
+    } else {
+      // Called as transformation function - return intermediate format for $attr()
+      // Use recursive namespacing for proper nested object handling
+      return addNamespaceToNested(dataOrTarget, ns);
+    }
+  }
+
+  // Copy transform method
+  namespaceFn.transform = decorator.transform;
+
+  return namespaceFn;
 }
 
 // Generic decorator system - no SAP-specific logic here!
