@@ -20,6 +20,12 @@ export type {
 export { TransportService } from './services/cts/transport-service.js';
 export { AtcService } from './services/atc/atc-service.js';
 export { GenericAdkService } from './services/adk/generic-adk-service.js';
+export { AdkFacade } from './services/adk/adk-facade.js';
+export type {
+  AdkClientInterface,
+  ObjectOperationOptions,
+  ObjectOperationResult,
+} from './services/adk/client-interface.js';
 export type {
   TransportFilters,
   TransportList,

@@ -1,7 +1,5 @@
 import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
-import { getAdtClient } from '../shared/clients';
-import { AdkObjectHandler } from './adk-bridge';
 // import { ClassAdtAdapter } from '@abapify/adk'; // Not exported yet
 
 export class ObjectRegistry {

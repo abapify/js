@@ -2,8 +2,8 @@
  * Examples showing the improved unified constructor interface
  */
 
-import { Interface } from '../adt/oo/interfaces/interface.js';
-import { Class } from '../adt/oo/classes/class.js';
+import { Interface } from '../src/adt/oo/interfaces/interface.js';
+import { Class } from '../src/adt/oo/classes/class.js';
 
 // ✅ NEW: Clean, unified input interface
 export function createInterfaceWithUnifiedInput() {

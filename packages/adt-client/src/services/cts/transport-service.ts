@@ -8,8 +8,6 @@ import type {
   Transport,
   TransportFilters,
   TransportList,
-  TransportGetOptions,
-  TransportGetResult,
   TransportCreateOptions,
   TransportCreateResult,
 } from './types.js';
