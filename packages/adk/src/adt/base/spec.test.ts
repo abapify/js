@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Kind } from '../kind';
-import type { Spec } from './base';
+import type { Spec } from '../base';
 
 // Mock interfaces for testing
 interface MockDomainData {
