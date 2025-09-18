@@ -4,7 +4,6 @@ import {
   type AdtClient,
   AuthManager,
 } from '@abapify/adt-client';
-import { createCliLogger } from '../utils/logger-config.js';
 
 // Global CLI logger instance that will be set by commands
 let globalCliLogger: any = null;

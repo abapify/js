@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname, basename } from 'path';
+import { join, basename } from 'path';
 
 export interface AbapGitObject {
   type: string;
