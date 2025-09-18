@@ -1,11 +1,16 @@
 import { XMLRoot, attributes } from '../../decorators';
-import { abapoo } from '../../namespaces/abapoo.js';
-import type { AbapOOType } from '../../namespaces/abapoo.js';
-import type { AdtCoreType } from '../../namespaces/adtcore.js';
-import type { AbapSourceType } from '../../namespaces/abapsource.js';
-import type { AtomLinkType } from '../../namespaces/atom.js';
-import type { PackageRefType } from '../../namespaces/adtcore.js';
-import { BaseXML } from './base-xml.js';
+import { abapoo } from '../../namespaces/abapoo';
+import type { AbapOOType } from '../../namespaces/abapoo';
+import type { AdtCoreType } from '../../namespaces/adtcore';
+import type { AbapSourceType } from '../../namespaces/abapsource';
+import type { AtomLinkType } from '../../namespaces/atom';
+import type { PackageRefType } from '../../namespaces/adtcore';
+import { BaseXML } from './base-xml';
+
+// Type-safe interface for parsed ABAP OO section - precise type safety
+interface ParsedAbapOOSection {
+  '@_abapoo:modeled'?: string;
+}
 
 /**
  * OoXML - Base class for Object-Oriented ADT objects (Classes, Interfaces)
@@ -39,9 +44,11 @@ export abstract class OoXML extends BaseXML {
 
   /**
    * Parse common ABAP OO attributes from XML root
-   * Used by child OO classes in their parsing logic
+   * Precise type safety - catches type errors at compile time
    */
-  protected static parseAbapOOAttributes(root: any): AbapOOType {
+  protected static parseAbapOOAttributes(
+    root: ParsedAbapOOSection
+  ): AbapOOType {
     return {
       modeled: root['@_abapoo:modeled'] === 'true',
     };

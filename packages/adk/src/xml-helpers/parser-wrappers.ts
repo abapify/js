@@ -4,11 +4,13 @@
  */
 
 // Type to convert namespace format to fast-xml-parser attribute format
-type ToFastXmlParser<T> = T extends Record<string, any>
+type ToFastXmlParser<T> = T extends Record<string, unknown>
   ? {
       [K in keyof T as K extends `${string}:${string}`
         ? `@_${K}`
-        : K]: T[K] extends Record<string, any> ? ToFastXmlParser<T[K]> : T[K];
+        : K]: T[K] extends Record<string, unknown>
+        ? ToFastXmlParser<T[K]>
+        : T[K];
     }
   : T;
 
@@ -19,14 +21,14 @@ type ToFastXmlParser<T> = T extends Record<string, any>
  * Transforms:
  *   {'adtcore:name': 'value'} → {'@_adtcore:name': 'value'}
  */
-export function $attr<T extends Record<string, any>>(
+export function $attr<T extends Record<string, unknown>>(
   input: T
 ): ToFastXmlParser<T> {
   if (typeof input !== 'object' || input === null) {
-    return input as any;
+    return input as ToFastXmlParser<T>;
   }
 
-  const result: any = {};
+  const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(input)) {
     // Convert namespace:prop → @_namespace:prop for fast-xml-parser
@@ -68,12 +70,14 @@ export function $elem<T>(input: T): T {
  * Transforms:
  *   {'@_adtcore:name': 'value'} → {'adtcore:name': 'value'}
  */
-export function $clean<T extends Record<string, any>>(input: T): any {
+export function $clean<T extends Record<string, unknown>>(
+  input: T
+): Record<string, unknown> {
   if (typeof input !== 'object' || input === null) {
     return input;
   }
 
-  const result: any = {};
+  const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(input)) {
     // Convert @_namespace:prop → namespace:prop
