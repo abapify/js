@@ -1,9 +1,3 @@
 {
-  "servers": {
-    "nx-mcp": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["nx-mcp@latest"]
-    }
-  }
+  "servers": {}
 }
