@@ -12,8 +12,31 @@ import type {
 } from '../../../namespaces/abapsource.js';
 import type { AtomLinkType } from '../../../namespaces/atom.js';
 import type { PackageRefType } from '../../../namespaces/adtcore.js';
-import type { InterfaceXMLParsedType } from './interface-xml-types.js';
-import { InterfaceXMLParsed } from './interface-xml-types.js';
+import {
+  XMLParsedHelpers,
+  type ExtractXMLTypeWithSchema,
+  type AttrSchema,
+  type ElemSchema,
+  type SyntaxConfigurationSchema,
+} from '../../../decorators/type-inference.js';
+
+/**
+ * Local schema definition for InterfaceXML
+ * Much cleaner than global module augmentation!
+ */
+type InterfaceXMLSchema = {
+  // Attributes - much shorter!
+  core: AttrSchema<'adtcore'>;
+  oo: AttrSchema<'abapoo'>;
+  source: AttrSchema<'abapsource'>;
+
+  // Simple elements - concise!
+  atomLinks: ElemSchema<'atom', 'link'>;
+  packageRef: ElemSchema<'adtcore', 'packageRef'>;
+
+  // Complex reusable schema - one line!
+  syntaxConfiguration: SyntaxConfigurationSchema;
+};
 
 /**
  * InterfaceXML - represents the XML form of an Interface object.
@@ -23,6 +46,7 @@ import { InterfaceXMLParsed } from './interface-xml-types.js';
 
 @XMLRoot('intf:abapInterface')
 export class InterfaceXML {
+  // Properties with decorators for runtime XML handling
   @adtcore
   @attributes
   core: AdtCoreType;
@@ -36,8 +60,9 @@ export class InterfaceXML {
   source: AbapSourceType;
 
   @atom
-  atomLinks: AtomLinkType[];
+  atomLinks?: AtomLinkType[];
 
+  // Optional elements
   @adtcore
   packageRef?: PackageRefType;
 
@@ -52,6 +77,7 @@ export class InterfaceXML {
     packageRef?: PackageRefType;
     syntaxConfiguration?: SyntaxConfigurationType;
   }) {
+    // ✅ PROPER: Normal type-safe assignments - no casting needed!
     this.core = data.core;
     this.oo = data.oo;
     this.source = data.source;
@@ -110,7 +136,7 @@ export class InterfaceXML {
 
   /**
    * Parse ADT XML string to InterfaceXML instance
-   * Now with full type safety using InterfaceXMLParsedType!
+   * Uses schema-generated InterfaceXMLParsedType for type safety
    */
   static fromXMLString(xml: string): InterfaceXML {
     const parser = new XMLParser({
@@ -176,11 +202,11 @@ export class InterfaceXML {
       const linksArray = Array.isArray(atomLinks) ? atomLinks : [atomLinks];
       links = linksArray
         .map((link) => ({
-          href: link['@_href'], // ✅ Real SAP format: no namespace prefix in attributes
-          rel: link['@_rel'], // ✅ Real SAP format: no namespace prefix in attributes
-          type: link['@_type'], // ✅ Real SAP format: no namespace prefix in attributes
-          title: link['@_title'], // ✅ Real SAP format: no namespace prefix in attributes
-          etag: link['@_etag'], // ✅ Real SAP format: no namespace prefix in attributes
+          href: link['@_href'] || link['@_atom:href'], // ✅ Handle both formats: with/without namespace prefix
+          rel: link['@_rel'] || link['@_atom:rel'], // ✅ Handle both formats: with/without namespace prefix
+          type: link['@_type'] || link['@_atom:type'], // ✅ Handle both formats: with/without namespace prefix
+          title: link['@_title'] || link['@_atom:title'], // ✅ Handle both formats: with/without namespace prefix
+          etag: link['@_etag'] || link['@_atom:etag'], // ✅ Handle both formats: with/without namespace prefix
         }))
         .filter((link) => link.href); // ✅ Type-safe filtering
     }
@@ -220,3 +246,17 @@ export class InterfaceXML {
     });
   }
 }
+
+/**
+ * Automatically generated XML parsed type from the local schema
+ * Clean, explicit, and no global pollution!
+ */
+export type InterfaceXMLParsedType = ExtractXMLTypeWithSchema<
+  InterfaceXML,
+  InterfaceXMLSchema
+>;
+
+/**
+ * Type-safe helpers for parsing string values
+ */
+export const InterfaceXMLParsed = XMLParsedHelpers;
