@@ -36,7 +36,14 @@ export function $attr<T extends Record<string, any>>(
       // Recursively convert nested objects
       result[newKey] = $attr(value);
     } else {
-      result[newKey] = value;
+      // Convert booleans to strings, but preserve other types
+      if (typeof value === 'boolean') {
+        result[newKey] = value ? 'true' : 'false';
+      } else if (value instanceof Date) {
+        result[newKey] = value.toISOString();
+      } else {
+        result[newKey] = value; // Keep numbers, strings as-is
+      }
     }
   }
 
