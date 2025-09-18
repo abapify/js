@@ -33,10 +33,9 @@ export interface XMLPropertyMeta {
 
 /**
  * Classes can declare their XML mapping by augmenting this interface
+ * Using Record<string, XMLPropertyMeta> to avoid empty interface lint error
  */
-export interface XMLPropertySchema {
-  // This will be augmented by each class
-}
+export type XMLPropertySchema = Record<string, XMLPropertyMeta>;
 
 /**
  * Utility types for creating schema entries more concisely
@@ -99,8 +98,8 @@ export type SyntaxConfigurationSchema = ElemWithStructure<
 /**
  * Simplified type aliases for cleaner class definitions
  */
-export type Attr<Namespace extends string, T> = T;
-export type Elem<Namespace extends string, ElementName extends string, T> = T;
+export type Attr<_Namespace extends string, T> = T;
+export type Elem<_Namespace extends string, _ElementName extends string, T> = T;
 
 /**
  * Transform object properties to XML attribute format
@@ -173,7 +172,7 @@ export type ExtractXMLTypeWithSchema<
     }
       ? NS extends string
         ? ToXMLAttributes<T[K], NS>
-        : {}
+        : object
       : Schema[K] extends {
           kind: 'elem';
           namespace: infer NS;
@@ -184,9 +183,9 @@ export type ExtractXMLTypeWithSchema<
         ? EN extends string
           ? NestedSchema extends NestedXMLSchema
             ? { [E in `${NS}:${EN}`]?: ExtractNestedStructure<NestedSchema> }
-            : {}
-          : {}
-        : {}
+            : object
+          : object
+        : object
       : Schema[K] extends {
           kind: 'elem';
           namespace: infer NS;
@@ -194,12 +193,12 @@ export type ExtractXMLTypeWithSchema<
         }
       ? NS extends string
         ? EN extends string
-          ? T[K] extends Array<any>
+          ? T[K] extends Array<unknown>
             ? { [E in `${NS}:${EN}`]?: ToXMLElementArray<T[K], NS> }
             : { [E in `${NS}:${EN}`]?: ToXMLElementWithAttributes<T[K], NS> }
-          : {}
-        : {}
-      : {};
+          : object
+        : object
+      : object;
   }[keyof T & keyof Schema]
 >;
 
@@ -215,7 +214,7 @@ export interface PropertyXMLConfig {
   /** Map property names to XML element names */
   elementNameMap: Record<string, string>;
   /** Complex structure definitions for special cases */
-  complexStructures: Record<string, any>;
+  complexStructures: Record<string, NestedXMLSchema>;
 }
 
 /**
@@ -233,7 +232,7 @@ type InferPropertyTransformGeneric<K, V, Config extends PropertyXMLConfig> =
     : // Check if this is an element property
     K extends keyof Config['namespaceMap']
     ? Config['namespaceMap'][K] extends string
-      ? V extends Array<any>
+      ? V extends Array<unknown>
         ? // Array element
           K extends keyof Config['elementNameMap']
           ? Config['elementNameMap'][K] extends string
@@ -277,9 +276,9 @@ export type InferXMLParsedTypeGeneric<
 /**
  * Helper type to convert union to intersection
  */
-type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
-  k: infer I
-) => void
+type UnionToIntersection<U> = (
+  U extends unknown ? (k: U) => void : never
+) extends (k: infer I) => void
   ? I
   : never;
 
@@ -301,22 +300,20 @@ type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
 /**
  * Type-safe accessor helpers
  */
-export namespace XMLParsedHelpers {
-  export function parseBoolean(value: string | undefined): boolean {
+export const XMLParsedHelpers = {
+  parseBoolean(value: string | undefined): boolean {
     return value === 'true';
-  }
+  },
 
-  export function parseNumber(value: string | undefined): number | undefined {
+  parseNumber(value: string | undefined): number | undefined {
     return value ? parseInt(value, 10) : undefined;
-  }
+  },
 
-  export function parseDate(value: string | undefined): Date | undefined {
+  parseDate(value: string | undefined): Date | undefined {
     return value ? new Date(value) : undefined;
-  }
+  },
 
-  export function parseVersion(
-    value: string | undefined
-  ): 'active' | 'inactive' | undefined {
+  parseVersion(value: string | undefined): 'active' | 'inactive' | undefined {
     return value as 'active' | 'inactive' | undefined;
-  }
-}
+  },
+} as const;

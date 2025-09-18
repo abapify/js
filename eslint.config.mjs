@@ -68,7 +68,7 @@ export default [
   },
   // Enforce extensionless internal imports and enable autofix for ADK sources
   {
-    files: ['src/**/*.ts'],
+    files: ['packages/adk/src/**/*.{ts,tsx,js,jsx}'],
     plugins: {
       import: importPlugin,
     },

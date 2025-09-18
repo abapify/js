@@ -8,6 +8,37 @@ import type { AbapSourceType } from '../../namespaces/abapsource.js';
 import type { AtomLinkType } from '../../namespaces/atom.js';
 import type { PackageRefType } from '../../namespaces/adtcore.js';
 
+// Type-safe interfaces for parsed XML sections - provide precise type safety
+interface ParsedAdtCoreSection {
+  '@_adtcore:name': string;
+  '@_adtcore:type': string;
+  '@_adtcore:description'?: string;
+  '@_adtcore:language'?: string;
+  '@_adtcore:masterLanguage'?: string;
+  '@_adtcore:responsible'?: string;
+  '@_adtcore:changedBy'?: string;
+  '@_adtcore:createdBy'?: string;
+  '@_adtcore:changedAt'?: string;
+  '@_adtcore:createdAt'?: string;
+  '@_adtcore:version'?: string; // Compatible with generated types
+  '@_adtcore:masterSystem'?: string;
+  '@_adtcore:abapLanguageVersion'?: string;
+}
+
+interface ParsedAbapSourceSection {
+  '@_abapsource:sourceUri'?: string;
+  '@_abapsource:fixPointArithmetic'?: string;
+  '@_abapsource:activeUnicodeCheck'?: string;
+}
+
+interface ParsedPackageRefSection {
+  'adtcore:packageRef'?: unknown; // Compatible with generated ToXMLElementWithAttributes types
+}
+
+interface ParsedAtomLinksSection {
+  'atom:link'?: unknown; // Compatible with generated ToXMLElementWithAttributes types
+}
+
 /**
  * BaseXML - Common XML infrastructure for all ADT objects
  * Handles fast-xml-parser configuration and common ADT attributes
@@ -50,7 +81,7 @@ export abstract class BaseXML {
     attributeNamePrefix: '@_',
     format: true,
     suppressBooleanAttributes: false,
-    attributeValueProcessor: (name: string, val: any) => {
+    attributeValueProcessor: (name: string, val: unknown) => {
       if (typeof val === 'boolean') {
         return val ? 'true' : 'false';
       }
@@ -82,9 +113,11 @@ export abstract class BaseXML {
 
   /**
    * Parse common ADT Core attributes from XML root
-   * Used by child classes in their parsing logic
+   * Precise type safety - catches type errors at compile time
    */
-  protected static parseAdtCoreAttributes(root: any): AdtCoreType {
+  protected static parseAdtCoreAttributes(
+    root: ParsedAdtCoreSection
+  ): AdtCoreType {
     return {
       name: root['@_adtcore:name'],
       type: root['@_adtcore:type'],
@@ -110,9 +143,11 @@ export abstract class BaseXML {
 
   /**
    * Parse common ABAP Source attributes from XML root
-   * Used by child classes in their parsing logic
+   * Precise type safety - catches type errors at compile time
    */
-  protected static parseAbapSourceAttributes(root: any): AbapSourceType {
+  protected static parseAbapSourceAttributes(
+    root: ParsedAbapSourceSection
+  ): AbapSourceType {
     return {
       sourceUri: root['@_abapsource:sourceUri'] || 'source/main',
       fixPointArithmetic: root['@_abapsource:fixPointArithmetic'] === 'true',
@@ -122,9 +157,11 @@ export abstract class BaseXML {
 
   /**
    * Parse package reference from XML root
-   * Used by child classes in their parsing logic
+   * Precise type safety - catches type errors at compile time
    */
-  protected static parsePackageRef(root: any): PackageRefType | undefined {
+  protected static parsePackageRef(
+    root: ParsedPackageRefSection
+  ): PackageRefType | undefined {
     const packageRefData = root['adtcore:packageRef'];
     if (!packageRefData) return undefined;
 
@@ -137,9 +174,11 @@ export abstract class BaseXML {
 
   /**
    * Parse atom links from XML root
-   * Used by child classes in their parsing logic
+   * Precise type safety - catches type errors at compile time
    */
-  protected static parseAtomLinks(root: any): AtomLinkType[] {
+  protected static parseAtomLinks(
+    root: ParsedAtomLinksSection
+  ): AtomLinkType[] {
     if (!root['atom:link']) return [];
 
     const linksArray = Array.isArray(root['atom:link'])
@@ -147,8 +186,8 @@ export abstract class BaseXML {
       : [root['atom:link']];
 
     return linksArray.map((link) => ({
-      href: link['@_href'] || link['@_atom:href'],
-      rel: link['@_rel'] || link['@_atom:rel'],
+      href: link['@_href'] || link['@_atom:href'] || '',
+      rel: link['@_rel'] || link['@_atom:rel'] || '',
       type: link['@_type'] || link['@_atom:type'],
       title: link['@_title'] || link['@_atom:title'],
       etag: link['@_etag'] || link['@_atom:etag'],
@@ -159,7 +198,7 @@ export abstract class BaseXML {
    * Parse XML string using shared parser configuration
    * Used by child classes as starting point for their parsing
    */
-  protected static parseXMLString(xml: string): any {
+  protected static parseXMLString(xml: string): Record<string, unknown> {
     return BaseXML.xmlParser.parse(xml);
   }
 }
