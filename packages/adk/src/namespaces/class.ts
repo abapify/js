@@ -15,5 +15,5 @@ export interface ClassType {
 export const CLASS_NAMESPACE_URI = 'http://www.sap.com/adt/oo/classes';
 
 // Class-specific decorator
-import { namespace } from '../decorators/index.js';
+import { namespace } from '../decorators';
 export const classNs = namespace('class', CLASS_NAMESPACE_URI);

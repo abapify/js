@@ -22,5 +22,5 @@ export type AtomRelationType =
 export const ATOM_NAMESPACE_URI = 'http://www.w3.org/2005/Atom';
 
 // Atom decorator
-import { namespace } from '../decorators/index.js';
+import { namespace } from '../decorators';
 export const atom = namespace('atom', ATOM_NAMESPACE_URI);
