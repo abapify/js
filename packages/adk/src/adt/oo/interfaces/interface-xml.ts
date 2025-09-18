@@ -91,7 +91,7 @@ export class InterfaceXML {
     format: true,
     suppressEmptyNode: true,
     suppressBooleanAttributes: false,
-    attributeValueProcessor: (name: string, val: any) => {
+    attributeValueProcessor: (name: string, val: unknown) => {
       if (typeof val === 'boolean') {
         return val ? 'true' : 'false';
       }
