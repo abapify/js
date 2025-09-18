@@ -1,4 +1,3 @@
-import { adtClient } from '../../shared/clients';
 import { FormatRegistry } from '../../formats/format-registry';
 import { IconRegistry } from '../../utils/icon-registry';
 import { ObjectRegistry } from '../../objects/registry';

@@ -1,7 +1,86 @@
-import { AdtObject } from '../../base/adt-object';
-import { AdtCoreAttributes } from '../../namespaces/adtcore';
-import { Kind } from '../../kind';
-import { DomainInput } from '../../base/adt-object-input';
+import { AdkBaseObject } from '../../base/adk-object.js';
+import { AdtCoreType } from '../../../namespaces/adtcore.js';
+import { Kind } from '../../kind.js';
+
+/**
+ * Input interface for creating Domain instances
+ * Each object type owns its own input contract
+ */
+export interface DomainInput {
+  /** ADT core attributes - using exact internal type */
+  adtcore: AdtCoreType;
+
+  /** Domain-specific attributes */
+  domain?: {
+    dataType?: string;
+    length?: number;
+    decimals?: number;
+    outputLength?: number;
+    conversionExit?: string;
+    valueTable?: string;
+  };
+
+  /** Domain sections */
+  sections?: {
+    fixedValues?: Array<{
+      lowValue: string;
+      highValue?: string;
+      description?: string;
+    }>;
+  };
+}
+
+/**
+ * Type for parsed domain XML structure
+ */
+type ParsedDomainXml = {
+  '@_adtcore:name': string;
+  '@_adtcore:type': string;
+  '@_adtcore:description'?: string;
+  '@_adtcore:language'?: string;
+  '@_adtcore:masterLanguage'?: string;
+  '@_adtcore:responsible'?: string;
+  '@_adtcore:changedBy'?: string;
+  '@_adtcore:createdBy'?: string;
+  '@_adtcore:changedAt'?: string;
+  '@_adtcore:createdAt'?: string;
+  '@_adtcore:version'?: string;
+  'ddic:dataType'?: string;
+  'ddic:length'?: string;
+  'ddic:decimals'?: string;
+  'ddic:outputLength'?: string;
+  'ddic:conversionExit'?: string;
+  'ddic:valueTable'?: string;
+  'ddic:fixedValues'?: {
+    'ddic:fixedValue': ParsedFixedValue | ParsedFixedValue[];
+  };
+  'adtcore:packageRef'?: {
+    '@_adtcore:uri': string;
+    '@_adtcore:type': string;
+    '@_adtcore:name': string;
+  };
+  'atom:link'?: ParsedAtomLink | ParsedAtomLink[];
+};
+
+/**
+ * Type for parsed fixed value XML
+ */
+type ParsedFixedValue = {
+  'ddic:lowValue': string;
+  'ddic:highValue'?: string;
+  'ddic:description'?: string;
+};
+
+/**
+ * Type for parsed atom link XML
+ */
+type ParsedAtomLink = {
+  '@_href': string;
+  '@_rel': string;
+  '@_type'?: string;
+  '@_title'?: string;
+  '@_etag'?: string;
+};
 
 /**
  * Domain-specific sections and types
@@ -25,7 +104,7 @@ export interface DomainFixedValue {
 /**
  * ABAP Domain ADT object with proper TypeScript types
  */
-export class Domain extends AdtObject<DomainSections, Kind.Domain> {
+export class Domain extends AdkBaseObject<DomainSections, Kind.Domain> {
   constructor(input: DomainInput) {
     // Convert input format to internal sections format
     const sections: DomainSections = {
@@ -200,12 +279,12 @@ ${fixedValuesXml}
   }
 
   // XML parsing
-  static override fromAdtXml<U extends AdtObject<unknown, K>, K extends Kind>(
-    xml: string,
-    kind: K
-  ): U {
-    const parsed = AdtObject.parseXml(xml);
-    const root = parsed['ddic:domain'] as any;
+  static override fromAdtXml<
+    U extends AdkBaseObject<unknown, K>,
+    K extends Kind
+  >(xml: string): U {
+    const parsed = AdkBaseObject.parseXml(xml);
+    const root = parsed['ddic:domain'] as ParsedDomainXml;
 
     // Parse adtcore attributes
     const adtcore: AdtCoreAttributes = {
@@ -223,7 +302,7 @@ ${fixedValuesXml}
       createdAt: root['@_adtcore:createdAt']
         ? new Date(root['@_adtcore:createdAt'])
         : undefined,
-      version: root['@_adtcore:version'],
+      version: root['@_adtcore:version'] as 'active' | 'inactive' | undefined,
     };
 
     // Parse domain-specific sections
@@ -256,7 +335,7 @@ ${fixedValuesXml}
         ? root['ddic:fixedValues']['ddic:fixedValue']
         : [root['ddic:fixedValues']['ddic:fixedValue']];
 
-      sections.fixedValues = fixedValueElements.map((fv: any) => ({
+      sections.fixedValues = fixedValueElements.map((fv: ParsedFixedValue) => ({
         lowValue: String(fv['ddic:lowValue']),
         highValue: fv['ddic:highValue'] ? String(fv['ddic:highValue']) : '',
         description: fv['ddic:description'],
@@ -283,7 +362,7 @@ ${fixedValuesXml}
       const pkgRef = root['adtcore:packageRef'];
       domain.packageRef = {
         uri: pkgRef['@_adtcore:uri'],
-        type: pkgRef['@_adtcore:type'],
+        type: pkgRef['@_adtcore:type'] as 'DEVC/K',
         name: pkgRef['@_adtcore:name'],
       };
     }
@@ -292,13 +371,15 @@ ${fixedValuesXml}
     const links = Array.isArray(root['atom:link'])
       ? root['atom:link']
       : [root['atom:link']].filter(Boolean);
-    domain.links = links.map((link: any) => ({
-      href: link['@_href'],
-      rel: link['@_rel'],
-      type: link['@_type'],
-      title: link['@_title'],
-      etag: link['@_etag'],
-    }));
+    domain.links = links
+      .filter((link): link is ParsedAtomLink => link !== undefined)
+      .map((link: ParsedAtomLink) => ({
+        href: link['@_href'],
+        rel: link['@_rel'],
+        type: link['@_type'],
+        title: link['@_title'],
+        etag: link['@_etag'],
+      }));
 
     // Type assertion to handle the generic return type
     return domain as unknown as U;

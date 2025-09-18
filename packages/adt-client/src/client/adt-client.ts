@@ -2,12 +2,7 @@ import {
   AdtConnectionConfig,
   AdtClientConfig,
   RequestOptions,
-  SearchQuery,
-  UpdateResult,
-  CreateResult,
-  DeleteResult,
 } from '../types/client.js';
-import type { AdtObject, ObjectMetadata } from '../types/core.js';
 import type {
   ADTDiscoveryService,
   ADTWorkspace,
@@ -17,22 +12,20 @@ import type {
   SystemInfo,
 } from '../services/discovery/types.js';
 import { ConnectionManager } from './connection-manager.js';
-import { AuthManager } from './auth-manager.js';
 import { TransportService } from '../services/cts/transport-service.js';
 import { AtcService } from '../services/atc/atc-service.js';
-import { RepositoryService } from '../services/repository/repository-service.js';
 import { DiscoveryService } from '../services/discovery/discovery-service.js';
 import { ObjectService } from '../services/repository/object-service.js';
 import { SearchService } from '../services/repository/search-service.js';
 import { TestService } from '../services/test/test-service.js';
 import { createLogger } from '../utils/logger.js';
 import { SessionManager } from './session-manager.js';
-import { ErrorHandler } from '../utils/error-handler.js';
 import { XmlParser } from '../utils/xml-parser.js';
 import type { CtsOperations } from '../services/cts/types.js';
 import type { AtcOperations } from '../services/atc/types.js';
 import type { RepositoryOperations } from '../services/repository/types.js';
 import type { DiscoveryOperations } from '../services/discovery/types.js';
+import { AdkFacade } from '../services/adk/adk-facade.js';
 
 export interface AdtClient {
   // Connection management
@@ -46,6 +39,7 @@ export interface AdtClient {
   readonly repository: RepositoryOperations; // All object operations
   readonly discovery: DiscoveryOperations; // System discovery
   readonly test: TestService; // Test operations for debugging
+  readonly adk: AdkFacade; // ADK object fetching from SAP system
 
   // Low-level access for advanced use cases
   request(endpoint: string, options?: RequestOptions): Promise<Response>;
@@ -60,6 +54,7 @@ export class AdtClientImpl implements AdtClient {
   private discoveryService: DiscoveryService;
   private atcService: AtcService;
   private testService: TestService;
+  private adkFacade: AdkFacade;
   private debugMode = false;
   private logger: any;
 
@@ -69,6 +64,7 @@ export class AdtClientImpl implements AdtClient {
   readonly repository: RepositoryOperations;
   readonly discovery: DiscoveryOperations;
   readonly test: TestService;
+  readonly adk: AdkFacade;
 
   constructor(config: AdtClientConfig = {}) {
     // Initialize logger - use provided logger or create default
@@ -91,6 +87,10 @@ export class AdtClientImpl implements AdtClient {
     );
     this.testService = new TestService(
       this.logger.child({ component: 'test' })
+    );
+    this.adkFacade = new AdkFacade(
+      this.connectionManager,
+      this.logger.child({ component: 'adk' })
     );
 
     // Initialize service accessors
@@ -141,6 +141,9 @@ export class AdtClientImpl implements AdtClient {
 
     // Expose test service directly
     this.test = this.testService;
+
+    // Expose ADK facade directly
+    this.adk = this.adkFacade;
   }
 
   async connect(config: AdtConnectionConfig): Promise<void> {

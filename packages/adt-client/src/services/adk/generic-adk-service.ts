@@ -1,11 +1,11 @@
 import { ConnectionManager } from '../../client/connection-manager.js';
 import { createLogger } from '../../utils/logger.js';
+import { AdkObject } from '@abapify/adk';
 import {
-  AdkObject,
   AdkClientInterface,
   ObjectOperationOptions,
   ObjectOperationResult,
-} from '@abapify/adk';
+} from './client-interface.js';
 import {
   AdtEndpointRegistry,
   DefaultEndpointRegistry,
