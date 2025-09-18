@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 // import { DomainAdtAdapter } from './adt'; // Commented out - missing AdtAdapter base class
 import { Kind } from '../../../kind';
-import type { DomainSpec } from '../index';
+import type { DomainSpec } from '..';
 
 // TODO: Re-enable when AdtAdapter base class is implemented
 describe.skip('DomainAdtAdapter', () => {

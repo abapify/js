@@ -2,10 +2,10 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  sourcemap: false,
+  sourcemap: true,
   tsconfig: 'tsconfig.lib.json',
   skipNodeModulesBundle: true,
   external: ['fast-xml-parser', 'fxmlp', 'vitest'],
-  dts: false,
+  dts: true,
   minify: false,
 });

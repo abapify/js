@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { AdtCoreType } from '../../namespaces/adtcore.js';
 import { AtomLinkType } from '../../namespaces/atom.js';
 import { Kind } from '../kind.js';
+import { BaseXML } from './base-xml.js';
 
 /**
  * Client-agnostic interface that any ADK object must implement
@@ -53,64 +54,69 @@ export interface AdkObjectConstructor {
  * Base abstract class for all ADK objects with common adtcore properties
  * Implements AdkObject interface for client compatibility
  */
-export abstract class AdkBaseObject<T = unknown, K extends Kind = Kind>
-  implements AdkObject
+export abstract class AdkBaseObject<
+  T,
+  K extends Kind,
+  X extends BaseXML = BaseXML
+> implements AdkObject
 {
-  protected adtcore: AdtCoreType;
-  protected links: AtomLinkType[] = [];
+  /** SAP object type identifier for registry */
+  static readonly sapType: string;
+
+  protected xmlRep!: X; // Composed XML representation - strongly typed for each child class
   protected sections: T;
   readonly kind: K;
 
   constructor(input: AdkObjectInput<T, K>) {
     this.kind = input.kind;
-    this.adtcore = input.adtcore;
     this.sections = input.sections;
+    // xmlRep will be set by child classes with their specific XML type
   }
 
-  // ADT Core getters
+  // ADT Core getters - delegate to composed XML representation
   get name(): string {
-    return this.adtcore.name;
+    return this.xmlRep.core.name;
   }
   get type(): string {
-    return this.adtcore.type;
+    return this.xmlRep.core.type;
   }
   get description(): string | undefined {
-    return this.adtcore.description;
+    return this.xmlRep.core.description;
   }
   get language(): string | undefined {
-    return this.adtcore.language;
+    return this.xmlRep.core.language;
   }
   get masterLanguage(): string | undefined {
-    return this.adtcore.masterLanguage;
+    return this.xmlRep.core.masterLanguage;
   }
   get responsible(): string | undefined {
-    return this.adtcore.responsible;
+    return this.xmlRep.core.responsible;
   }
   get changedBy(): string | undefined {
-    return this.adtcore.changedBy;
+    return this.xmlRep.core.changedBy;
   }
   get createdBy(): string | undefined {
-    return this.adtcore.createdBy;
+    return this.xmlRep.core.createdBy;
   }
   get changedAt(): Date | undefined {
-    return this.adtcore.changedAt;
+    return this.xmlRep.core.changedAt;
   }
   get createdAt(): Date | undefined {
-    return this.adtcore.createdAt;
+    return this.xmlRep.core.createdAt;
   }
   get version(): 'active' | 'inactive' | undefined {
-    return this.adtcore.version;
+    return this.xmlRep.core.version;
   }
   get package(): string | undefined {
-    return this.adtcore.packageRef?.name;
+    return this.xmlRep.packageRef?.name;
   }
 
-  // Links
-  getLinks(): AtomLink[] {
-    return [...this.links];
+  // Links - delegate to composed XML representation
+  getLinks(): AtomLinkType[] {
+    return [...(this.xmlRep.atomLinks || [])];
   }
-  getLink(rel: string): AtomLink | undefined {
-    return this.links.find((link) => link.rel === rel);
+  getLink(rel: string): AtomLinkType | undefined {
+    return this.xmlRep.atomLinks?.find((link) => link.rel === rel);
   }
 
   // Sections
@@ -134,8 +140,13 @@ export abstract class AdkBaseObject<T = unknown, K extends Kind = Kind>
     return parser.parse(cleanXml);
   }
 
-  // Abstract methods for concrete implementations
-  abstract toAdtXml(): string;
+  /**
+   * Serialize this object to ADT XML string
+   * Delegates to composed XML representation
+   */
+  toAdtXml(): string {
+    return this.xmlRep.toXMLString();
+  }
 
   /**
    * Create an instance of the concrete ADT object from XML
