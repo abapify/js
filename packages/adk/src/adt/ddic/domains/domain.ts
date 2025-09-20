@@ -1,6 +1,9 @@
-import { AdkBaseObject } from '../../base/adk-object.js';
-import { AdtCoreType } from '../../../namespaces/adtcore.js';
-import { Kind } from '../../kind.js';
+import { AdkBaseObject } from '../../base/adk-object';
+import type { AdtCoreType, PackageRefType } from '../../../namespaces/adtcore';
+import type { AtomLinkType } from '../../../namespaces/atom';
+import type { DdicType, DdicFixedValueType } from '../../../namespaces/ddic';
+import { Kind } from '../../kind';
+import { DomainXML } from './domain-xml';
 
 /**
  * Input interface for creating Domain instances
@@ -11,116 +14,47 @@ export interface DomainInput {
   adtcore: AdtCoreType;
 
   /** Domain-specific attributes */
-  domain?: {
-    dataType?: string;
-    length?: number;
-    decimals?: number;
-    outputLength?: number;
-    conversionExit?: string;
-    valueTable?: string;
-  };
+  domain?: DdicType;
 
-  /** Domain sections */
-  sections?: {
-    fixedValues?: Array<{
-      lowValue: string;
-      highValue?: string;
-      description?: string;
-    }>;
-  };
+  /** Fixed values for the range */
+  fixedValues?: DdicFixedValueType[];
 }
 
 /**
- * Type for parsed domain XML structure
- */
-type ParsedDomainXml = {
-  '@_adtcore:name': string;
-  '@_adtcore:type': string;
-  '@_adtcore:description'?: string;
-  '@_adtcore:language'?: string;
-  '@_adtcore:masterLanguage'?: string;
-  '@_adtcore:responsible'?: string;
-  '@_adtcore:changedBy'?: string;
-  '@_adtcore:createdBy'?: string;
-  '@_adtcore:changedAt'?: string;
-  '@_adtcore:createdAt'?: string;
-  '@_adtcore:version'?: string;
-  'ddic:dataType'?: string;
-  'ddic:length'?: string;
-  'ddic:decimals'?: string;
-  'ddic:outputLength'?: string;
-  'ddic:conversionExit'?: string;
-  'ddic:valueTable'?: string;
-  'ddic:fixedValues'?: {
-    'ddic:fixedValue': ParsedFixedValue | ParsedFixedValue[];
-  };
-  'adtcore:packageRef'?: {
-    '@_adtcore:uri': string;
-    '@_adtcore:type': string;
-    '@_adtcore:name': string;
-  };
-  'atom:link'?: ParsedAtomLink | ParsedAtomLink[];
-};
-
-/**
- * Type for parsed fixed value XML
- */
-type ParsedFixedValue = {
-  'ddic:lowValue': string;
-  'ddic:highValue'?: string;
-  'ddic:description'?: string;
-};
-
-/**
- * Type for parsed atom link XML
- */
-type ParsedAtomLink = {
-  '@_href': string;
-  '@_rel': string;
-  '@_type'?: string;
-  '@_title'?: string;
-  '@_etag'?: string;
-};
-
-/**
- * Domain-specific sections and types
+ * Domain-specific sections
  */
 export interface DomainSections {
-  dataType?: string;
-  length?: number;
-  decimals?: number;
-  outputLength?: number;
-  conversionExit?: string;
-  valueTable?: string;
-  fixedValues?: DomainFixedValue[];
-}
-
-export interface DomainFixedValue {
-  lowValue: string;
-  highValue?: string;
-  description?: string;
+  fixedValues?: DdicFixedValueType[];
 }
 
 /**
- * ABAP Domain ADT object with proper TypeScript types
+ * ABAP Domain domain object - focused on business logic.
+ * Uses DomainXML for all XML serialization/parsing concerns.
  */
 export class Domain extends AdkBaseObject<DomainSections, Kind.Domain> {
-  constructor(input: DomainInput) {
-    // Convert input format to internal sections format
-    const sections: DomainSections = {
-      dataType: input.domain?.dataType,
-      length: input.domain?.length,
-      decimals: input.domain?.decimals,
-      outputLength: input.domain?.outputLength,
-      conversionExit: input.domain?.conversionExit,
-      valueTable: input.domain?.valueTable,
-      fixedValues: input.sections?.fixedValues,
-    };
+  /** SAP object type identifier for registry */
+  static override readonly sapType = 'DOMA';
 
+  // XML representation - follows base class pattern
+  declare xmlRep: DomainXML;
+
+  constructor(input: DomainInput) {
     super({
       adtcore: input.adtcore,
-      sections,
+      sections: {
+        fixedValues: input.fixedValues,
+      },
       kind: Kind.Domain,
+    });
+
+    // Initialize XML representation
+    this.xmlRep = new DomainXML({
+      core: input.adtcore,
+      domain: {
+        ...input.domain,
+        fixedValues: input.fixedValues,
+      },
+      // atomLinks and packageRef will be set later if needed
     });
   }
 
@@ -131,257 +65,113 @@ export class Domain extends AdkBaseObject<DomainSections, Kind.Domain> {
     return new Domain(input);
   }
 
-  // Domain-specific getters
+  // Domain-specific getters - delegate to xmlRep
   get dataType(): string | undefined {
-    return this.sections.dataType;
+    return this.xmlRep.domain.dataType;
   }
+
   get length(): number | undefined {
-    return this.sections.length;
+    return this.xmlRep.domain.length;
   }
+
   get decimals(): number | undefined {
-    return this.sections.decimals;
+    return this.xmlRep.domain.decimals;
   }
+
   get outputLength(): number | undefined {
-    return this.sections.outputLength;
+    return this.xmlRep.domain.outputLength;
   }
+
   get conversionExit(): string | undefined {
-    return this.sections.conversionExit;
+    return this.xmlRep.domain.conversionExit;
   }
+
   get valueTable(): string | undefined {
-    return this.sections.valueTable;
-  }
-  get fixedValues(): DomainFixedValue[] {
-    return this.sections.fixedValues || [];
+    return this.xmlRep.domain.valueTable;
   }
 
-  // XML serialization
-  toAdtXml(): string {
-    const links = this.links
-      .map(
-        (link) =>
-          `    <atom:link xmlns:atom="http://www.w3.org/2005/Atom" href="${
-            link.href
-          }" rel="${link.rel}"${link.type ? ` type="${link.type}"` : ''}${
-            link.title ? ` title="${link.title}"` : ''
-          }${link.etag ? ` etag="${link.etag}"` : ''} />`
-      )
-      .join('\n');
-
-    const packageRefXml = this.packageRef
-      ? `    <adtcore:packageRef adtcore:uri="${this.packageRef.uri}" adtcore:type="${this.packageRef.type}" adtcore:name="${this.packageRef.name}" />`
-      : '';
-
-    const fixedValuesXml =
-      this.sections.fixedValues && this.sections.fixedValues.length > 0
-        ? `    <ddic:fixedValues>
-${this.sections.fixedValues
-  .map(
-    (fv) =>
-      `        <ddic:fixedValue>
-            <ddic:lowValue>${fv.lowValue}</ddic:lowValue>
-            <ddic:highValue>${fv.highValue || ''}</ddic:highValue>
-            ${
-              fv.description
-                ? `<ddic:description>${fv.description}</ddic:description>`
-                : ''
-            }
-        </ddic:fixedValue>`
-  )
-  .join('\n')}
-    </ddic:fixedValues>`
-        : '';
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<ddic:domain
-        xmlns:ddic="http://www.sap.com/adt/ddic"
-        adtcore:name="${this.adtcore.name}"
-        adtcore:type="${this.adtcore.type}"
-        ${
-          this.adtcore.description
-            ? `adtcore:description="${this.adtcore.description}"`
-            : ''
-        }
-        ${
-          this.adtcore.language
-            ? `adtcore:language="${this.adtcore.language}"`
-            : ''
-        }
-        ${
-          this.adtcore.masterLanguage
-            ? `adtcore:masterLanguage="${this.adtcore.masterLanguage}"`
-            : ''
-        }
-        ${
-          this.adtcore.responsible
-            ? `adtcore:responsible="${this.adtcore.responsible}"`
-            : ''
-        }
-        ${
-          this.adtcore.changedBy
-            ? `adtcore:changedBy="${this.adtcore.changedBy}"`
-            : ''
-        }
-        ${
-          this.adtcore.createdBy
-            ? `adtcore:createdBy="${this.adtcore.createdBy}"`
-            : ''
-        }
-        ${
-          this.adtcore.changedAt
-            ? `adtcore:changedAt="${this.adtcore.changedAt.toISOString()}"`
-            : ''
-        }
-        ${
-          this.adtcore.createdAt
-            ? `adtcore:createdAt="${this.adtcore.createdAt.toISOString()}"`
-            : ''
-        }
-        ${
-          this.adtcore.version
-            ? `adtcore:version="${this.adtcore.version}"`
-            : ''
-        }
-        xmlns:adtcore="http://www.sap.com/adt/core">
-${links}
-${packageRefXml}
-    ${
-      this.sections.dataType
-        ? `<ddic:dataType>${this.sections.dataType}</ddic:dataType>`
-        : ''
-    }
-    ${
-      this.sections.length !== undefined
-        ? `<ddic:length>${this.sections.length}</ddic:length>`
-        : ''
-    }
-    ${
-      this.sections.decimals !== undefined
-        ? `<ddic:decimals>${this.sections.decimals}</ddic:decimals>`
-        : ''
-    }
-    ${
-      this.sections.outputLength !== undefined
-        ? `<ddic:outputLength>${this.sections.outputLength}</ddic:outputLength>`
-        : ''
-    }
-    ${
-      this.sections.conversionExit
-        ? `<ddic:conversionExit>${this.sections.conversionExit}</ddic:conversionExit>`
-        : ''
-    }
-    ${
-      this.sections.valueTable
-        ? `<ddic:valueTable>${this.sections.valueTable}</ddic:valueTable>`
-        : ''
-    }
-${fixedValuesXml}
-</ddic:domain>`;
+  get fixedValues(): DdicFixedValueType[] {
+    return this.xmlRep.domain.fixedValues || [];
   }
 
-  // XML parsing
-  static override fromAdtXml<
-    U extends AdkBaseObject<unknown, K>,
-    K extends Kind
-  >(xml: string): U {
-    const parsed = AdkBaseObject.parseXml(xml);
-    const root = parsed['ddic:domain'] as ParsedDomainXml;
+  // Links and package reference accessors - delegate to xmlRep
+  getAtomLinks(): AtomLinkType[] {
+    return this.xmlRep.atomLinks || [];
+  }
 
-    // Parse adtcore attributes
-    const adtcore: AdtCoreAttributes = {
-      name: root['@_adtcore:name'],
-      type: root['@_adtcore:type'],
-      description: root['@_adtcore:description'],
-      language: root['@_adtcore:language'],
-      masterLanguage: root['@_adtcore:masterLanguage'],
-      responsible: root['@_adtcore:responsible'],
-      changedBy: root['@_adtcore:changedBy'],
-      createdBy: root['@_adtcore:createdBy'],
-      changedAt: root['@_adtcore:changedAt']
-        ? new Date(root['@_adtcore:changedAt'])
-        : undefined,
-      createdAt: root['@_adtcore:createdAt']
-        ? new Date(root['@_adtcore:createdAt'])
-        : undefined,
-      version: root['@_adtcore:version'] as 'active' | 'inactive' | undefined,
-    };
+  // Property getter for links (matching interface pattern)
+  get links(): AtomLinkType[] {
+    return this.xmlRep.atomLinks || [];
+  }
 
-    // Parse domain-specific sections
-    const sections: DomainSections = {
-      dataType: root['ddic:dataType'],
-      length:
-        root['ddic:length'] !== undefined
-          ? Number(root['ddic:length'])
-          : undefined,
-      decimals:
-        root['ddic:decimals'] !== undefined
-          ? Number(root['ddic:decimals'])
-          : undefined,
-      outputLength:
-        root['ddic:outputLength'] !== undefined
-          ? Number(root['ddic:outputLength'])
-          : undefined,
-      conversionExit: root['ddic:conversionExit'],
-      valueTable: root['ddic:valueTable'],
-    };
+  setAtomLinks(links: AtomLinkType[] | undefined) {
+    this.xmlRep.atomLinks = links;
+  }
 
-    // Parse fixed values
-    if (
-      root['ddic:fixedValues'] &&
-      root['ddic:fixedValues']['ddic:fixedValue']
-    ) {
-      const fixedValueElements = Array.isArray(
-        root['ddic:fixedValues']['ddic:fixedValue']
-      )
-        ? root['ddic:fixedValues']['ddic:fixedValue']
-        : [root['ddic:fixedValues']['ddic:fixedValue']];
+  getPackageRef(): PackageRefType | undefined {
+    return this.xmlRep.packageRef;
+  }
 
-      sections.fixedValues = fixedValueElements.map((fv: ParsedFixedValue) => ({
-        lowValue: String(fv['ddic:lowValue']),
-        highValue: fv['ddic:highValue'] ? String(fv['ddic:highValue']) : '',
-        description: fv['ddic:description'],
-      }));
-    }
+  setPackageRef(packageRef: PackageRefType | undefined) {
+    this.xmlRep.packageRef = packageRef;
+  }
 
-    const domain = new this({
-      adtcore,
-      domain: {
-        dataType: sections.dataType,
-        length: sections.length,
-        decimals: sections.decimals,
-        outputLength: sections.outputLength,
-        conversionExit: sections.conversionExit,
-        valueTable: sections.valueTable,
-      },
-      sections: {
-        fixedValues: sections.fixedValues,
-      },
+  // Property getter for packageRef
+  get packageRef(): PackageRefType | undefined {
+    return this.xmlRep.packageRef;
+  }
+
+  // Domain-specific setters for business operations
+  setDataType(dataType: string | undefined): void {
+    this.xmlRep.domain = { ...this.xmlRep.domain, dataType };
+  }
+
+  setLength(length: number | undefined): void {
+    this.xmlRep.domain = { ...this.xmlRep.domain, length };
+  }
+
+  setDecimals(decimals: number | undefined): void {
+    this.xmlRep.domain = { ...this.xmlRep.domain, decimals };
+  }
+
+  setOutputLength(outputLength: number | undefined): void {
+    this.xmlRep.domain = { ...this.xmlRep.domain, outputLength };
+  }
+
+  setConversionExit(conversionExit: string | undefined): void {
+    this.xmlRep.domain = { ...this.xmlRep.domain, conversionExit };
+  }
+
+  setValueTable(valueTable: string | undefined): void {
+    this.xmlRep.domain = { ...this.xmlRep.domain, valueTable };
+  }
+
+  setFixedValues(fixedValues: DdicFixedValueType[]): void {
+    this.xmlRep.domain = { ...this.xmlRep.domain, fixedValues };
+    this.sections = { ...this.sections, fixedValues };
+  }
+
+  // Clean XML serialization using DomainXML
+  override toAdtXml(): string {
+    // DomainXML handles the serialization
+    return this.xmlRep.toXMLString();
+  }
+
+  // Clean XML parsing using DomainXML
+  static override fromAdtXml(xml: string): Domain {
+    // Let DomainXML handle the parsing
+    const domainXML = DomainXML.fromXMLString(xml);
+
+    // Create Domain domain object from parsed data
+    const domain = new Domain({
+      adtcore: domainXML.core,
+      domain: domainXML.domain,
+      fixedValues: domainXML.domain.fixedValues,
     });
 
-    // Parse package reference
-    if (root['adtcore:packageRef']) {
-      const pkgRef = root['adtcore:packageRef'];
-      domain.packageRef = {
-        uri: pkgRef['@_adtcore:uri'],
-        type: pkgRef['@_adtcore:type'] as 'DEVC/K',
-        name: pkgRef['@_adtcore:name'],
-      };
-    }
+    // Update the xmlRep with the parsed data (including links and packageRef)
+    domain.xmlRep = domainXML;
 
-    // Parse atom links
-    const links = Array.isArray(root['atom:link'])
-      ? root['atom:link']
-      : [root['atom:link']].filter(Boolean);
-    domain.links = links
-      .filter((link): link is ParsedAtomLink => link !== undefined)
-      .map((link: ParsedAtomLink) => ({
-        href: link['@_href'],
-        rel: link['@_rel'],
-        type: link['@_type'],
-        title: link['@_title'],
-        etag: link['@_etag'],
-      }));
-
-    // Type assertion to handle the generic return type
-    return domain as unknown as U;
+    return domain;
   }
 }

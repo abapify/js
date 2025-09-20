@@ -1,19 +1,59 @@
 /**
- * Package reference element (adtcore:packageRef)
+ * Package reference attributes that become XML attributes on <adtcore:packageRef> element
  */
-export interface PackageRefType {
+export interface PackageRefAttributes {
   uri: string;
   type: 'DEVC/K';
   name: string;
 }
 
 /**
- * ADT Core namespace (adtcore:*) - Common attributes and elements for all ADT objects
- * Based on XML: adtcore:name, adtcore:type, adtcore:changedAt (attributes) + adtcore:packageRef (element)
+ * Package reference element (adtcore:packageRef) with attributes - simple structure
  */
-export interface AdtCoreType {
+export interface PackageRefType {
+  [$attributes]: PackageRefAttributes;
+  // PackageRef is a child element with attributes using the special symbol
+}
+
+// Import the special symbol
+import { $attributes } from '../decorators/decorators-v2';
+
+/**
+ * Utility type to flatten $attributes structure into a flat object
+ * Extracts properties from [$attributes] and merges them with other properties
+ */
+export type FlattenAttributes<T> = T extends { [$attributes]: infer A }
+  ? A & Omit<T, typeof $attributes>
+  : T;
+
+/**
+ * Recursively flatten all $attributes in nested objects
+ */
+export type DeepFlattenAttributes<T> = T extends { [$attributes]: infer A }
+  ? A & {
+      [K in keyof Omit<T, typeof $attributes>]: T[K] extends {
+        [$attributes]: any;
+      }
+        ? FlattenAttributes<T[K]>
+        : T[K] extends object
+        ? DeepFlattenAttributes<T[K]>
+        : T[K];
+    }
+  : T extends object
+  ? {
+      [K in keyof T]: T[K] extends { [$attributes]: any }
+        ? FlattenAttributes<T[K]>
+        : T[K] extends object
+        ? DeepFlattenAttributes<T[K]>
+        : T[K];
+    }
+  : T;
+
+// ADT Core attributes that become XML attributes on the root element
+export interface AdtCoreAttributes {
   name: string;
   type: string;
+  version?: string;
   description?: string;
   descriptionTextLimit?: number;
   language?: string;
@@ -23,17 +63,28 @@ export interface AdtCoreType {
   responsible?: string;
   changedBy?: string;
   createdBy?: string;
-  changedAt?: Date;
-  createdAt?: Date;
-  version?: 'active' | 'inactive';
-
-  // Nested adtcore elements
-  packageRef?: PackageRefType;
 }
 
-// ADT Core namespace URI
-export const ADTCORE_NAMESPACE_URI = 'http://www.sap.com/adt/core';
+/**
+ * ADT Core namespace (adtcore:*) - Clean structure with $attributes symbol
+ * Uses the new pattern for clear separation of attributes vs elements
+ */
+export type AdtCoreType = {
+  [$attributes]: AdtCoreAttributes;
+  packageRef?: PackageRefType;
+};
 
-// ADT Core decorator
-import { namespace } from '../decorators';
-export const adtcore = namespace('adtcore', ADTCORE_NAMESPACE_URI);
+/**
+ * Flattened version of AdtCoreType for easier usage and backward compatibility
+ * Automatically flattens all $attributes into regular properties
+ */
+export type AdtCoreTypeFlat = DeepFlattenAttributes<AdtCoreType>;
+
+// ADT Core decorator - simple namespace decorator
+import { registerNamespace, namespace } from '../decorators/decorators-v2';
+
+// Register the adtcore namespace
+registerNamespace('adtcore', 'http://www.sap.com/adt/core');
+
+// Export the simple namespace decorator
+export const adtcore = namespace('adtcore');

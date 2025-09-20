@@ -27,7 +27,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "pino-pretty": "^10.3.1",
-    "@vitest/coverage-v8": "^2.1.2"
+    "pino-pretty": "^10.3.1"
   }
 }
