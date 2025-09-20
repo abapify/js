@@ -29,6 +29,7 @@ export interface XMLPropertyMeta {
   readonly namespace: string;
   readonly elementName?: string;
   readonly structure?: NestedXMLSchema; // Recursive schema structure
+  readonly parent?: string | null; // Parent element - null/undefined means root element
 }
 
 /**
@@ -40,29 +41,37 @@ export type XMLPropertySchema = Record<string, XMLPropertyMeta>;
 /**
  * Utility types for creating schema entries more concisely
  */
-export type AttrSchema<Namespace extends string> = {
+export type AttrSchema<
+  Namespace extends string,
+  Parent extends string | null = null
+> = {
   kind: 'attr';
   namespace: Namespace;
+  parent?: Parent;
 };
 
 export type ElemSchema<
   Namespace extends string,
-  ElementName extends string = string
+  ElementName extends string = string,
+  Parent extends string | null = null
 > = {
   kind: 'elem';
   namespace: Namespace;
   elementName: ElementName;
+  parent?: Parent;
 };
 
 export type ElemWithStructure<
   Namespace extends string,
   ElementName extends string,
-  Structure extends NestedXMLSchema
+  Structure extends NestedXMLSchema,
+  Parent extends string | null = null
 > = {
   kind: 'elem';
   namespace: Namespace;
   elementName: ElementName;
   structure: Structure;
+  parent?: Parent;
 };
 
 /**
@@ -306,7 +315,9 @@ export const XMLParsedHelpers = {
   },
 
   parseNumber(value: string | undefined): number | undefined {
-    return value ? parseInt(value, 10) : undefined;
+    return value !== undefined && value !== null && value !== ''
+      ? parseInt(value, 10)
+      : undefined;
   },
 
   parseDate(value: string | undefined): Date | undefined {

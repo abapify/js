@@ -1,6 +1,8 @@
 // Export all namespace types - pure types only
-export * from './adtcore.js';
-export * from './class.js';
-export * from './abapoo.js';
-export * from './abapsource.js';
-export * from './atom.js';
+export * from './adtcore';
+export * from './class';
+export * from './abapoo';
+export * from './abapsource';
+export * from './atom';
+export * from './ddic';
+export * from './intf';
