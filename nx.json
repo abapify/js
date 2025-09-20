@@ -13,16 +13,18 @@
           "targetName": "build",
           "configName": "tsconfig.lib.json"
         }
-      }
+      },
+      "exclude": ["packages/xmld/*"]
     },
     {
       "plugin": "./tools/nx-tsdown/src/index.ts"
     },
     {
-      "plugin": "@nx/rollup/plugin",
-      "options": {
-        "buildTargetName": "build"
-      }
+      "plugin": "./tools/nx-vitest/src/index.ts"
+    },
+    {
+      "plugin": "@nx/vite/plugin",
+      "exclude": ["**/*"]
     },
     {
       "plugin": "@nx/eslint/plugin",
@@ -31,13 +33,12 @@
       }
     },
     {
-      "plugin": "@nx/vite/plugin",
+      "plugin": "@nx/js/typescript",
+      "include": ["packages/xmld/*"],
       "options": {
-        "buildTargetName": "build",
-        "previewTargetName": "preview",
-        "testTargetName": "test",
-        "serveTargetName": "serve",
-        "serveStaticTargetName": "serve-static"
+        "typecheck": {
+          "targetName": "typecheck"
+        }
       }
     }
   ],
@@ -49,13 +50,6 @@
   "targetDefaults": {
     "build": {
       "dependsOn": ["^build"]
-    },
-    "@nx/vite:test": {
-      "cache": true,
-      "inputs": ["default", "^default"],
-      "options": {
-        "run": true
-      }
     },
     "nx-release-publish": {
       "dependsOn": ["build", "test"]
@@ -82,6 +76,9 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["default", "^default"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
     }
   },
   "tui": {

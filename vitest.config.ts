@@ -14,6 +14,7 @@ export default defineConfig({
     projects: [
       'packages/*/vitest.config.{ts,js,mts,mjs}', // Direct packages: adk, adt-client, adt-cli, asjson-parser
       'packages/plugins/*/vitest.config.{ts,js,mts,mjs}', // Nested plugin packages: abapgit, gcts, oat
+      'e2e/*/vitest.config.{ts,js,mts,mjs}',
     ],
   },
 });

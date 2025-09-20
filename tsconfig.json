@@ -29,6 +29,9 @@
     },
     {
       "path": "./samples/sample-tsdown"
+    },
+    {
+      "path": "./packages/xmld"
     }
   ]
 }

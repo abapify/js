@@ -16,13 +16,6 @@
       "options": {
         "packageRoot": "dist/{projectRoot}"
       }
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "coverage/{projectRoot}"
-      }
     }
   }
 }
