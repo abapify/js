@@ -22,12 +22,7 @@ export abstract class BaseXML {
 
   constructor(data: { core: AdtCoreType; atomLinks?: AtomLinkType[] }) {
     this.core = data.core;
-    this.link = data.atomLinks;
-  }
-
-  // Backward compatibility getter
-  get atomLinks(): AtomLinkType[] | undefined {
-    return this.link;
+    this.link = data.atomLinks || [];
   }
 
   // Serialize to XML string
@@ -37,8 +32,9 @@ export abstract class BaseXML {
       ignoreAttributes: false,
       format: true,
       suppressEmptyNode: true,
+      suppressBooleanAttributes: false,
     });
-    return builder.build(xmlObj);
+    return '<?xml version="1.0" encoding="UTF-8"?>' + builder.build(xmlObj);
   }
 
   // Parse XML string to object
@@ -62,12 +58,6 @@ export abstract class BaseXML {
       responsible: root['@_adtcore:responsible'],
       changedBy: root['@_adtcore:changedBy'],
       createdBy: root['@_adtcore:createdBy'],
-      changedAt: root['@_adtcore:changedAt']
-        ? new Date(root['@_adtcore:changedAt'])
-        : undefined,
-      createdAt: root['@_adtcore:createdAt']
-        ? new Date(root['@_adtcore:createdAt'])
-        : undefined,
       version: root['@_adtcore:version'],
       masterSystem: root['@_adtcore:masterSystem'],
       abapLanguageVersion: root['@_adtcore:abapLanguageVersion'],
@@ -84,11 +74,11 @@ export abstract class BaseXML {
 
     const linkArray = Array.isArray(links) ? links : [links];
     return linkArray.map((link: any) => ({
-      href: link['@_atom:href'],
-      rel: link['@_atom:rel'],
-      type: link['@_atom:type'],
-      title: link['@_atom:title'],
-      etag: link['@_atom:etag'],
+      href: link.href,
+      rel: link.rel,
+      type: link.type,
+      title: link.title,
+      etag: link.etag,
     }));
   }
 }

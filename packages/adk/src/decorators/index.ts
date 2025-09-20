@@ -3,6 +3,9 @@
  * Target: Generate the exact XML structure in zif_test.intf.xml
  */
 
+// Shared symbol for attributes interface - MUST be used by all namespaces
+export const attributesInterface = Symbol('attributesInterface');
+
 // Simple metadata storage (no reflect-metadata needed for minimal version)
 const metadata = new WeakMap<any, Map<string, any>>();
 
@@ -26,25 +29,93 @@ export function XMLRoot(rootElement: string) {
   };
 }
 
-// Attributes modifier - marks that a property should produce attributes
-export function attributes(target: any, propertyKey: string) {
-  const existing = getMetadata(target, propertyKey) || {};
-  setMetadata(target, propertyKey, {
-    ...existing,
-    type: 'attributes',
-  });
+// Attributes modifier - supports both function call and direct decorator usage
+// @attributes - for legacy compatibility (BaseXML)
+// @attributes() - for new usage with optional parent argument
+export function attributes(targetOrParent?: any, propertyKey?: string): any {
+  // Case 1: Called as decorator directly @attributes (legacy BaseXML compatibility)
+  if (typeof targetOrParent === 'object' && propertyKey) {
+    const existing = getMetadata(targetOrParent, propertyKey) || {};
+    setMetadata(targetOrParent, propertyKey, {
+      ...existing,
+      type: 'attributes',
+      parent: null, // Root element for legacy usage
+    });
+    return;
+  }
+
+  // Case 2: Called as function @attributes(parent) - returns decorator
+  const parent = typeof targetOrParent === 'string' ? targetOrParent : null;
+  return function (target: any, propertyKey: string) {
+    const existing = getMetadata(target, propertyKey) || {};
+    setMetadata(target, propertyKey, {
+      ...existing,
+      type: 'attributes',
+      parent: parent, // Use provided parent or null for root
+    });
+  };
 }
 
 // Generic namespace decorator with URI - defaults to elements
 // Also works as a transformation function when called with data
-export function namespace(ns: string, uri: string) {
+export function namespace(
+  ns: string,
+  uri: string,
+  mixedContent: boolean = false
+) {
   function decorator(target: any, propertyKey: string) {
     const existing = getMetadata(target, propertyKey) || {};
     setMetadata(target, propertyKey, {
       type: existing.type || 'elements', // Default to elements
       namespace: ns,
       uri,
+      parent: existing.parent || null, // Inherit parent from other decorators
     });
+
+    // For mixed-content namespaces, create property setter that automatically adds attributesInterface symbol
+    if (mixedContent) {
+      const privateKey = `_${propertyKey}`;
+
+      Object.defineProperty(target, propertyKey, {
+        get() {
+          return this[privateKey];
+        },
+        set(value: any) {
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            // Automatically add the attributesInterface symbol for mixed content
+            // The symbol should point to the attributes that should become XML attributes
+
+            // Use Object.assign to preserve all properties and add the symbol
+            const result = Object.assign({}, value);
+            // Add the symbol to mark what becomes XML attributes (the entire value)
+            Object.defineProperty(result, attributesInterface, {
+              value: value,
+              enumerable: false,
+              configurable: true,
+              writable: true,
+            });
+
+            // Debug logging
+            console.log(`[SETTER DEBUG] Setting ${propertyKey} with symbol`);
+            console.log(
+              `[SETTER DEBUG] Result has ${
+                Object.getOwnPropertySymbols(result).length
+              } symbols`
+            );
+            console.log(
+              `[SETTER DEBUG] Symbol check:`,
+              result[attributesInterface] !== undefined
+            );
+
+            this[privateKey] = result;
+          } else {
+            this[privateKey] = value;
+          }
+        },
+        enumerable: true,
+        configurable: true,
+      });
+    }
   }
 
   // Add transformation capability
@@ -98,8 +169,35 @@ export function namespace(ns: string, uri: string) {
 
 // Generic decorator system - no SAP-specific logic here!
 
-// Generic element decorator factory
-export const element =
+// Element decorator - supports both function call and direct decorator usage
+// @element - for direct usage (no parent)
+// @element(parent) - for usage with optional parent argument
+export function element(targetOrParent?: any, propertyKey?: string): any {
+  // Case 1: Called as decorator directly @element (no parentheses)
+  if (typeof targetOrParent === 'object' && propertyKey) {
+    const existing = getMetadata(targetOrParent, propertyKey) || {};
+    setMetadata(targetOrParent, propertyKey, {
+      ...existing,
+      type: 'elements',
+      parent: null, // Root element for direct usage
+    });
+    return;
+  }
+
+  // Case 2: Called as function @element(parent) - returns decorator
+  const parent = typeof targetOrParent === 'string' ? targetOrParent : null;
+  return function (target: any, propertyKey: string) {
+    const existing = getMetadata(target, propertyKey) || {};
+    setMetadata(target, propertyKey, {
+      ...existing,
+      type: 'elements',
+      parent: parent, // Use provided parent or null for root
+    });
+  };
+}
+
+// Generic element decorator factory (legacy)
+export const elementFactory =
   (namespace: string, uri: string, elementName?: string) =>
   (target: any, propertyKey: string) => {
     setMetadata(target, propertyKey, {
@@ -123,16 +221,26 @@ export function toXML(instance: any): any {
   const content: any = {};
   const usedNamespaces = new Map<string, string>(); // namespace -> URI
 
-  // Track root namespace from rootElement (e.g., 'intf:abapInterface' → 'intf')
+  // Track root namespace from rootElement (e.g., 'test:root' → 'test')
+  // Note: Root namespace URI should come from decorator metadata, not hardcoded
   const rootNS = rootElement.includes(':') ? rootElement.split(':')[0] : null;
-  if (rootNS)
-    usedNamespaces.set(rootNS, 'http://www.sap.com/adt/oo/interfaces'); // Default for intf
+
+  // Helper to get or create parent container
+  const getParentContainer = (parent: string | null) => {
+    if (!parent) return content; // Root element
+
+    // Ensure parent element exists
+    if (!content[parent]) {
+      content[parent] = {};
+    }
+    return content[parent];
+  };
 
   // Process each property - need to check both properties and getters
-  const processProperty = (key: string, value: any) => {
+  const processProperty = (key: string, value: any, providedMeta?: any) => {
     if (value === undefined || value === null) return;
 
-    const meta = getMetadata(constructor.prototype, key);
+    const meta = providedMeta || getMetadata(constructor.prototype, key);
     if (!meta) return;
 
     // Track namespace usage with URI from decorator
@@ -140,17 +248,20 @@ export function toXML(instance: any): any {
       usedNamespaces.set(meta.namespace, meta.uri);
     }
 
+    // Get target container based on parent
+    const targetContainer = getParentContainer(meta.parent);
+
     if (meta.type === 'attributes') {
       // Render attributes using namespace from property name (SAP ADT format)
       const rendered = renderNamespaceAsAttributes(meta.namespace, value);
-      Object.assign(content, rendered);
+      Object.assign(targetContainer, rendered);
     } else if (meta.type === 'elements') {
       // Handle child elements
       if (Array.isArray(value)) {
         // For arrays (like atom:link) - render as elements with attributes
         value.forEach((item) => {
           const elementName = `${meta.namespace}:${meta.elementName || 'link'}`;
-          if (!content[elementName]) content[elementName] = [];
+          if (!targetContainer[elementName]) targetContainer[elementName] = [];
 
           // Array elements should have attributes, not child elements
           const renderedItem = renderNamespaceAsAttributes(
@@ -161,19 +272,58 @@ export function toXML(instance: any): any {
           if (meta.uri) {
             renderedItem[`@_xmlns:${meta.namespace}`] = meta.uri;
           }
-          content[elementName].push(renderedItem);
+          targetContainer[elementName].push(renderedItem);
         });
       } else {
-        // Single elements - handle complex structures
-        const elementName = `${meta.namespace}:${meta.elementName || key}`;
-        content[elementName] = renderComplexElement(meta.namespace, value, key);
+        // Single elements - handle object types as nested elements
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          !Array.isArray(value)
+        ) {
+          // Object type: create child elements for each property using same namespace
+          const nestedElements = renderObjectAsChildElements(
+            meta.namespace,
+            value
+          );
+          Object.assign(targetContainer, nestedElements);
+        } else {
+          // Simple value: create single element
+          const elementName = `${meta.namespace}:${meta.elementName || key}`;
+          targetContainer[elementName] = String(value);
+        }
       }
     }
   };
 
   // Check both regular properties and getters
   for (const [key, value] of Object.entries(instance)) {
-    processProperty(key, value);
+    // Try to find metadata on current prototype first, then check parent chain
+    let meta = getMetadata(constructor.prototype, key);
+    if (!meta) {
+      // Check parent prototypes for metadata
+      let currentProto = Object.getPrototypeOf(constructor.prototype);
+      while (
+        currentProto &&
+        currentProto.constructor.name !== 'Object' &&
+        !meta
+      ) {
+        meta = getMetadata(currentProto, key);
+        currentProto = Object.getPrototypeOf(currentProto);
+      }
+    }
+
+    // PATTERN RECOGNITION: Auto-detect attribute properties based on name patterns
+    // This implements the successful approach from the memory
+    if (!meta && isAttributeProperty(key)) {
+      meta = {
+        type: 'attributes',
+        namespace: inferNamespace(key),
+        uri: getNamespaceUri(inferNamespace(key)),
+      };
+    }
+
+    processProperty(key, value, meta);
   }
 
   // Also check prototype for getters (decorated methods)
@@ -195,72 +345,91 @@ export function toXML(instance: any): any {
   return result;
 }
 
-// Handle complex nested elements - generic approach
-function renderComplexElement(namespace: string, data: any, key: string): any {
-  // Special case: packageRef should be rendered as element with attributes, not nested elements
-  if (
-    key === 'packageRef' &&
-    typeof data === 'object' &&
-    data !== null &&
-    !Array.isArray(data)
-  ) {
-    // Check if this looks like a simple flat object (all values are primitives)
-    const allPrimitive = Object.values(data).every(
-      (value) =>
-        typeof value === 'string' ||
-        typeof value === 'number' ||
-        typeof value === 'boolean'
-    );
+// Render object properties as child elements with namespace
+function renderObjectAsChildElements(namespace: string, obj: any): any {
+  const result: any = {};
 
-    if (allPrimitive) {
-      // Render as attributes of the element
-      return renderNamespaceAsAttributes(namespace, data);
-    }
-  }
+  // Check if object has attributesInterface symbol - indicates mixed attributes/elements
+  if (obj[attributesInterface]) {
+    // Mixed attributes and elements case
+    const attributeInterface = obj[attributesInterface];
+    if (attributeInterface && typeof attributeInterface === 'object') {
+      // Get attribute property names from the interface
+      const attributeKeys = Object.keys(attributeInterface);
 
-  // Handle complex nested structures (like syntaxConfiguration)
-  if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
-    const result: any = {};
+      // Split object into attributes and elements
+      const attributes: any = {};
+      const elements: any = {};
 
-    for (const [subKey, subValue] of Object.entries(data)) {
-      if (subValue === undefined || subValue === null) continue;
-
-      const elementName = `${namespace}:${subKey}`;
-
-      if (
-        typeof subValue === 'object' &&
-        subValue !== null &&
-        !Array.isArray(subValue)
-      ) {
-        // Handle cross-namespace objects (like parserLink which should be atom:link)
-        if (subKey === 'parserLink') {
-          result['atom:link'] = renderNamespaceAsAttributes('atom', subValue);
+      for (const [key, value] of Object.entries(obj)) {
+        if (attributeKeys.includes(key)) {
+          // This property becomes an XML attribute
+          attributes[`@_${namespace}:${key}`] =
+            typeof value === 'boolean'
+              ? value
+                ? 'true'
+                : 'false'
+              : String(value);
         } else {
-          // Nested object - recursively handle with same namespace
-          result[elementName] = renderComplexElement(
-            namespace,
-            subValue,
-            subKey
-          );
+          // This property becomes a child element
+          elements[key] = value;
         }
-      } else if (Array.isArray(subValue)) {
-        // Array - handle each item
-        result[elementName] = subValue.map((item) =>
-          typeof item === 'object'
-            ? renderNamespaceAsAttributes(namespace, item)
-            : item
-        );
-      } else {
-        // Simple value
-        result[elementName] = String(subValue);
       }
-    }
 
-    return result;
+      // Combine attributes and child elements
+      Object.assign(result, attributes);
+
+      // Process child elements normally
+      for (const [key, value] of Object.entries(elements)) {
+        if (value === undefined || value === null) continue;
+
+        const elementName = `${namespace}:${key}`;
+
+        if (Array.isArray(value)) {
+          // Array handling - treat as regular array property, no magic naming
+          result[elementName] = value.map((item) => {
+            if (typeof item === 'object' && item !== null) {
+              return renderObjectAsChildElements(namespace, item);
+            } else {
+              return String(item);
+            }
+          });
+        } else if (typeof value === 'object' && value !== null) {
+          result[elementName] = renderObjectAsChildElements(namespace, value);
+        } else {
+          result[elementName] = String(value);
+        }
+      }
+
+      return result;
+    }
   }
 
-  // For simple objects, use attributes
-  return renderNamespaceAsAttributes(namespace, data);
+  // Standard processing - all properties become child elements
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined || value === null) continue;
+
+    const elementName = `${namespace}:${key}`;
+
+    if (Array.isArray(value)) {
+      // Array handling - treat as regular array property, no magic naming
+      result[elementName] = value.map((item) => {
+        if (typeof item === 'object' && item !== null) {
+          return renderObjectAsChildElements(namespace, item);
+        } else {
+          return String(item);
+        }
+      });
+    } else if (typeof value === 'object' && value !== null) {
+      // Nested object: recurse with same namespace
+      result[elementName] = renderObjectAsChildElements(namespace, value);
+    } else {
+      // Primitive: convert to string
+      result[elementName] = String(value);
+    }
+  }
+
+  return result;
 }
 
 // Render namespace data as XML attributes
@@ -283,4 +452,31 @@ function renderNamespaceAsAttributes(namespace: string, data: any): any {
   }
 
   return result;
+}
+
+// Pattern recognition functions based on memory of successful implementation
+function isAttributeProperty(propertyName: string): boolean {
+  // Properties that should become XML attributes based on the memory
+  return ['core', 'oo', 'source'].includes(propertyName);
+}
+
+function inferNamespace(propertyName: string): string {
+  // Namespace inference based on property names from the memory
+  const namespaceMap: Record<string, string> = {
+    core: 'adtcore',
+    oo: 'abapoo',
+    source: 'abapsource',
+  };
+  return namespaceMap[propertyName] || propertyName;
+}
+
+function getNamespaceUri(namespace: string): string {
+  // URI mapping for known namespaces
+  const uriMap: Record<string, string> = {
+    adtcore: 'http://www.sap.com/adt/core',
+    abapoo: 'http://www.sap.com/adt/oo',
+    abapsource: 'http://www.sap.com/adt/abapsource',
+    atom: 'http://www.w3.org/2005/Atom',
+  };
+  return uriMap[namespace] || '';
 }

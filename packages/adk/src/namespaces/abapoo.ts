@@ -1,14 +1,28 @@
 /**
- * ABAP OO namespace (abapoo:*) - ABAP Object Oriented attributes
- * Based on XML: abapoo:modeled
+ * ABAP OO attributes - these become XML attributes
  */
-export interface AbapOOType {
+export interface AbapOOAttributes {
   modeled: boolean;
 }
 
-// ABAP OO namespace URI
-export const ABAPOO_NAMESPACE_URI = 'http://www.sap.com/adt/oo';
+/**
+ * ABAP OO elements - these become XML child elements
+ */
+export interface AbapOOElements {
+  // No child elements for abapoo namespace currently
+}
 
-// ABAP OO decorator
-import { namespace } from '../decorators';
-export const abapoo = namespace('abapoo', ABAPOO_NAMESPACE_URI);
+/**
+ * ABAP OO namespace (abapoo:*) - Smart namespace with automatic attribute/element detection
+ * Attributes: simple values (string, number, boolean)
+ * Elements: complex values (objects, arrays)
+ */
+export type AbapOOType = AbapOOAttributes & AbapOOElements;
+
+// ABAP OO decorator - smart namespace with automatic attribute/element detection
+import { createNamespace } from '../decorators/decorators-v2';
+
+export const abapoo = createNamespace<AbapOOElements, AbapOOAttributes>({
+  name: 'abapoo',
+  uri: 'http://www.sap.com/adt/oo',
+});

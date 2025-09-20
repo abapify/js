@@ -4,6 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "nx run-many --target=test --exclude=${npm_package_name}",
+    "test:vitest": "vitest run --silent",
+    "test:vitest:verbose": "vitest run",
     "prepare": "husky",
     "precommit": "nx format:check --uncommitted",
     "lint": "nx run-many --target=lint --fix --exclude=${npm_package_name}",
@@ -35,8 +37,6 @@
     "@swc/jest": "0.2.39",
     "@types/jest": "30.0.0",
     "@types/node": "^22",
-    "@vitest/coverage-v8": "^2.1.2",
-    "@vitest/ui": "^2.1.2",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "10.1.5",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -62,7 +62,7 @@
     "typescript-eslint": "8.43.0",
     "verdaccio": "6.1.2",
     "vite": "7.1.5",
-    "vitest": "^2.1.2"
+    "vitest": "^3.2.4"
   },
   "nx": {},
   "dependencies": {
