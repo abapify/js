@@ -1,24 +1,29 @@
-export * from './adt';
+// Import and register all ADK object types
+import { Interface } from './adt/oo/interfaces/interface';
+import { Class } from './adt/oo/classes/class';
+import { Domain } from './adt/ddic/domains/domain';
+import { objectRegistry } from './adt/base/object-registry';
 
-// Explicitly export key components for ADT client integration
-export { objectRegistry } from './adt/base/object-registry.js';
-export type { AdkObject, AdkObjectConstructor } from './adt/base/adk-object.js';
+// Register all object types in the registry
+objectRegistry.register('INTF', Interface);
+objectRegistry.register('CLAS', Class);
+objectRegistry.register('DOMA', Domain);
 
-// Export generic decorator system
-export { XMLRoot, attributes, namespace, element, toXML } from './decorators';
+// === ESSENTIAL EXPORTS ===
 
-// Export SAP-specific decorators (from their respective namespaces)
-export { adtcore } from './namespaces/adtcore.js';
-export { abapoo } from './namespaces/abapoo.js';
-export { abapsource } from './namespaces/abapsource.js';
-export { atom } from './namespaces/atom.js';
-export { classNs } from './namespaces/class.js';
+// Main ADK object classes
+export { Interface } from './adt/oo/interfaces/interface';
+export { Class } from './adt/oo/classes/class';
+export { Domain } from './adt/ddic/domains/domain';
 
-// XML processing now handled by BaseXML + decorator system
-// Legacy XML helpers removed - no longer needed
+// Object registry for creating objects from XML
+export { objectRegistry } from './adt/base/object-registry';
 
-// Export namespace types
-export type * from './namespaces';
+// Essential types for TypeScript consumers
+export type { AdkObject, AdkObjectConstructor } from './adt/base/adk-object';
+export { Kind } from './adt/kind';
 
-// Client operation interfaces (CRUD, transport, etc.) are now in @abapify/adt-client package
-// ADK only exports pure object modeling interfaces
+// Core namespace types (commonly needed)
+export type { AdtCoreType, PackageRefType } from './namespaces/adtcore';
+export type { AtomLinkType } from './namespaces/atom';
+export type { DdicType, DdicFixedValueType } from './namespaces/ddic';

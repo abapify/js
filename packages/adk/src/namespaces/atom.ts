@@ -18,9 +18,26 @@ export type AtomRelationType =
   | 'http://www.sap.com/adt/relations/objectstates'
   | 'http://www.sap.com/adt/relations/abapsource/parser';
 
-// Atom namespace URI
-export const ATOM_NAMESPACE_URI = 'http://www.w3.org/2005/Atom';
+// Atom attributes (none - atom:link elements have attributes but no namespace attributes)
+export interface AtomAttributes {
+  // No namespace-level attributes for atom
+}
 
-// Atom decorator
-import { namespace } from '../decorators';
-export const atom = namespace('atom', ATOM_NAMESPACE_URI);
+// Atom elements
+export interface AtomElements {
+  link?: AtomLinkType | AtomLinkType[];
+}
+
+/**
+ * Atom namespace (atom:*) - Smart namespace with automatic attribute/element detection
+ * Primarily used for atom:link elements
+ */
+export type AtomType = AtomAttributes & AtomElements;
+
+// Atom decorator - smart namespace with automatic attribute/element detection
+import { createNamespace } from '../decorators/decorators-v2';
+
+export const atom = createNamespace<AtomElements, AtomAttributes>({
+  name: 'atom',
+  uri: 'http://www.w3.org/2005/Atom',
+});

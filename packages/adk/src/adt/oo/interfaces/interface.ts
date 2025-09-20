@@ -57,6 +57,9 @@ export class Interface extends AdkBaseObject<
   /** SAP object type identifier for registry */
   static readonly sapType = 'INTF';
 
+  // XML representation - follows base class pattern
+  declare xmlRep: InterfaceXML;
+
   // Domain data - no XML concerns
   private _adtcore: AdtCoreType;
   private _abapoo: AbapOOType;
@@ -76,6 +79,16 @@ export class Interface extends AdkBaseObject<
     this._adtcore = input.adtcore;
     this._abapoo = input.abapoo || { modeled: false };
     this._abapsource = input.abapsource || { sourceUri: 'source/main' };
+
+    // Initialize XML representation (required by AdkBaseObject)
+    this.xmlRep = new InterfaceXML({
+      core: this._adtcore,
+      oo: this._abapoo,
+      source: this._abapsource,
+      atomLinks: this._links,
+      packageRef: this._packageRef,
+      syntaxConfiguration: this._syntaxConfiguration,
+    });
   }
 
   /**
@@ -106,9 +119,7 @@ export class Interface extends AdkBaseObject<
 
   setAtomLinks(links: AtomLinkType[] | undefined) {
     this._links = links || [];
-    // Also set the base class property to ensure compatibility
-    // @ts-expect-error: Setting internal property for compatibility
-    this.links = this._links;
+    // Note: No need to set base class property - our override getter handles it
   }
 
   getPackageRef(): PackageRefType | undefined {
