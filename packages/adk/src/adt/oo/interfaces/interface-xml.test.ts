@@ -36,8 +36,6 @@ describe('InterfaceXML - Clean Separation of Concerns', () => {
     expect(xmlString).toContain('adtcore:name="ZIF_XML_TEST"');
     expect(xmlString).toContain('abapoo:modeled="false"');
     expect(xmlString).toContain('<atom:link');
-
-    console.log('🎯 InterfaceXML generated:', xmlString.slice(0, 200) + '...');
   });
 
   it('should round-trip XML perfectly', () => {
@@ -46,8 +44,11 @@ describe('InterfaceXML - Clean Separation of Concerns', () => {
         name: 'ZIF_ROUNDTRIP',
         type: 'INTF/OI',
         description: 'Round-trip test interface',
-        responsible: 'CB9980003374',
-        masterLanguage: 'EN',
+        packageRef: {
+          uri: '/sap/bc/adt/packages/ztest',
+          type: 'DEVC/K' as const,
+          name: 'ZTEST',
+        },
       },
       oo: {
         modeled: true,
@@ -64,11 +65,6 @@ describe('InterfaceXML - Clean Separation of Concerns', () => {
           type: 'text/plain',
         },
       ],
-      packageRef: {
-        uri: '/sap/bc/adt/packages/ztest',
-        type: 'DEVC/K' as const,
-        name: 'ZTEST',
-      },
     };
 
     // Create → Serialize → Parse → Compare
@@ -86,8 +82,6 @@ describe('InterfaceXML - Clean Separation of Concerns', () => {
     expect(interfaceXML2.atomLinks).toHaveLength(1);
     expect(interfaceXML2.atomLinks[0].href).toBe('source/main');
     expect(interfaceXML2.packageRef?.name).toBe('ZTEST');
-
-    console.log('🎉 Perfect round-trip! XML layer works flawlessly.');
   });
 
   it('should demonstrate clean factory pattern', () => {
@@ -122,7 +116,5 @@ describe('InterfaceXML - Clean Separation of Concerns', () => {
 
     expect(xmlString).toContain('ZIF_FACTORY_TEST');
     expect(interfaceXML.core.name).toBe('ZIF_FACTORY_TEST');
-
-    console.log('✨ Clean factory pattern - Domain object → XML layer');
   });
 });
