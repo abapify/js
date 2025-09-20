@@ -6,5 +6,7 @@ export default defineProject({
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     globals: true,
     environment: 'node',
+    // Silent by default - use --reporter=verbose to see console logs when needed
+    silent: true,
   },
 });
