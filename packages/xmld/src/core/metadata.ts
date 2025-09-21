@@ -39,7 +39,7 @@ const XML_CLASS_REGISTRY = new Map<string, Constructor>();
  * Set metadata for a class
  */
 export function setClassMetadata(target: any, metadata: ClassMetadata): void {
-  const existing = CLASS_METADATA.get(target) || {};
+  const existing = CLASS_METADATA.get(target) ?? {};
   CLASS_METADATA.set(target, { ...existing, ...metadata });
 }
 
@@ -88,13 +88,12 @@ export function setPropertyMetadata(
   propertyKey: string,
   metadata: PropertyMetadata
 ): void {
-  let propertyMap = PROPERTY_METADATA.get(target);
-  if (!propertyMap) {
-    propertyMap = new Map();
+  let propertyMap = PROPERTY_METADATA.get(target) ?? new Map();
+  if (!PROPERTY_METADATA.has(target)) {
     PROPERTY_METADATA.set(target, propertyMap);
   }
 
-  const existing = propertyMap.get(propertyKey) || {};
+  const existing = propertyMap.get(propertyKey) ?? {};
   propertyMap.set(propertyKey, { ...existing, ...metadata });
 }
 
