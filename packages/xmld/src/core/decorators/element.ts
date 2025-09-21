@@ -116,8 +116,8 @@ function setupAutoInstantiationArray(
   Object.defineProperty(target, propertyKey, {
     get() {
       // If this instance has a property that shadows our getter, delete it first
-      if (Object.prototype.hasOwnProperty.call(this, propertyKey)) {
-        delete this[propertyKey];
+      if (Reflect.has(this, propertyKey)) {
+        Reflect.deleteProperty(this, propertyKey);
       }
 
       if (!this[privateKey]) {
@@ -142,8 +142,8 @@ function setupAutoInstantiationArray(
     },
     set(value: any[]) {
       // Delete any shadowing instance property
-      if (Object.prototype.hasOwnProperty.call(this, propertyKey)) {
-        delete this[propertyKey];
+      if (Reflect.has(this, propertyKey)) {
+        Reflect.deleteProperty(this, propertyKey);
       }
 
       // Auto-instantiate all array items
@@ -181,8 +181,8 @@ function setupAutoInstantiationObject(
   Object.defineProperty(target, propertyKey, {
     get() {
       // If this instance has a property that shadows our getter, delete it first
-      if (Object.prototype.hasOwnProperty.call(this, propertyKey)) {
-        delete this[propertyKey];
+      if (Reflect.has(this, propertyKey)) {
+        Reflect.deleteProperty(this, propertyKey);
       }
 
       if (!this[privateKey]) {
@@ -192,8 +192,8 @@ function setupAutoInstantiationObject(
     },
     set(value: any) {
       // Delete any shadowing instance property
-      if (Object.prototype.hasOwnProperty.call(this, propertyKey)) {
-        delete this[propertyKey];
+      if (Reflect.has(this, propertyKey)) {
+        Reflect.deleteProperty(this, propertyKey);
       }
 
       if (
