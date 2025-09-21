@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../plugins/abapgit"
+    },
+    {
       "path": "../adt-client"
     },
     {

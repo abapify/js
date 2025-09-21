@@ -13,6 +13,7 @@ This document tracks the current implementation status of xmld features against 
 - `@attribute` - Attribute property marking
 - `@unwrap` - Property flattening (works with both `@element` and `@attribute`)
 - `@namespace(prefix, uri)` - Namespace assignment
+- **✨ Class Inheritance** - Full support for multi-level inheritance with metadata merging
 
 ### Serialization
 
@@ -38,10 +39,19 @@ This document tracks the current implementation status of xmld features against 
 
 ### Testing
 
-- Comprehensive test suite (25+ tests)
+- Comprehensive test suite (36 tests including inheritance)
 - Real-world examples (RSS, SAP ADT, SOAP-like structures)
 - Edge case coverage
 - Auto-instantiation validation
+- Inheritance test coverage
+
+### Build System
+
+- **✅ tsdown Configuration** - Modern TypeScript bundler setup
+- **✅ Dual Export Strategy** - Source files for development, built files for production
+- **✅ Plugin Exports** - Separate plugin entry points (`xmld/plugins/fast-xml-parser`)
+- **✅ Type Definitions** - Full TypeScript declaration files generated
+- **✅ Source Maps** - Complete source map support for debugging
 
 ## 🚧 Planned for Future Releases
 

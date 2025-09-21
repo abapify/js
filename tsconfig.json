@@ -32,6 +32,12 @@
     },
     {
       "path": "./packages/xmld"
+    },
+    {
+      "path": "./tools/nx-vitest"
+    },
+    {
+      "path": "./e2e/adk-xml"
     }
   ]
 }
