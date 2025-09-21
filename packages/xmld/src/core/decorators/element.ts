@@ -2,6 +2,7 @@
  * @element decorator - Mark a property as an XML element with auto-instantiation support
  */
 
+import 'reflect-metadata';
 import { METADATA_TYPES } from '../constants';
 import {
   setPropertyMetadata,
@@ -58,14 +59,82 @@ function setupElement(
     name: options.name || propertyKey,
   });
 
-  // Set up auto-instantiation if type is provided
-  if (options.type) {
-    setupAutoInstantiationWithType(
-      target,
-      propertyKey,
-      options.type,
-      options.array || false
-    );
+  // Determine the type for auto-instantiation
+  let typeToUse = options.type;
+  let isArray = options.array || false;
+
+  // If no explicit type provided, try to infer from TypeScript metadata
+  if (!typeToUse) {
+    const inferredResult = inferTypeFromMetadata(target, propertyKey);
+    if (inferredResult) {
+      typeToUse = inferredResult.type;
+      isArray = inferredResult.isArray;
+    }
+  }
+
+  // Set up auto-instantiation if we have a type (explicit or inferred)
+  if (typeToUse) {
+    setupAutoInstantiationWithType(target, propertyKey, typeToUse, isArray);
+  }
+}
+
+/**
+ * Interface for inferred type information
+ */
+interface InferredTypeInfo {
+  type: Constructor;
+  isArray: boolean;
+}
+
+/**
+ * Infer type information from TypeScript decorator metadata
+ * Uses reflect-metadata to extract type information automatically
+ */
+function inferTypeFromMetadata(
+  target: any,
+  propertyKey: string
+): InferredTypeInfo | null {
+  try {
+    // Get the design type from TypeScript's emitted metadata
+    const designType = Reflect.getMetadata('design:type', target, propertyKey);
+
+    if (!designType) {
+      return null;
+    }
+
+    // Handle Array types
+    if (designType === Array) {
+      // For arrays, we need to look at the paramtypes or use other heuristics
+      // Unfortunately, TypeScript doesn't emit generic type parameters in metadata
+      // This is a limitation of the current decorator metadata system
+      return null;
+    }
+
+    // Handle primitive types (string, number, boolean) - no auto-instantiation needed
+    if (
+      designType === String ||
+      designType === Number ||
+      designType === Boolean
+    ) {
+      return null;
+    }
+
+    // Check if the inferred type is an @xml decorated class
+    const classMetadata = getClassMetadata(designType.prototype);
+
+    if (!classMetadata?.isXMLClass) {
+      // Not an XML class, don't auto-instantiate
+      return null;
+    }
+
+    return {
+      type: designType,
+      isArray: false,
+    };
+  } catch (error) {
+    // If reflection fails, silently return null
+    // This maintains backward compatibility
+    return null;
   }
 }
 

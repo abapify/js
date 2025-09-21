@@ -2,6 +2,23 @@
 
 All notable changes to the xmld project will be documented in this file.
 
+## [2.1.0] - 2025-09-21
+
+### ✨ New Features
+
+- **Added `@attributes` Convenience Decorator** - Shortcut for `@unwrap @attribute` pattern
+  - Simplifies attribute flattening with a single decorator
+  - Works seamlessly with `@namespace` for namespaced attributes
+  - Provides cleaner, more readable syntax for common attribute patterns
+  - Full test coverage with equivalence testing
+
+### 📚 Documentation
+
+- Updated API Reference with comprehensive `@attributes` documentation
+- Added examples showing usage with namespaces
+- Updated main README with `@attributes` usage examples
+- Enhanced specification documentation
+
 ## [2.0.0] - 2025-09-20
 
 ### 🎯 Major Features
