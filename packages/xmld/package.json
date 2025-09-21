@@ -20,8 +20,5 @@
       "import": "./dist/plugins/fast-xml-parser.js",
       "default": "./dist/plugins/fast-xml-parser.js"
     }
-  },
-  "dependencies": {
-    "tsdown": "^0.15.1"
   }
 }
