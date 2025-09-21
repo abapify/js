@@ -10,6 +10,7 @@ export {
   root,
   element,
   attribute,
+  attributes, // Convenience decorator for @unwrap @attribute
   unwrap,
   namespace,
 } from './core/decorators';
@@ -24,7 +25,11 @@ export {
 } from './serialization/serializer';
 
 // Zero-dependency transformations
-export { toFastXMLObject, toFastXML } from './plugins/fast-xml-parser';
+export {
+  toFastXMLObject,
+  toFastXML,
+  fromFastXMLObject,
+} from './plugins/fast-xml-parser';
 
 // Metadata utilities (for advanced use cases)
 export {
