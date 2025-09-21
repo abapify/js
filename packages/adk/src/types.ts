@@ -1,5 +1,5 @@
 /**
- * Public types placeholder for ADK2.
+ * Public types placeholder for ADK.
  *
  * This file intentionally contains no exported types yet.
  * As implementation progresses (post-spec approval),

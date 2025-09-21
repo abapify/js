@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const fixturesPath = join(__dirname, '../../../adk/fixtures');
 
-describe('ADK2 Registry Tests', () => {
+describe('ADK Registry Tests', () => {
   it('should register and retrieve constructors', () => {
     expect(ObjectRegistry.isRegistered(Kind.Interface)).toBe(true);
     expect(ObjectRegistry.isRegistered(Kind.Class)).toBe(true);
