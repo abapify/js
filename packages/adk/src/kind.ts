@@ -1,7 +1,7 @@
 /**
  * ADK Object Kinds
  *
- * Defines the types of ABAP objects supported by ADK2.
+ * Defines the types of ABAP objects supported by ADK.
  */
 
 export enum Kind {

@@ -79,3 +79,63 @@ export function createObject(kind: string): AdkObject | undefined {
   const ObjectConstructor = constructor as unknown as new () => AdkObject;
   return new ObjectConstructor();
 }
+
+/**
+ * Compatibility layer for old ADK API
+ * Provides instance-based API that matches the old objectRegistry
+ */
+class ObjectTypeRegistry {
+  /**
+   * Create an ADK object from XML using registered constructor
+   */
+  createFromXml(sapType: string, xml: string): AdkObject {
+    const normalizedType = sapType.toUpperCase();
+    const result = ObjectRegistry.fromAdtXml(normalizedType, xml);
+
+    if (!result) {
+      throw new Error(
+        `Unsupported object type: ${sapType}. ` +
+          `Supported types: ${this.getSupportedTypes().join(', ')}`
+      );
+    }
+
+    return result;
+  }
+
+  /**
+   * Get all supported SAP object types
+   */
+  getSupportedTypes(): string[] {
+    return ObjectRegistry.getRegisteredKinds().sort();
+  }
+
+  /**
+   * Check if SAP object type is supported
+   */
+  isSupported(sapType: string): boolean {
+    return ObjectRegistry.isRegistered(sapType.toUpperCase());
+  }
+
+  /**
+   * Get constructor for SAP object type
+   */
+  getConstructor(sapType: string): AdkObjectConstructor<AdkObject> | undefined {
+    return ObjectRegistry.getConstructor(sapType.toUpperCase());
+  }
+
+  /**
+   * Get registration info for debugging
+   */
+  getRegistrationInfo(): Array<{ sapType: string; constructorName: string }> {
+    return ObjectRegistry.getRegisteredKinds().map((kind) => ({
+      sapType: kind,
+      constructorName: ObjectRegistry.getConstructor(kind)?.name || 'Anonymous',
+    }));
+  }
+}
+
+/**
+ * Global object registry instance for backward compatibility
+ * Matches the old ADK objectRegistry API
+ */
+export const objectRegistry = new ObjectTypeRegistry();

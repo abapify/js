@@ -3,7 +3,7 @@ import { IntfSpec } from '../namespaces/intf';
 import { ClassSpec } from '../namespaces/class';
 import { DomainSpec } from '../namespaces/ddic';
 
-describe('ADK2 Round-trip Tests', () => {
+describe('ADK Round-trip Tests', () => {
   it('should parse and serialize IntfSpec', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <intf:abapInterface
