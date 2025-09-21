@@ -10,5 +10,10 @@
     "lib": ["es2022", "dom"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["tests/**/*", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": ["tests/**/*", "**/*.test.ts", "**/*.spec.ts"],
+  "references": [
+    {
+      "path": "../adk/tsconfig.lib.json"
+    }
+  ]
 }
