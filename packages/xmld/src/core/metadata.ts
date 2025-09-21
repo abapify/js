@@ -3,7 +3,7 @@
  * Zero dependencies - no reflect-metadata required
  */
 
-import { METADATA_TYPES, type MetadataType } from './constants';
+import { type MetadataType } from './constants';
 
 // Metadata storage interfaces
 export interface ClassMetadata {
