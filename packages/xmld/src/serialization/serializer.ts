@@ -83,7 +83,7 @@ function extractSerializationData(instance: any): SerializationData {
   const propertyMetadata = getAllPropertyMetadata(constructor.prototype);
 
   const data: SerializationData = {
-    rootElement: classMetadata!.xmlRoot!,
+    rootElement: classMetadata?.xmlRoot || 'unknown',
     namespaces: new Map(),
     attributes: {},
     elements: {},
@@ -329,7 +329,7 @@ function applyNamespace(name: string, namespace?: NamespaceInfo): string {
  */
 function basicSerialize(
   data: SerializationData,
-  options: SerializationOptions
+  _options: SerializationOptions
 ): string {
   const { rootElement, namespaces, attributes, elements } = data;
 

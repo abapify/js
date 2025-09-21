@@ -15,7 +15,6 @@
     }
   },
   "dependencies": {
-    "fast-xml-parser": "^5.2.5",
-    "tsdown": "^0.15.1"
+    "fast-xml-parser": "^5.2.5"
   }
 }
