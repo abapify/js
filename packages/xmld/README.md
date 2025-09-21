@@ -16,7 +16,15 @@ A powerful, type-safe library for modeling XML structures using TypeScript decor
 ## 🚀 Quick Start
 
 ```typescript
-import { xmld, root, element, attribute, unwrap, toXML } from 'xmld';
+import {
+  xmld,
+  root,
+  element,
+  attribute,
+  attributes,
+  unwrap,
+  toXML,
+} from 'xmld';
 
 interface ChannelMeta {
   title: string;
@@ -69,6 +77,35 @@ import { XMLBuilder } from 'fast-xml-parser';
 const fastXMLObject = toFastXML(feed);
 const builder = new XMLBuilder({ format: true, indentBy: '  ' });
 const formattedXml = builder.build(fastXMLObject);
+```
+
+### ✨ New: @attributes Convenience Decorator
+
+```typescript
+interface CoreAttrs {
+  version: string;
+  responsible: string;
+  language: string;
+}
+
+@xmld
+@root('document')
+class Document {
+  // ✨ @attributes is a shortcut for @unwrap @attribute
+  @attributes
+  @namespace('core', 'http://www.sap.com/adt/core')
+  core!: CoreAttrs;
+
+  @element title!: string;
+}
+
+const doc = new Document();
+doc.core = { version: '1.0', responsible: 'developer', language: 'EN' };
+doc.title = 'My Document';
+
+// Generates: <document core:version="1.0" core:responsible="developer" core:language="EN" xmlns:core="http://www.sap.com/adt/core">
+//              <title>My Document</title>
+//            </document>
 ```
 
 ## 📚 Documentation
