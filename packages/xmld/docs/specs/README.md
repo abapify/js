@@ -1,8 +1,10 @@
 # xmld Technical Specification
 
 **Version**: 2.0.0  
-**Status**: Stable  
+**Status**: Core Implementation Complete  
 **Last Updated**: 2025-09-20
+
+> **Implementation Status**: This specification describes the complete vision for xmld. The current implementation focuses on core XML modeling and serialization. Advanced features like parsing (`fromXML`) and validation are planned for future releases.
 
 ## Overview
 
