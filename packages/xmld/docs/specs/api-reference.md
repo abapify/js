@@ -2,6 +2,8 @@
 
 Complete reference for all decorators, functions, and types in **xmld**.
 
+> **Legend**: ✅ Implemented | 🚧 Planned | 📋 Documented Only
+
 ## Decorators
 
 ### Class Decorators
@@ -262,7 +264,7 @@ class Widget {
 
 ## Functions
 
-### `toXML(instance: any, options?: SerializationOptions): string`
+### `toXML(instance: any, options?: SerializationOptions): string` ✅
 
 Converts a decorated class instance to XML string.
 
@@ -288,9 +290,9 @@ const xml = toXML(feed, {
 
 ---
 
-### `fromXML<T>(xml: string, RootClass: new () => T): T`
+### `fromXML<T>(xml: string, RootClass: new () => T): T` 🚧
 
-Parses XML string into decorated class instance.
+Parses XML string into decorated class instance. **[Planned for future release]**
 
 **Parameters:**
 
@@ -312,9 +314,9 @@ console.log(feed.channel.title); // "My Blog"
 
 ---
 
-### `validate(instance: any): ValidationResult`
+### `validate(instance: any): ValidationResult` 🚧
 
-Validates a decorated class instance against its decorator constraints.
+Validates a decorated class instance against its decorator constraints. **[Planned for future release]**
 
 **Parameters:**
 

@@ -61,14 +61,22 @@ feed.items.push(item);
 
 const xml = toXML(feed);
 console.log(xml); // Generates complete RSS XML
+
+// Or use with fast-xml-parser for formatting:
+import { toFastXML } from 'xmld/plugins/fast-xml-parser';
+import { XMLBuilder } from 'fast-xml-parser';
+
+const fastXMLObject = toFastXML(feed);
+const builder = new XMLBuilder({ format: true, indentBy: '  ' });
+const formattedXml = builder.build(fastXMLObject);
 ```
 
 ## 📚 Documentation
 
-- **[Complete Specification](./docs/specs/README.md)** - Detailed technical specification
-- **[API Reference](./docs/specs/api-reference.md)** - Complete decorator and function reference
-- **[Examples](./docs/specs/examples.md)** - Real-world usage examples
-- **[Architecture](./docs/specs/architecture.md)** - Design principles and patterns
+- **[Examples](./src/examples/)** - Real-world usage examples in the test files
+- **[Core Tests](./src/core/decorators.test.ts)** - Comprehensive test suite showing all features
+
+> **Note**: This library focuses on core XML modeling functionality. Advanced features like parsing and validation are planned for future releases.
 
 ## 🎯 Core Concepts
 
@@ -211,6 +219,26 @@ doc.content = 'This is my document content';
 const xml = toXML(doc);
 console.log(xml);
 // Output: <document id="123"><title>Hello World</title><content>This is my document content</content></document>
+```
+
+## 🔌 Plugin System
+
+xmld provides zero-dependency transformations for popular XML libraries:
+
+```typescript
+// Direct plugin import for specific functionality
+import { toFastXML, toFastXMLObject } from 'xmld/plugins/fast-xml-parser';
+
+// Convert to fast-xml-parser compatible object
+const fastXMLObject = toFastXML(document);
+
+// Use with fast-xml-parser (if installed)
+import { XMLBuilder } from 'fast-xml-parser';
+const builder = new XMLBuilder({ format: true });
+const xml = builder.build(fastXMLObject);
+
+// Or get the raw object for other uses
+const rawObject = toFastXMLObject(serializationData);
 ```
 
 ## 🤝 Contributing
