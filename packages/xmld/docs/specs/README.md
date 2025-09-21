@@ -139,6 +139,32 @@ class Document {
 // Generates: <document id="123" version="1.0"><title>...</title></document>
 ```
 
+#### `@attributes` ✅
+
+**Purpose**: Convenience decorator that combines `@unwrap @attribute` for flattening attribute objects.  
+**Target**: Property  
+**Parameters**: None
+
+```typescript
+interface CoreAttrs {
+  version: string;
+  responsible: string;
+}
+
+@xml
+@root('document')
+class Document {
+  @attributes
+  @namespace('core', 'http://www.sap.com/adt/core')
+  core!: CoreAttrs; // Properties become attributes: core:version="...", core:responsible="..."
+
+  @element title!: string;
+}
+// Generates: <document core:version="1.0" core:responsible="developer" xmlns:core="http://www.sap.com/adt/core"><title>...</title></document>
+```
+
+**Equivalent to**: `@unwrap @attribute`
+
 #### `@unwrap`
 
 **Purpose**: Flattens object properties into parent (no wrapper element).  

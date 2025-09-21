@@ -195,6 +195,69 @@ class Document {
 
 ---
 
+#### `@attributes` ✅ **Convenience Decorator**
+
+**Shortcut for `@unwrap @attribute`** - Flattens object properties as attributes on the parent element.
+
+**Parameters:** None
+
+**Usage:**
+
+```typescript
+interface CoreAttrs {
+  version: string;
+  responsible: string;
+  language: string;
+}
+
+@xmld
+@root('document')
+class Document {
+  @attributes
+  @namespace('core', 'http://www.sap.com/adt/core')
+  core!: CoreAttrs; // Properties become attributes: core:version="...", core:responsible="...", core:language="..."
+
+  @element title!: string;
+}
+
+// Usage
+const doc = new Document();
+doc.core = {
+  version: '1.0',
+  responsible: 'developer',
+  language: 'EN',
+};
+
+// Generates:
+// <document core:version="1.0" core:responsible="developer" core:language="EN" xmlns:core="http://www.sap.com/adt/core">
+//   <title>...</title>
+// </document>
+```
+
+**Equivalent to:**
+
+```typescript
+@unwrap
+@attribute
+@namespace('core', 'http://www.sap.com/adt/core')
+core!: CoreAttrs;
+```
+
+**Benefits:**
+
+- **Cleaner syntax**: Single decorator instead of two
+- **Better readability**: Clear intent for attribute flattening
+- **Consistent pattern**: Standard approach for attribute groups
+- **Namespace support**: Works seamlessly with `@namespace`
+
+**Requirements:**
+
+- Property must have interface or object type
+- Can be combined with `@namespace` for namespaced attributes
+- Properties of the object become attributes on the parent element
+
+---
+
 #### `@unwrap`
 
 Flattens object properties into parent (no wrapper element).
