@@ -124,6 +124,39 @@ post.author.name = 'John Doe';
 post.tags.push({ name: 'TypeScript' } as any);
 ```
 
+### Class Inheritance
+
+xmld fully supports class inheritance with automatic metadata merging:
+
+```typescript
+@xmld
+class BaseXML {
+  @attribute id!: string;
+  @element title!: string;
+}
+
+@xmld
+@namespace('oo', 'http://www.sap.com/adt/oo')
+class OOXML extends BaseXML {
+  @namespace('oo', 'http://www.sap.com/adt/oo')
+  @attribute
+  type!: string;
+}
+
+@xmld
+@root('intf:interface')
+@namespace('intf', 'http://www.sap.com/adt/oo/interfaces')
+class InterfaceXML extends OOXML {
+  @element description!: string;
+}
+
+// All inherited properties work seamlessly
+const intf = new InterfaceXML();
+intf.id = 'ZIF_TEST'; // From BaseXML
+intf.type = 'INTF/OI'; // From OOXML
+intf.description = 'Test'; // From InterfaceXML
+```
+
 ### Attribute Groups
 
 ```typescript

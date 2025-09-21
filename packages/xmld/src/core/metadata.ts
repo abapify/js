@@ -44,10 +44,40 @@ export function setClassMetadata(target: any, metadata: ClassMetadata): void {
 }
 
 /**
- * Get metadata for a class
+ * Get metadata for a class, including inherited metadata
  */
 export function getClassMetadata(target: any): ClassMetadata | undefined {
-  return CLASS_METADATA.get(target);
+  const allMetadata: ClassMetadata = {};
+
+  // Traverse the prototype chain to collect metadata from all levels
+  let currentPrototype = target;
+  while (currentPrototype && currentPrototype !== Object.prototype) {
+    const prototypeMetadata = CLASS_METADATA.get(currentPrototype);
+    if (prototypeMetadata) {
+      // Merge metadata, with derived class taking precedence
+      if (
+        prototypeMetadata.isXMLClass !== undefined &&
+        allMetadata.isXMLClass === undefined
+      ) {
+        allMetadata.isXMLClass = prototypeMetadata.isXMLClass;
+      }
+      if (
+        prototypeMetadata.xmlRoot !== undefined &&
+        allMetadata.xmlRoot === undefined
+      ) {
+        allMetadata.xmlRoot = prototypeMetadata.xmlRoot;
+      }
+      if (
+        prototypeMetadata.namespace !== undefined &&
+        allMetadata.namespace === undefined
+      ) {
+        allMetadata.namespace = prototypeMetadata.namespace;
+      }
+    }
+    currentPrototype = Object.getPrototypeOf(currentPrototype);
+  }
+
+  return Object.keys(allMetadata).length > 0 ? allMetadata : undefined;
 }
 
 /**
@@ -80,12 +110,30 @@ export function getPropertyMetadata(
 }
 
 /**
- * Get all property metadata for a class
+ * Get all property metadata for a class, including inherited properties
  */
 export function getAllPropertyMetadata(
   target: any
 ): Map<string, PropertyMetadata> {
-  return PROPERTY_METADATA.get(target) || new Map();
+  const allMetadata = new Map<string, PropertyMetadata>();
+
+  // Traverse the prototype chain to collect metadata from all levels
+  let currentPrototype = target;
+  while (currentPrototype && currentPrototype !== Object.prototype) {
+    const prototypeMetadata = PROPERTY_METADATA.get(currentPrototype);
+    if (prototypeMetadata) {
+      // Add properties from this level, but don't override existing ones
+      // (derived class properties take precedence over base class properties)
+      for (const [key, metadata] of prototypeMetadata) {
+        if (!allMetadata.has(key)) {
+          allMetadata.set(key, metadata);
+        }
+      }
+    }
+    currentPrototype = Object.getPrototypeOf(currentPrototype);
+  }
+
+  return allMetadata;
 }
 
 /**
