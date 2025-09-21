@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const fixturesPath = join(__dirname, '../../../adk/fixtures');
 
-describe('ADK2 Domain Objects Tests', () => {
+describe('ADK Domain Objects Tests', () => {
   it('should create Interface from XML and delegate properties correctly', () => {
     const xml = readFileSync(join(fixturesPath, 'zif_test.intf.xml'), 'utf-8');
 
