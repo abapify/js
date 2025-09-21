@@ -57,7 +57,7 @@ describe('xmld decorators', () => {
     it('should throw error for empty element name', () => {
       expect(() => {
         @root('')
-        class TestClass {}
+        class _TestClass {}
       }).toThrow();
     });
 
@@ -178,12 +178,12 @@ describe('xmld decorators', () => {
     it('should throw error for invalid namespace', () => {
       expect(() => {
         @namespace('', 'http://example.com')
-        class TestClass {}
+        class _TestClass {}
       }).toThrow();
 
       expect(() => {
         @namespace('test', '')
-        class TestClass {}
+        class _TestClass {}
       }).toThrow();
     });
   });
@@ -202,7 +202,7 @@ describe('xmld decorators', () => {
         items: Item[] = [];
       }
 
-      const feed = new Feed();
+      const _feed = new Feed();
       const metadata = getPropertyMetadata(Feed.prototype, 'items');
 
       expect(metadata?.autoInstantiate).toBe(Item);
@@ -222,7 +222,7 @@ describe('xmld decorators', () => {
         author!: Author;
       }
 
-      const doc = new Document();
+      const _doc = new Document();
       const metadata = getPropertyMetadata(Document.prototype, 'author');
 
       expect(metadata?.autoInstantiate).toBe(Author);
@@ -242,7 +242,7 @@ describe('xmld decorators', () => {
         author!: Author; // No explicit type - no auto-instantiation
       }
 
-      const doc = new Document();
+      const _doc = new Document();
       const metadata = getPropertyMetadata(Document.prototype, 'author');
 
       expect(metadata?.autoInstantiate).toBeUndefined();
@@ -261,7 +261,7 @@ describe('xmld decorators', () => {
         data!: RegularClass;
       }
 
-      const doc = new Document();
+      const _doc = new Document();
       const metadata = getPropertyMetadata(Document.prototype, 'data');
 
       // Should not set up auto-instantiation for non-@xmld classes
