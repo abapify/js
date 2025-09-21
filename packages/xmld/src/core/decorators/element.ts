@@ -116,14 +116,18 @@ function setupAutoInstantiationArray(
   Object.defineProperty(target, propertyKey, {
     get() {
       // If this instance has a property that shadows our getter, delete it first
-      if (Reflect.has(this, propertyKey)) {
+      if (Object.hasOwn(this, propertyKey)) {
         Reflect.deleteProperty(this, propertyKey);
       }
 
       if (!this[privateKey]) {
         this[privateKey] = new Proxy([], {
           set(arr: any[], prop: string | symbol, value: any) {
-            if (typeof prop === 'string' && /^\d+$/.test(prop)) {
+            if (
+              typeof prop === 'string' &&
+              Number.isInteger(Number(prop)) &&
+              Number(prop) >= 0
+            ) {
               // Auto-instantiate if value is plain object
               if (
                 value &&
@@ -142,7 +146,7 @@ function setupAutoInstantiationArray(
     },
     set(value: any[]) {
       // Delete any shadowing instance property
-      if (Reflect.has(this, propertyKey)) {
+      if (Object.hasOwn(this, propertyKey)) {
         Reflect.deleteProperty(this, propertyKey);
       }
 
@@ -181,7 +185,7 @@ function setupAutoInstantiationObject(
   Object.defineProperty(target, propertyKey, {
     get() {
       // If this instance has a property that shadows our getter, delete it first
-      if (Reflect.has(this, propertyKey)) {
+      if (Object.hasOwn(this, propertyKey)) {
         Reflect.deleteProperty(this, propertyKey);
       }
 
@@ -192,7 +196,7 @@ function setupAutoInstantiationObject(
     },
     set(value: any) {
       // Delete any shadowing instance property
-      if (Reflect.has(this, propertyKey)) {
+      if (Object.hasOwn(this, propertyKey)) {
         Reflect.deleteProperty(this, propertyKey);
       }
 
