@@ -26,20 +26,20 @@ export interface ElementOptions {
  * Supports explicit type hints for reliable auto-instantiation
  */
 export function element(options?: ElementOptions): PropertyDecorator;
-export function element(target: any, propertyKey: string): void;
+export function element(target: any, propertyKey: string | symbol): void;
 export function element(
   optionsOrTarget?: ElementOptions | any,
-  propertyKey?: string
+  propertyKey?: string | symbol
 ): PropertyDecorator | void {
   // Handle both decorator syntaxes: @element and @element(options)
   if (propertyKey !== undefined) {
     // Direct usage: @element
-    setupElement(optionsOrTarget, propertyKey, {});
+    setupElement(optionsOrTarget, String(propertyKey), {});
   } else {
     // With options: @element({ type: SomeClass })
     const options = (optionsOrTarget as ElementOptions) || {};
-    return function (target: any, key: string) {
-      setupElement(target, key, options);
+    return function (target: any, key: string | symbol) {
+      setupElement(target, String(key), options);
     };
   }
 }

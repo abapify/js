@@ -97,6 +97,9 @@ function extractSerializationData(instance: any): SerializationData {
     );
   }
 
+  // Collect namespaces from all levels of inheritance
+  collectInheritedNamespaces(constructor.prototype, data.namespaces);
+
   // Process each decorated property
   for (const [propertyKey, metadata] of propertyMetadata) {
     const value = instance[propertyKey];
@@ -112,6 +115,35 @@ function extractSerializationData(instance: any): SerializationData {
   }
 
   return data;
+}
+
+/**
+ * Collect namespaces from all levels of inheritance
+ */
+function collectInheritedNamespaces(
+  target: any,
+  namespaces: Map<string, string>
+): void {
+  let currentPrototype = target;
+  while (currentPrototype && currentPrototype !== Object.prototype) {
+    const classMetadata = getClassMetadata(currentPrototype);
+    if (classMetadata?.namespace) {
+      namespaces.set(
+        classMetadata.namespace.prefix,
+        classMetadata.namespace.uri
+      );
+    }
+
+    // Also collect namespaces from property metadata
+    const propertyMetadata = getAllPropertyMetadata(currentPrototype);
+    for (const [, metadata] of propertyMetadata) {
+      if (metadata.namespace) {
+        namespaces.set(metadata.namespace.prefix, metadata.namespace.uri);
+      }
+    }
+
+    currentPrototype = Object.getPrototypeOf(currentPrototype);
+  }
 }
 
 /**
