@@ -1,29 +1,51 @@
-// Import and register all ADK object types
-import { Interface } from './adt/oo/interfaces/interface';
-import { Class } from './adt/oo/classes/class';
-import { Domain } from './adt/ddic/domains/domain';
-import { objectRegistry } from './adt/base/object-registry';
+/**
+ * ADK public API
+ *
+ * This package provides type-safe ABAP object modeling with xmld-based XML serialization.
+ * Implementation follows docs/specs/adk-on-xmld.md.
+ */
 
-// Register all object types in the registry
-objectRegistry.register('INTF', Interface);
-objectRegistry.register('CLAS', Class);
-objectRegistry.register('DOMA', Domain);
+// Base XML classes and generic factory
+export { BaseSpec } from './base/base-spec';
+export { OoSpec } from './base/oo-xml';
+export { createFromXml } from './base/generic-factory';
 
-// === ESSENTIAL EXPORTS ===
+// Namespace-based exports (Phase A)
+export type { AdtCoreAttrs } from './namespaces/adtcore';
+export { AtomLink } from './namespaces/atom';
+export type { AtomRelation } from './namespaces/atom';
+export type {
+  AbapSourceAttrs,
+  SyntaxConfiguration,
+} from './namespaces/abapsource';
+export type { AbapOOAttrs } from './namespaces/abapoo';
 
-// Main ADK object classes
-export { Interface } from './adt/oo/interfaces/interface';
-export { Class } from './adt/oo/classes/class';
-export { Domain } from './adt/ddic/domains/domain';
+// Object XML classes (Phase A)
+export { IntfSpec } from './namespaces/intf';
+export { ClassSpec, ClassInclude } from './namespaces/class';
+export { DomainSpec, DdicFixedValueElement } from './namespaces/ddic';
 
-// Object registry for creating objects from XML
-export { objectRegistry } from './adt/base/object-registry';
+// Object kinds and registration
+export { Kind } from './kind';
 
-// Essential types for TypeScript consumers
-export type { AdkObject, AdkObjectConstructor } from './adt/base/adk-object';
-export { Kind } from './adt/kind';
+// Register object types with the registry
+import { Interface } from './objects/interface';
+import { Class } from './objects/class';
+import { Domain } from './objects/domain';
+import { InterfaceConstructor } from './objects/interface';
+import { ClassConstructor } from './objects/class';
+import { DomainConstructor } from './objects/domain';
+import { ObjectRegistry } from './registry';
+import { Kind } from './kind';
 
-// Core namespace types (commonly needed)
-export type { AdtCoreType, PackageRefType } from './namespaces/adtcore';
-export type { AtomLinkType } from './namespaces/atom';
-export type { DdicType, DdicFixedValueType } from './namespaces/ddic';
+ObjectRegistry.register(Kind.Interface, InterfaceConstructor as any);
+ObjectRegistry.register(Kind.Class, ClassConstructor as any);
+ObjectRegistry.register(Kind.Domain, DomainConstructor as any);
+
+// Convenience factory functions
+export const createInterface = () => new Interface();
+export const createClass = () => new Class();
+export const createDomain = () => new Domain();
+
+// Public types placeholder (reserved for future stable types)
+export type {} from './types';

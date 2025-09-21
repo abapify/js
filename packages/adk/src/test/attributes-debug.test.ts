@@ -7,7 +7,7 @@ console.log('attributes function:', attributes);
 console.log('attributes function type:', typeof attributes);
 console.log('attributes function toString:', attributes.toString());
 
-describe('Debug @attributes decorator in adk2', () => {
+describe('Debug @attributes decorator in ADK', () => {
   it('should work with exact same pattern as xmld', () => {
     interface CoreAttrs {
       version: string;

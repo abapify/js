@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const fixturesPath = join(__dirname, '../../../adk/fixtures');
 
-describe('ADK2 Fixture Round-trip Tests', () => {
+describe('ADK Fixture Round-trip Tests', () => {
   it('should parse and serialize zif_test.intf.xml', () => {
     const xml = readFileSync(join(fixturesPath, 'zif_test.intf.xml'), 'utf-8');
 

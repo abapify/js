@@ -33,7 +33,7 @@
   - ✅ OAuth flow now works seamlessly with automatic browser opening
   - ✅ Authentication system fully functional for ADT operations
 
-- **ADK2 xmld Refactoring** - Complete ADK rewrite on xmld foundation ✅ COMPLETED (Sep 21, 2025)
+- **ADK xmld Refactoring** - Complete ADK rewrite on xmld foundation ✅ COMPLETED (Sep 21, 2025)
   - ✅ Implemented typed ADT namespaces as thin xmld wrappers (adtcore, atom, abapsource, abapoo, intf, class, ddic)
   - ✅ Re-implemented InterfaceXML, ClassXML, DomainXML on xmld with @root/@namespace/@name + typed sections
   - ✅ Implemented parsing/serialization plugin integration (toFastXMLObject + XMLBuilder)
