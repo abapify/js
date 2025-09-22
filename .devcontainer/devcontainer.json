@@ -5,12 +5,20 @@
     "context": "."
   },
   "mounts": [
-    "source=/home/${localEnv:USER}/.codeium,target=/home/node/.codeium,type=bind,consistency=cached"
+    "source=/home/${localEnv:USER}/.codeium,target=/home/node/.codeium,type=bind,consistency=cached",
+    //"source=/home/${localEnv:USER}/.gitconfig,target=/home/node/.gitconfig,type=bind,consistency=cached",
+    "source=/home/${localEnv:USER}/.npmrc,target=/home/node/.npmrc,type=bind,consistency=cached"
   ],
   "customizations": {
     "vscode": {
       "extensions": ["nrwl.angular-console"]
     }
   },
-  "runArgs": ["--network=host", "--cap-add=SYS_ADMIN"]
+  "runArgs": ["--network=host", "--cap-add=SYS_ADMIN"],
+  "remoteEnv": {
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  }
 }

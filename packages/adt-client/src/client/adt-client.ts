@@ -137,6 +137,13 @@ export class AdtClientImpl implements AdtClient {
       lockObject: (objectUri) => this.objectService.lockObject(objectUri),
       unlockObject: (objectUri, lockHandle) =>
         this.objectService.unlockObject(objectUri, lockHandle),
+      setSource: (objectUri, sourcePath, sourceContent, options) =>
+        this.objectService.setSource(
+          objectUri,
+          sourcePath,
+          sourceContent,
+          options
+        ),
       setSessionType: (sessionType) =>
         this.objectService.setSessionType(sessionType),
     };
