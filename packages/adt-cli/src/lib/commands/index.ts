@@ -14,3 +14,4 @@ export { transportGetCommand } from './transport/get';
 export { transportCreateCommand } from './transport/create';
 export { createTestLogCommand } from './test-log';
 export { createTestAdtCommand } from './test-adt';
+export { createResearchSessionsCommand } from './research-sessions-cmd';

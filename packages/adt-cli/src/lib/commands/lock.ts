@@ -50,35 +50,7 @@ async function lockObject(objectName: string, options: any, command: any) {
     console.log(`🔒 Attempting lock...`);
 
     try {
-      const response = await client.request(
-        `${objectUri}?_action=LOCK&accessMode=MODIFY`,
-        {
-          method: 'POST',
-          headers: {
-            Accept:
-              'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.9, application/vnd.sap.as+xml;charset=UTF-8;q=0.8',
-            'Content-Type': 'application/xml',
-            'X-sap-adt-sessiontype': 'stateful',
-            'x-sap-security-session': 'use',
-          },
-        }
-      );
-
-      // Extract lock handle from response
-      let lockHandle = 'unknown';
-      if (response.body) {
-        try {
-          const responseText = await response.text();
-          const lockHandleMatch = responseText.match(
-            /<LOCK_HANDLE>([^<]+)<\/LOCK_HANDLE>/
-          );
-          if (lockHandleMatch && lockHandleMatch[1]) {
-            lockHandle = lockHandleMatch[1];
-          }
-        } catch (bodyError) {
-          // Ignore body parsing errors
-        }
-      }
+      const lockHandle = await client.repository.lockObject(objectUri);
 
       console.log(`✅ SUCCESS! Object ${objectName} locked`);
       console.log(`🔑 Lock handle: ${lockHandle}`);

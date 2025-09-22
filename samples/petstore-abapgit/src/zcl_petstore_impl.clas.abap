@@ -17,7 +17,9 @@ class ZCL_PETSTORE_IMPL definition
       tt_pet_storage type table of ty_pet_storage with unique key id.
 
     data: mt_pets type tt_pet_storage,
-          mv_next_id type i value 1.
+          mv_next_id type i value 1."
+
+          "test comment
 endclass.
 
 class ZCL_PETSTORE_IMPL implementation.

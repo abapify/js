@@ -45,7 +45,6 @@ export function createCliLogger(options: LoggerOptions = {}): Logger {
               ignore: 'pid,hostname,time',
               messageFormat: '[{component}] {msg}',
               hideObject: true,
-              singleLine: true,
             },
           }
         : undefined,

@@ -5,6 +5,12 @@ import type {
   ADTObjectInfo,
 } from './search-service';
 
+export enum AdtSessionType {
+  STATEFUL = 'stateful',
+  STATELESS = 'stateless',
+  KEEP = '',
+}
+
 // Repository-specific types
 export interface ObjectOutline {
   [key: string]: any;
@@ -78,4 +84,11 @@ export interface RepositoryOperations {
   searchObjectsDetailed(options: SearchOptions): Promise<SearchResultDetailed>;
   getPackageContents(packageName: string): Promise<PackageContent>;
   getSupportedObjectTypes(): Promise<ObjectTypeInfo[]>;
+
+  // Object locking operations
+  lockObject(objectUri: string): Promise<string>; // Returns lock handle
+  unlockObject(objectUri: string, lockHandle?: string): Promise<void>;
+
+  // Session configuration
+  setSessionType(sessionType: AdtSessionType): void;
 }
