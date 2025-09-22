@@ -84,7 +84,7 @@ export function createObject(kind: string): AdkObject | undefined {
  * Compatibility layer for old ADK API
  * Provides instance-based API that matches the old objectRegistry
  */
-class ObjectTypeRegistry {
+export class ObjectTypeRegistry {
   /**
    * Create an ADK object from XML using registered constructor
    */

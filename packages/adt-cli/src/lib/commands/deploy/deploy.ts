@@ -100,11 +100,16 @@ async function deployAbapGitProject(
     console.log('🔍 DRY RUN - No actual deployment will occur');
   }
 
-  // Load abapGit plugin
-  const { AbapGitPlugin } = await import(
-    '../../../../../plugins/abapgit/dist/index.js'
-  );
-  const plugin = new AbapGitPlugin();
+  // TODO: Implement abapGit plugin loading when available
+  // For now, use mock implementation
+  const plugin = {
+    readProject: async (path: string) => {
+      console.log('⚠️  Using mock abapGit plugin - real implementation needed');
+      return {
+        objects: [], // TODO: Parse actual abapGit files
+      };
+    },
+  };
 
   console.log('📖 Reading abapGit project...');
   const projectData = await plugin.readProject(projectInfo.path);
@@ -185,21 +190,23 @@ async function deployObject(
   options: DeployOptions
 ): Promise<any> {
   // Convert object to ADK spec using existing plugin architecture
-  const { ADKObjectLoader } = await import('./adk-loader.js');
+  const { ADKObjectLoader } = await import('./adk-loader');
   const loader = new ADKObjectLoader(client);
 
-  const adkSpec = await loader.convertToAdkSpec(object);
+  const adkObject = await loader.convertToAdkObject(object);
 
   if (options.verbose) {
     console.log(
-      `🔧 ADK Spec for ${object.name}:`,
-      JSON.stringify(adkSpec, null, 2)
+      `🔧 ADK Object for ${object.name}:`,
+      JSON.stringify(adkObject, null, 2)
     );
   }
 
-  // Deploy using ADT client
-  return await client.objects.deployObject(adkSpec, {
-    transport: transportNumber,
-    package: options.package,
-  });
+  // TODO: Deploy using ADT client when ADK integration is complete
+  // For now, return mock result
+  console.log('⚠️  Mock deployment - real implementation needed');
+  return {
+    success: false,
+    messages: ['ADK deployment not yet implemented'],
+  };
 }

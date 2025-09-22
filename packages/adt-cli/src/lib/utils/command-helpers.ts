@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { createCliLogger } from './logger-config.js';
+import { createCliLogger } from './logger-config';
 import type { Logger } from '@abapify/adt-client';
 
 /**

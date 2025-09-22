@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AdkFacade } from './adk-facade.js';
-import { objectRegistry } from '@abapify/adk';
 import type { ConnectionManager } from '../../client/connection-manager.js';
 
 describe('AdkFacade', () => {

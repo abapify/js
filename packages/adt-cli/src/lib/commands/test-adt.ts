@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { getAdtClient } from '../shared/clients.js';
+import { getAdtClient } from '../shared/clients';
 
 export function createTestAdtCommand(): Command {
   const command = new Command('test-adt');

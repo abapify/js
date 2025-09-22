@@ -1,8 +1,9 @@
 import { FormatRegistry } from '../../formats/format-registry';
-import { IconRegistry } from '../../utils/icon-registry';
 import { ObjectRegistry } from '../../objects/registry';
+import { IconRegistry } from '../../utils/icon-registry';
 import { ConfigLoader } from '../../config/loader';
 import { PackageMapper } from '../../config/package-mapper';
+import type { Logger } from '@abapify/adt-client';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -10,11 +11,9 @@ export interface ExportOptions {
   packageName: string;
   inputPath: string;
   objectTypes?: string[];
-  includeSubpackages?: boolean;
   format?: string;
   transportRequest?: string;
   createObjects?: boolean; // New flag to actually create objects in SAP
-  debug?: boolean;
 }
 
 export interface ExportResult {
@@ -29,31 +28,32 @@ export interface ExportResult {
 
 export class ExportService {
   private packageMapper?: PackageMapper;
+  private adtClient?: any; // ADT client for object operations
+  private logger?: Logger;
 
-  constructor() {
-    // Export service constructor - no initialization needed
+  constructor(adtClient?: any, logger?: Logger) {
+    this.adtClient = adtClient;
+    this.logger = logger;
   }
 
   async exportPackage(options: ExportOptions): Promise<ExportResult> {
-    if (options.debug) {
-      console.log(`📦 Exporting package: ${options.packageName}`);
-      console.log(`📁 Input path: ${options.inputPath}`);
-      console.log(`🎯 Format: ${options.format || 'oat'}`);
-      console.log(
-        `🚀 Create objects in SAP: ${options.createObjects ? 'Yes' : 'No'}`
-      );
-      if (options.transportRequest) {
-        console.log(`🚛 Transport request: ${options.transportRequest}`);
-      }
+    this.logger?.debug('📦 Export parameters', {
+      packageName: options.packageName,
+      inputPath: options.inputPath,
+      format: options.format || 'oat',
+      createObjects: options.createObjects || false,
+    });
+
+    if (options.transportRequest) {
+      this.logger?.debug(`🚛 Transport request: ${options.transportRequest}`);
     }
 
     // Load config and set up package mapping
-    const config = await ConfigLoader.load();
+    const configLoader = new ConfigLoader();
+    const config = await configLoader.load();
     if (config.oat?.packageMapping) {
       this.packageMapper = new PackageMapper(config.oat.packageMapping);
-      if (options.debug) {
-        console.log(`⚙️ Package mapping configured`);
-      }
+      this.logger?.debug('⚙️ Package mapping configured');
     }
 
     const inputDir = options.inputPath;
@@ -64,18 +64,16 @@ export class ExportService {
     const format = options.format || 'oat';
     const formatHandler = FormatRegistry.get(format);
 
-    if (options.debug) {
-      console.log(
-        `🎨 Using format: ${formatHandler.name} - ${formatHandler.description}`
-      );
-    }
+    this.logger?.debug(
+      `🎨 Using format: ${formatHandler.name} - ${formatHandler.description}`
+    );
 
     // Discover all object files in the input directory
     const objectFiles = this.discoverObjectFiles(inputDir, options.objectTypes);
 
-    if (options.debug) {
-      console.log(`🔍 Found ${objectFiles.length} object files to process`);
-    }
+    this.logger?.debug(
+      `🔍 Found ${objectFiles.length} object files to process`
+    );
 
     let processedCount = 0;
     let createdCount = 0;
@@ -107,6 +105,12 @@ export class ExportService {
         const icon = IconRegistry.getIcon(fileInfo.type);
         console.log(`${icon} Processing ${fileInfo.type} ${objectData.name}`);
 
+        this.logger?.debug(`🔍 ObjectData for ${objectData.name}`, {
+          description: objectData.description,
+          package: objectData.package,
+          sourceLength: objectData.source?.length || 0,
+        });
+
         // Track processing statistics
         objectsByType[fileInfo.type] = (objectsByType[fileInfo.type] || 0) + 1;
         processedCount++;
@@ -116,20 +120,20 @@ export class ExportService {
           const handler = ObjectRegistry.get(fileInfo.type);
 
           try {
-            // Try to read existing object first to determine if we should create or update
-            await handler.read(objectData.name);
-            // Object exists, update it
-            await handler.update(objectData, options.transportRequest);
-            console.log(`✅ Updated ${fileInfo.type} ${objectData.name}`);
-          } catch (error) {
-            // Object doesn't exist, create it
+            // The handler now intelligently checks if object exists and creates/updates accordingly
             await handler.create(objectData, options.transportRequest);
-            console.log(`🆕 Created ${fileInfo.type} ${objectData.name}`);
-          }
 
-          createdObjectsByType[fileInfo.type] =
-            (createdObjectsByType[fileInfo.type] || 0) + 1;
-          createdCount++;
+            createdObjectsByType[fileInfo.type] =
+              (createdObjectsByType[fileInfo.type] || 0) + 1;
+            createdCount++;
+          } catch (error) {
+            console.error(
+              `⚠️ Failed to process ${fileInfo.type} ${objectData.name}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+            throw error;
+          }
         }
       } catch (error: unknown) {
         console.error(
