@@ -52,6 +52,8 @@ export type {
   SearchResult,
   PackageContent,
   ObjectTypeInfo,
+  SetSourceOptions,
+  SetSourceResult,
 } from './services/repository/types.js';
 export { AdtSessionType } from './services/repository/types.js';
 export type {

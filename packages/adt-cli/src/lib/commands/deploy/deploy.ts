@@ -1,6 +1,13 @@
 import { Command } from 'commander';
 import { join, resolve } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, statSync } from 'fs';
+import { glob } from 'fs/promises';
+import { AdtClientImpl, SetSourceOptions } from '@abapify/adt-client';
+import {
+  detectObjectTypeFromFilename,
+  filenameToSourceUri,
+  ObjectTypeInfo,
+} from '../../utils/object-uri';
 
 interface DeployOptions {
   transport?: string;
@@ -9,18 +16,21 @@ interface DeployOptions {
   dryRun?: boolean;
 }
 
-interface ProjectInfo {
-  type: 'abapgit' | 'oat' | 'unknown';
-  path: string;
-  config?: any;
+interface DetectedFile {
+  filePath: string;
+  objectInfo: ObjectTypeInfo;
 }
 
 export const deployCommand = new Command('deploy')
-  .description('Deploy ABAP objects from project to remote system')
-  .argument('[path]', 'Path to project directory', '.')
+  .description('Deploy ABAP objects from files, folders, or patterns')
+  .argument(
+    '[path]',
+    'Path to file, folder, or glob pattern (e.g., src/**/*.intf.abap)',
+    '.'
+  )
   .option(
     '-t, --transport <transport>',
-    'Transport request to assign objects to'
+    'Transport request to assign objects to (use "adt transport create" to create one)'
   )
   .option(
     '-p, --package <package>',
@@ -28,28 +38,41 @@ export const deployCommand = new Command('deploy')
   )
   .option('--dry-run', 'Show what would be deployed without actually deploying')
   .option('-v, --verbose', 'Enable verbose logging')
-  .action(async (projectPath: string, options: DeployOptions) => {
+  .action(async (pathPattern: string, options: DeployOptions) => {
     try {
-      const resolvedPath = resolve(projectPath);
-      const projectInfo = await detectProjectType(resolvedPath);
-
-      console.log(`🔍 Detected project type: ${projectInfo.type}`);
-      console.log(`📁 Project path: ${projectInfo.path}`);
+      const resolvedPath = resolve(pathPattern);
 
       if (options.verbose) {
         console.log(`⚙️  Options:`, JSON.stringify(options, null, 2));
       }
 
-      switch (projectInfo.type) {
-        case 'abapgit':
-          await deployAbapGitProject(projectInfo, options);
-          break;
-        case 'oat':
-          await deployOatProject(projectInfo, options);
-          break;
-        default:
-          throw new Error(`Unsupported project type: ${projectInfo.type}`);
+      // Detect files to deploy based on the path pattern
+      const filesToDeploy = await detectFilesToDeploy(resolvedPath, options);
+
+      if (filesToDeploy.length === 0) {
+        console.log(
+          `❌ No deployable ABAP files found for pattern: ${pathPattern}`
+        );
+        console.log(
+          `💡 Supported patterns: *.intf.abap, *.clas.abap, **/*.intf.abap`
+        );
+        process.exit(1);
       }
+
+      console.log(`📦 Found ${filesToDeploy.length} files to deploy:`);
+      for (const file of filesToDeploy) {
+        console.log(
+          `  - ${file.objectInfo.description}: ${file.objectInfo.name} (${file.filePath})`
+        );
+      }
+
+      if (options.dryRun) {
+        console.log('✅ Dry run completed successfully');
+        return;
+      }
+
+      // Deploy all detected files
+      await deployFiles(filesToDeploy, options);
     } catch (error) {
       console.error(
         '❌ Deployment failed:',
@@ -59,154 +82,185 @@ export const deployCommand = new Command('deploy')
     }
   });
 
-async function detectProjectType(projectPath: string): Promise<ProjectInfo> {
-  // Check for abapGit project
-  const abapGitConfigPath = join(projectPath, '.abapgit.xml');
-  if (existsSync(abapGitConfigPath)) {
-    const config = readFileSync(abapGitConfigPath, 'utf-8');
-    return {
-      type: 'abapgit',
-      path: projectPath,
-      config: config,
-    };
+async function detectFilesToDeploy(
+  pathPattern: string,
+  options: DeployOptions
+): Promise<DetectedFile[]> {
+  const detectedFiles: DetectedFile[] = [];
+
+  // Check if it's a specific file
+  if (existsSync(pathPattern) && statSync(pathPattern).isFile()) {
+    const objectInfo = detectObjectTypeFromFilename(pathPattern);
+    if (objectInfo) {
+      detectedFiles.push({ filePath: pathPattern, objectInfo });
+    }
+    return detectedFiles;
   }
 
-  // Check for OAT project
-  const oatFiles = ['adt.config.ts', 'adt.config.js', 'adt.config.yaml'];
-  for (const configFile of oatFiles) {
-    const configPath = join(projectPath, configFile);
-    if (existsSync(configPath)) {
-      return {
-        type: 'oat',
-        path: projectPath,
-        config: configPath,
-      };
+  // Check if it's a directory
+  if (existsSync(pathPattern) && statSync(pathPattern).isDirectory()) {
+    // Scan directory recursively for .abap files using native Node.js glob
+    const globPattern = join(pathPattern, '**/*.abap');
+
+    try {
+      for await (const filePath of glob(globPattern)) {
+        const objectInfo = detectObjectTypeFromFilename(filePath);
+        if (objectInfo) {
+          detectedFiles.push({ filePath, objectInfo });
+        }
+      }
+    } catch (error) {
+      if (options.verbose) {
+        console.log(`⚠️  Directory scan failed: ${error}`);
+      }
+    }
+
+    return detectedFiles;
+  }
+
+  // Treat as glob pattern using native Node.js glob
+  try {
+    for await (const filePath of glob(pathPattern)) {
+      if (existsSync(filePath) && statSync(filePath).isFile()) {
+        const objectInfo = detectObjectTypeFromFilename(filePath);
+        if (objectInfo) {
+          detectedFiles.push({ filePath, objectInfo });
+        }
+      }
+    }
+  } catch (error) {
+    if (options.verbose) {
+      console.log(`⚠️  Glob pattern failed: ${error}`);
     }
   }
 
-  return {
-    type: 'unknown',
-    path: projectPath,
-  };
+  return detectedFiles;
 }
 
-async function deployAbapGitProject(
-  projectInfo: ProjectInfo,
+async function deployFiles(
+  filesToDeploy: DetectedFile[],
   options: DeployOptions
 ): Promise<void> {
-  console.log('🚀 Starting abapGit project deployment...');
+  console.log('🚀 Starting file-based deployment...');
 
-  if (options.dryRun) {
-    console.log('🔍 DRY RUN - No actual deployment will occur');
+  // Create ADT client
+  const client = new AdtClientImpl({
+    // TODO: Add logger from options
+  });
+
+  // Use provided transport or deploy without transport
+  const transportNumber = options.transport;
+  if (transportNumber) {
+    console.log(`🚛 Using transport: ${transportNumber}`);
+  } else {
+    console.log('📝 Deploying without transport assignment (development mode)');
   }
 
-  // TODO: Implement abapGit plugin loading when available
-  // For now, use mock implementation
-  const plugin = {
-    readProject: async (path: string) => {
-      console.log('⚠️  Using mock abapGit plugin - real implementation needed');
-      return {
-        objects: [], // TODO: Parse actual abapGit files
-      };
-    },
-  };
-
-  console.log('📖 Reading abapGit project...');
-  const projectData = await plugin.readProject(projectInfo.path);
-
-  console.log(`📦 Found ${projectData.objects.length} objects to deploy:`);
-  for (const obj of projectData.objects) {
-    console.log(`  - ${obj.type}: ${obj.name}`);
-  }
-
-  if (options.dryRun) {
-    console.log('✅ Dry run completed successfully');
-    return;
-  }
-
-  // Load ADT client for deployment
-  const { createAdtClient } = await import('@abapify/adt-client');
-  const client = createAdtClient();
-
-  // Create transport if needed
-  let transportNumber = options.transport;
-  if (!transportNumber) {
-    console.log('🚛 Creating transport request...');
-    const transport = await client.cts.createTransport({
-      description: `abapGit deployment: ${projectInfo.path}`,
-      type: 'workbench',
-    });
-    transportNumber = transport.number;
-    console.log(`📋 Created transport: ${transportNumber}`);
-  }
-
-  // Deploy objects
-  console.log('🔄 Deploying objects...');
+  // Deploy each file
   let deployedCount = 0;
+  let failedCount = 0;
 
-  for (const obj of projectData.objects) {
+  for (const file of filesToDeploy) {
     try {
-      console.log(`⬆️  Deploying ${obj.type}: ${obj.name}...`);
+      console.log(
+        `⬆️  Deploying ${file.objectInfo.description}: ${file.objectInfo.name}...`
+      );
 
-      // Convert to ADK spec and deploy
-      const result = await deployObject(client, obj, transportNumber, options);
+      await deploySourceFile(client, file, options);
 
-      if (result.success) {
-        deployedCount++;
-        console.log(`✅ Successfully deployed ${obj.name}`);
-      } else {
-        console.log(
-          `❌ Failed to deploy ${obj.name}: ${result.messages.join(', ')}`
-        );
-      }
+      deployedCount++;
+      console.log(`✅ Successfully deployed ${file.objectInfo.name}`);
     } catch (error) {
+      failedCount++;
       console.error(
-        `❌ Failed to deploy ${obj.name}:`,
+        `❌ Failed to deploy ${file.objectInfo.name}:`,
         error instanceof Error ? error.message : String(error)
       );
+
+      if (options.verbose && error instanceof Error) {
+        console.error('Full error:', error);
+      }
     }
   }
 
   console.log(
-    `🎉 Deployment completed: ${deployedCount}/${projectData.objects.length} objects deployed`
+    `🎉 Deployment completed: ${deployedCount}/${filesToDeploy.length} objects deployed successfully`
   );
-  console.log(`🚛 Transport: ${transportNumber}`);
+  if (failedCount > 0) {
+    console.log(`❌ ${failedCount} objects failed to deploy`);
+  }
+  if (transportNumber) {
+    console.log(`🚛 Transport: ${transportNumber}`);
+  }
 }
 
-async function deployOatProject(
-  projectInfo: ProjectInfo,
+async function deploySourceFile(
+  client: AdtClientImpl,
+  file: DetectedFile,
   options: DeployOptions
 ): Promise<void> {
-  console.log('🚀 Starting OAT project deployment...');
-  // Implementation for OAT projects would go here
-  // This can reuse existing import/export logic but in reverse
-  throw new Error('OAT project deployment not yet implemented');
-}
-
-async function deployObject(
-  client: any,
-  object: any,
-  transportNumber: string,
-  options: DeployOptions
-): Promise<any> {
-  // Convert object to ADK spec using existing plugin architecture
-  const { ADKObjectLoader } = await import('./adk-loader');
-  const loader = new ADKObjectLoader(client);
-
-  const adkObject = await loader.convertToAdkObject(object);
+  // Read file content
+  const sourceCode = readFileSync(file.filePath, 'utf-8');
 
   if (options.verbose) {
     console.log(
-      `🔧 ADK Object for ${object.name}:`,
-      JSON.stringify(adkObject, null, 2)
+      `📄 Read ${sourceCode.length} characters from ${file.filePath}`
     );
   }
 
-  // TODO: Deploy using ADT client when ADK integration is complete
-  // For now, return mock result
-  console.log('⚠️  Mock deployment - real implementation needed');
-  return {
-    success: false,
-    messages: ['ADK deployment not yet implemented'],
+  // Use utility to get object URI and source path
+  const uriInfo = filenameToSourceUri(file.filePath);
+  if (!uriInfo) {
+    throw new Error(
+      `Could not determine object URI for file: ${file.filePath}`
+    );
+  }
+
+  const { objectUri, sourcePath } = uriInfo;
+
+  // Configure setSource options
+  const setSourceOptions: SetSourceOptions = {
+    compareSource: true, // Skip if source is identical
+    forceUnlock: true, // Force unlock if needed
   };
+
+  if (options.verbose) {
+    console.log(`🚀 Deploying to: ${objectUri}${sourcePath}`);
+  }
+
+  // Use the new setSource operation
+  const result = await client.repository.setSource(
+    objectUri,
+    sourcePath,
+    sourceCode,
+    setSourceOptions
+  );
+
+  // Handle result
+  switch (result.action) {
+    case 'created':
+      console.log(`➕ ${file.objectInfo.name} created successfully`);
+      break;
+    case 'updated':
+      console.log(`✏️  ${file.objectInfo.name} updated successfully`);
+      break;
+    case 'skipped':
+      console.log(`⏭️  ${file.objectInfo.name} skipped (source unchanged)`);
+      break;
+    case 'failed':
+      throw new Error(
+        `Failed to deploy ${file.objectInfo.name}: ${result.error}`
+      );
+  }
+
+  // Show compilation messages if available and verbose
+  if (result.messages && result.messages.length > 0 && options.verbose) {
+    console.log(`📋 Server messages:`);
+    for (const message of result.messages) {
+      console.log(message);
+    }
+  }
 }
+
+// Legacy project-based deployment functions removed
+// The unified deploy command now supports file/folder/glob patterns directly
