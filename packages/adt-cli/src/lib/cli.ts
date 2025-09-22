@@ -22,7 +22,6 @@ import {
 import { deployCommand } from './commands/deploy/index';
 import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
-import { createDeploySourceCommand } from './commands/deploy-source';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setGlobalLogger } from './shared/clients';
 
@@ -127,11 +126,8 @@ export async function createCLI(): Promise<Command> {
 
   exportCmd.addCommand(exportPackageCommand);
 
-  // Deploy command
+  // Deploy command (now unified - supports files, folders, and glob patterns)
   program.addCommand(deployCommand);
-
-  // Deploy source command
-  program.addCommand(createDeploySourceCommand());
 
   // Lock command
   program.addCommand(createLockCommand());

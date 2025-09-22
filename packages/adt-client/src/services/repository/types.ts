@@ -27,6 +27,21 @@ export interface UpdateResult {
   messages?: string[];
 }
 
+export interface SetSourceOptions {
+  lockTimeout?: number;
+  forceUnlock?: boolean;
+  compareSource?: boolean; // Skip if source is identical
+  createIfNotExists?: boolean;
+}
+
+export interface SetSourceResult {
+  action: 'created' | 'updated' | 'skipped' | 'failed';
+  messages?: string[];
+  lockHandle?: string;
+  sourceChanged?: boolean;
+  error?: string;
+}
+
 export interface SearchResult {
   objects: ADTObjectInfo[];
   totalCount: number;
@@ -88,6 +103,14 @@ export interface RepositoryOperations {
   // Object locking operations
   lockObject(objectUri: string): Promise<string>; // Returns lock handle
   unlockObject(objectUri: string, lockHandle?: string): Promise<void>;
+
+  // Source management operations
+  setSource(
+    objectUri: string,
+    sourcePath: string,
+    sourceContent: string,
+    options?: SetSourceOptions
+  ): Promise<SetSourceResult>;
 
   // Session configuration
   setSessionType(sessionType: AdtSessionType): void;
