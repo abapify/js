@@ -13,6 +13,8 @@ export class ConnectionManager {
   private cookies = new Map<string, string>();
   private debugMode = false;
   private logger: any;
+  private connectionId?: string;
+  private cachedCsrfToken?: string;
 
   constructor(logger?: any) {
     this.logger = logger || createLogger('connection');
@@ -29,8 +31,31 @@ export class ConnectionManager {
     // This allows the auth manager to handle authentication flow
   }
 
+  /**
+   * Generate a SAP ADT connection ID similar to what Eclipse ADT uses
+   * Format: 32-character hex string (like UUID without dashes)
+   */
+  private generateConnectionId(): string {
+    // Generate UUID and remove dashes to match SAP ADT format
+    const uuid = crypto.randomUUID().replace(/-/g, '');
+    return uuid;
+  }
+
+  /**
+   * Ensure we have a connection ID for this session
+   * Connection ID persists for the entire ADT client session
+   */
+  private ensureConnectionId(): string {
+    if (!this.connectionId) {
+      this.connectionId = this.generateConnectionId();
+      this.debug(`🔗 Generated SAP ADT connection ID: ${this.connectionId}`);
+    }
+    return this.connectionId;
+  }
+
   async disconnect(): Promise<void> {
     this.cookies.clear();
+    this.cachedCsrfToken = undefined;
     this.config = undefined;
   }
 
@@ -87,11 +112,12 @@ export class ConnectionManager {
 
         const headers: Record<string, string> = {
           Authorization: `Bearer ${token}`,
-          'User-Agent': 'ADT-CLI/1.0.0',
+          // 'User-Agent': 'ADT-CLI/1.0.0', // Test: might not be needed
           Accept: 'application/xml',
-          'sap-client': '100',
-          'sap-language': 'EN',
+          // 'sap-client': '100', // Test: might default to service key client
+          // 'sap-language': 'EN', // Test: might default to user language
           'X-sap-adt-sessiontype': 'stateful',
+          // 'sap-adt-connection-id': this.ensureConnectionId(), // Test: might not be required
           ...options.headers,
         };
 
@@ -107,9 +133,13 @@ export class ConnectionManager {
         // For POST/PUT/DELETE operations, we need CSRF token
         const method = options.method || 'GET';
         if (['POST', 'PUT', 'DELETE'].includes(method.toUpperCase())) {
-          const csrfToken = await this.getCsrfToken(endpoint, session, token);
-          if (csrfToken) {
-            headers['x-csrf-token'] = csrfToken;
+          // Initialize CSRF token from session if not already cached
+          if (!this.cachedCsrfToken) {
+            await this.initializeCsrfToken(session, token);
+          }
+          if (this.cachedCsrfToken) {
+            headers['x-csrf-token'] = this.cachedCsrfToken;
+            this.debug(`🔒 Using cached CSRF token: ${this.cachedCsrfToken}`);
           }
         }
 
@@ -149,15 +179,32 @@ export class ConnectionManager {
 
         this.debug(`📡 Response: ${response.status} ${response.statusText}`);
 
+        // Log response body for debugging (both success and error)
+        const responseText = await response.text();
+
+        // Create a new Response object since we consumed the original body
+        const responseClone = new Response(responseText, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+
+        if (response.ok) {
+          // Format XML response for better readability by adding line breaks before '<' symbols
+          const formattedResponse = responseText.replace(/</g, '\n<').trim();
+          this.debug(`📄 Success Response Body: ${formattedResponse}`);
+        }
+
         if (!response.ok) {
-          const errorText = await response.text();
-          this.debug(`📄 Error Response Body: ${errorText}`);
+          // Format XML response for better readability by adding line breaks before '<' symbols
+          const formattedError = responseText.replace(/</g, '\n<').trim();
+          this.debug(`📄 Error Response Body: ${formattedError}`);
 
           // Extract SAP error message from XML if available
           let errorMessage = `Request failed: ${response.status} ${response.statusText}`;
           try {
             // Try to extract the actual error message from SAP XML response
-            const messageMatch = errorText.match(/<message[^>]*>([^<]+)</i);
+            const messageMatch = responseText.match(/<message[^>]*>([^<]+)</i);
             if (messageMatch && messageMatch[1]) {
               errorMessage = messageMatch[1].trim();
             }
@@ -173,19 +220,20 @@ export class ConnectionManager {
             undefined,
             {
               endpoint,
-              response: errorText,
+              response: responseText,
               status: response.status,
               statusText: response.statusText,
               headers: Object.fromEntries(response.headers.entries()),
             }
           );
 
-          // On 403, clear session and retry if we haven't exhausted attempts
+          // On 403, clear session and CSRF cache, then retry if we haven't exhausted attempts
           if (response.status === 403 && attempt < maxRetries) {
             this.debug(
-              `🔄 Got 403 on attempt ${attempt}, clearing session and retrying...`
+              `🔄 Got 403 on attempt ${attempt}, clearing session and CSRF cache, then retrying...`
             );
             this.cookies.clear();
+            this.cachedCsrfToken = undefined; // Clear CSRF cache on 403
             lastError = enhancedError;
             continue; // Try again
           }
@@ -194,8 +242,8 @@ export class ConnectionManager {
         }
 
         // Success - capture cookies for session management
-        this.updateCookies(response);
-        return response;
+        this.updateCookies(responseClone);
+        return responseClone;
       } catch (error) {
         lastError = error as Error;
 
@@ -287,7 +335,117 @@ export class ConnectionManager {
   }
 
   /**
+   * Initialize CSRF token from ADT sessions endpoint during session setup
+   */
+  private async initializeCsrfToken(
+    session: any,
+    token: string
+  ): Promise<void> {
+    const abapEndpoint =
+      session.serviceKey.endpoints['abap'] || session.serviceKey.url;
+    const sessionsUrl = `${abapEndpoint}/sap/bc/adt/core/http/sessions`;
+
+    this.debug(`🔒 Initializing CSRF token from sessions endpoint`);
+
+    try {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        // 'User-Agent': 'ADT-CLI/1.0.0', // Test: might not be needed
+        'x-csrf-token': 'fetch',
+        Accept: 'application/vnd.sap.adt.core.http.session.v3+xml',
+        // 'sap-client': '100', // Test: might default from service key
+        // 'sap-language': 'EN', // Test: might default from user profile
+      };
+
+      // Add session headers
+      if (session.serviceKey['URL.headers.x-sap-security-session']) {
+        headers['x-sap-security-session'] =
+          session.serviceKey['URL.headers.x-sap-security-session'];
+      } else {
+        headers['x-sap-security-session'] = 'use';
+      }
+
+      // Include existing cookies if any
+      if (this.cookies.size > 0) {
+        const cookieString = Array.from(this.cookies.entries())
+          .map(([name, value]) => `${name}=${value}`)
+          .join('; ');
+        headers['Cookie'] = cookieString;
+        this.debug(
+          `🍪 Sending cookies for CSRF initialization: ${cookieString}`
+        );
+      }
+
+      const response = await fetch(sessionsUrl, {
+        method: 'GET',
+        headers,
+      });
+
+      this.debug(
+        `🔒 Sessions CSRF response: ${response.status} ${response.statusText}`
+      );
+
+      if (!response.ok) {
+        this.debug(`⚠️ Failed to initialize CSRF from sessions endpoint`);
+        return;
+      }
+
+      // Update cookies from sessions response
+      this.updateCookies(response);
+
+      // Extract CSRF token from cookies (SAP stores it there)
+      const xsrfCookie = Array.from(this.cookies.entries()).find(
+        ([key]) => key.includes('XSRF') || key.includes('csrf')
+      );
+
+      if (xsrfCookie) {
+        const cookieValue = xsrfCookie[1].split('=')[1];
+        const decodedToken = decodeURIComponent(cookieValue || '');
+
+        // Extract just the token part (before timestamp)
+        const tokenMatch = decodedToken.match(/^([A-Za-z0-9+/_-]+=*)/);
+        const actualToken = tokenMatch ? tokenMatch[1] : decodedToken;
+
+        if (
+          actualToken &&
+          actualToken !== 'Required' &&
+          actualToken !== 'fetch'
+        ) {
+          this.cachedCsrfToken = actualToken;
+          this.debug(
+            `✅ CSRF token initialized from sessions endpoint: ${actualToken}`
+          );
+          return;
+        }
+      }
+
+      // Fallback to header token
+      const headerToken = response.headers.get('x-csrf-token');
+      if (
+        headerToken &&
+        headerToken !== 'Required' &&
+        headerToken !== 'fetch'
+      ) {
+        this.cachedCsrfToken = headerToken;
+        this.debug(
+          `✅ CSRF token initialized from sessions header: ${headerToken}`
+        );
+        return;
+      }
+
+      this.debug(`⚠️ No valid CSRF token found in sessions response`);
+    } catch (error) {
+      this.debug(
+        `❌ CSRF initialization failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /**
    * Get CSRF token for POST/PUT/DELETE operations - enhanced version from working implementation
+   * @deprecated Use initializeCsrfToken instead for better architecture
    */
   private async getCsrfToken(
     endpoint: string,

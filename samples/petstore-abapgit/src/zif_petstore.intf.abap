@@ -1,6 +1,8 @@
 interface ZIF_PETSTORE
   public .
 
+  "test comment
+
   types:
     begin of ty_pet,
       id       type i,
