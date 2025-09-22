@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { createCliLogger } from '../utils/logger-config.js';
+import { createCliLogger } from '../utils/logger-config';
 
 export function createTestLogCommand(): Command {
   const command = new Command('test-log');

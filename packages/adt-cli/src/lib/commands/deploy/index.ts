@@ -1,1 +1,1 @@
-export { deployCommand } from './deploy.js';
+export { deployCommand } from './deploy';
