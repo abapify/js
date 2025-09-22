@@ -132,6 +132,13 @@ export class AdtClientImpl implements AdtClient {
         this.searchService.searchObjectsDetailed(options),
       getPackageContents: (packageName) =>
         this.searchService.getPackageContents(packageName),
+      getSupportedObjectTypes: () =>
+        this.objectService.getSupportedObjectTypes(),
+      lockObject: (objectUri) => this.objectService.lockObject(objectUri),
+      unlockObject: (objectUri, lockHandle) =>
+        this.objectService.unlockObject(objectUri, lockHandle),
+      setSessionType: (sessionType) =>
+        this.objectService.setSessionType(sessionType),
     };
 
     this.discovery = {

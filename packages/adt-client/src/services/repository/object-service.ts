@@ -1,4 +1,4 @@
-import { ConnectionManager } from '../../client/connection-manager.js';
+import { ConnectionManager } from '../../client/connection-manager';
 import { AdtObject, ObjectMetadata } from '../../types/core.js';
 import {
   UpdateResult,
@@ -11,9 +11,45 @@ import {
   ObjectProperties,
 } from '../../handlers/base-object-handler.js';
 import { ErrorHandler } from '../../utils/error-handler.js';
+import { AdtSessionType } from './types';
 
 export class ObjectService {
+  private sessionType: AdtSessionType = AdtSessionType.STATEFUL;
+
   constructor(private connectionManager: ConnectionManager) {}
+
+  /**
+   * Configure session type for lock/unlock operations
+   * Default STATEFUL works best with SAP Cloud systems and modern on-premise (7.51+)
+   * Use STATELESS only for older on-premise systems if needed
+   */
+  setSessionType(sessionType: AdtSessionType): void {
+    this.sessionType = sessionType;
+  }
+
+  /**
+   * Build headers for lock/unlock operations with configurable session type
+   */
+  private buildLockHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      Accept:
+        'application/vnd.sap.as+xml;charset=UTF-8;dataname=com.sap.adt.lock.result;q=0.9, application/vnd.sap.as+xml;charset=UTF-8;q=0.8',
+      'Content-Type': 'application/xml',
+      // 'X-sap-adt-profiling': 'server-time', // Test: performance monitoring - might not be needed
+      // 'sap-adt-saplb': 'fetch', // Test: load balancing - might not be needed
+      // 'saplb-options': 'REDISPATCH_ON_SHUTDOWN', // Test: load balancing options - might not be needed
+    };
+
+    // Only add session-related headers if not using default (empty) session type
+    if (this.sessionType && this.sessionType !== AdtSessionType.KEEP) {
+      headers['X-sap-adt-sessiontype'] = this.sessionType;
+      if (this.sessionType === AdtSessionType.STATEFUL) {
+        headers['x-sap-security-session'] = 'use';
+      }
+    }
+
+    return headers;
+  }
 
   async getObject(objectType: string, objectName: string): Promise<AdtObject> {
     try {
@@ -187,5 +223,46 @@ export class ObjectService {
    */
   hasHandlerForObjectType(objectType: string): boolean {
     return ObjectHandlerFactory.hasHandler(objectType);
+  }
+
+  /**
+   * Lock a repository object and return the lock handle
+   */
+  async lockObject(objectUri: string): Promise<string> {
+    const response = await this.connectionManager.request(
+      `${objectUri}?_action=LOCK&accessMode=MODIFY`,
+      {
+        method: 'POST',
+        headers: this.buildLockHeaders(),
+      }
+    );
+
+    // Extract lock handle from response
+    if (response.body) {
+      const lockResponseText = await response.text();
+      const lockHandleMatch = lockResponseText.match(
+        /<LOCK_HANDLE>([^<]+)<\/LOCK_HANDLE>/
+      );
+      if (lockHandleMatch && lockHandleMatch[1]) {
+        const extractedLockHandle = lockHandleMatch[1];
+        return extractedLockHandle;
+      }
+    }
+
+    throw new Error('Failed to extract lock handle from response');
+  }
+
+  /**
+   * Unlock a repository object using its lock handle (optional for generic unlock)
+   */
+  async unlockObject(objectUri: string, lockHandle?: string): Promise<void> {
+    const url = lockHandle
+      ? `${objectUri}?_action=UNLOCK&lockHandle=${lockHandle}`
+      : `${objectUri}?_action=UNLOCK`;
+
+    await this.connectionManager.request(url, {
+      method: 'POST',
+      headers: this.buildLockHeaders(),
+    });
   }
 }

@@ -55,96 +55,61 @@ async function unlockObject(objectName: string, options: any, command: any) {
       );
 
       try {
-        const response = await client.request(
-          `${objectUri}?_action=UNLOCK&lockHandle=${options.lockHandle}`,
-          {
-            method: 'POST',
-            headers: {
-              'X-sap-adt-sessiontype': 'stateful',
-              'x-sap-security-session': 'use',
-            },
-          }
-        );
+        await client.repository.unlockObject(objectUri, options.lockHandle);
 
         console.log(
           `✅ SUCCESS! Object ${objectName} unlocked with lock handle`
-        );
-        console.log(
-          `📊 Response status: ${response.status} ${response.statusText}`
         );
       } catch (error: any) {
         console.error(
           `❌ Unlock with lock handle failed, trying generic unlock...`
         );
         // Fall back to generic unlock
-        await performGenericUnlock(client, objectUri, objectName);
+        try {
+          await client.repository.unlockObject(objectUri);
+          console.log(`✅ SUCCESS! Object ${objectName} unlocked`);
+        } catch (genericError: any) {
+          const errorMessage = genericError?.message || String(genericError);
+          const statusCode =
+            genericError?.statusCode || genericError?.context?.status;
+
+          console.error(
+            `❌ Generic unlock also failed: ${errorMessage} (Status: ${statusCode})`
+          );
+
+          console.log(`💡 The object might:`);
+          console.log(`   - Already be unlocked`);
+          console.log(`   - Be locked by another user`);
+          console.log(`   - Require manual unlock via SM12 transaction`);
+          throw genericError;
+        }
       }
     } else {
       console.log(`🔓 Attempting generic unlock (no lock handle provided)...`);
-      await performGenericUnlock(client, objectUri, objectName);
+      try {
+        await client.repository.unlockObject(objectUri);
+        console.log(`✅ SUCCESS! Object ${objectName} unlocked`);
+      } catch (error: any) {
+        const errorMessage = error?.message || String(error);
+        const statusCode = error?.statusCode || error?.context?.status;
+
+        console.error(
+          `❌ Generic unlock failed: ${errorMessage} (Status: ${statusCode})`
+        );
+
+        console.log(`💡 The object might:`);
+        console.log(`   - Already be unlocked`);
+        console.log(`   - Be locked by another user`);
+        console.log(`   - Require manual unlock via SM12 transaction`);
+        console.log(
+          `   - Need a specific lock handle (use --lock-handle flag)`
+        );
+        throw error;
+      }
     }
   } catch (error) {
     console.error(`❌ Unlock failed:`, error);
     process.exit(1);
-  }
-}
-
-async function performGenericUnlock(
-  client: any,
-  objectUri: string,
-  objectName: string
-) {
-  try {
-    const response = await client.request(`${objectUri}?_action=UNLOCK`, {
-      method: 'POST',
-      headers: {
-        'X-sap-adt-sessiontype': 'stateful',
-        'x-sap-security-session': 'use',
-      },
-    });
-
-    console.log(`✅ SUCCESS! Object ${objectName} unlocked`);
-    console.log(
-      `📊 Response status: ${response.status} ${response.statusText}`
-    );
-
-    // Try to extract any lock information from response
-    try {
-      const responseText = await response.text();
-      console.log(`📋 Response body length: ${responseText.length}`);
-      if (responseText.trim()) {
-        console.log(
-          `📋 Response content: ${responseText.substring(0, 300)}${
-            responseText.length > 300 ? '...' : ''
-          }`
-        );
-      } else {
-        console.log(`📋 Response body is empty`);
-      }
-    } catch (bodyError) {
-      console.log(`⚠️ Could not read response body: ${bodyError}`);
-    }
-  } catch (error: any) {
-    const errorMessage = error?.message || String(error);
-    const statusCode = error?.statusCode || error?.context?.status;
-
-    console.error(
-      `❌ Generic unlock failed: ${errorMessage} (Status: ${statusCode})`
-    );
-
-    // Log response body if available for debugging
-    if (error?.context?.response) {
-      console.log(
-        `📄 Error response: ${error.context.response.substring(0, 200)}...`
-      );
-    }
-
-    console.log(`💡 The object might:`);
-    console.log(`   - Already be unlocked`);
-    console.log(`   - Be locked by another user`);
-    console.log(`   - Require manual unlock via SM12 transaction`);
-    console.log(`   - Need a specific lock handle (use --lock-handle flag)`);
-    throw error;
   }
 }
 
