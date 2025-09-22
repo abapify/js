@@ -3,7 +3,7 @@ import { AuthManager } from '@abapify/adt-client';
 import {
   createComponentLogger,
   handleCommandError,
-} from '../../utils/command-helpers.js';
+} from '../../utils/command-helpers';
 
 export const logoutCommand = new Command('logout')
   .description('Logout from ADT')

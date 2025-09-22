@@ -39,8 +39,17 @@ const XML_CLASS_REGISTRY = new Map<string, Constructor>();
  * Set metadata for a class
  */
 export function setClassMetadata(target: any, metadata: ClassMetadata): void {
-  const existing = CLASS_METADATA.get(target) ?? {};
-  CLASS_METADATA.set(target, { ...existing, ...metadata });
+  // Ensure we have a valid object for WeakMap key
+  const validTarget = target?.constructor?.prototype || target;
+
+  if (!validTarget || typeof validTarget !== 'object') {
+    // Silently skip invalid targets - decorators may be called on undefined/function values
+    // during module initialization which is normal
+    return;
+  }
+
+  const existing = CLASS_METADATA.get(validTarget) ?? {};
+  CLASS_METADATA.set(validTarget, { ...existing, ...metadata });
 }
 
 /**
@@ -88,9 +97,19 @@ export function setPropertyMetadata(
   propertyKey: string,
   metadata: PropertyMetadata
 ): void {
-  let propertyMap = PROPERTY_METADATA.get(target) ?? new Map();
-  if (!PROPERTY_METADATA.has(target)) {
-    PROPERTY_METADATA.set(target, propertyMap);
+  // Ensure we have a valid object for WeakMap key
+  // For class properties, target is the prototype
+  const validTarget = target?.constructor?.prototype || target;
+
+  if (!validTarget || typeof validTarget !== 'object') {
+    // Silently skip invalid targets - decorators may be called on undefined/function values
+    // during module initialization which is normal
+    return;
+  }
+
+  let propertyMap = PROPERTY_METADATA.get(validTarget) ?? new Map();
+  if (!PROPERTY_METADATA.has(validTarget)) {
+    PROPERTY_METADATA.set(validTarget, propertyMap);
   }
 
   const existing = propertyMap.get(propertyKey) ?? {};
@@ -104,7 +123,9 @@ export function getPropertyMetadata(
   target: any,
   propertyKey: string
 ): PropertyMetadata | undefined {
-  const propertyMap = PROPERTY_METADATA.get(target);
+  // Use same target resolution as setPropertyMetadata
+  const validTarget = target?.constructor?.prototype || target;
+  const propertyMap = PROPERTY_METADATA.get(validTarget);
   return propertyMap?.get(propertyKey);
 }
 

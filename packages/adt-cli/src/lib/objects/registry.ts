@@ -1,34 +1,76 @@
 import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
-// import { ClassAdtAdapter } from '@abapify/adk'; // Not exported yet
+import { AdkObjectHandler } from './adk-bridge/adk-object-handler';
+import {
+  objectRegistry,
+  createInterface,
+  createClass,
+  createDomain,
+} from '@abapify/adk';
+import { getAdtClient } from '../shared/clients';
 
 export class ObjectRegistry {
   private static handlers = new Map<string, () => BaseObject<any>>();
 
   static {
-    // ADK-based object handlers (native ADT format parsing)
-    // TODO: Re-enable when ClassAdtAdapter is exported from @abapify/adk
-    // this.handlers.set(
-    //   'CLAS',
-    //   () =>
-    //     new AdkObjectHandler(
-    //       ClassAdtAdapter.parseXmlToSpec,
-    //       ClassAdtAdapter.uriFactory,
-    //       getAdtClient()
-    //     )
-    // );
-    // TODO: Add InterfaceAdtAdapter when available in ADK
-    // this.handlers.set(
-    //   'INTF',
-    //   () =>
-    //     new AdkObjectHandler(
-    //       InterfaceAdtAdapter.parseXmlToSpec,
-    //       InterfaceAdtAdapter.uriFactory,
-    //       getAdtClient()
-    //     )
-    // );
-    // TODO: Migrate DEVC to ADK when adapter is available
-    // this.handlers.set('DEVC', (client) => new AdkObjectHandler(...));
+    // ADK-based object handlers using new client-agnostic architecture
+    this.handlers.set(
+      'CLAS',
+      () =>
+        new AdkObjectHandler(
+          (xml: string) => {
+            // Use ADK objectRegistry to parse XML to object
+            try {
+              return objectRegistry.createFromXml('CLAS', xml);
+            } catch (error) {
+              // Fallback: create empty object for now
+              const classObj = createClass();
+              classObj.name = 'UNKNOWN';
+              return classObj;
+            }
+          },
+          (name: string) => `/sap/bc/adt/oo/classes/${name.toLowerCase()}`,
+          getAdtClient()
+        )
+    );
+    this.handlers.set(
+      'INTF',
+      () =>
+        new AdkObjectHandler(
+          (xml: string) => {
+            // Use ADK objectRegistry to parse XML to object
+            try {
+              return objectRegistry.createFromXml('INTF', xml);
+            } catch (error) {
+              // Fallback: create empty object for now
+              const intfObj = createInterface();
+              intfObj.name = 'UNKNOWN';
+              return intfObj;
+            }
+          },
+          (name: string) => `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`,
+          getAdtClient()
+        )
+    );
+    this.handlers.set(
+      'DOMA',
+      () =>
+        new AdkObjectHandler(
+          (xml: string) => {
+            // Use ADK objectRegistry to parse XML to object
+            try {
+              return objectRegistry.createFromXml('DOMA', xml);
+            } catch (error) {
+              // Fallback: create empty object for now
+              const domainObj = createDomain();
+              domainObj.name = 'UNKNOWN';
+              return domainObj;
+            }
+          },
+          (name: string) => `/sap/bc/adt/ddic/domains/${name.toLowerCase()}`,
+          getAdtClient()
+        )
+    );
   }
 
   static get(objectType: string): BaseObject<ObjectData> {

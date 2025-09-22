@@ -227,7 +227,7 @@ export class PluginManager {
     options?: Record<string, any>
   ): Promise<BaseFormat> {
     // For now, use the existing FormatRegistry for built-in plugins
-    const { FormatRegistry } = await import('../formats/format-registry.js');
+    const { FormatRegistry } = await import('../formats/format-registry');
     return FormatRegistry.get(pluginName);
   }
 

@@ -18,9 +18,12 @@ import {
   createTestLogCommand,
   createTestAdtCommand,
 } from './commands';
-import { deployCommand } from './commands/deploy/index.js';
+import { deployCommand } from './commands/deploy/index';
+import { createUnlockCommand } from './commands/unlock/index';
+import { createLockCommand } from './commands/lock';
+import { createDeploySourceCommand } from './commands/deploy-source';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
-import { setGlobalLogger } from './shared/clients.js';
+import { setGlobalLogger } from './shared/clients';
 
 // Add global options help to all commands using afterAll hook
 function addGlobalOptionsHelpToAll(rootProgram: Command): void {
@@ -125,6 +128,15 @@ export async function createCLI(): Promise<Command> {
 
   // Deploy command
   program.addCommand(deployCommand);
+
+  // Deploy source command
+  program.addCommand(createDeploySourceCommand());
+
+  // Lock command
+  program.addCommand(createLockCommand());
+
+  // Unlock command
+  program.addCommand(createUnlockCommand());
 
   // Test commands for debugging
   program.addCommand(createTestLogCommand());

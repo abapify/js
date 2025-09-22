@@ -1,4 +1,4 @@
-import { Kind, Spec } from '@abapify/adk';
+import { Kind } from '@abapify/adk';
 
 interface AbapGitObject {
   type: string;
@@ -11,7 +11,7 @@ interface AbapGitObject {
 export class ADKObjectLoader {
   constructor(private client: any) {}
 
-  async convertToAdkSpec(object: AbapGitObject): Promise<Spec<any>> {
+  async convertToAdkObject(object: AbapGitObject): Promise<any> {
     switch (object.type.toLowerCase()) {
       case 'intf':
         return this.convertInterface(object);
@@ -24,9 +24,7 @@ export class ADKObjectLoader {
     }
   }
 
-  private async convertInterface(
-    object: AbapGitObject
-  ): Promise<Spec<any, Kind.Interface>> {
+  private async convertInterface(object: AbapGitObject): Promise<any> {
     // Parse XML metadata to extract interface properties
     const { XMLParser } = await import('fast-xml-parser');
     const parser = new XMLParser({
@@ -38,27 +36,21 @@ export class ADKObjectLoader {
     const parsed = parser.parse(object.xmlData);
     const vseoInterf = parsed.abapGit['asx:abap']['asx:values'].VSEOINTERF;
 
+    // TODO: When ADK stabilizes, create proper Interface object
+    // For now, return a plain object with interface data
     return {
       kind: Kind.Interface,
-      metadata: {
-        name: object.name,
-        description: vseoInterf.DESCRIPT || object.name,
-      },
-      spec: {
-        name: vseoInterf.CLSNAME,
-        description: vseoInterf.DESCRIPT,
-        language: vseoInterf.LANGU || 'E',
-        exposure: vseoInterf.EXPOSURE,
-        sourceCode: object.sourceCode || '',
-        methods: this.parseInterfaceMethods(object.sourceCode || ''),
-        types: this.parseInterfaceTypes(object.sourceCode || ''),
-      },
+      name: vseoInterf.CLSNAME,
+      description: vseoInterf.DESCRIPT,
+      language: vseoInterf.LANGU || 'E',
+      exposure: vseoInterf.EXPOSURE,
+      sourceCode: object.sourceCode || '',
+      methods: this.parseInterfaceMethods(object.sourceCode || ''),
+      types: this.parseInterfaceTypes(object.sourceCode || ''),
     };
   }
 
-  private async convertClass(
-    object: AbapGitObject
-  ): Promise<Spec<any, Kind.Class>> {
+  private async convertClass(object: AbapGitObject): Promise<any> {
     const { XMLParser } = await import('fast-xml-parser');
     const parser = new XMLParser({
       ignoreAttributes: false,
@@ -69,29 +61,23 @@ export class ADKObjectLoader {
     const parsed = parser.parse(object.xmlData);
     const vseoClass = parsed.abapGit['asx:abap']['asx:values'].VSEOCLASS;
 
+    // TODO: When ADK stabilizes, create proper Class object
+    // For now, return a plain object with class data
     return {
       kind: Kind.Class,
-      metadata: {
-        name: object.name,
-        description: vseoClass.DESCRIPT || object.name,
-      },
-      spec: {
-        name: vseoClass.CLSNAME,
-        description: vseoClass.DESCRIPT,
-        language: vseoClass.LANGU || 'E',
-        final: vseoClass.CLSFINAL === 'X',
-        abstract: vseoClass.CLSABSTRCT === 'X',
-        sourceCode: object.sourceCode || '',
-        interfaces: this.parseClassInterfaces(object.sourceCode || ''),
-        methods: this.parseClassMethods(object.sourceCode || ''),
-        attributes: this.parseClassAttributes(object.sourceCode || ''),
-      },
+      name: vseoClass.CLSNAME,
+      description: vseoClass.DESCRIPT,
+      language: vseoClass.LANGU || 'E',
+      final: vseoClass.CLSFINAL === 'X',
+      abstract: vseoClass.CLSABSTRCT === 'X',
+      sourceCode: object.sourceCode || '',
+      interfaces: this.parseClassInterfaces(object.sourceCode || ''),
+      methods: this.parseClassMethods(object.sourceCode || ''),
+      attributes: this.parseClassAttributes(object.sourceCode || ''),
     };
   }
 
-  private async convertDomain(
-    object: AbapGitObject
-  ): Promise<Spec<any, Kind.Domain>> {
+  private async convertDomain(object: AbapGitObject): Promise<any> {
     const { XMLParser } = await import('fast-xml-parser');
     const parser = new XMLParser({
       ignoreAttributes: false,
@@ -102,22 +88,18 @@ export class ADKObjectLoader {
     const parsed = parser.parse(object.xmlData);
     const dd01v = parsed.abapGit['asx:abap']['asx:values'].DD01V;
 
+    // TODO: When ADK stabilizes, create proper Domain object
+    // For now, return a plain object with domain data
     return {
       kind: Kind.Domain,
-      metadata: {
-        name: object.name,
-        description: dd01v.DDTEXT || object.name,
-      },
-      spec: {
-        name: dd01v.DOMNAME,
-        description: dd01v.DDTEXT,
-        dataType: dd01v.DATATYPE,
-        length: dd01v.LENG,
-        decimals: dd01v.DECIMALS,
-        outputLength: dd01v.OUTPUTLEN,
-        conversionExit: dd01v.CONVEXIT,
-        domainValues: this.parseDomainValues(parsed),
-      },
+      name: dd01v.DOMNAME,
+      description: dd01v.DDTEXT,
+      dataType: dd01v.DATATYPE,
+      length: dd01v.LENG,
+      decimals: dd01v.DECIMALS,
+      outputLength: dd01v.OUTPUTLEN,
+      conversionExit: dd01v.CONVEXIT,
+      domainValues: this.parseDomainValues(parsed),
     };
   }
 
