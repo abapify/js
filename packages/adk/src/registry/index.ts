@@ -1,4 +1,8 @@
-export { ObjectRegistry, createObject } from './object-registry';
+export {
+  ObjectRegistry,
+  createObject,
+  ObjectTypeRegistry,
+} from './object-registry';
 export { Kind } from '../kind';
 
 // Factory functions

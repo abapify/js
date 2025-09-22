@@ -5,7 +5,8 @@
  * Implementation follows docs/specs/adk-on-xmld.md.
  */
 
-// Base XML classes and generic factory
+// Base classes and types
+export type { AdkObject } from './base/adk-object';
 export { BaseSpec } from './base/base-spec';
 export { OoSpec } from './base/oo-xml';
 export { createFromXml } from './base/generic-factory';
@@ -35,17 +36,25 @@ import { Domain } from './objects/domain';
 import { InterfaceConstructor } from './objects/interface';
 import { ClassConstructor } from './objects/class';
 import { DomainConstructor } from './objects/domain';
-import { ObjectRegistry } from './registry';
+import { ObjectRegistry, ObjectTypeRegistry } from './registry';
 import { Kind } from './kind';
 
 ObjectRegistry.register(Kind.Interface, InterfaceConstructor as any);
 ObjectRegistry.register(Kind.Class, ClassConstructor as any);
 ObjectRegistry.register(Kind.Domain, DomainConstructor as any);
 
+// Export a facade instance that ADT client can use
+export const objectRegistry = new ObjectTypeRegistry();
+
 // Convenience factory functions
 export const createInterface = () => new Interface();
 export const createClass = () => new Class();
 export const createDomain = () => new Domain();
+
+// Export object types for use by adt-client
+export type { Interface } from './objects/interface';
+export type { Class } from './objects/class';
+export type { Domain } from './objects/domain';
 
 // Public types placeholder (reserved for future stable types)
 export type {} from './types';

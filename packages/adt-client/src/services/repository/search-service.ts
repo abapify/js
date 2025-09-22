@@ -170,12 +170,43 @@ export class SearchService {
     const objectList = Array.isArray(references) ? references : [references];
 
     const objects: ADTObjectInfo[] = objectList.map((ref: any) => ({
-      name: ref['@adtcore:name'] || ref['@name'] || '',
-      type: this.extractObjectType(ref['@adtcore:type'] || ref['@type'] || ''),
-      fullType: ref['@adtcore:type'] || ref['@type'] || '',
-      description: ref['@adtcore:description'] || ref['@description'] || '',
-      packageName: ref['@adtcore:packageName'] || ref['@packageName'] || '',
-      uri: ref['@adtcore:uri'] || ref['@uri'] || '',
+      name:
+        ref['@_adtcore:name'] ||
+        ref['@adtcore:name'] ||
+        ref['@_name'] ||
+        ref['@name'] ||
+        '',
+      type: this.extractObjectType(
+        ref['@_adtcore:type'] ||
+          ref['@adtcore:type'] ||
+          ref['@_type'] ||
+          ref['@type'] ||
+          ''
+      ),
+      fullType:
+        ref['@_adtcore:type'] ||
+        ref['@adtcore:type'] ||
+        ref['@_type'] ||
+        ref['@type'] ||
+        '',
+      description:
+        ref['@_adtcore:description'] ||
+        ref['@adtcore:description'] ||
+        ref['@_description'] ||
+        ref['@description'] ||
+        '',
+      packageName:
+        ref['@_adtcore:packageName'] ||
+        ref['@adtcore:packageName'] ||
+        ref['@_packageName'] ||
+        ref['@packageName'] ||
+        '',
+      uri:
+        ref['@_adtcore:uri'] ||
+        ref['@adtcore:uri'] ||
+        ref['@_uri'] ||
+        ref['@uri'] ||
+        '',
     }));
 
     return {
