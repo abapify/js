@@ -17,6 +17,7 @@ import {
   transportCreateCommand,
   createTestLogCommand,
   createTestAdtCommand,
+  createResearchSessionsCommand,
 } from './commands';
 import { deployCommand } from './commands/deploy/index';
 import { createUnlockCommand } from './commands/unlock/index';
@@ -137,6 +138,9 @@ export async function createCLI(): Promise<Command> {
 
   // Unlock command
   program.addCommand(createUnlockCommand());
+
+  // Research command
+  program.addCommand(createResearchSessionsCommand());
 
   // Test commands for debugging
   program.addCommand(createTestLogCommand());

@@ -12,14 +12,6 @@
   },
   "tags": [],
   "targets": {
-    "build": {
-      "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
-      "options": {
-        "cwd": "packages/adt-cli",
-        "command": "npm run build"
-      }
-    },
     "nx-release-publish": {
       "options": {
         "packageRoot": "dist/{projectRoot}"

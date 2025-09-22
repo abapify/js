@@ -20,7 +20,6 @@ const baseLogger = pino({
           ignore: 'pid,hostname,time',
           messageFormat: '[{component}] {msg}',
           hideObject: true,
-          singleLine: true,
         },
       }
     : undefined,
