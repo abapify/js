@@ -53,6 +53,7 @@ export type {
   PackageContent,
   ObjectTypeInfo,
 } from './services/repository/types.js';
+export { AdtSessionType } from './services/repository/types.js';
 export type {
   DiscoveryOperations,
   SystemInfo,

@@ -1,15 +1,47 @@
 # @abapify/adt-client
 
-Modern ADT (ABAP Development Tools) client library for Node.js with comprehensive logging and testing support.
+Node.js client library for SAP ABAP Development Tools (ADT) REST APIs. Connect to SAP systems, manage transports, run ATC checks, and work with ABAP objects programmatically.
 
-## Features
+## Why Use This?
 
-- 🔐 **OAuth 2.0 Authentication** with PKCE flow
-- 🏗️ **Service-based Architecture** with modular design
-- 📊 **Structured Logging** with Pino
-- 🧪 **Comprehensive Testing** with Vitest and mock client
-- 🔧 **TypeScript Support** with full type definitions
-- 🌐 **HTTP/REST** ADT protocol implementation
+- **CLI-First Design**: Purpose-built as the core engine for the [ADT CLI](../adt-cli/README.md) with unique command-line features
+- **Monorepo Integration**: Seamlessly integrates with other abapify-js packages (ADK, parsers, generators)
+- **Modern Toolchain**: Built for modern TypeScript/Node.js development workflows and CI/CD automation
+- **SAP BTP Optimized**: Specifically optimized for SAP Business Technology Platform ABAP Environment
+
+## Comparison with Existing Solutions
+
+This client complements the excellent [abap-adt-api](https://github.com/marcellourbani/abap-adt-api) by Marcello Urbani, which offers comprehensive ADT API coverage and mature features.
+
+**Key Differences:**
+
+| Feature             | @abapify/adt-client                                       | abap-adt-api                   |
+| ------------------- | --------------------------------------------------------- | ------------------------------ |
+| **Maturity**        | PoC phase, actively developing                            | Mature, production-ready       |
+| **Scope**           | CLI-focused core component                                | Comprehensive ADT library      |
+| **Architecture**    | Monorepo part, integrates with ADK/parsers                | Standalone package             |
+| **CLI Integration** | Native CLI commands ([see ADT CLI](../adt-cli/README.md)) | Programmatic API only          |
+| **Unique Features** | Source deployment, object scaffolding, Git integration    | Broader ADT operation coverage |
+
+**When to use this client:**
+
+- You want CLI-based ABAP development workflows
+- You need integration with the abapify-js ecosystem (ADK, code generators)
+- You're building modern TypeScript-first automation tools
+
+**When to use abap-adt-api:**
+
+- You need comprehensive, battle-tested ADT API coverage
+- You're building standalone applications without CLI requirements
+- You want maximum feature completeness and stability
+
+## Key Features
+
+- 🔐 **Secure Authentication** - OAuth 2.0 with PKCE flow for SAP BTP
+- 🚀 **High Performance** - Optimized HTTP headers and CSRF token caching
+- 📦 **Complete API Coverage** - Transport system, ATC, repository, and discovery services
+- 🔧 **TypeScript Native** - Full type definitions and IntelliSense support
+- 📊 **Built-in Logging** - Structured logging with configurable components
 
 ## Installation
 
@@ -20,177 +52,126 @@ npm install @abapify/adt-client
 ## Quick Start
 
 ```typescript
-import { AdtClientImpl, createLogger } from '@abapify/adt-client';
-
-// Optional: Configure logging
-process.env.ADT_LOG_LEVEL = 'debug';
-process.env.ADT_LOG_COMPONENTS = 'auth,cts,atc';
+import { AdtClientImpl } from '@abapify/adt-client';
 
 const client = new AdtClientImpl();
 
-// Connect using service key
+// Connect using SAP BTP service key
 await client.connect({
   serviceKeyPath: './service-key.json',
 });
 
-// Use services
-const transports = await client.cts.listTransports();
+// Create a transport request
+const transport = await client.cts.createTransport({
+  type: 'K',
+  description: 'My Development Changes',
+});
+
+// Run quality checks
 const atcResults = await client.atc.runAtcCheck({
   objectType: 'CLAS',
   objectName: 'ZCL_MY_CLASS',
 });
-```
 
-## Logging Configuration
-
-The client uses [Pino](https://getpino.io/) for structured logging with component-based filtering:
-
-### Environment Variables
-
-```bash
-# Log level (trace|debug|info|warn|error)
-ADT_LOG_LEVEL=debug
-
-# Enable specific components (comma-separated)
-ADT_LOG_COMPONENTS=auth,cts,atc,http
-
-# Development mode (enables pretty printing)
-NODE_ENV=development
-```
-
-### Available Components
-
-- `auth` - Authentication and OAuth flows
-- `cts` - Change and Transport System operations
-- `atc` - ABAP Test Cockpit checks
-- `repository` - Object repository operations
-- `discovery` - System discovery and metadata
-- `http` - HTTP request/response details
-- `connection` - Connection management
-- `client` - Main client operations
-
-### Custom Logger
-
-```typescript
-import { createLogger } from '@abapify/adt-client';
-
-const logger = createLogger('my-component');
-logger.info('Custom log message', { data: 'example' });
-```
-
-## Services
-
-### Transport Service (CTS)
-
-```typescript
-// List transport requests
-const transports = await client.cts.listTransports({
-  user: 'DEVELOPER',
-  status: 'modifiable',
-});
-
-// Create new transport
-const transport = await client.cts.createTransport({
-  type: 'K',
-  description: 'My Development Transport',
-});
-
-// Add object to transport
-await client.cts.addObjectToTransport('DEVK123456', {
-  objectType: 'CLAS',
-  objectName: 'ZCL_MY_CLASS',
-});
-```
-
-### ATC Service
-
-```typescript
-// Run ATC check
-const results = await client.atc.runAtcCheck({
-  objectType: 'CLAS',
-  objectName: 'ZCL_MY_CLASS',
-  checkVariant: 'DEFAULT',
-});
-
-console.log(`Found ${results.length} findings`);
-```
-
-### Repository Service
-
-```typescript
-// Get object metadata
-const object = await client.repository.getObject('CLAS', 'ZCL_MY_CLASS');
-
-// Search objects
-const results = await client.repository.searchObjects({
+// Search for objects
+const objects = await client.repository.searchObjects({
   query: 'ZCL_*',
   objectTypes: ['CLAS', 'INTF'],
 });
 ```
 
-## Testing
+## Configuration
 
-The package includes a comprehensive mock client for testing:
+### Authentication
+
+Get your SAP BTP service key from your ABAP Environment:
+
+1. In SAP BTP Cockpit, navigate to your ABAP Environment
+2. Go to Service Keys and create a new key
+3. Save the JSON content as `service-key.json`
 
 ```typescript
-import { MockAdtClient } from '@abapify/adt-client/tests/utils/mock-adt-client';
+await client.connect({
+  serviceKeyPath: './service-key.json',
+});
+```
 
-const mockClient = new MockAdtClient();
+### Logging (Optional)
 
-// Add mock data
-mockClient.addMockObject({
+Configure logging for debugging and monitoring:
+
+```bash
+# Set log level for development
+export ADT_LOG_LEVEL=debug
+
+# Enable specific components
+export ADT_LOG_COMPONENTS=auth,cts,atc
+
+# Pretty print logs in development
+export NODE_ENV=development
+```
+
+## Use Cases
+
+### CI/CD Integration
+
+```typescript
+// Automated quality checks in your pipeline
+const atcResults = await client.atc.runAtcCheck({
   objectType: 'CLAS',
-  objectName: 'ZCL_TEST',
-  packageName: 'ZTEST',
+  objectName: 'ZCL_MY_CLASS',
 });
 
-// Use in tests
-const objects = await mockClient.repository.searchObjects({
-  query: 'ZCL_*',
+if (atcResults.some((r) => r.priority === 1)) {
+  throw new Error('Critical ATC findings detected');
+}
+```
+
+### Transport Automation
+
+```typescript
+// Create and manage transports programmatically
+const transport = await client.cts.createTransport({
+  type: 'K',
+  description: 'Automated deployment',
 });
+
+await client.cts.addObjectToTransport(transport.number, {
+  objectType: 'CLAS',
+  objectName: 'ZCL_MY_CLASS',
+});
+
+await client.cts.releaseTransport(transport.number);
 ```
 
-### Running Tests
+### Object Discovery
 
-```bash
-# Run all tests
-npm test
+```typescript
+// Find and analyze ABAP objects
+const objects = await client.repository.searchObjects({
+  query: 'Z*',
+  objectTypes: ['CLAS', 'INTF', 'PROG'],
+});
 
-# Watch mode
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
+for (const obj of objects) {
+  const metadata = await client.repository.getObject(obj.type, obj.name);
+  console.log(`${obj.name}: ${metadata.description}`);
+}
 ```
 
-## Architecture
+## Contributing
 
-The client follows a service-based architecture:
+This package is part of the [abapify-js monorepo](https://github.com/your-org/abapify-js).
 
-```
-AdtClient
-├── auth: AuthManager          # OAuth 2.0 authentication
-├── connection: ConnectionManager  # HTTP connection management
-├── cts: TransportService      # Change & Transport System
-├── atc: AtcService           # ABAP Test Cockpit
-├── repository: RepositoryService  # Object repository
-└── discovery: DiscoveryService    # System discovery
-```
+For development setup, issues, and pull requests, please visit the main repository.
 
-Each service is independently testable and has colocated types for better maintainability.
+## Roadmap
 
-## Development
-
-```bash
-# Build the package
-npm run build
-
-# Watch for changes
-npm run watch
-
-# Run tests
-npm test
-```
+- 🔄 **Streaming Support** - Large object handling with streams
+- 📊 **Enhanced Metrics** - Built-in performance monitoring
+- 🔌 **Plugin System** - Extensible middleware architecture
+- 📱 **Browser Support** - Client-side usage capabilities
+- 🌐 **Multi-System** - Connect to multiple SAP systems simultaneously
 
 ## License
 
