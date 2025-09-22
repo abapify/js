@@ -2,6 +2,10 @@ import { Command } from 'commander';
 import { ExportService } from '../../services/export/service';
 import { IconRegistry } from '../../utils/icon-registry';
 import { AdtClientImpl } from '@abapify/adt-client';
+import {
+  getGlobalOptions,
+  createComponentLogger,
+} from '../../utils/command-helpers';
 
 export const exportPackageCommand = new Command('package')
   .argument('<packageName>', 'ABAP package name to export')
@@ -30,14 +34,20 @@ export const exportPackageCommand = new Command('package')
     false
   )
   .action(async (packageName, sourceFolder, options, command) => {
-    const logger = command.parent?.parent?.logger;
+    const globalOptions = getGlobalOptions(command);
+    const logger = createComponentLogger(command, 'cli');
 
     try {
-      // Create ADT client with logger
+      // Create ADT client with proper global verbose system
       const adtClient = new AdtClientImpl({
-        logger: logger?.child({ component: 'cli' }),
+        logger: globalOptions.verbose
+          ? createComponentLogger(command, 'connection')
+          : undefined,
       });
-      const exportService = new ExportService(adtClient);
+      const exportService = new ExportService(
+        adtClient,
+        globalOptions.verbose ? logger : undefined
+      );
 
       // Determine input path: --input option, sourceFolder argument, or default
       const inputPath =

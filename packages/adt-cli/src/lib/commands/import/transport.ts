@@ -42,9 +42,7 @@ async function loadFormatPlugin(formatSpec: string) {
   try {
     // Check if we're in test mode and should use mock plugin
     if (shouldUseMockClient() && packageName === '@abapify/oat') {
-      const { MockOatPlugin } = await import(
-        '../../testing/mock-oat-plugin.js'
-      );
+      const { MockOatPlugin } = await import('../../testing/mock-oat-plugin');
       const options = preset
         ? { preset: preset as 'flat' | 'hierarchical' | 'grouped' }
         : {};

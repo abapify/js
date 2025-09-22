@@ -151,6 +151,34 @@ export class ConnectionManager {
 
         if (!response.ok) {
           const errorText = await response.text();
+          this.debug(`📄 Error Response Body: ${errorText}`);
+
+          // Extract SAP error message from XML if available
+          let errorMessage = `Request failed: ${response.status} ${response.statusText}`;
+          try {
+            // Try to extract the actual error message from SAP XML response
+            const messageMatch = errorText.match(/<message[^>]*>([^<]+)</i);
+            if (messageMatch && messageMatch[1]) {
+              errorMessage = messageMatch[1].trim();
+            }
+          } catch {
+            // If XML parsing fails, use the generic message
+          }
+
+          // Create enhanced error with full response details
+          const enhancedError = this.createError(
+            'system',
+            errorMessage,
+            response.status,
+            undefined,
+            {
+              endpoint,
+              response: errorText,
+              status: response.status,
+              statusText: response.statusText,
+              headers: Object.fromEntries(response.headers.entries()),
+            }
+          );
 
           // On 403, clear session and retry if we haven't exhausted attempts
           if (response.status === 403 && attempt < maxRetries) {
@@ -158,23 +186,11 @@ export class ConnectionManager {
               `🔄 Got 403 on attempt ${attempt}, clearing session and retrying...`
             );
             this.cookies.clear();
-            lastError = this.createError(
-              'system',
-              `Request failed: ${response.status} ${response.statusText}`,
-              response.status,
-              undefined,
-              { endpoint, response: errorText }
-            );
+            lastError = enhancedError;
             continue; // Try again
           }
 
-          throw this.createError(
-            'system',
-            `Request failed: ${response.status} ${response.statusText}`,
-            response.status,
-            undefined,
-            { endpoint, response: errorText }
-          );
+          throw enhancedError;
         }
 
         // Success - capture cookies for session management

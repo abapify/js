@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import {
   createComponentLogger,
   handleCommandError,
-} from '../../utils/command-helpers.js';
+} from '../../utils/command-helpers';
 
 export const loginCommand = new Command('login')
   .description('Login to ADT using BTP service key')
