@@ -1,3 +1,9 @@
 {
-  "servers": {}
+  "servers": {
+    "Docker Gateway": {
+      "command": "docker.exe",
+      "args": ["mcp", "gateway", "run"],
+      "type": "stdio"
+    }
+  }
 }
