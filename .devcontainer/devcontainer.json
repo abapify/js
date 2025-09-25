@@ -16,7 +16,11 @@
       "extensions": ["nrwl.angular-console"]
     }
   },
-  "runArgs": ["--network=host", "--cap-add=SYS_ADMIN"],
+  "runArgs": [
+    "--network=host",
+    "--cap-add=SYS_ADMIN",
+    "--name=abapify-js-devcontainer"
+  ],
   "remoteEnv": {
     "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
   },
