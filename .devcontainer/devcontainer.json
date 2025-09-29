@@ -25,7 +25,9 @@
     "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
   },
   "features": {
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false
+    }
   },
   "postCreateCommand": "mkdir -p /home/node/.vscode-server/data/User/globalStorage && ln -sfn /home/node/.kilocode-data /home/node/.vscode-server/data/User/globalStorage/kilocode.kilo-code"
 }
