@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
 
 COPY --from=cloudfoundry/cli /usr/local/bin/cf /usr/local/bin/cf
+# Copy the binary from the previous stage
+COPY --from=docker/mcp-gateway /docker-mcp /usr/libexec/docker/cli-plugins/docker-mcp
 
 # Install necessary libraries for Chromium
 RUN apt-get update && apt-get install -y \
@@ -44,3 +46,4 @@ RUN apt-get update && apt-get install -y \
 USER node
 # Install uv Python package manager system-wide
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
