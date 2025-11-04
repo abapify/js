@@ -104,30 +104,40 @@ export class ConnectionManager {
         const session = this.authManager.getAuthenticatedSession();
         const token = await this.authManager.getValidToken();
 
-        const abapEndpoint =
-          session.serviceKey.endpoints['abap'] || session.serviceKey.url;
+        // Get endpoint based on auth type
+        let abapEndpoint: string;
+        if (session.authType === 'basic' && session.basicAuth) {
+          abapEndpoint = session.basicAuth.host;
+        } else if (session.serviceKey) {
+          abapEndpoint = session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
+        } else {
+          throw new Error('Invalid session: no endpoint information available');
+        }
 
         const url = `${abapEndpoint}${endpoint}`;
         this.debug(`🌐 ${options.method || 'GET'} ${url}`);
 
         const headers: Record<string, string> = {
-          Authorization: `Bearer ${token}`,
-          // 'User-Agent': 'ADT-CLI/1.0.0', // Test: might not be needed
+          Authorization: session.authType === 'basic' ? `Basic ${token}` : `Bearer ${token}`,
           Accept: 'application/xml',
-          // 'sap-client': '100', // Test: might default to service key client
-          // 'sap-language': 'EN', // Test: might default to user language
           'X-sap-adt-sessiontype': 'stateful',
-          // 'sap-adt-connection-id': this.ensureConnectionId(), // Test: might not be required
           ...options.headers,
         };
 
-        // Add SAP session headers from service key if available
-        if (session.serviceKey['URL.headers.x-sap-security-session']) {
-          headers['x-sap-security-session'] =
-            session.serviceKey['URL.headers.x-sap-security-session'];
-        } else {
-          // Fallback to 'use' if not specified in service key
-          headers['x-sap-security-session'] = 'use';
+        // Add SAP client if available
+        if (session.authType === 'basic' && session.basicAuth?.client) {
+          headers['sap-client'] = session.basicAuth.client;
+        }
+
+        // Add SAP session headers from service key if available (OAuth only)
+        if (session.authType === 'oauth' && session.serviceKey) {
+          if (session.serviceKey['URL.headers.x-sap-security-session']) {
+            headers['x-sap-security-session'] =
+              session.serviceKey['URL.headers.x-sap-security-session'];
+          } else {
+            // Fallback to 'use' if not specified in service key
+            headers['x-sap-security-session'] = 'use';
+          }
         }
 
         // For POST/PUT/DELETE operations, we need CSRF token
@@ -341,8 +351,15 @@ export class ConnectionManager {
     session: any,
     token: string
   ): Promise<void> {
-    const abapEndpoint =
-      session.serviceKey.endpoints['abap'] || session.serviceKey.url;
+    // Get endpoint based on auth type
+    let abapEndpoint: string;
+    if (session.authType === 'basic' && session.basicAuth) {
+      abapEndpoint = session.basicAuth.host;
+    } else if (session.serviceKey) {
+      abapEndpoint = session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
+    } else {
+      throw new Error('Invalid session: no endpoint information available');
+    }
     const sessionsUrl = `${abapEndpoint}/sap/bc/adt/core/http/sessions`;
 
     this.debug(`🔒 Initializing CSRF token from sessions endpoint`);
@@ -452,8 +469,15 @@ export class ConnectionManager {
     session: any,
     token: string
   ): Promise<string | null> {
-    const abapEndpoint =
-      session.serviceKey.endpoints['abap'] || session.serviceKey.url;
+    // Get endpoint based on auth type
+    let abapEndpoint: string;
+    if (session.authType === 'basic' && session.basicAuth) {
+      abapEndpoint = session.basicAuth.host;
+    } else if (session.serviceKey) {
+      abapEndpoint = session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
+    } else {
+      throw new Error('Invalid session: no endpoint information available');
+    }
 
     // Try different endpoints to get CSRF token
     const csrfEndpoints = [endpoint, '/sap/bc/adt/compatibility/graph'];

@@ -42,7 +42,7 @@ export function getAuthManager(): AuthManager {
 export async function ensureConnected(): Promise<void> {
   if (!adtClient.isConnected()) {
     throw new Error(
-      'Not authenticated. Run "adt auth login --file <service-key>" first.'
+      'Not authenticated. Run "adt auth login" first.'
     );
   }
 }
