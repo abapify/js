@@ -162,8 +162,11 @@ adt report generate --transport TR001 --template summary
 ### Authentication Commands
 
 ```bash
-# Service key authentication
+# Service key authentication (BTP)
 adt auth login --service-key ./service-key.json
+
+# Basic authentication (on-premise)
+adt auth login --username $SAP_USER --password $SAP_PASSWORD --host $SAP_HOST
 
 # Interactive authentication
 adt auth login --interactive
@@ -172,7 +175,11 @@ adt auth login --interactive
 adt auth login --token $SAP_TOKEN --endpoint $SAP_ENDPOINT
 ```
 
-**Design Rationale**: Flexible authentication supporting multiple SAP deployment scenarios (BTP, on-premise, different authentication methods).
+**Design Rationale**: Flexible authentication supporting multiple SAP deployment scenarios:
+- **Service Key**: SAP Business Technology Platform (BTP) with OAuth 2.0
+- **Basic Auth**: On-premise S/4HANA systems with username/password
+- **Interactive**: Browser-based OAuth flows
+- **Token**: Pre-generated tokens for automation
 
 ### Object Management Commands
 
