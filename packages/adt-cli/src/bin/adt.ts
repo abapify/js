@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env node
 
 // Set CLI mode before importing any modules
 process.env.ADT_CLI_MODE = 'true';

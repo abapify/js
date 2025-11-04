@@ -25,10 +25,20 @@ const OAUTH_REDIRECT_URI = 'http://localhost:3000/callback';
 const OAUTH_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const CALLBACK_SERVER_PORT = 3000;
 
+interface BasicAuthCredentials {
+  username: string;
+  password: string;
+  host: string;
+  client?: string;
+}
+
 interface AuthSession {
-  serviceKey: BTPServiceKey;
+  serviceKey?: BTPServiceKey;
+  basicAuth?: BasicAuthCredentials;
   token?: OAuthToken;
   currentUser?: string;
+  authType: 'oauth' | 'basic';
+  insecure?: boolean;
 }
 
 export class AuthManager {
@@ -94,6 +104,32 @@ export class AuthManager {
     this.saveSession(this.session);
   }
 
+  async loginBasic(
+    username: string,
+    password: string,
+    host: string,
+    client?: string,
+    insecure?: boolean
+  ): Promise<void> {
+    this.logger.info('Logging in with Basic Authentication', { host, client });
+
+    const basicAuth: BasicAuthCredentials = {
+      username,
+      password,
+      host,
+      client,
+    };
+
+    const session: AuthSession = {
+      basicAuth,
+      authType: 'basic',
+      insecure,
+    };
+
+    this.saveSession(session);
+    this.logger.info('Successfully logged in with Basic Auth');
+  }
+
   async login(serviceKeyPath: string): Promise<void> {
     const filePath = resolve(serviceKeyPath);
 
@@ -133,6 +169,7 @@ export class AuthManager {
     const session: AuthSession = {
       serviceKey,
       token,
+      authType: 'oauth',
     };
 
     this.saveSession(session);
@@ -328,7 +365,18 @@ export class AuthManager {
   async getValidToken(): Promise<string> {
     const session = this.getAuthenticatedSession();
 
-    // Check if token is expired or about to expire (refresh 1 minute early)
+    // For Basic Auth, generate token on-demand
+    if (session.authType === 'basic') {
+      if (!session.basicAuth) {
+        throw new Error('Basic Auth credentials not found in session');
+      }
+      
+      // Return Base64 encoded credentials for Basic Auth header
+      const credentials = `${session.basicAuth.username}:${session.basicAuth.password}`;
+      return Buffer.from(credentials).toString('base64');
+    }
+
+    // For OAuth, check if token is expired or about to expire (refresh 1 minute early)
     const now = new Date();
     const expiresAt = new Date(session.token!.expires_at);
     const refreshThreshold = new Date(now.getTime() + 60000); // 1 minute
@@ -337,7 +385,7 @@ export class AuthManager {
       this.logger.info('Token expired, re-authenticating automatically');
 
       try {
-        const newToken = await this.reAuthenticate(session.serviceKey);
+        const newToken = await this.reAuthenticate(session.serviceKey!);
         session.token = newToken;
         this.saveSession(session);
         this.logger.info('Re-authentication successful');
@@ -350,6 +398,19 @@ export class AuthManager {
     }
 
     return session.token!.access_token;
+  }
+  
+  getAuthType(): 'oauth' | 'basic' | null {
+    const session = this.loadSession();
+    return session?.authType || null;
+  }
+  
+  getBasicAuthCredentials(): BasicAuthCredentials | null {
+    const session = this.loadSession();
+    if (session?.authType === 'basic' && session.basicAuth) {
+      return session.basicAuth;
+    }
+    return null;
   }
 
   private async reAuthenticate(serviceKey: BTPServiceKey): Promise<OAuthToken> {
