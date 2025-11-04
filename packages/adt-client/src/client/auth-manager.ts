@@ -38,6 +38,7 @@ interface AuthSession {
   token?: OAuthToken;
   currentUser?: string;
   authType: 'oauth' | 'basic';
+  insecure?: boolean;
 }
 
 export class AuthManager {
@@ -107,7 +108,8 @@ export class AuthManager {
     username: string,
     password: string,
     host: string,
-    client?: string
+    client?: string,
+    insecure?: boolean
   ): Promise<void> {
     this.logger.info('Logging in with Basic Authentication', { host, client });
 
@@ -121,6 +123,7 @@ export class AuthManager {
     const session: AuthSession = {
       basicAuth,
       authType: 'basic',
+      insecure,
     };
 
     this.saveSession(session);
