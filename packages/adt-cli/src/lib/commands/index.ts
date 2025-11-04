@@ -9,6 +9,7 @@ export { outlineCommand } from './outline';
 export { atcCommand } from './atc';
 export { loginCommand } from './auth/login';
 export { logoutCommand } from './auth/logout';
+export { statusCommand } from './auth/status';
 export { transportListCommand } from './transport/list';
 export { transportGetCommand } from './transport/get';
 export { transportCreateCommand } from './transport/create';

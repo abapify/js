@@ -32,7 +32,9 @@ export class DiscoveryService {
   async getDiscovery(): Promise<ADTDiscoveryService> {
     try {
       const url = '/sap/bc/adt/discovery';
-      const response = await this.connectionManager.request(url);
+      const response = await this.connectionManager.request(url, {
+        headers: { Accept: 'application/atomsvc+xml' },
+      });
       if (!response.ok) {
         throw await ErrorHandler.handleHttpError(response);
       }

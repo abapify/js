@@ -12,6 +12,7 @@ import {
   atcCommand,
   loginCommand,
   logoutCommand,
+  statusCommand,
   transportListCommand,
   transportGetCommand,
   transportCreateCommand,
@@ -24,6 +25,29 @@ import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setGlobalLogger } from './shared/clients';
+import { AuthManager } from '@abapify/adt-client';
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Check for insecure SSL flag in stored session and apply it globally
+function applyInsecureSslFlag(): void {
+  try {
+    const authFile = resolve(
+      process.env.HOME || process.env.USERPROFILE || '.',
+      '.adt',
+      'auth.json'
+    );
+    
+    if (existsSync(authFile)) {
+      const session = JSON.parse(readFileSync(authFile, 'utf8'));
+      if (session.insecure) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      }
+    }
+  } catch (error) {
+    // Silently ignore errors - session might not exist yet
+  }
+}
 
 // Add global options help to all commands using afterAll hook
 function addGlobalOptionsHelpToAll(rootProgram: Command): void {
@@ -85,6 +109,7 @@ export async function createCLI(): Promise<Command> {
 
   authCmd.addCommand(loginCommand);
   authCmd.addCommand(logoutCommand);
+  authCmd.addCommand(statusCommand);
 
   // Discovery command
   program.addCommand(discoveryCommand);
@@ -150,6 +175,9 @@ export async function createCLI(): Promise<Command> {
 
 // Main execution function
 export async function main(): Promise<void> {
+  // Apply insecure SSL flag from session if present
+  applyInsecureSslFlag();
+
   const program = await createCLI();
 
   // Add a hook to set up logger before command execution
