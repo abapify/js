@@ -6,9 +6,10 @@
  */
 
 // Base classes and types
-export type { AdkObject } from './base/adk-object';
-export { BaseSpec } from './base/base-spec';
-export { OoSpec } from './base/oo-xml';
+export * from './base/adk-object';
+export * from './base/base-spec';
+export * from './base/oo-xml';
+export * from './base/lazy-content';
 export { createFromXml } from './base/generic-factory';
 
 // Namespace-based exports (Phase A)

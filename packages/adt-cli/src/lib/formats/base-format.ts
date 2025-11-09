@@ -1,4 +1,5 @@
 import { ObjectData } from '../objects/base/types';
+import type { AdkObject } from '@abapify/adk';
 
 export interface FormatResult {
   filesCreated: string[];
@@ -33,10 +34,17 @@ export abstract class BaseFormat {
     return true; // Base: accept all registered types
   }
 
-  // Import: ADT ObjectData → Files
+  // Import: ADT ObjectData → Files (legacy method for backward compatibility)
   abstract serialize(
     objectData: ObjectData,
     objectType: string,
+    outputPath: string
+  ): Promise<FormatResult>;
+
+  // Import: ADK Objects → Files (new method for ADK-based formats)
+  // Formats can override this to work with ADK objects directly
+  async serializeAdkObjects?(
+    objects: AdkObject[],
     outputPath: string
   ): Promise<FormatResult>;
 
