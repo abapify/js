@@ -37,7 +37,7 @@ function applyInsecureSslFlag(): void {
       '.adt',
       'auth.json'
     );
-    
+
     if (existsSync(authFile)) {
       const session = JSON.parse(readFileSync(authFile, 'utf8'));
       if (session.insecure) {
@@ -90,6 +90,21 @@ export async function createCLI(): Promise<Command> {
         ', '
       )} or 'all'`
     )
+    .option(
+      '--log-level <level>',
+      'Log level: trace|debug|info|warn|error',
+      'info'
+    )
+    .option(
+      '--log-output <dir>',
+      'Output directory for log files',
+      './tmp/logs'
+    )
+    .option(
+      '--log-response-files',
+      'Save ADT responses as separate files',
+      false
+    )
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.optsWithGlobals();
 
@@ -98,8 +113,13 @@ export async function createCLI(): Promise<Command> {
         verbose: opts.verbose,
       });
 
-      // Store logger for use in commands
+      // Store logger and logging config for use in commands
       (thisCommand as any).logger = logger;
+      (thisCommand as any).loggingConfig = {
+        logLevel: opts.logLevel || 'info',
+        logOutput: opts.logOutput || './tmp/logs',
+        logResponseFiles: opts.logResponseFiles || false,
+      };
     });
 
   // Auth commands

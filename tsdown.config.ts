@@ -1,11 +1,10 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
   platform: 'node',
   target: 'esnext',
   format: ['esm'],
-  dts: { build: true },
+  dts: true,
   sourcemap: true,
   clean: true,
   treeshake: true,

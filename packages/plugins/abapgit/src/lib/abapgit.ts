@@ -1,5 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
+import type { AdkObject } from '@abapify/adk';
+import { AbapGitSerializer } from './serializer';
 
 export interface AbapGitObject {
   type: string;
@@ -15,9 +17,29 @@ export interface AbapGitProject {
   path: string;
 }
 
+export interface SerializeResult {
+  success: boolean;
+  objectsProcessed: number;
+  filesCreated: string[];
+  errors?: string[];
+}
+
 export class AbapGitPlugin {
   name = 'abapGit';
   description = 'abapGit project reader and parser';
+
+  private serializer = new AbapGitSerializer();
+
+  /**
+   * Serialize ADK objects to abapGit format
+   * This is the new ADK-based serialization method
+   */
+  async serializeAdkObjects(
+    objects: AdkObject[],
+    outputPath: string
+  ): Promise<SerializeResult> {
+    return await this.serializer.serialize(objects, outputPath);
+  }
 
   async readProject(projectPath: string): Promise<AbapGitProject> {
     // Read .abapgit.xml configuration
