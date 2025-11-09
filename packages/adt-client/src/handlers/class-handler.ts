@@ -2,17 +2,22 @@ import {
   BaseObjectHandler,
   ObjectOutlineElement,
   ObjectProperties,
-} from './base-object-handler.js';
-import { AdtObject, ObjectMetadata } from '../types/objects.js';
-import { UpdateResult, CreateResult, DeleteResult } from '../types/client.js';
-import { XmlParser } from '../utils/xml-parser.js';
-import { ErrorHandler } from '../utils/error-handler.js';
+} from './base-object-handler';
+import { AdtObject, ObjectMetadata } from '../types/objects';
+import { UpdateResult, CreateResult, DeleteResult } from '../types/client';
+import { XmlParser } from '../utils/xml-parser';
+import { ErrorHandler } from '../utils/error-handler';
+import { ClassSpec, ClassInclude, createCachedLazyLoader } from '@abapify/adk';
+import type { AdkObject } from '@abapify/adk';
 
 export class ClassHandler extends BaseObjectHandler {
   constructor(connectionManager: any) {
     super(connectionManager, 'CLAS');
   }
 
+  /**
+   * Get class as ADK object with lazy loading support
+   */
   async getObject(objectName: string): Promise<AdtObject> {
     try {
       const metadata = await this.getObjectMetadata(objectName);
@@ -31,6 +36,80 @@ export class ClassHandler extends BaseObjectHandler {
         metadata,
         content,
       };
+    } catch (error) {
+      if (error instanceof Error && 'category' in error) {
+        throw error;
+      }
+      throw ErrorHandler.handleNetworkError(error as Error);
+    }
+  }
+
+  /**
+   * Get class as ADK object with lazy loading
+   * Returns ADK ClassSpec with lazy-loaded includes
+   */
+  async getAdkObject(
+    objectName: string,
+    options?: { lazyLoad?: boolean }
+  ): Promise<AdkObject> {
+    try {
+      const lazyLoad = options?.lazyLoad ?? true;
+
+      // Get metadata XML
+      const url = this.buildClassUrl(objectName);
+      const response = await this.connectionManager.request(url, {
+        headers: { Accept: 'application/vnd.sap.adt.oo.classes.v2+xml' },
+      });
+
+      if (!response.ok) {
+        throw await ErrorHandler.handleHttpError(response, {
+          objectType: this.objectType,
+          objectName,
+        });
+      }
+
+      const metadataXml = await response.text();
+
+      // Parse to ADK ClassSpec
+      const spec = ClassSpec.fromXMLString(metadataXml);
+
+      // Setup lazy loading for includes
+      if (lazyLoad && spec.include) {
+        spec.include = spec.include.map((inc) => {
+          const include = new ClassInclude();
+          include.includeType = inc.includeType;
+          include.sourceUri = inc.sourceUri;
+
+          // Create lazy loader for content
+          if (inc.sourceUri) {
+            include.content = createCachedLazyLoader(async () => {
+              const sourceUrl = inc.sourceUri!;
+              const sourceResponse = await this.connectionManager.request(
+                sourceUrl
+              );
+              if (!sourceResponse.ok) {
+                throw new Error(
+                  `Failed to fetch ${inc.includeType}: ${sourceResponse.statusText}`
+                );
+              }
+              return await sourceResponse.text();
+            });
+          }
+
+          return include;
+        });
+      }
+
+      // Create ADK object
+      const adkObject: AdkObject = {
+        kind: 'Class',
+        name: spec.core?.name || objectName,
+        type: 'CLAS/OC',
+        description: spec.core?.description,
+        spec,
+      };
+
+      return adkObject;
     } catch (error) {
       if (error instanceof Error && 'category' in error) {
         throw error;

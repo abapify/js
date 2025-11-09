@@ -317,43 +317,98 @@ export class ImportService {
         await formatHandler.beforeImport(baseDir);
       }
 
-      // Process each object using format handler
+      // Check if format supports ADK objects
+      const supportsAdkObjects =
+        typeof formatHandler.serializeAdkObjects === 'function';
+
       const objectsByType: Record<string, number> = {};
       let processedCount = 0;
       const allResults: any[] = [];
 
-      for (const obj of objectsToProcess) {
-        try {
-          // Get object data from ADT using object handler
-          const handler = ObjectRegistry.get(obj.type);
-          const objectData = await handler.read(obj.name);
+      if (supportsAdkObjects) {
+        // New path: Use ADK objects
+        const adkObjects: any[] = [];
 
-          // Merge description and package from transport result
-          objectData.description = obj.description || objectData.description;
+        for (const obj of objectsToProcess) {
+          try {
+            const handler = ObjectRegistry.get(obj.type);
 
-          // Apply package mapping if configured
-          const localPackageName = this.packageMapper
-            ? this.packageMapper.toLocal(obj.packageName)
-            : obj.packageName.toLowerCase();
-          objectData.package = localPackageName;
+            // Check if handler supports getAdkObject
+            if (typeof handler.getAdkObject === 'function') {
+              const adkObject = await handler.getAdkObject(obj.name);
 
-          // Format handler serializes the object data
-          const formatResult = await formatHandler.serialize(
-            objectData,
-            obj.type,
+              // Merge description and package from transport result
+              if (adkObject.spec && adkObject.spec.core) {
+                adkObject.spec.core.description =
+                  obj.description || adkObject.spec.core.description;
+
+                // Apply package mapping if configured
+                const localPackageName = this.packageMapper
+                  ? this.packageMapper.toLocal(obj.packageName)
+                  : obj.packageName.toLowerCase();
+                adkObject.spec.core.package = localPackageName;
+              }
+
+              adkObjects.push(adkObject);
+              objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
+              processedCount++;
+            } else {
+              console.log(
+                `⚠️ Handler for ${obj.type} doesn't support ADK objects, skipping ${obj.name}`
+              );
+            }
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to process ${obj.type} ${obj.name}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        }
+
+        // Serialize all ADK objects at once
+        if (adkObjects.length > 0) {
+          const formatResult = await formatHandler.serializeAdkObjects!(
+            adkObjects,
             baseDir
           );
           allResults.push(formatResult);
+        }
+      } else {
+        // Legacy path: Use ObjectData
+        for (const obj of objectsToProcess) {
+          try {
+            // Get object data from ADT using object handler
+            const handler = ObjectRegistry.get(obj.type);
+            const objectData = await handler.read(obj.name);
 
-          // Track statistics
-          objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
-          processedCount++;
-        } catch (error) {
-          console.log(
-            `⚠️ Failed to process ${obj.type} ${obj.name}: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
+            // Merge description and package from transport result
+            objectData.description = obj.description || objectData.description;
+
+            // Apply package mapping if configured
+            const localPackageName = this.packageMapper
+              ? this.packageMapper.toLocal(obj.packageName)
+              : obj.packageName.toLowerCase();
+            objectData.package = localPackageName;
+
+            // Format handler serializes the object data
+            const formatResult = await formatHandler.serialize(
+              objectData,
+              obj.type,
+              baseDir
+            );
+            allResults.push(formatResult);
+
+            // Track statistics
+            objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
+            processedCount++;
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to process ${obj.type} ${obj.name}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
         }
       }
 

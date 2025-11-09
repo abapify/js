@@ -3,10 +3,13 @@ import { OoSpec } from '../../base/oo-xml';
 import { BaseSpec } from '../../base/base-spec';
 import type { ClassAttrs } from './types';
 import { AtomLink } from '../atom';
+import type { LazyContent } from '../../base/lazy-content';
 
 /**
  * ClassInclude - Represents a class include with nested atom links
  * Extends BaseSpec to inherit adtcore attributes and atom links
+ *
+ * Supports lazy loading of content via the `content` property.
  */
 @xml
 export class ClassInclude extends BaseSpec {
@@ -17,6 +20,19 @@ export class ClassInclude extends BaseSpec {
   @namespace('abapsource', 'http://www.sap.com/adt/abapsource')
   @attribute
   sourceUri?: string;
+
+  /**
+   * Content of the include
+   * Can be immediate (string) or lazy (async function)
+   *
+   * @example
+   * // Immediate content
+   * include.content = 'CLASS lcl_test DEFINITION...';
+   *
+   * // Lazy content
+   * include.content = async () => await adtClient.request(sourceUri);
+   */
+  content?: LazyContent;
 
   // adtcore attributes and atom links inherited from BaseSpec
 
