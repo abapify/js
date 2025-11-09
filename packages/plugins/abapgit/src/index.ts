@@ -1,1 +1,1 @@
-export * from './lib/abapgit.js';
+export * from './lib/abapgit';

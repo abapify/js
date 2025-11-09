@@ -94,7 +94,6 @@ export const importTransportCommand = new Command('transport')
     'Format plugin (e.g., @abapify/oat, @abapify/oat/flat)'
   )
   .option('--object-types <types>', 'Comma-separated object types to import')
-  .option('--debug', 'Enable debug output')
   .action(async (transport: string, outputDir: string, options, command) => {
     const logger = createComponentLogger(command, 'import-transport');
 
