@@ -5,6 +5,7 @@ import { FormatRegistry } from '../../formats/format-registry';
 import { IconRegistry } from '../../utils/icon-registry';
 import { ConfigLoader } from '../../config/loader';
 import { PackageMapper } from '../../config/package-mapper';
+import { loadFormatPlugin } from '../../utils/format-loader';
 
 export interface ImportOptions {
   packageName: string;
@@ -50,16 +51,22 @@ export class ImportService {
 
   async importPackage(options: ImportOptions): Promise<ImportResult> {
     if (options.debug) {
-      adtClient.setDebugMode(true);
       console.log(`🔍 Importing package: ${options.packageName}`);
       console.log(`📁 Output path: ${options.outputPath}`);
       console.log(`🎯 Format: ${options.format || 'oat'}`);
     }
 
     // Load config and set up package mapping
-    const config = await ConfigLoader.load();
-    if (config.oat?.packageMapping) {
-      this.packageMapper = new PackageMapper(config.oat.packageMapping);
+    const configLoader = new ConfigLoader();
+    const config = await configLoader.load();
+    
+    // Check for package mapping in format plugin options
+    const formatName = options.format || 'oat';
+    const formatPlugin = config.plugins?.formats?.find(p => p.name === formatName);
+    const packageMapping = formatPlugin?.config?.options?.packageMapping;
+    
+    if (packageMapping) {
+      this.packageMapper = new PackageMapper(packageMapping);
       if (options.debug) {
         console.log(`⚙️ Package mapping configured`);
       }
@@ -70,10 +77,13 @@ export class ImportService {
       if (options.debug) {
         console.log(`📦 Discovering package: ${options.packageName}`);
       }
-      const searchResult = await adtClient.searchByPackage(
-        options.packageName,
-        {}
-      );
+      
+      // Use search with package filter instead of getPackageContents
+      const searchResult = await adtClient.repository.searchObjectsDetailed({
+        operation: 'quickSearch',
+        packageName: options.packageName,
+        maxResults: 1000
+      });
 
       if (options.debug) {
         console.log(`✅ Found ${searchResult.totalCount} total objects`);
@@ -85,7 +95,27 @@ export class ImportService {
       fs.mkdirSync(baseDir, { recursive: true });
 
       const format = options.format || 'oat';
-      const formatHandler = FormatRegistry.get(format);
+      
+      // Try dynamic loading first (supports @abapify/... and shortcuts like 'oat', 'abapgit')
+      // Fall back to FormatRegistry for backward compatibility
+      let formatHandler: any;
+      try {
+        if (format.startsWith('@') || format === 'oat' || format === 'abapgit') {
+          // Use dynamic loading for package names and shortcuts
+          const plugin = await loadFormatPlugin(format);
+          formatHandler = plugin.instance;
+        } else {
+          // Fall back to static registry for other formats
+          formatHandler = FormatRegistry.get(format);
+        }
+      } catch (error) {
+        // If dynamic loading fails, try static registry as fallback
+        if (FormatRegistry.isSupported(format)) {
+          formatHandler = FormatRegistry.get(format);
+        } else {
+          throw error;
+        }
+      }
 
       if (options.debug) {
         console.log(
@@ -95,9 +125,10 @@ export class ImportService {
 
       // Filter objects based on both format support and ADT handler support
       const objectsToProcess = searchResult.objects.filter((obj) => {
-        const supportedByFormat = formatHandler
-          .getSupportedObjectTypes()
-          .includes(obj.type);
+        // Check format support (new plugins may not have getSupportedObjectTypes)
+        const supportedByFormat = formatHandler.getSupportedObjectTypes
+          ? formatHandler.getSupportedObjectTypes().includes(obj.type)
+          : true; // New ADK-aware plugins support all ADT-supported types
         const supportedByADT = ObjectRegistry.isSupported(obj.type);
         const includeByOptions = this.shouldIncludeObject(obj, options);
 
@@ -139,43 +170,106 @@ export class ImportService {
         await formatHandler.beforeImport(baseDir);
       }
 
-      // Process each object using format handler
+      // Check if format supports ADK objects
+      const supportsAdkObjects =
+        typeof formatHandler.serializeAdkObjects === 'function';
+
       const objectsByType: Record<string, number> = {};
       let processedCount = 0;
       const allResults: any[] = [];
 
-      for (const obj of objectsToProcess) {
-        try {
-          // Get object data from ADT using object handler
-          const handler = ObjectRegistry.get(obj.type);
-          const objectData = await handler.read(obj.name);
+      if (supportsAdkObjects) {
+        // New path: Use ADK objects
+        const adkObjects: any[] = [];
 
-          // Merge description and package from search result
-          objectData.description = obj.description || objectData.description;
+        for (const obj of objectsToProcess) {
+          try {
+            const handler = ObjectRegistry.get(obj.type);
 
-          // Apply package mapping if configured
-          const localPackageName = this.packageMapper
-            ? this.packageMapper.toLocal(obj.packageName)
-            : obj.packageName.toLowerCase();
-          objectData.package = localPackageName;
+            // Check if handler supports getAdkObject
+            if (typeof handler.getAdkObject === 'function') {
+              const adkObject = await handler.getAdkObject(obj.name);
 
-          // Format handler serializes the object data
-          const formatResult = await formatHandler.serialize(
-            objectData,
-            obj.type,
-            baseDir
-          );
-          allResults.push(formatResult);
+              // Merge description and package from search result
+              if (adkObject.spec && adkObject.spec.core) {
+                adkObject.spec.core.description =
+                  obj.description || adkObject.spec.core.description;
 
-          // Track statistics
-          objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
-          processedCount++;
-        } catch (error) {
-          console.log(
-            `⚠️ Failed to process ${obj.type} ${obj.name}: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
+                // Apply package mapping if configured
+                const localPackageName = this.packageMapper
+                  ? this.packageMapper.toLocal(obj.packageName)
+                  : obj.packageName.toLowerCase();
+                adkObject.spec.core.package = localPackageName;
+              }
+
+              adkObjects.push(adkObject);
+              objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
+              processedCount++;
+            } else {
+              console.log(
+                `⚠️ Handler for ${obj.type} doesn't support ADK objects, skipping ${obj.name}`
+              );
+            }
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to process ${obj.type} ${obj.name}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        }
+
+        // Serialize all ADK objects at once
+        if (adkObjects.length > 0) {
+          try {
+            const result = await formatHandler.serializeAdkObjects(
+              adkObjects,
+              baseDir
+            );
+            allResults.push(result);
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to serialize ADK objects: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        }
+      } else {
+        // Old path: Use traditional object data
+        for (const obj of objectsToProcess) {
+          try {
+            // Get object data from ADT using object handler
+            const handler = ObjectRegistry.get(obj.type);
+            const objectData = await handler.read(obj.name);
+
+            // Merge description and package from search result
+            objectData.description = obj.description || objectData.description;
+
+            // Apply package mapping if configured
+            const localPackageName = this.packageMapper
+              ? this.packageMapper.toLocal(obj.packageName)
+              : obj.packageName.toLowerCase();
+            objectData.package = localPackageName;
+
+            // Format handler serializes the object data
+            const formatResult = await formatHandler.serialize(
+              objectData,
+              obj.type,
+              baseDir
+            );
+            allResults.push(formatResult);
+
+            // Track statistics
+            objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
+            processedCount++;
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to process ${obj.type} ${obj.name}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
         }
       }
 
@@ -211,16 +305,22 @@ export class ImportService {
     options: TransportImportOptions
   ): Promise<ImportResult> {
     if (options.debug) {
-      adtClient.setDebugMode(true);
       console.log(`🔍 Importing transport: ${options.transportNumber}`);
       console.log(`📁 Output path: ${options.outputPath}`);
       console.log(`🎯 Format: ${options.format || 'oat'}`);
     }
 
     // Load config and set up package mapping
-    const config = await ConfigLoader.load();
-    if (config.oat?.packageMapping) {
-      this.packageMapper = new PackageMapper(config.oat.packageMapping);
+    const configLoader = new ConfigLoader();
+    const config = await configLoader.load();
+    
+    // Check for package mapping in format plugin options
+    const formatName = options.format || 'oat';
+    const formatPlugin = config.plugins?.formats?.find(p => p.name === formatName);
+    const packageMapping = formatPlugin?.config?.options?.packageMapping;
+    
+    if (packageMapping) {
+      this.packageMapper = new PackageMapper(packageMapping);
       if (options.debug) {
         console.log(`⚙️ Package mapping configured`);
       }
@@ -251,7 +351,6 @@ export class ImportService {
         console.log(
           `✅ Extracted ${searchObjects.length} objects from transport`
         );
-        console.log(`📝 Transport: ${transportDetails.transport.description}`);
       }
 
       // Set up output directory and get plugin
@@ -425,9 +524,7 @@ export class ImportService {
 
       return {
         transportNumber: options.transportNumber,
-        description:
-          transportDetails.transport.description ||
-          `Transport ${options.transportNumber}`,
+        description: `Transport ${options.transportNumber}`,
         totalObjects: searchObjects.length,
         processedObjects: processedCount,
         objectsByType,

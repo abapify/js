@@ -6,13 +6,8 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "abapify": "./src/index.ts",
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "default": "./dist/index.mjs"
-    }
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
   },
   "dependencies": {
     "@abapify/adk": "*",
