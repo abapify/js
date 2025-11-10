@@ -1,5 +1,4 @@
-import { xml, attributes, namespace, element } from 'xmld';
-import { toSerializationData, toFastXMLObject } from 'xmld';
+import { xml, attributes, namespace, element, toSerializationData, toFastXMLObject } from '../decorators';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 
 import type { AdtCoreAttrs } from '../namespaces/adtcore';

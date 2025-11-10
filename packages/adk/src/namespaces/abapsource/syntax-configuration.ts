@@ -1,4 +1,4 @@
-import { xml, root, element, namespace } from 'xmld';
+import { xml, root, element, namespace } from '../../decorators';
 import { AtomLink } from '../atom';
 
 /**

@@ -5,6 +5,7 @@ import baseConfig from '../../tsdown.config.ts';
 export default defineConfig({
   ...baseConfig,
   entry: ['./src/index.ts', './src/bin/adt.ts'],
+  tsconfig: 'tsconfig.lib.json',
   onSuccess: async () => {
     const { chmodSync } = await import('fs');
     const { join } = await import('path');

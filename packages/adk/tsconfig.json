@@ -12,6 +12,9 @@
   "include": [],
   "references": [
     {
+      "path": "../xmld"
+    },
+    {
       "path": "./tsconfig.lib.json"
     }
   ]

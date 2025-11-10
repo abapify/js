@@ -3,7 +3,7 @@ import {
   fromFastXMLObject,
   getClassMetadata,
   getAllPropertyMetadata,
-} from 'xmld';
+} from '../decorators';
 import { IntfSpec } from '../namespaces/intf/intf';
 
 describe('Zero-dependency plugin parsing', () => {

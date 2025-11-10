@@ -1,4 +1,4 @@
-import { xml, root, namespace, attribute, attributes, element } from 'xmld';
+import { xml, root, namespace, attribute, attributes, element } from '../../decorators';
 import { OoSpec } from '../../base/oo-xml';
 import { BaseSpec } from '../../base/base-spec';
 import type { ClassAttrs } from './types';
