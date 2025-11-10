@@ -37,24 +37,27 @@ export abstract class BaseObject<TSpec extends BaseSpec> implements AdkObject {
 
   // === Helper Methods ===
   // All helper methods moved to spec classes
+}
 
-  // === Generic Static Factory Method ===
-
-  /**
-   * Generic factory method to create ADK objects from XML
-   * This is a helper that can be used by subclasses to implement their fromAdtXml methods
-   *
-   * Note: Domain now uses the standalone createFromXml function instead
-   */
-  protected static createFromXml<
-    T extends BaseObject<any>,
-    TSpec extends BaseSpec
-  >(
-    this: new (spec: TSpec) => T,
-    xml: string,
-    specClass: { fromXMLString(xml: string): TSpec }
-  ): T {
-    const spec = specClass.fromXMLString(xml);
-    return new this(spec);
-  }
+/**
+ * Generic helper function to create ADK objects from XML
+ * 
+ * This is extracted as a standalone function instead of a static method
+ * to avoid TS4094 errors (exported anonymous classes cannot have private/protected members).
+ * 
+ * @example
+ * ```typescript
+ * const domain = createAdkObjectFromXml(Domain, DomainSpec, xmlString);
+ * ```
+ */
+export function createAdkObjectFromXml<
+  T extends BaseObject<TSpec>,
+  TSpec extends BaseSpec
+>(
+  ObjectClass: new (spec: TSpec) => T,
+  specClass: { fromXMLString(xml: string): TSpec },
+  xml: string
+): T {
+  const spec = specClass.fromXMLString(xml);
+  return new ObjectClass(spec);
 }

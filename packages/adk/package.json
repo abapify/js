@@ -6,20 +6,11 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "abapify": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
   },
   "dependencies": {
     "fast-xml-parser": "^5.2.5",
     "xmld": "*"
-  },
-  "devDependencies": {
-    "rollup-plugin-swc": "^0.2.1",
-    "unplugin-swc": "^1.5.7"
   }
 }
