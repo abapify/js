@@ -1,4 +1,4 @@
-import { xml, root, attribute } from 'xmld';
+import { xml, root, attribute } from '../../decorators';
 import type { AtomRelation } from './types';
 
 /**

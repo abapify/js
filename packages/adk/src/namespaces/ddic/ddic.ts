@@ -1,4 +1,4 @@
-import { xml, root, namespace, element } from 'xmld';
+import { xml, root, namespace, element } from '../../decorators';
 import { BaseSpec } from '../../base/base-spec';
 import type { DdicDomainData, DdicFixedValue } from './types';
 
