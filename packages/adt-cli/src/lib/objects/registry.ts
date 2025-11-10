@@ -2,10 +2,13 @@ import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
 import { AdkObjectHandler } from './adk-bridge/adk-object-handler';
 import {
-  objectRegistry,
-  createInterface,
   createClass,
+  createInterface,
   createDomain,
+  ClassSpec,
+  IntfSpec,
+  DomainSpec,
+  Kind,
 } from '@abapify/adk';
 import { getAdtClient } from '../shared/clients';
 
@@ -19,18 +22,18 @@ export class ObjectRegistry {
       () =>
         new AdkObjectHandler(
           (xml: string) => {
-            // Use ADK objectRegistry to parse XML to object
-            try {
-              return objectRegistry.createFromXml('CLAS', xml);
-            } catch (error) {
-              // Fallback: create empty object for now
-              const classObj = createClass();
-              classObj.name = 'UNKNOWN';
-              return classObj;
-            }
+            // Parse XML using ADK ClassSpec and create Class object
+            const spec = ClassSpec.fromXMLString(xml);
+            const classObj = createClass();
+            classObj.spec = spec;
+            // Populate top-level properties from spec
+            (classObj as any).name = spec.core?.name || '';
+            (classObj as any).description = spec.core?.description || '';
+            return classObj;
           },
           (name: string) => `/sap/bc/adt/oo/classes/${name.toLowerCase()}`,
-          getAdtClient()
+          getAdtClient(),
+          'application/vnd.sap.adt.oo.classes.v4+xml, application/vnd.sap.adt.oo.classes.v3+xml, application/vnd.sap.adt.oo.classes.v2+xml, application/vnd.sap.adt.oo.classes+xml'
         )
     );
     this.handlers.set(
@@ -38,18 +41,18 @@ export class ObjectRegistry {
       () =>
         new AdkObjectHandler(
           (xml: string) => {
-            // Use ADK objectRegistry to parse XML to object
-            try {
-              return objectRegistry.createFromXml('INTF', xml);
-            } catch (error) {
-              // Fallback: create empty object for now
-              const intfObj = createInterface();
-              intfObj.name = 'UNKNOWN';
-              return intfObj;
-            }
+            // Parse XML using ADK IntfSpec and create Interface object
+            const spec = IntfSpec.fromXMLString(xml);
+            const intfObj = createInterface();
+            intfObj.spec = spec;
+            // Populate top-level properties from spec
+            (intfObj as any).name = spec.core?.name || '';
+            (intfObj as any).description = spec.core?.description || '';
+            return intfObj;
           },
           (name: string) => `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`,
-          getAdtClient()
+          getAdtClient(),
+          'application/vnd.sap.adt.oo.interfaces.v5+xml, application/vnd.sap.adt.oo.interfaces.v4+xml, application/vnd.sap.adt.oo.interfaces.v3+xml, application/vnd.sap.adt.oo.interfaces.v2+xml, application/vnd.sap.adt.oo.interfaces+xml'
         )
     );
     this.handlers.set(
@@ -57,18 +60,18 @@ export class ObjectRegistry {
       () =>
         new AdkObjectHandler(
           (xml: string) => {
-            // Use ADK objectRegistry to parse XML to object
-            try {
-              return objectRegistry.createFromXml('DOMA', xml);
-            } catch (error) {
-              // Fallback: create empty object for now
-              const domainObj = createDomain();
-              domainObj.name = 'UNKNOWN';
-              return domainObj;
-            }
+            // Parse XML using ADK DomainSpec and create Domain object
+            const spec = DomainSpec.fromXMLString(xml);
+            const domainObj = createDomain();
+            domainObj.spec = spec;
+            // Populate top-level properties from spec
+            (domainObj as any).name = spec.core?.name || '';
+            (domainObj as any).description = spec.core?.description || '';
+            return domainObj;
           },
           (name: string) => `/sap/bc/adt/ddic/domains/${name.toLowerCase()}`,
-          getAdtClient()
+          getAdtClient(),
+          'application/vnd.sap.adt.ddic.domains.v2+xml, application/vnd.sap.adt.ddic.domains+xml'
         )
     );
   }

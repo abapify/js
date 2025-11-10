@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { AdkObject } from '@abapify/adk';
-import type { ClassSpec, ClassInclude } from '@abapify/adk';
+import type { ClassSpec } from '@abapify/adk';
 
 export interface SerializeResult {
   success: boolean;
@@ -52,18 +52,35 @@ export class AbapGitSerializer {
       const srcDir = join(targetPath, 'src');
       mkdirSync(srcDir, { recursive: true });
 
-      // Group objects by package
-      const objectsByPackage = this.groupByPackage(objects);
+      // Determine root package (most common package or first one)
+      const rootPackage = this.determineRootPackage(objects);
 
-      // Process each package
-      for (const [packageName, packageObjects] of objectsByPackage.entries()) {
-        const packageDir = join(srcDir, packageName.toLowerCase());
-        mkdirSync(packageDir, { recursive: true });
+      // Group objects by their folder (using PREFIX logic)
+      const objectsByFolder = this.groupByFolder(objects, rootPackage);
 
-        // Process each object in the package
-        for (const obj of packageObjects) {
+      // Create root package.devc.xml
+      const rootPackageXml = this.generatePackageXml(rootPackage, rootPackage);
+      const rootPackagePath = join(srcDir, 'package.devc.xml');
+      writeFileSync(rootPackagePath, rootPackageXml, 'utf8');
+      filesCreated.push(rootPackagePath);
+
+      // Process each folder
+      for (const [folderName, folderObjects] of objectsByFolder.entries()) {
+        const folderDir = join(srcDir, folderName);
+        mkdirSync(folderDir, { recursive: true });
+
+        // Create package.devc.xml for this folder
+        const firstObj = folderObjects[0];
+        const folderPackage = (hasSpec(firstObj) && firstObj.spec?.core?.package) || rootPackage;
+        const folderPackageXml = this.generatePackageXml(folderPackage, rootPackage);
+        const folderPackagePath = join(folderDir, 'package.devc.xml');
+        writeFileSync(folderPackagePath, folderPackageXml, 'utf8');
+        filesCreated.push(folderPackagePath);
+
+        // Process each object in the folder
+        for (const obj of folderObjects) {
           try {
-            const files = await this.serializeObject(obj, packageDir);
+            const files = await this.serializeObject(obj, folderDir);
             filesCreated.push(...files);
             objectsProcessed++;
           } catch (error) {
@@ -102,20 +119,50 @@ export class AbapGitSerializer {
     }
   }
 
-  private groupByPackage(objects: AdkObject[]): Map<string, AdkObject[]> {
+  /**
+   * Determine the root package from objects
+   */
+  private determineRootPackage(objects: AdkObject[]): string {
+    // Get all packages
+    const packages = objects
+      .map(obj => hasSpec(obj) && obj.spec.core?.package)
+      .filter(Boolean) as string[];
+    
+    if (packages.length === 0) return '$TMP';
+    
+    // Find the shortest package name (likely the root)
+    return packages.reduce((shortest, current) => 
+      current.length < shortest.length ? current : shortest
+    );
+  }
+
+  /**
+   * Group objects by folder using PREFIX logic
+   * - If package = root → folder = object type (e.g., 'clas')
+   * - If package = root_suffix → folder = suffix (e.g., 'suffix')
+   */
+  private groupByFolder(objects: AdkObject[], rootPackage: string): Map<string, AdkObject[]> {
     const groups = new Map<string, AdkObject[]>();
 
     for (const obj of objects) {
-      // Get package from spec.core if available
-      let packageName = '$TMP';
-      if (hasSpec(obj) && obj.spec.core?.package) {
-        packageName = obj.spec.core.package;
+      const objPackage = (hasSpec(obj) && obj.spec.core?.package) || rootPackage;
+      let folderName: string;
+
+      if (objPackage === rootPackage) {
+        // Same as root → use object type folder
+        folderName = this.getAbapGitExtension(obj.kind);
+      } else if (objPackage.startsWith(rootPackage + '_')) {
+        // Child package → use suffix as folder name
+        folderName = objPackage.substring(rootPackage.length + 1).toLowerCase();
+      } else {
+        // Different package → use object type as fallback
+        folderName = this.getAbapGitExtension(obj.kind);
       }
 
-      if (!groups.has(packageName)) {
-        groups.set(packageName, []);
+      if (!groups.has(folderName)) {
+        groups.set(folderName, []);
       }
-      groups.get(packageName)!.push(obj);
+      groups.get(folderName)!.push(obj);
     }
 
     return groups;
@@ -193,9 +240,11 @@ export class AbapGitSerializer {
 
         const content = await resolveContent(include.content);
         if (content) {
+          // Map ADK includeType to abapGit file naming convention
+          const abapGitSegmentName = this.mapIncludeTypeToAbapGit(include.includeType);
           const segmentFile = join(
             packageDir,
-            `${objectName}.${fileExtension}.${include.includeType}.abap`
+            `${objectName}.${fileExtension}.${abapGitSegmentName}.abap`
           );
           writeFileSync(segmentFile, content, 'utf8');
           files.push(segmentFile);
@@ -242,15 +291,83 @@ export class AbapGitSerializer {
     return extensions[kind] || 'obj';
   }
 
+  /**
+   * Map ADK includeType to abapGit file naming convention
+   */
+  private mapIncludeTypeToAbapGit(includeType: string): string {
+    const mapping: Record<string, string> = {
+      'definitions': 'locals_def',
+      'implementations': 'locals_imp',
+      'macros': 'macros',
+      'testclasses': 'testclasses',
+      'main': 'main',
+    };
+    return mapping[includeType] || includeType;
+  }
+
+  /**
+   * Get abapGit object type code (4-char SAP type)
+   */
+  private getAbapGitObjectType(kind: string): string {
+    const types: Record<string, string> = {
+      'Class': 'CLAS',
+      'Interface': 'INTF',
+      'Program': 'PROG',
+      'FunctionGroup': 'FUGR',
+      'Table': 'TABL',
+      'DataElement': 'DTEL',
+      'Domain': 'DOMA',
+      'Package': 'DEVC',
+    };
+    return types[kind] || kind.toUpperCase().substring(0, 4);
+  }
+
+  /**
+   * Generate package.devc.xml for a package
+   */
+  private generatePackageXml(packageName: string, rootPackage: string): string {
+    // Determine package description
+    let description = packageName;
+    if (packageName === rootPackage) {
+      description = packageName; // Root package
+    } else if (packageName.startsWith(rootPackage + '_')) {
+      // Child package - use suffix as description
+      const suffix = packageName.substring(rootPackage.length + 1);
+      description = suffix.charAt(0).toUpperCase() + suffix.slice(1).toLowerCase();
+    }
+
+    return `<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_DEVC" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <DEVC>
+    <CTEXT>${this.escapeXml(description)}</CTEXT>
+   </DEVC>
+  </asx:values>
+ </asx:abap>
+</abapGit>`;
+  }
+
   private generateObjectXml(obj: AdkObject): string {
-    const objectType = obj.kind.toUpperCase();
     const name = obj.name;
     const description = obj.description || '';
+    
+    // Get abapGit object type (4-char code)
+    const abapGitType = this.getAbapGitObjectType(obj.kind);
+
+    // Check if object has test classes
+    const hasTestClasses = isClass(obj) && 
+      obj.spec?.include?.some(inc => inc.includeType === 'testclasses');
+
+    // Build WITH_UNIT_TESTS line if needed
+    const testClassesLine = hasTestClasses 
+      ? '\n    <WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>' 
+      : '';
 
     // For now, generate basic XML structure
     // TODO: Use actual ADT XML from obj.toAdtXml() and convert to abapGit format
     return `<?xml version="1.0" encoding="utf-8"?>
-<abapGit version="v1.0.0" serializer="LCL_OBJECT_${objectType}" serializer_version="v1.0.0">
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_${abapGitType}" serializer_version="v1.0.0">
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
@@ -260,7 +377,7 @@ export class AbapGitSerializer {
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
-    <UNICODE>X</UNICODE>
+    <UNICODE>X</UNICODE>${testClassesLine}
    </VSEOCLASS>
   </asx:values>
  </asx:abap>
@@ -268,17 +385,17 @@ export class AbapGitSerializer {
   }
 
   private generateRootAbapGitXml(objects: AdkObject[]): string {
-    // Extract unique packages from objects
-    const packages = [
-      ...new Set(
-        objects.map((o) => {
-          if (hasSpec(o) && o.spec.core?.package) {
-            return o.spec.core.package;
-          }
-          return '$TMP';
-        })
-      ),
-    ];
+    // Extract unique packages from objects (for future use)
+    // const packages = [
+    //   ...new Set(
+    //     objects.map((o) => {
+    //       if (hasSpec(o) && o.spec.core?.package) {
+    //         return o.spec.core.package;
+    //       }
+    //       return '$TMP';
+    //     })
+    //   ),
+    // ];
 
     return `<?xml version="1.0" encoding="utf-8"?>
 <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">

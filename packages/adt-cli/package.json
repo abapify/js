@@ -1,17 +1,13 @@
 {
   "name": "@abapify/adt-cli",
   "version": "0.0.1",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "abapify": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
+    ".": "./dist/index.mjs",
+    "./bin/adt": "./dist/bin/adt.mjs",
+    "./package.json": "./package.json"
   },
   "dependencies": {
     "@abapify/adk": "*",

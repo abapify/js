@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { xml, root, attributes, namespace } from 'xmld';
-import { toFastXML } from 'xmld';
+import { xml, root, attributes, namespace, toFastXML } from '../decorators';
 
 // Debug: Check what we're actually importing
 console.log('attributes function:', attributes);

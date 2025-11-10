@@ -1,4 +1,4 @@
-import { xml, namespace, attributes, element } from 'xmld';
+import { xml, namespace, attributes, element } from '../decorators';
 import { BaseSpec } from './base-spec';
 import type {
   AbapSourceAttrs,

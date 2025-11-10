@@ -22,7 +22,6 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "skipDefaultLibCheck": true,
-    "baseUrl": ".",
     "allowSyntheticDefaultImports": true,
     "paths": {
       "@abapify/adk": ["packages/adk/src/index.ts"],

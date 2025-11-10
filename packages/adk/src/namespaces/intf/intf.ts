@@ -1,4 +1,4 @@
-import { xml, root, namespace } from 'xmld';
+import { xml, root, namespace } from '../../decorators';
 import { OoSpec } from '../../base/oo-xml';
 
 /**
