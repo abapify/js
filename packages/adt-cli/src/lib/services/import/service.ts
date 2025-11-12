@@ -182,6 +182,69 @@ export class ImportService {
         // New path: Use ADK objects
         const adkObjects: any[] = [];
 
+        // First, collect all unique packages from the objects
+        const uniquePackages = new Set<string>();
+        for (const obj of objectsToProcess) {
+          uniquePackages.add(obj.packageName);
+        }
+
+        // Fetch Package objects for all unique packages
+        for (const packageName of uniquePackages) {
+          try {
+            // Create a Package ADK object
+            const packageAdkObject = {
+              kind: 'Package',
+              name: packageName,
+              description: '', // Will be fetched from ADT
+              spec: {
+                core: {
+                  package: packageName,
+                  description: ''
+                }
+              }
+            };
+
+            // Only try to fetch description from ADT for root package
+            // Child packages don't have their own ADT endpoints
+            const rootPackage = options.packageName.toUpperCase();
+            const isChildPackage = packageName.toUpperCase() !== rootPackage && 
+                                   packageName.toUpperCase().startsWith(rootPackage + '_');
+            
+            if (isChildPackage) {
+              // Derive description from package name suffix for child packages
+              console.log(`📦 Package ${packageName}: deriving description from name (child package)`);
+              const parts = packageName.split('_');
+              const suffix = parts[parts.length - 1];
+              const derivedDescription = suffix.charAt(0).toUpperCase() + suffix.slice(1).toLowerCase();
+              packageAdkObject.description = derivedDescription;
+              packageAdkObject.spec.core.description = derivedDescription;
+            } else {
+              // Try to fetch from ADT for root package
+              try {
+                const packageInfo = await adtClient.repository.getPackage(packageName);
+                console.log(`📦 Package ${packageName}: description="${packageInfo.description}"`);
+                packageAdkObject.description = packageInfo.description;
+                packageAdkObject.spec.core.description = packageInfo.description;
+              } catch (error) {
+                // Fallback for root package if API fails
+                console.log(`⚠️  Failed to get description for package ${packageName}, using name`);
+                packageAdkObject.description = packageName;
+                packageAdkObject.spec.core.description = packageName;
+              }
+            }
+
+            adkObjects.push(packageAdkObject);
+            objectsByType['DEVC'] = (objectsByType['DEVC'] || 0) + 1;
+            processedCount++;
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to process package ${packageName}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        }
+
         for (const obj of objectsToProcess) {
           try {
             const handler = ObjectRegistry.get(obj.type);
@@ -219,7 +282,7 @@ export class ImportService {
           }
         }
 
-        // Serialize all ADK objects at once
+        // Serialize all ADK objects at once (Package objects are used for metadata only, not serialized as files)
         if (adkObjects.length > 0) {
           try {
             const result = await formatHandler.serializeAdkObjects(
@@ -427,6 +490,69 @@ export class ImportService {
       if (supportsAdkObjects) {
         // New path: Use ADK objects
         const adkObjects: any[] = [];
+
+        // First, collect all unique packages from the objects
+        const uniquePackages = new Set<string>();
+        for (const obj of objectsToProcess) {
+          uniquePackages.add(obj.packageName);
+        }
+
+        // Fetch Package objects for all unique packages
+        for (const packageName of uniquePackages) {
+          try {
+            // Create a Package ADK object
+            const packageAdkObject = {
+              kind: 'Package',
+              name: packageName,
+              description: '', // Will be fetched from ADT
+              spec: {
+                core: {
+                  package: packageName,
+                  description: ''
+                }
+              }
+            };
+
+            // Only try to fetch description from ADT for root package
+            // Child packages don't have their own ADT endpoints
+            const rootPackage = options.packageName.toUpperCase();
+            const isChildPackage = packageName.toUpperCase() !== rootPackage && 
+                                   packageName.toUpperCase().startsWith(rootPackage + '_');
+            
+            if (isChildPackage) {
+              // Derive description from package name suffix for child packages
+              console.log(`📦 Package ${packageName}: deriving description from name (child package)`);
+              const parts = packageName.split('_');
+              const suffix = parts[parts.length - 1];
+              const derivedDescription = suffix.charAt(0).toUpperCase() + suffix.slice(1).toLowerCase();
+              packageAdkObject.description = derivedDescription;
+              packageAdkObject.spec.core.description = derivedDescription;
+            } else {
+              // Try to fetch from ADT for root package
+              try {
+                const packageInfo = await adtClient.repository.getPackage(packageName);
+                console.log(`📦 Package ${packageName}: description="${packageInfo.description}"`);
+                packageAdkObject.description = packageInfo.description;
+                packageAdkObject.spec.core.description = packageInfo.description;
+              } catch (error) {
+                // Fallback for root package if API fails
+                console.log(`⚠️  Failed to get description for package ${packageName}, using name`);
+                packageAdkObject.description = packageName;
+                packageAdkObject.spec.core.description = packageName;
+              }
+            }
+
+            adkObjects.push(packageAdkObject);
+            objectsByType['DEVC'] = (objectsByType['DEVC'] || 0) + 1;
+            processedCount++;
+          } catch (error) {
+            console.log(
+              `⚠️ Failed to process package ${packageName}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        }
 
         for (const obj of objectsToProcess) {
           try {
