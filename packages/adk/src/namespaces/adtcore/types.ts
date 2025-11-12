@@ -4,6 +4,7 @@
  */
 
 export interface AdtCoreAttrs {
+  uri?: string;
   name: string;
   type: string;
   version?: string;

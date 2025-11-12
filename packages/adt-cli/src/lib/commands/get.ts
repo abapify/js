@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { ObjectRegistry } from '../objects/registry';
 import { IconRegistry } from '../utils/icon-registry';
 import { AdtUrlGenerator } from '../utils/adt-url-generator';
-import { AdtClientImpl } from '@abapify/adt-client';
+import { AdtClientImpl, FileLogger } from '@abapify/adt-client';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { XMLParser } from 'fast-xml-parser';
@@ -24,11 +24,24 @@ export const getCommand = new Command('get')
   )
   .action(async (objectName, options, command) => {
     const logger = command.parent?.logger;
+    const loggingConfig = command.parent?.loggingConfig;
+    
     try {
+      // Create file logger if response logging is enabled
+      let fileLogger;
+      if (loggingConfig?.logResponseFiles) {
+        fileLogger = new FileLogger(logger, {
+          outputDir: loggingConfig.logOutput,
+          enabled: true,
+          writeMetadata: true, // Always write metadata.json files
+        });
+      }
+      
       // Search for the specific object by name
-      // Create ADT client with logger
+      // Create ADT client with logger and file logger
       const adtClient = new AdtClientImpl({
         logger: logger?.child({ component: 'cli' }),
+        fileLogger,
       });
 
       const searchOptions = {
@@ -64,6 +77,13 @@ export const getCommand = new Command('get')
         }
         return;
       }
+
+      // Get object details from ADT client (type-agnostic)
+      // The client will use the registry to handle type-specific logic
+      const objectDetails = await adtClient.repository.getObject(
+        exactMatch.type,
+        exactMatch.name
+      );
 
       // Handle output to file option
       if (options.output) {
