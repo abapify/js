@@ -6,6 +6,7 @@ export {
   attribute,
   attributes,
   element,
+  unwrap,
   toSerializationData,
   toFastXMLObject,
   toFastXML,

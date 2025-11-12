@@ -55,11 +55,14 @@ export class AbapGitSerializer {
       // Determine root package (most common package or first one)
       const rootPackage = this.determineRootPackage(objects);
 
+      // Filter out Package objects - they're used for metadata only, not serialized as files
+      const serializableObjects = objects.filter(obj => obj.kind !== 'Package');
+
       // Group objects by their folder (using PREFIX logic)
-      const objectsByFolder = this.groupByFolder(objects, rootPackage);
+      const objectsByFolder = this.groupByFolder(serializableObjects, rootPackage);
 
       // Create root package.devc.xml
-      const rootPackageXml = this.generatePackageXml(rootPackage, rootPackage);
+      const rootPackageXml = this.generatePackageXml(rootPackage, rootPackage, objects);
       const rootPackagePath = join(srcDir, 'package.devc.xml');
       writeFileSync(rootPackagePath, rootPackageXml, 'utf8');
       filesCreated.push(rootPackagePath);
@@ -72,7 +75,7 @@ export class AbapGitSerializer {
         // Create package.devc.xml for this folder
         const firstObj = folderObjects[0];
         const folderPackage = (hasSpec(firstObj) && firstObj.spec?.core?.package) || rootPackage;
-        const folderPackageXml = this.generatePackageXml(folderPackage, rootPackage);
+        const folderPackageXml = this.generatePackageXml(folderPackage, rootPackage, objects);
         const folderPackagePath = join(folderDir, 'package.devc.xml');
         writeFileSync(folderPackagePath, folderPackageXml, 'utf8');
         filesCreated.push(folderPackagePath);
@@ -325,15 +328,24 @@ export class AbapGitSerializer {
   /**
    * Generate package.devc.xml for a package
    */
-  private generatePackageXml(packageName: string, rootPackage: string): string {
-    // Determine package description
-    let description = packageName;
-    if (packageName === rootPackage) {
-      description = packageName; // Root package
+  private generatePackageXml(packageName: string, rootPackage: string, objects: AdkObject[]): string {
+    // Try to find a Package object with this name to get its description (case-insensitive)
+    const packageObj = objects.find(obj => 
+      obj.kind === 'Package' && obj.name.toUpperCase() === packageName.toUpperCase()
+    );
+    
+    // Use the package object's description if available, otherwise derive from name
+    let description: string;
+    if (packageObj && packageObj.description) {
+      description = packageObj.description;
+    } else if (packageName === rootPackage) {
+      description = packageName; // Root package fallback
     } else if (packageName.startsWith(rootPackage + '_')) {
       // Child package - use suffix as description
       const suffix = packageName.substring(rootPackage.length + 1);
       description = suffix.charAt(0).toUpperCase() + suffix.slice(1).toLowerCase();
+    } else {
+      description = packageName; // Fallback to package name
     }
 
     return `<?xml version="1.0" encoding="utf-8"?>

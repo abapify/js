@@ -8,4 +8,5 @@ export enum Kind {
   Interface = 'Interface',
   Class = 'Class',
   Domain = 'Domain',
+  Package = 'Package',
 }

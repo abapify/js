@@ -160,7 +160,8 @@ export class FileLogger {
 
       // Write metadata if enabled
       if (this.writeMetadata && metadata) {
-        const metaPath = `${fullPath}.meta.json`;
+        // Replace response.xml with metadata.json
+        const metaPath = fullPath.replace(/-response\.xml$/, '-metadata.json');
         writeFileSync(metaPath, JSON.stringify(metadata, null, 2), 'utf8');
         this.baseLogger.trace(`Wrote metadata: ${metaPath}`);
       }
@@ -177,7 +178,7 @@ export class FileLogger {
    * Generate file path for logging ADT responses
    * Converts ADT endpoint to fixture-style path structure
    */
-  generateLogFilePath(endpoint: string): string {
+  generateLogFilePath(endpoint: string, headers?: Record<string, string>): string {
     // Remove /sap/bc/adt prefix
     let path = endpoint.replace(/^\/sap\/bc\/adt\/?/, '');
 
@@ -186,8 +187,9 @@ export class FileLogger {
       return './adt/core/discovery.xml';
     }
 
-    // Convert path segments to directory structure
-    const segments = path.split('/').filter((s) => s);
+    // Parse query parameters
+    const [basePath, queryString] = path.split('?');
+    const segments = basePath.split('/').filter((s) => s);
 
     // Check if this is a source endpoint (ends with source type)
     const sourceTypes = [
@@ -204,8 +206,26 @@ export class FileLogger {
       return `./adt/${segments.join('/')}`;
     }
 
-    // Metadata file - add metadata.xml
-    return `./adt/${segments.join('/')}/metadata.xml`;
+    // Generate unique request ID from etag or timestamp
+    let requestId: string;
+    if (headers?.etag) {
+      // Use etag as request ID (remove quotes and sanitize)
+      requestId = headers.etag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
+    } else {
+      // Use high-precision timestamp as request ID
+      requestId = Date.now().toString() + Math.random().toString(36).slice(2, 7);
+    }
+
+    // Build directory path from segments and query
+    let dirPath = `./adt/${segments.join('/')}`;
+    if (queryString) {
+      // Sanitize query string for directory name
+      const sanitizedQuery = queryString.replace(/[^a-zA-Z0-9_-]/g, '_');
+      dirPath += `/${sanitizedQuery}`;
+    }
+
+    // Use request ID in filename
+    return `${dirPath}/${requestId}-response.xml`;
   }
 
   /**
