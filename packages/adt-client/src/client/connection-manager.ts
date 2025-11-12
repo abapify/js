@@ -210,7 +210,13 @@ export class ConnectionManager {
 
           // Log response to file if FileLogger is enabled
           if (this.fileLogger) {
-            const logFilePath = this.fileLogger.generateLogFilePath(endpoint);
+            // Extract headers for metadata
+            const headers: Record<string, string> = {};
+            response.headers.forEach((value, key) => {
+              headers[key] = value;
+            });
+            
+            const logFilePath = this.fileLogger.generateLogFilePath(endpoint, headers);
             this.fileLogger.log(responseText, {
               filename: logFilePath,
               metadata: {
@@ -219,6 +225,7 @@ export class ConnectionManager {
                 status: response.status,
                 statusText: response.statusText,
                 timestamp: new Date().toISOString(),
+                headers,
               },
             });
           }

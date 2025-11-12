@@ -67,6 +67,7 @@ export abstract class BaseSpec {
    */
   static parseAdtCoreAttributes(root: any): AdtCoreAttrs {
     return {
+      uri: root['@_adtcore:uri'],
       name: root['@_adtcore:name'],
       type: root['@_adtcore:type'],
       version: root['@_adtcore:version'],
@@ -101,6 +102,69 @@ export abstract class BaseSpec {
       atomLink.etag = link['@_etag'];
       return atomLink;
     });
+  }
+
+  /**
+   * Extract and unwrap namespace from parsed XML object
+   * Recursively strips ALL namespace prefixes from elements and attributes
+   *
+   * @param prefix - Primary namespace prefix to extract (e.g., 'pak', 'adtcore')
+   * @param obj - Parsed XML object from fast-xml-parser
+   * @returns Plain object with ALL namespace prefixes stripped from ALL keys
+   */
+  protected static extractNamespace(prefix: string, obj: any): any {
+    if (!obj || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.extractNamespace(prefix, item));
+    }
+
+    const result: any = {};
+    const nsPrefix = `${prefix}:`;
+    const attrPrefix = `@_${prefix}:`;
+
+    for (const [key, value] of Object.entries(obj)) {
+      // Skip namespace declarations
+      if (key.startsWith('@_xmlns')) continue;
+
+      let newKey = key;
+      let includeKey = false;
+
+      // Strip primary namespace attribute prefix (@_pak:name -> name)
+      if (key.startsWith(attrPrefix)) {
+        newKey = key.substring(attrPrefix.length);
+        includeKey = true;
+      }
+      // Strip primary namespace element prefix (pak:attributes -> attributes)
+      else if (key.startsWith(nsPrefix)) {
+        newKey = key.substring(nsPrefix.length);
+        includeKey = true;
+      }
+      // Strip ALL other namespace prefixes (@_anyNamespace:name -> name, anyNs:element -> element)
+      else if (key.startsWith('@_')) {
+        // Attribute from any namespace: @_namespace:attrName -> attrName
+        const attrMatch = key.match(/^@_[^:]+:(.+)$/);
+        if (attrMatch) {
+          newKey = attrMatch[1]; // Strip @_namespace: prefix
+          includeKey = true;
+        }
+      }
+      else if (key.includes(':')) {
+        // Element from any namespace: namespace:element -> element
+        const colonIndex = key.indexOf(':');
+        newKey = key.substring(colonIndex + 1);
+        includeKey = true;
+      }
+
+      if (includeKey) {
+        // Recursively process the value
+        result[newKey] = this.extractNamespace(prefix, value);
+      }
+    }
+
+    return result;
   }
 
   /**
