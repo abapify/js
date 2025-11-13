@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SAP ADT Package - Dynamic XPath Instructions",
+  "description": "Uses XSLT 3.0 xsl:evaluate for fully dynamic transformations",
+
+  "namespaces": {
+    "pak": "http://www.sap.com/adt/packages",
+    "adtcore": "http://www.sap.com/adt/core",
+    "atom": "http://www.w3.org/2005/Atom"
+  },
+
+  "rules": [
+    {
+      "name": "Root package element",
+      "when": "local-name() = 'package' and not(parent::*)",
+      "element": {
+        "name": "package",
+        "namespace": "pak",
+        "declare": {
+          "pak": "http://www.sap.com/adt/packages",
+          "adtcore": "http://www.sap.com/adt/core",
+          "atom": "http://www.w3.org/2005/Atom"
+        }
+      },
+      "attributes": {
+        "select": "*[not(local-name() = ('link', 'attributes', 'superPackage', 'applicationComponent', 'transport', 'useAccesses', 'packageInterfaces', 'subPackages'))]",
+        "namespace": "adtcore",
+        "order": ["responsible", "masterLanguage", "name", "type", "changedAt", "version", "createdAt", "changedBy", "createdBy", "description", "descriptionTextLimit", "language"]
+      },
+      "children": {
+        "select": "*[local-name() = ('link', 'attributes', 'superPackage', 'applicationComponent', 'transport', 'useAccesses', 'packageInterfaces', 'subPackages')]",
+        "orderBy": "index-of(('link', 'attributes', 'superPackage', 'applicationComponent', 'transport', 'useAccesses', 'packageInterfaces', 'subPackages'), local-name())"
+      }
+    },
+
+    {
+      "name": "Link elements (Atom namespace)",
+      "when": "local-name() = 'link'",
+      "element": {
+        "name": "link",
+        "namespace": "atom"
+      },
+      "attributes": {
+        "select": "*",
+        "namespace": null
+      }
+    },
+
+    {
+      "name": "Elements with pak: namespace and pak: attributes",
+      "when": "local-name() = ('attributes', 'applicationComponent', 'useAccesses', 'packageInterfaces', 'softwareComponent', 'transportLayer')",
+      "element": {
+        "namespace": "pak"
+      },
+      "attributes": {
+        "select": "*",
+        "namespace": "pak"
+      }
+    },
+
+    {
+      "name": "SuperPackage with adtcore: attributes",
+      "when": "local-name() = 'superPackage'",
+      "element": {
+        "namespace": "pak"
+      },
+      "attributes": {
+        "select": "*",
+        "namespace": "adtcore"
+      }
+    },
+
+    {
+      "name": "PackageRef with adtcore: attributes",
+      "when": "local-name() = 'packageRef'",
+      "element": {
+        "namespace": "pak"
+      },
+      "attributes": {
+        "select": "*",
+        "namespace": "adtcore"
+      }
+    },
+
+    {
+      "name": "Transport container",
+      "when": "local-name() = 'transport'",
+      "element": {
+        "namespace": "pak"
+      },
+      "children": {
+        "select": "*",
+        "orderBy": "index-of(('softwareComponent', 'transportLayer'), local-name())"
+      }
+    },
+    {
+      "name": "SubPackages container",
+      "when": "local-name() = 'subPackages'",
+      "element": {
+        "namespace": "pak"
+      },
+      "children": {
+        "select": "*"
+      }
+    }
+  ]
+}

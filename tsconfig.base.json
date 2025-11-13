@@ -30,7 +30,8 @@
       "@sap/cds": ["node_modules/@cap-js/cds-types/dist/cds-types.d.ts"],
       "sample": ["packages/sample/src/index.ts"],
       "sample-node": ["sample-node/src/index.ts"],
-      "samples/cds": ["samples/cds/src/index.ts"]
+      "samples/cds": ["samples/cds/src/index.ts"],
+      "xmlt": ["packages/xmlt/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

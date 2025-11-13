@@ -1,0 +1,96 @@
+{
+  "@metadata": {
+    "schema": "./schemas/package.schema.json",
+    "version": "1.0"
+  },
+  "package": {
+    "responsible": "PPLENKOV",
+    "masterLanguage": "EN",
+    "name": "$ABAPGIT_EXAMPLES",
+    "type": "DEVC/K",
+    "changedAt": "2025-11-09T00:00:00Z",
+    "version": "active",
+    "createdAt": "2025-11-09T00:00:00Z",
+    "changedBy": "PPLENKOV",
+    "createdBy": "PPLENKOV",
+    "description": "Abapgit examples",
+    "descriptionTextLimit": 60,
+    "language": "EN",
+    "link": [
+      {
+        "href": "versions",
+        "rel": "http://www.sap.com/adt/relations/versions",
+        "title": "Historic versions"
+      },
+      {
+        "href": "/sap/bc/adt/repository/informationsystem/abaplanguageversions?uri=%2Fsap%2Fbc%2Fadt%2Fpackages%2F%2524abapgit_examples",
+        "rel": "http://www.sap.com/adt/relations/informationsystem/abaplanguageversions",
+        "type": "application/vnd.sap.adt.nameditems.v1+xml",
+        "title": "Allowed ABAP language versions"
+      }
+    ],
+    "attributes": {
+      "packageType": "development",
+      "isPackageTypeEditable": false,
+      "isAddingObjectsAllowed": false,
+      "isAddingObjectsAllowedEditable": true,
+      "isEncapsulated": false,
+      "isEncapsulationEditable": false,
+      "isEncapsulationVisible": false,
+      "recordChanges": false,
+      "isRecordChangesEditable": false,
+      "isSwitchVisible": false,
+      "languageVersion": "",
+      "isLanguageVersionVisible": true,
+      "isLanguageVersionEditable": true
+    },
+    "superPackage": {
+      "uri": "/sap/bc/adt/packages/%24tmp",
+      "type": "DEVC/K",
+      "name": "$TMP",
+      "description": "Temporary Objects (never transported!)"
+    },
+    "applicationComponent": {
+      "name": "",
+      "description": "No application component assigned",
+      "isVisible": true,
+      "isEditable": false
+    },
+    "transport": {
+      "softwareComponent": {
+        "name": "LOCAL",
+        "description": "Local Developments (No Automatic Transport)",
+        "isVisible": true,
+        "isEditable": false
+      },
+      "transportLayer": {
+        "name": "",
+        "description": "",
+        "isVisible": false,
+        "isEditable": false
+      }
+    },
+    "useAccesses": {
+      "isVisible": false
+    },
+    "packageInterfaces": {
+      "isVisible": false
+    },
+    "subPackages": {
+      "packageRef": [
+        {
+          "uri": "/sap/bc/adt/packages/%24abapgit_examples_clas",
+          "type": "DEVC/K",
+          "name": "$ABAPGIT_EXAMPLES_CLAS",
+          "description": "Classes"
+        },
+        {
+          "uri": "/sap/bc/adt/packages/%24abapgit_examples_ddic",
+          "type": "DEVC/K",
+          "name": "$ABAPGIT_EXAMPLES_DDIC",
+          "description": "DDIC components"
+        }
+      ]
+    }
+  }
+}
