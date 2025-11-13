@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SAP ADT Package XML Structure",
+  "description": "JSON Schema with XML metadata for perfect round-trip transformation",
+
+  "xmlMetadata": {
+    "namespaces": {
+      "pak": "http://www.sap.com/adt/packages",
+      "adtcore": "http://www.sap.com/adt/core",
+      "atom": "http://www.w3.org/2005/Atom"
+    },
+    "rootElement": {
+      "name": "package",
+      "prefix": "pak",
+      "namespaceDeclarations": ["pak", "adtcore"]
+    },
+    "properties": {
+      "responsible": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "masterLanguage": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "name": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "type": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "changedAt": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "version": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "createdAt": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "changedBy": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "createdBy": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "description": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "descriptionTextLimit": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "language": {
+        "xmlType": "attribute",
+        "prefix": "adtcore"
+      },
+      "link": {
+        "xmlType": "element",
+        "prefix": "atom",
+        "isArray": true,
+        "namespaceDeclaration": "atom",
+        "properties": {
+          "href": { "xmlType": "attribute" },
+          "rel": { "xmlType": "attribute" },
+          "type": { "xmlType": "attribute" },
+          "title": { "xmlType": "attribute" }
+        }
+      },
+      "attributes": {
+        "xmlType": "element",
+        "prefix": "pak",
+        "allPropertiesAsAttributes": true,
+        "attributePrefix": "pak"
+      },
+      "superPackage": {
+        "xmlType": "element",
+        "prefix": "pak",
+        "allPropertiesAsAttributes": true,
+        "attributePrefix": "adtcore"
+      },
+      "applicationComponent": {
+        "xmlType": "element",
+        "prefix": "pak",
+        "allPropertiesAsAttributes": true,
+        "attributePrefix": "pak"
+      },
+      "transport": {
+        "xmlType": "element",
+        "prefix": "pak",
+        "properties": {
+          "softwareComponent": {
+            "xmlType": "element",
+            "prefix": "pak",
+            "allPropertiesAsAttributes": true,
+            "attributePrefix": "pak"
+          },
+          "transportLayer": {
+            "xmlType": "element",
+            "prefix": "pak",
+            "allPropertiesAsAttributes": true,
+            "attributePrefix": "pak"
+          }
+        }
+      },
+      "useAccesses": {
+        "xmlType": "element",
+        "prefix": "pak",
+        "allPropertiesAsAttributes": true,
+        "attributePrefix": "pak"
+      },
+      "packageInterfaces": {
+        "xmlType": "element",
+        "prefix": "pak",
+        "allPropertiesAsAttributes": true,
+        "attributePrefix": "pak"
+      },
+      "subPackages": {
+        "xmlType": "element",
+        "prefix": "pak",
+        "properties": {
+          "packageRef": {
+            "xmlType": "element",
+            "prefix": "pak",
+            "isArray": true,
+            "allPropertiesAsAttributes": true,
+            "attributePrefix": "adtcore"
+          }
+        }
+      }
+    },
+    "elementOrder": [
+      "link",
+      "attributes",
+      "superPackage",
+      "applicationComponent",
+      "transport",
+      "useAccesses",
+      "packageInterfaces",
+      "subPackages"
+    ]
+  },
+
+  "type": "object",
+  "properties": {
+    "responsible": { "type": "string" },
+    "masterLanguage": { "type": "string" },
+    "name": { "type": "string" },
+    "type": { "type": "string" },
+    "changedAt": { "type": "string", "format": "date-time" },
+    "version": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "changedBy": { "type": "string" },
+    "createdBy": { "type": "string" },
+    "description": { "type": "string" },
+    "descriptionTextLimit": { "type": "integer" },
+    "language": { "type": "string" }
+  }
+}

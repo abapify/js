@@ -7,7 +7,7 @@
   "scripts": {},
   "dependencies": {
     "xmld": "*",
-    "fast-xml-parser": "^4.3.2"
+    "fast-xml-parser": "^5.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

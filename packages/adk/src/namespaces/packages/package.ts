@@ -1,7 +1,7 @@
 import { xml, root, namespace, unwrap } from '../../decorators';
 import { BaseSpec } from '../../base/base-spec';
 import type { PakNamespace, PackageData } from './types';
-import { type } from 'os';
+
 
 /**
  * AdtPackageSpec - ADT Package Specification
@@ -25,10 +25,10 @@ export class AdtPackageSpec extends BaseSpec {
    * Parse XML string and create AdtPackageSpec instance
    * Overload signature for type safety
    */
-  static override fromXMLString(xml: string): AdtPackageSpec;
-  static override fromXMLString<T extends BaseSpec>(this: new () => T, xml: string): T;
-  static override fromXMLString(xml: string): AdtPackageSpec {
-    const parsed = this.parseXMLToObject(xml);
+  static override fromXMLString(xmlString: string): AdtPackageSpec;
+  static override fromXMLString<T extends BaseSpec>(this: new () => T, xmlString: string): T;
+  static override fromXMLString(xmlString: string): AdtPackageSpec {
+    const parsed = this.parseXMLToObject(xmlString);
     const root = parsed['pak:package'];
 
     if (!root) {
@@ -77,7 +77,7 @@ export class AdtPackageSpec extends BaseSpec {
   }
 }
 
-const xml = 
+const package = 
   {
     package: {
       adtcore: {

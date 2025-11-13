@@ -1,0 +1,36 @@
+{
+  "@metadata": {
+    "schema": "test/fixtures/schemas/package.instructions.v2.json"
+  },
+  "package": {
+    "responsible": "PPLENKOV",
+    "masterLanguage": "EN",
+    "name": "$ABAPGIT_EXAMPLES",
+    "type": "DEVC/K",
+    "changedAt": "2025-11-09T00:00:00Z",
+    "version": "active",
+    "createdAt": "2025-11-09T00:00:00Z",
+    "changedBy": "PPLENKOV",
+    "createdBy": "PPLENKOV",
+    "description": "Abapgit examples",
+    "descriptionTextLimit": 60,
+    "language": "EN",
+    "link": [
+      {
+        "href": "versions",
+        "rel": "http://www.sap.com/adt/relations/versions",
+        "title": "Historic versions"
+      }
+    ],
+    "attributes": {
+      "packageType": "development",
+      "isPackageTypeEditable": false
+    },
+    "superPackage": {
+      "uri": "/sap/bc/adt/packages/%24tmp",
+      "type": "DEVC/K",
+      "name": "$TMP",
+      "description": "Temporary Objects (never transported!)"
+    }
+  }
+}
