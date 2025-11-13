@@ -31,7 +31,7 @@ const builder = new XMLBuilder({
   indentBy: '        ',
   suppressEmptyNode: true,
   suppressBooleanAttributes: false,
-  attributeValueProcessor: (name, value) => String(value), // Fix: Convert booleans to strings
+  attributeValueProcessor: (_name, value) => String(value), // Fix: Convert booleans to strings
 });
 
 const parser = new XMLParser({
