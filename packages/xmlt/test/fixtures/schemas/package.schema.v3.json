@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SAP ADT Package XML Structure (XSLT Template Generator)",
+  "description": "XPath patterns + instructions that generate XSLT templates",
+
+  "xmlMetadata": {
+    "namespaces": {
+      "pak": "http://www.sap.com/adt/packages",
+      "adtcore": "http://www.sap.com/adt/core",
+      "atom": "http://www.w3.org/2005/Atom"
+    },
+
+    "templates": [
+      {
+        "comment": "Root package element",
+        "match": "package",
+        "instructions": [
+          {
+            "action": "createElement",
+            "name": "package",
+            "namespace": "pak",
+            "declareNamespaces": ["pak", "adtcore"]
+          },
+          {
+            "action": "processAttributes",
+            "target": "@*"
+          },
+          {
+            "action": "processChildren",
+            "target": "*",
+            "order": ["link", "attributes", "superPackage", "applicationComponent", "transport", "useAccesses", "packageInterfaces", "subPackages"]
+          }
+        ]
+      },
+      {
+        "comment": "Attributes on root package",
+        "match": "package/@*",
+        "instructions": [
+          {
+            "action": "createAttribute",
+            "namespace": "adtcore"
+          }
+        ]
+      },
+      {
+        "comment": "Link elements",
+        "match": "link",
+        "instructions": [
+          {
+            "action": "createElement",
+            "name": "link",
+            "namespace": "atom",
+            "declareNamespace": "atom"
+          },
+          {
+            "action": "convertPropertiesToAttributes",
+            "properties": "*"
+          }
+        ]
+      },
+      {
+        "comment": "Attributes element",
+        "match": "attributes",
+        "instructions": [
+          {
+            "action": "createElement",
+            "name": "attributes",
+            "namespace": "pak"
+          },
+          {
+            "action": "convertPropertiesToAttributes",
+            "properties": "*",
+            "namespace": "pak"
+          }
+        ]
+      },
+      {
+        "comment": "SuperPackage element",
+        "match": "superPackage",
+        "instructions": [
+          {
+            "action": "createElement",
+            "name": "superPackage",
+            "namespace": "pak"
+          },
+          {
+            "action": "convertPropertiesToAttributes",
+            "properties": "*",
+            "namespace": "adtcore"
+          }
+        ]
+      },
+      {
+        "comment": "Transport element with nested structure",
+        "match": "transport",
+        "instructions": [
+          {
+            "action": "createElement",
+            "name": "transport",
+            "namespace": "pak"
+          },
+          {
+            "action": "processChildren",
+            "target": "*"
+          }
+        ]
+      },
+      {
+        "comment": "Transport child elements (softwareComponent, transportLayer)",
+        "match": "transport/*",
+        "instructions": [
+          {
+            "action": "createElement",
+            "namespace": "pak"
+          },
+          {
+            "action": "convertPropertiesToAttributes",
+            "properties": "*",
+            "namespace": "pak"
+          }
+        ]
+      },
+      {
+        "comment": "SubPackages container",
+        "match": "subPackages",
+        "instructions": [
+          {
+            "action": "createElement",
+            "name": "subPackages",
+            "namespace": "pak"
+          },
+          {
+            "action": "processChildren",
+            "target": "*"
+          }
+        ]
+      },
+      {
+        "comment": "PackageRef elements",
+        "match": "packageRef",
+        "instructions": [
+          {
+            "action": "createElement",
+            "name": "packageRef",
+            "namespace": "pak"
+          },
+          {
+            "action": "convertPropertiesToAttributes",
+            "properties": "*",
+            "namespace": "adtcore"
+          }
+        ]
+      },
+      {
+        "comment": "Other pak: elements (useAccesses, packageInterfaces, applicationComponent)",
+        "match": "useAccesses|packageInterfaces|applicationComponent",
+        "instructions": [
+          {
+            "action": "createElement",
+            "namespace": "pak"
+          },
+          {
+            "action": "convertPropertiesToAttributes",
+            "properties": "*",
+            "namespace": "pak"
+          }
+        ]
+      }
+    ]
+  }
+}

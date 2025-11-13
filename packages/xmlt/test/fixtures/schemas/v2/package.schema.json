@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SAP ADT Package - Pure JS Schema (v2)",
+  "description": "Declarative schema for pure JavaScript/TypeScript XML generation",
+
+  "package": {
+    "$comment": "Root element with namespace declarations and recursive inheritance",
+    "$namespace": "pak",
+    "$recursive": true,
+    "$xmlns": {
+      "pak": "http://www.sap.com/adt/packages",
+      "adtcore": "http://www.sap.com/adt/core",
+      "atom": "http://www.w3.org/2005/Atom"
+    },
+    "$order": ["responsible", "masterLanguage", "name", "type", "changedAt", "version", "createdAt", "changedBy", "createdBy", "description", "descriptionTextLimit", "language"],
+    "$properties": {
+      "$comment": "Direct properties become attributes with adtcore: namespace",
+      "$attributes": true,
+      "$namespace": "adtcore"
+    },
+    "$children": {
+      "$comment": "Child elements ordering",
+      "$order": ["link", "attributes", "superPackage", "applicationComponent", "transport", "useAccesses", "packageInterfaces", "subPackages"]
+    },
+
+    "link": {
+      "$comment": "Link elements override to use atom: namespace, properties are non-namespaced attributes",
+      "$namespace": "atom",
+      "$properties": {
+        "$attributes": true
+      }
+    },
+
+    "attributes": {
+      "$comment": "Attributes element inherits pak: namespace, properties become pak: attributes",
+      "$properties": {
+        "$attributes": true,
+        "$namespace": "pak"
+      }
+    },
+
+    "superPackage": {
+      "$comment": "SuperPackage element inherits pak: namespace, properties become adtcore: attributes",
+      "$properties": {
+        "$attributes": true,
+        "$namespace": "adtcore"
+      }
+    },
+
+    "applicationComponent": {
+      "$properties": {
+        "$attributes": true,
+        "$namespace": "pak"
+      }
+    },
+
+    "transport": {
+      "$comment": "Container element inherits pak: namespace",
+      "$children": {
+        "$order": ["softwareComponent", "transportLayer"]
+      },
+
+      "softwareComponent": {
+        "$properties": {
+          "$attributes": true,
+          "$namespace": "pak"
+        }
+      },
+
+      "transportLayer": {
+        "$properties": {
+          "$attributes": true,
+          "$namespace": "pak"
+        }
+      }
+    },
+
+    "useAccesses": {
+      "$properties": {
+        "$attributes": true,
+        "$namespace": "pak"
+      }
+    },
+
+    "packageInterfaces": {
+      "$properties": {
+        "$attributes": true,
+        "$namespace": "pak"
+      }
+    },
+
+    "subPackages": {
+      "$comment": "Container for packageRef elements, inherits pak: namespace",
+
+      "packageRef": {
+        "$properties": {
+          "$attributes": true,
+          "$namespace": "adtcore"
+        }
+      }
+    }
+  }
+}

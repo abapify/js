@@ -14,7 +14,7 @@
     "@abapify/adt-client": "*",
     "@inquirer/prompts": "^7.9.0",
     "commander": "^12.0.0",
-    "fast-xml-parser": "^5.2.5",
+    "fast-xml-parser": "^5.3.1",
     "js-yaml": "^4.1.0",
     "pino": "^8.17.2"
   },
