@@ -11,7 +11,7 @@ This test scenario demonstrates transforming TypeScript/JSON data to XML using:
 - `fixtures/abapgit_examples.devc.json` - Source JSON data (ABAP package metadata)
 - `fixtures/abapgit_examples.devc.xml` - Expected XML output
 - `fixtures/abapgit_examples.devc.ts` - TypeScript version of the source data
-- `native-test.mjs` - **Native Node.js test** (no dependencies)
+- `abap-package-transformation.test.mjs` - **Native Node.js test** (recommended - no dependencies!)
 - `abap-package-transformation.test.ts` - Vitest test (alternative)
 
 ### Process
@@ -24,15 +24,20 @@ This test scenario demonstrates transforming TypeScript/JSON data to XML using:
 
 ## Running the Tests
 
-### Native Node.js Test (Recommended - No dependencies!)
+### Native Node.js Test (Recommended - No extra dependencies!)
 
 ```bash
 # Build the package first
 npx tsdown
 
+# Compile the test to JavaScript
+npx tsc tests/fast-xml-parser/abap-package-transformation.test.ts --outDir tests/fast-xml-parser --module nodenext --moduleResolution nodenext --target es2022
+
 # Run with native Node.js test runner
-node --test tests/fast-xml-parser/native-test.mjs
+node --test tests/fast-xml-parser/abap-package-transformation.test.js
 ```
+
+Or use the jotl-codex package which has the same test already set up.
 
 ### Vitest (Alternative - if already using vitest)
 
