@@ -19,22 +19,22 @@
  */
 
 // Base utilities (namespace factory, parse/build functions)
-export * from "./base/index.ts";
+export * from "./base/index";
 
 // ADT Core - foundational namespace
-export * from "./namespaces/adt/core/index.ts";
+export * from "./namespaces/adt/core/index";
 
 // Atom - standard syndication format
-export * from "./namespaces/atom/index.ts";
+export * from "./namespaces/atom/index";
 
 // Packages - SAP package objects
-export * from "./namespaces/adt/packages/index.ts";
+export * from "./namespaces/adt/packages/index";
 
 // Classes - ABAP OO Classes
-export * from "./namespaces/adt/oo/classes/index.ts";
+export * from "./namespaces/adt/oo/classes/index";
 
 // Interfaces - ABAP OO Interfaces
-export * from "./namespaces/adt/oo/interfaces/index.ts";
+export * from "./namespaces/adt/oo/interfaces/index";
 
 // DDIC - Data Dictionary objects
-export * from "./namespaces/adt/ddic/index.ts";
+export * from "./namespaces/adt/ddic/index";

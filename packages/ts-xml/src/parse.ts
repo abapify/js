@@ -1,6 +1,6 @@
 import { DOMParser, Element } from "@xmldom/xmldom";
-import type { ElementSchema, InferSchema } from "./types.ts";
-import { fromString } from "./utils.ts";
+import type { ElementSchema, InferSchema } from "./types";
+import { fromString } from "./utils";
 
 /**
  * Parse XML string to JSON data using schema

@@ -1,6 +1,6 @@
 import { DOMImplementation, XMLSerializer, Document, Element } from "@xmldom/xmldom";
-import type { ElementSchema, InferSchema } from "./types.ts";
-import { toString } from "./utils.ts";
+import type { ElementSchema, InferSchema } from "./types";
+import { toString } from "./utils";
 
 export interface BuildOptions {
   /** Include XML declaration (default: true) */

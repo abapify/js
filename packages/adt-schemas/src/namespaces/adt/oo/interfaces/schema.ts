@@ -1,8 +1,7 @@
-import { createNamespace, createAdtSchema } from "../../../../base/namespace.ts";
-import { AdtCoreObjectFields, adtcore } from "../../core/schema.ts";
-import { AtomLinkSchema, atom } from "../../../atom/schema.ts";
-import { abapsource, abapoo } from "../classes/schema.ts";
-import type { InterfaceType } from "./types.ts";
+import { createNamespace, createAdtSchema } from "../../../../base/namespace";
+import { AdtCoreObjectFields, adtcore } from "../../core/schema";
+import { AtomLinkSchema, atom } from "../../../atom/schema";
+import { abapsource, abapoo } from "../classes/schema";
 
 // Re-export shared namespaces
 export { abapsource, abapoo };
