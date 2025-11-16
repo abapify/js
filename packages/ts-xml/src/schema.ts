@@ -1,4 +1,4 @@
-import type { ElementSchema } from "./types.ts";
+import type { ElementSchema } from "./types";
 
 /**
  * Schema builder API

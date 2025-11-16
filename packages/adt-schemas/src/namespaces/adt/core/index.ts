@@ -7,5 +7,5 @@
  * Foundation namespace for all ADT objects
  */
 
-export * from "./types.ts";
-export * from "./schema.ts";
+export * from "./types";
+export * from "./schema";

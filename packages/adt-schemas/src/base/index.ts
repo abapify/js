@@ -2,4 +2,4 @@
  * Base utilities for ADT schemas
  */
 
-export * from "./namespace.ts";
+export * from "./namespace";

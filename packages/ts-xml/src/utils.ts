@@ -1,4 +1,4 @@
-import type { PrimitiveType } from "./types.ts";
+import type { PrimitiveType } from "./types";
 
 /**
  * Convert value to string based on primitive type

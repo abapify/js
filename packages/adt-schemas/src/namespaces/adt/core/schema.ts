@@ -1,4 +1,4 @@
-import { createNamespace } from "../../../base/namespace.ts";
+import { createNamespace } from "../../../base/namespace";
 
 /**
  * ADT Core namespace schemas
