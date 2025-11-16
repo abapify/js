@@ -10,8 +10,6 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "ts-xml": "*",
-    "fast-xml-parser": "^5.3.1",
-    "xmld": "*"
+    "@abapify/adt-schemas": "*"
   }
 }

@@ -5,8 +5,8 @@
  * Prefix: class
  */
 
-import type { AdtCoreType } from "../core/types.ts";
-import type { AtomLinkType } from "../../atom/types.ts";
+import type { AdtCoreType } from "../../core/types";
+import type { AtomLinkType } from "../../../atom/types";
 
 /**
  * Class-specific attributes
@@ -60,7 +60,6 @@ export interface ClassType extends AdtCoreType {
   activeUnicodeCheck?: string;
 
   // ABAP OO attributes
-  category?: string;
   forkable?: string;
 
   // Class includes
