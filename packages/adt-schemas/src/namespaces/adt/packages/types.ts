@@ -5,8 +5,8 @@
  * Prefix: pak
  */
 
-import type { AdtCoreType, AdtCorePackageRefType } from "../core/types.ts";
-import type { AtomLinkType } from "../../atom/types.ts";
+import type { AdtCoreType, AdtCorePackageRefType } from "../core/types";
+import type { AtomLinkType } from "../../atom/types";
 
 /**
  * Package attributes (pak:attributes element)

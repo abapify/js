@@ -7,5 +7,5 @@
  * ABAP class objects and their includes
  */
 
-export * from "./types.ts";
-export * from "./schema.ts";
+export * from "./types";
+export * from "./schema";

@@ -7,5 +7,5 @@
  * Package objects (DEVC) and their structure
  */
 
-export * from "./types.ts";
-export * from "./schema.ts";
+export * from "./types";
+export * from "./schema";

@@ -7,5 +7,5 @@
  * Standard Atom links used in ADT responses
  */
 
-export * from "./types.ts";
-export * from "./schema.ts";
+export * from "./types";
+export * from "./schema";
