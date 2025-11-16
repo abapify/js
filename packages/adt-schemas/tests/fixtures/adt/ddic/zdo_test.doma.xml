@@ -5,7 +5,7 @@
         adtcore:masterLanguage="EN"
         adtcore:masterSystem="TRL"
         adtcore:abapLanguageVersion="cloudDevelopment"
-        adtcore:name="ZDO_PEPL_TEST_DOMAIN"
+        adtcore:name="ZDO_TEST"
         adtcore:type="DOMA/DD"
         adtcore:changedAt="2025-09-12T15:53:46Z"
         adtcore:version="inactive"

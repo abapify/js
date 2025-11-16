@@ -1,0 +1,58 @@
+{
+  "name": "@abapify/adt-schemas",
+  "version": "0.1.0",
+  "description": "Shared TypeScript types and ts-xml schemas for SAP ADT APIs",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./adtcore": {
+      "types": "./dist/namespaces/adt/core/index.d.ts",
+      "import": "./dist/namespaces/adt/core/index.js"
+    },
+    "./atom": {
+      "types": "./dist/namespaces/atom/index.d.ts",
+      "import": "./dist/namespaces/atom/index.js"
+    },
+    "./packages": {
+      "types": "./dist/namespaces/adt/packages/index.d.ts",
+      "import": "./dist/namespaces/adt/packages/index.js"
+    },
+    "./oo/classes": {
+      "types": "./dist/namespaces/adt/oo/classes/index.d.ts",
+      "import": "./dist/namespaces/adt/oo/classes/index.js"
+    },
+    "./oo/interfaces": {
+      "types": "./dist/namespaces/adt/oo/interfaces/index.d.ts",
+      "import": "./dist/namespaces/adt/oo/interfaces/index.js"
+    },
+    "./ddic": {
+      "types": "./dist/namespaces/adt/ddic/index.d.ts",
+      "import": "./dist/namespaces/adt/ddic/index.js"
+    },
+    "./base": {
+      "types": "./dist/base/index.d.ts",
+      "import": "./dist/base/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "schemas",
+    "types",
+    "xml",
+    "typescript"
+  ],
+  "dependencies": {
+    "ts-xml": "*"
+  }
+}
