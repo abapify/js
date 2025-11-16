@@ -1,6 +1,6 @@
-import { createNamespace, createAdtSchema } from "../../../base/namespace.ts";
-import { AdtCoreObjectFields, AdtCoreFields, adtcore } from "../core/schema.ts";
-import { AtomLinkSchema, atom } from "../../atom/schema.ts";
+import { createNamespace, createAdtSchema } from "../../../base/namespace";
+import { AdtCoreObjectFields, AdtCoreFields, adtcore } from "../core/schema";
+import { AtomLinkSchema, atom } from "../../atom/schema";
 
 /**
  * SAP Package namespace schemas

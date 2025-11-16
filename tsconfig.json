@@ -4,37 +4,43 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/asjson-parser"
+      "path": "./packages/adt-client"
     },
     {
       "path": "./packages/adt-cli"
     },
     {
-      "path": "./packages/adk"
-    },
-    {
-      "path": "./packages/adt-client"
-    },
-    {
-      "path": "./packages/plugins/oat"
-    },
-    {
       "path": "./packages/plugins/abapgit"
+    },
+    {
+      "path": "./packages/asjson-parser"
     },
     {
       "path": "./packages/plugins/gcts"
     },
     {
+      "path": "./samples/sample-tsdown"
+    },
+    {
+      "path": "./packages/plugins/oat"
+    },
+    {
+      "path": "./packages/adt-schemas"
+    },
+    {
       "path": "./tools/nx-tsdown"
     },
     {
-      "path": "./samples/sample-tsdown"
+      "path": "./tools/nx-vitest"
+    },
+    {
+      "path": "./packages/ts-xml"
     },
     {
       "path": "./packages/xmld"
     },
     {
-      "path": "./tools/nx-vitest"
+      "path": "./packages/adk"
     },
     {
       "path": "./e2e/adk-xml"

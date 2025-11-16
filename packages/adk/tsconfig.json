@@ -12,7 +12,7 @@
   "include": [],
   "references": [
     {
-      "path": "../xmld"
+      "path": "../adt-schemas"
     },
     {
       "path": "./tsconfig.lib.json"

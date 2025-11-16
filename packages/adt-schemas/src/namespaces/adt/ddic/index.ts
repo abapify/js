@@ -7,5 +7,5 @@
  * ABAP Data Dictionary objects (domains, data elements, etc.)
  */
 
-export * from "./types.ts";
-export * from "./schema.ts";
+export * from "./types";
+export * from "./schema";

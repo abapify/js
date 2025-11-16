@@ -5,8 +5,8 @@
  * Prefix: ddic
  */
 
-import type { AdtCoreType } from "../core/types.ts";
-import type { AtomLinkType } from "../../atom/types.ts";
+import type { AdtCoreType } from "../core/types";
+import type { AtomLinkType } from "../../atom/types";
 
 /**
  * Domain fixed value

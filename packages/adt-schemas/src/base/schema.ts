@@ -4,4 +4,4 @@
  * Re-exports from namespace.ts for convenience
  */
 
-export * from "./namespace.ts";
+export * from "./namespace";

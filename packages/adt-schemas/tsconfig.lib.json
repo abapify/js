@@ -11,5 +11,9 @@
     "paths": {}
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../ts-xml/tsconfig.build.json"
+    }
+  ]
 }

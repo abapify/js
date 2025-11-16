@@ -6,6 +6,7 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
     "declaration": true,
+    "composite": true,
     "types": ["node"],
     "lib": ["es2022", "dom"],
     "paths": {}
@@ -13,7 +14,7 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../xmld/tsconfig.lib.json"
+      "path": "../adt-schemas/tsconfig.lib.json"
     }
   ]
 }
