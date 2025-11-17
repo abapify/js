@@ -1,4 +1,4 @@
-import type { AdkObject, AdkObjectConstructor } from './adk-object';
+import type { AdkObject } from './adk-object';
 import type { AdtSchema } from '@abapify/adt-schemas';
 
 /**
@@ -13,25 +13,28 @@ import type { AdtSchema } from '@abapify/adt-schemas';
  * @param schema - adt-schemas AdtSchema (e.g., ClassAdtSchema)
  * @returns Object class with constructor
  */
-export function createAdkObject<T>(
+export function createAdkObject<T extends { name?: unknown; type?: unknown; description?: unknown }>(
   kind: string,
   schema: AdtSchema<T>
 ) {
   class AdkObjectImpl implements AdkObject {
     readonly kind = kind;
+    readonly data: T;
 
-    constructor(private data: T) {}
+    constructor(data: T) {
+      this.data = data;
+    }
 
     get name(): string {
-      return (this.data as any).name || '';
+      return String(this.data.name ?? '');
     }
 
     get type(): string {
-      return (this.data as any).type || '';
+      return String(this.data.type ?? '');
     }
 
     get description(): string | undefined {
-      return (this.data as any).description;
+      return this.data.description ? String(this.data.description) : undefined;
     }
 
     /**

@@ -1,7 +1,8 @@
 import type { AdkObject } from './adk-object';
 import { ObjectRegistry } from '../registry/object-registry';
 import { GenericAbapObject } from '../objects/generic';
-import { extractTypeFromXml, mapTypeToKind } from './type-detector';
+import { extractTypeFromXml, mapTypeToKind } from '../registry';
+
 
 /**
  * Global factory function to create any ADK object from XML
