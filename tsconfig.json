@@ -47,6 +47,9 @@
     },
     {
       "path": "./tools/nx-sync"
+    },
+    {
+      "path": "./tools/nx-typecheck"
     }
   ]
 }
