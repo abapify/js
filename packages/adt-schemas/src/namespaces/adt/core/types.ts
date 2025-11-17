@@ -9,12 +9,8 @@
  * Core ADT object attributes
  * Used as attributes on the root element of most ADT objects
  */
-export interface AdtCoreType {
-  uri?: string;
-  name?: string;
-  type?: string;
-  version?: string;
-  description?: string;
+export interface AdtCoreType extends AdtCoreBaseType {
+  version?: string;  
   descriptionTextLimit?: string;
   language?: string;
   masterLanguage?: string;
@@ -30,7 +26,7 @@ export interface AdtCoreType {
 /**
  * Package reference (used in various contexts)
  */
-export interface AdtCorePackageRefType {
+export interface AdtCoreBaseType {
   uri?: string;
   type?: string;
   name?: string;

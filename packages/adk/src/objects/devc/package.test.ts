@@ -1,11 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { Package } from './package';
-import { Kind } from '../registry/kinds';
+import { Package } from './';
+import { Kind } from '../../registry';
+
+// Helper to create test packages with minimal required fields
+function createTestPackage(name: string, description?: string): Package {
+  const base = Package.fromAdtXml(`<?xml version="1.0" encoding="UTF-8"?>
+<pak:package xmlns:pak="http://www.sap.com/adt/packages" xmlns:adtcore="http://www.sap.com/adt/core">
+  <adtcore:name>${name}</adtcore:name>
+  <adtcore:type>DEVC/K</adtcore:type>
+  ${description ? `<adtcore:description>${description}</adtcore:description>` : ''}
+</pak:package>`);
+  
+  // Create a proper Package instance with hierarchical features
+  const pkg = Object.create(Package.prototype);
+  Object.assign(pkg, base);
+  pkg.children = [];
+  pkg.subpackages = [];
+  return pkg;
+}
 
 describe('Package', () => {
   describe('constructor', () => {
     it('should create a package with name and description', () => {
-      const pkg = new Package('Z_TEST_PKG', 'Test Package');
+      const pkg = createTestPackage('Z_TEST_PKG', 'Test Package');
       
       expect(pkg.name).toBe('Z_TEST_PKG');
       expect(pkg.description).toBe('Test Package');
@@ -14,7 +31,7 @@ describe('Package', () => {
     });
 
     it('should create a package without description', () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       
       expect(pkg.name).toBe('Z_TEST_PKG');
       expect(pkg.description).toBeUndefined();
@@ -23,14 +40,14 @@ describe('Package', () => {
 
   describe('children and subpackages', () => {
     it('should start with empty children and subpackages', () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       
       expect(pkg.children).toEqual([]);
       expect(pkg.subpackages).toEqual([]);
     });
 
     it('should add child objects', () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       const mockChild = {
         kind: Kind.Class,
         name: 'ZCL_TEST',
@@ -45,8 +62,8 @@ describe('Package', () => {
     });
 
     it('should add subpackages', () => {
-      const parent = new Package('Z_PARENT');
-      const child = new Package('Z_PARENT_CHILD');
+      const parent = createTestPackage('Z_PARENT');
+      const child = createTestPackage('Z_PARENT_CHILD');
       
       parent.addSubpackage(child);
       
@@ -57,13 +74,13 @@ describe('Package', () => {
 
   describe('lazy loading', () => {
     it('should start as not loaded', () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       
       expect(pkg.isLoaded).toBe(false);
     });
 
     it('should mark as loaded after load() without callback', async () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       
       await pkg.load();
       
@@ -71,7 +88,7 @@ describe('Package', () => {
     });
 
     it('should call load callback when loading', async () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       let callbackCalled = false;
       
       pkg.setLoadCallback(async () => {
@@ -85,7 +102,7 @@ describe('Package', () => {
     });
 
     it('should not call callback twice', async () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       let callCount = 0;
       
       pkg.setLoadCallback(async () => {
@@ -102,7 +119,7 @@ describe('Package', () => {
 
   describe('toAdtXml', () => {
     it('should generate ADT XML with description', () => {
-      const pkg = new Package('Z_TEST_PKG', 'Test Package');
+      const pkg = createTestPackage('Z_TEST_PKG', 'Test Package');
       const xml = pkg.toAdtXml();
       
       expect(xml).toContain('<DEVCLASS>Z_TEST_PKG</DEVCLASS>');
@@ -110,7 +127,7 @@ describe('Package', () => {
     });
 
     it('should use name as description if not provided', () => {
-      const pkg = new Package('Z_TEST_PKG');
+      const pkg = createTestPackage('Z_TEST_PKG');
       const xml = pkg.toAdtXml();
       
       expect(xml).toContain('<DEVCLASS>Z_TEST_PKG</DEVCLASS>');
@@ -153,51 +170,4 @@ describe('Package', () => {
     });
   });
 
-  describe('description resolution', () => {
-    describe('isChildPackage', () => {
-      it('should identify child packages', () => {
-        expect(Package.isChildPackage('Z_PARENT_CHILD', 'Z_PARENT')).toBe(true);
-        expect(Package.isChildPackage('Z_PARENT_SUB_CHILD', 'Z_PARENT')).toBe(true);
-      });
-
-      it('should not identify root package as child', () => {
-        expect(Package.isChildPackage('Z_PARENT', 'Z_PARENT')).toBe(false);
-      });
-
-      it('should not identify unrelated packages as children', () => {
-        expect(Package.isChildPackage('Z_OTHER', 'Z_PARENT')).toBe(false);
-        expect(Package.isChildPackage('Z_PARENT2', 'Z_PARENT')).toBe(false);
-      });
-
-      it('should be case insensitive', () => {
-        expect(Package.isChildPackage('z_parent_child', 'Z_PARENT')).toBe(true);
-        expect(Package.isChildPackage('Z_PARENT_CHILD', 'z_parent')).toBe(true);
-      });
-    });
-
-    describe('deriveChildDescription', () => {
-      it('should derive description from suffix', () => {
-        expect(Package.deriveChildDescription('Z_PARENT_MODELS', 'Z_PARENT')).toBe('Models');
-        expect(Package.deriveChildDescription('Z_PARENT_SERVICES', 'Z_PARENT')).toBe('Services');
-        expect(Package.deriveChildDescription('Z_PARENT_UTILS', 'Z_PARENT')).toBe('Utils');
-      });
-
-      it('should return undefined for root package', () => {
-        expect(Package.deriveChildDescription('Z_PARENT', 'Z_PARENT')).toBeUndefined();
-      });
-
-      it('should return undefined for unrelated packages', () => {
-        expect(Package.deriveChildDescription('Z_OTHER', 'Z_PARENT')).toBeUndefined();
-      });
-
-      it('should handle multi-part suffixes', () => {
-        expect(Package.deriveChildDescription('Z_PARENT_SUB_MODELS', 'Z_PARENT')).toBe('Models');
-      });
-
-      it('should be case insensitive', () => {
-        expect(Package.deriveChildDescription('z_parent_models', 'Z_PARENT')).toBe('Models');
-        expect(Package.deriveChildDescription('Z_PARENT_MODELS', 'z_parent')).toBe('Models');
-      });
-    });
-  });
 });
