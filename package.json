@@ -4,7 +4,7 @@
   "main": "index.js",
   "type":"module",
   "scripts": {
-    "test": "nx run-many --target=test --exclude=${npm_package_name}",
+    "test": "nx run-many --target=test --exclude=${npm_package_name}",    
     "test:vitest": "vitest run --silent",
     "test:vitest:verbose": "vitest run",
     "prepare": "husky",

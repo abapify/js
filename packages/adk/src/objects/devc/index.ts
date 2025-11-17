@@ -1,23 +1,23 @@
-import type { AdkObject, AdkObjectConstructor } from '../base/adk-object';
-import { PackageAdtSchema, type PackagesType } from '@abapify/adt-schemas';
-import { Kind } from '../registry/kinds';
+import { PackageAdtSchema } from '@abapify/adt-schemas';
+
+import type { AdkObject, AdkObjectConstructor } from '../../base/adk-object';
+import { createAdkObject } from '../../base/class-factory';
+import { Kind } from '../../registry';
+
+/**
+ * Base Package class from factory
+ */
+const BasePackage = createAdkObject(Kind.Package, PackageAdtSchema);
 
 /**
  * ABAP Package object
  *
- * OOP wrapper around adt-schemas PackagesType.
- * Delegates XML I/O to PackageAdtSchema.
- *
- * Adds hierarchical features:
+ * Extends base implementation with hierarchical features:
  * - Child objects (classes, interfaces, domains)
  * - Subpackages
  * - Lazy loading support
  */
-export class Package implements AdkObject {
-  readonly kind = Kind.Package;
-
-  private data: PackagesType;
-
+export class Package extends BasePackage {
   /**
    * Child objects in this package
    */
@@ -37,33 +37,6 @@ export class Package implements AdkObject {
    * Lazy loading callback to fetch package content
    */
   private _loadCallback?: () => Promise<void>;
-
-  constructor(name: string, description?: string) {
-    this.data = {
-      name: name,
-      type: 'DEVC/K',
-      description: description,
-    };
-  }
-
-  get name(): string {
-    return this.data.name || '';
-  }
-
-  get type(): string {
-    return this.data.type || 'DEVC/K';
-  }
-
-  get description(): string | undefined {
-    return this.data.description;
-  }
-
-  /**
-   * Get underlying data
-   */
-  getData(): PackagesType {
-    return this.data;
-  }
 
   /**
    * Check if package content is loaded
@@ -110,19 +83,15 @@ export class Package implements AdkObject {
   }
 
   /**
-   * Serialize to ADT XML
+   * Create Package instance from ADT XML
+   * Overrides base implementation to return proper Package type with hierarchical features
    */
-  toAdtXml(): string {
-    return PackageAdtSchema.toAdtXml(this.data, { xmlDecl: true });
-  }
-
-  /**
-   * Create instance from ADT XML
-   */
-  static fromAdtXml(xml: string): Package {
-    const data = PackageAdtSchema.fromAdtXml(xml);
-    const pkg = new Package(data.name || '', data.description);
-    (pkg as any).data = data;
+  static override fromAdtXml(xml: string): Package {
+    const base = BasePackage.fromAdtXml(xml);
+    const pkg = Object.create(Package.prototype);
+    Object.assign(pkg, base);
+    pkg.children = [];
+    pkg.subpackages = [];
     return pkg;
   }
 }
