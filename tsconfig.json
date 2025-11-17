@@ -44,6 +44,9 @@
     },
     {
       "path": "./e2e/adk-xml"
+    },
+    {
+      "path": "./tools/nx-sync"
     }
   ]
 }
