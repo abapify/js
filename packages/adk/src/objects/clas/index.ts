@@ -1,7 +1,8 @@
-import type { AdkObjectConstructor } from '../base/adk-object';
-import { createAdkObject } from '../base/class-factory';
 import { ClassAdtSchema } from '@abapify/adt-schemas';
-import { Kind } from '../registry/kinds';
+
+import type { AdkObjectConstructor } from '../../base/adk-object';
+import { createAdkObject } from '../../base/class-factory';
+import { Kind } from '../../registry';
 
 /**
  * ABAP Class object

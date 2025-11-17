@@ -5,7 +5,7 @@
  * Prefix: pak
  */
 
-import type { AdtCoreType, AdtCorePackageRefType } from "../core/types";
+import type { AdtCoreType, AdtCoreBaseType } from "../core/types";
 import type { AtomLinkType } from "../../atom/types";
 
 /**
@@ -83,7 +83,7 @@ export interface PackagesPackageInterfacesType {
  * Sub packages container
  */
 export interface PackagesSubPackagesType {
-  packageRefs?: AdtCorePackageRefType[];
+  packageRefs?: AdtCoreBaseType[];
 }
 
 /**
@@ -96,7 +96,7 @@ export interface PackagesType extends AdtCoreType {
 
   // Package-specific elements
   attributes?: PackagesAttributesType;
-  superPackage?: AdtCorePackageRefType;
+  superPackage?: AdtCoreBaseType;
   applicationComponent?: PackagesApplicationComponentType;
   transport?: PackagesTransportType;
   useAccesses?: PackagesUseAccessesType;

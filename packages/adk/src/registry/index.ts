@@ -33,7 +33,7 @@ import { ClassConstructor } from '../objects/clas';
 import { DomainConstructor } from '../objects/doma';
 import { PackageConstructor } from '../objects/devc';
 
-ObjectRegistry.register(Kind.Interface, InterfaceConstructor as any);
-ObjectRegistry.register(Kind.Class, ClassConstructor as any);
-ObjectRegistry.register(Kind.Domain, DomainConstructor as any);
-ObjectRegistry.register(Kind.Package, PackageConstructor as any);
+ObjectRegistry.register(Kind.Interface, InterfaceConstructor);
+ObjectRegistry.register(Kind.Class, ClassConstructor);
+ObjectRegistry.register(Kind.Domain, DomainConstructor);
+ObjectRegistry.register(Kind.Package, PackageConstructor);
