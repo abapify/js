@@ -1,13 +1,19 @@
-import { DOMParser, Element } from "@xmldom/xmldom";
-import type { ElementSchema, InferSchema } from "./types";
-import { fromString } from "./utils";
+import { DOMParser, Element } from '@xmldom/xmldom';
+import type { ElementSchema, InferSchema } from './types';
+import { fromString } from './utils';
 
 /**
  * Parse XML string to JSON data using schema
  */
-export function parse<S extends ElementSchema>(schema: S, xml: string): InferSchema<S> {
-  const dom = new DOMParser().parseFromString(xml, "application/xml");
-  return parseBySchema(dom.documentElement as Element, schema) as InferSchema<S>;
+export function parse<S extends ElementSchema>(
+  schema: S,
+  xml: string
+): InferSchema<S> {
+  const dom = new DOMParser().parseFromString(xml, 'application/xml');
+  return parseBySchema(
+    dom.documentElement as Element,
+    schema
+  ) as InferSchema<S>;
 }
 
 /**
@@ -17,20 +23,28 @@ function parseBySchema(node: Element, schema: ElementSchema): any {
   const out: any = {};
 
   for (const [key, field] of Object.entries(schema.fields)) {
-    if (field.kind === "attr") {
+    if (field.kind === 'attr') {
       const raw = node.getAttribute(field.name);
       if (raw != null) {
         out[key] = fromString(field.type, raw);
       }
-    } else if (field.kind === "text") {
-      const raw = node.textContent ?? "";
+    } else if (field.kind === 'text') {
+      const raw = node.textContent ?? '';
       out[key] = fromString(field.type, raw);
-    } else if (field.kind === "elem") {
+    } else if (field.kind === 'elem') {
       const child = firstChild(node, field.name);
       if (child) {
-        out[key] = parseBySchema(child, field.schema);
+        // Check if it's a simple text element or complex schema
+        if ('type' in field) {
+          // Simple text element: <title>text</title>
+          const raw = child.textContent ?? '';
+          out[key] = fromString(field.type, raw);
+        } else {
+          // Complex element with schema
+          out[key] = parseBySchema(child, field.schema);
+        }
       }
-    } else if (field.kind === "elems") {
+    } else if (field.kind === 'elems') {
       const children = allChildren(node, field.name);
       out[key] = children.map((c) => parseBySchema(c, field.schema));
     }

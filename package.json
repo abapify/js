@@ -1,10 +1,25 @@
 {
   "name": "abapify",
+  "version": "0.1.1",
   "private": true,
+  "description": "TypeScript libraries and CLI tools for modern SAP ABAP development workflows. Build CLI-first development tools, integrate ABAP with modern CI/CD pipelines, and work with SAP systems programmatically.",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
   "main": "index.js",
-  "type":"module",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "workspaces": [
+    "packages/*",
+    "samples/*",
+    "tools/*",
+    "e2e/*",
+    "packages/plugins/*"
+  ],
   "scripts": {
-    "test": "nx run-many --target=test --exclude=${npm_package_name}",    
+    "test": "nx run-many --target=test --exclude=${npm_package_name}",
     "test:vitest": "vitest run --silent",
     "test:vitest:verbose": "vitest run",
     "prepare": "husky",
@@ -15,9 +30,23 @@
     "btp": "npx tsx e2e/btp-cli/cli.ts",
     "btp:token": "npm run btp -- --file e2e/secrets/service_key.json"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "dependencies": {
+    "@cloudfoundry/api": "^0.1.7",
+    "@nx/devkit": "21.5.2",
+    "@sap/cds-dk": "^8.4.0",
+    "@sap/xsenv": "^5.4.0",
+    "@xmldom/xmldom": "^0.9.5",
+    "axios": "^1.7.7",
+    "dset": "^3.1.4",
+    "fast-xml-parser": "^5.3.1",
+    "fxmlp": "^1.0.7",
+    "nx-mcp": "^0.6.3",
+    "open": "^10.2.0",
+    "openid-client": "^6.6.4",
+    "qs": "^6.13.1",
+    "reflect-metadata": "^0.2.2",
+    "yaml": "^2.6.0"
+  },
   "devDependencies": {
     "@cap-js/cds-types": "^0.7.0",
     "@eslint/js": "^9.8.0",
@@ -67,30 +96,5 @@
     "verdaccio": "6.1.2",
     "vite": "7.1.5",
     "vitest": "^3.2.4"
-  },
-  "dependencies": {
-    "@cloudfoundry/api": "^0.1.7",
-    "@nx/devkit": "21.5.2",
-    "@sap/cds-dk": "^8.4.0",
-    "@sap/xsenv": "^5.4.0",
-    "@xmldom/xmldom": "^0.9.5",
-    "axios": "^1.7.7",
-    "dset": "^3.1.4",
-    "fast-xml-parser": "^5.3.1",
-    "fxmlp": "^1.0.7",
-    "nx-mcp": "^0.6.3",
-    "open": "^10.2.0",
-    "openid-client": "^6.6.4",
-    "qs": "^6.13.1",
-    "reflect-metadata": "^0.2.2",
-    "yaml": "^2.6.0"
-  },
-  "workspaces": [
-    "packages/*",
-    "samples/*",
-    "tools/*",
-    "e2e/*",
-    "packages/plugins/*"
-  ],
-  "version": "0.1.1"
+  }
 }
