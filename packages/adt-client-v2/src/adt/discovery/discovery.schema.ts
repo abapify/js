@@ -6,41 +6,49 @@
  * Based on real SAP ADT API discovery response structure
  */
 
-import type { InferSchemaType } from '../../base';
+import type { InferSchemaType } from '../../base/schema';
+import { createSchema } from '../../base/schema';
 import { NS } from '../../namespaces';
-import { FieldKind, PrimitiveType } from '../../base';
+import type { ElementSchema } from '../../base/schema';
 
 /**
  * Atom Category Schema
  */
-const AtomCategorySchema = {
+const AtomCategorySchema: ElementSchema = {
   tag: 'atom:category',
   ns: { atom: NS.atom },
   fields: {
-    term: { kind: 'attr' as const, name: '@term', type: 'string' as const },
-    scheme: { kind: 'attr' as const, name: '@scheme', type: 'string' as const },
+    term: { kind: 'attr', name: 'term', type: 'string', optional: true },
+    scheme: { kind: 'attr', name: 'scheme', type: 'string', optional: true },
   },
 } as const;
 
 /**
  * Template Link Schema
  */
-const TemplateLinkSchema = {
+const TemplateLinkSchema: ElementSchema = {
   tag: 'adtcomp:templateLink',
   ns: {
     adtcomp: NS.adtcomp,
   },
   fields: {
-    rel: { kind: 'attr' as const, name: '@rel', type: 'string' as const },
+    rel: { kind: 'attr', name: 'rel', type: 'string', optional: true },
     template: {
-      kind: 'attr' as const,
-      name: '@template',
-      type: 'string' as const,
+      kind: 'attr',
+      name: 'template',
+      type: 'string',
+      optional: true,
     },
     type: {
-      kind: 'attr' as const,
-      name: '@type',
-      type: 'string' as const,
+      kind: 'attr',
+      name: 'type',
+      type: 'string',
+      optional: true,
+    },
+    title: {
+      kind: 'attr',
+      name: 'title',
+      type: 'string',
       optional: true,
     },
   },
@@ -49,12 +57,12 @@ const TemplateLinkSchema = {
 /**
  * Template Links Container Schema
  */
-const TemplateLinksSchema = {
+const TemplateLinksSchema: ElementSchema = {
   tag: 'adtcomp:templateLinks',
   ns: { adtcomp: NS.adtcomp },
   fields: {
     templateLink: {
-      kind: 'elems' as const,
+      kind: 'elems',
       name: 'adtcomp:templateLink',
       schema: TemplateLinkSchema,
     },
@@ -64,7 +72,7 @@ const TemplateLinksSchema = {
 /**
  * Collection Schema (AtomPub collection)
  */
-const CollectionSchema = {
+const CollectionSchema: ElementSchema = {
   tag: 'app:collection',
   ns: {
     app: NS.app,
@@ -72,26 +80,26 @@ const CollectionSchema = {
     adtcomp: NS.adtcomp,
   },
   fields: {
-    href: { kind: FieldKind.Attr, name: '@href', type: PrimitiveType.String },
+    href: { kind: 'attr', name: 'href', type: 'string' },
     title: {
-      kind: FieldKind.Elem,
+      kind: 'elem',
       name: 'atom:title',
-      type: PrimitiveType.String,
+      type: 'string',
     },
     accept: {
-      kind: FieldKind.Elem,
+      kind: 'elem',
       name: 'app:accept',
-      type: PrimitiveType.String,
+      type: 'string',
       optional: true,
     },
     category: {
-      kind: FieldKind.Elem,
+      kind: 'elem',
       name: 'atom:category',
       schema: AtomCategorySchema,
       optional: true,
     },
     templateLinks: {
-      kind: FieldKind.Elem,
+      kind: 'elem',
       name: 'adtcomp:templateLinks',
       schema: TemplateLinksSchema,
       optional: true,
@@ -102,7 +110,7 @@ const CollectionSchema = {
 /**
  * Workspace Schema (AtomPub workspace)
  */
-const WorkspaceSchema = {
+const WorkspaceSchema: ElementSchema = {
   tag: 'app:workspace',
   ns: {
     app: NS.app,
@@ -110,12 +118,12 @@ const WorkspaceSchema = {
   },
   fields: {
     title: {
-      kind: FieldKind.Elem,
+      kind: 'elem',
       name: 'atom:title',
-      type: PrimitiveType.String,
+      type: 'string',
     },
     collection: {
-      kind: FieldKind.Elems,
+      kind: 'elems',
       name: 'app:collection',
       schema: CollectionSchema,
     },
@@ -127,7 +135,7 @@ const WorkspaceSchema = {
  *
  * Matches the structure of application/atomsvc+xml
  */
-export const DiscoverySchema = {
+export const DiscoverySchema = createSchema({
   tag: 'app:service',
   ns: {
     app: NS.app,
@@ -136,12 +144,12 @@ export const DiscoverySchema = {
   },
   fields: {
     workspace: {
-      kind: 'elems' as const,
+      kind: 'elems',
       name: 'app:workspace',
       schema: WorkspaceSchema,
     },
   },
-} as const;
+});
 
 /**
  * Type inferred from schema

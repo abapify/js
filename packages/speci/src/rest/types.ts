@@ -40,6 +40,14 @@ export interface Inferrable<T = unknown> {
 }
 
 /**
+ * Create an Inferrable schema with automatic type inference
+ * Cleaner than the manual _infer pattern
+ */
+export function createInferrable<T>(): Inferrable<T> {
+  return { _infer: undefined as unknown as T };
+}
+
+/**
  * Infer type from an Inferrable schema
  * Falls back to the original type if not Inferrable (supports type assertions)
  */

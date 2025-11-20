@@ -12,6 +12,7 @@
   "dependencies": {
     "@abapify/adk": "*",
     "@abapify/adt-client": "*",
+    "@abapify/adt-client-v2": "*",
     "@inquirer/prompts": "^7.9.0",
     "commander": "^12.0.0",
     "fast-xml-parser": "^5.3.1",

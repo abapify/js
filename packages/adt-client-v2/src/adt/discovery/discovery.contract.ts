@@ -4,7 +4,7 @@
  * Speci contract for ADT discovery endpoints
  */
 
-import { adtHttp, createContract } from '../../base';
+import { adtHttp, createContract } from '../../base/contract';
 import { DiscoverySchema } from './discovery.schema';
 
 /**

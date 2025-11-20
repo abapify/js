@@ -39,6 +39,7 @@ export interface AttrField<Name extends string = string> {
   kind: 'attr';
   name: Name; // QName, e.g. "adtcore:name"
   type: PrimitiveTypeString;
+  optional?: boolean;
 }
 
 /**
@@ -47,6 +48,7 @@ export interface AttrField<Name extends string = string> {
 export interface TextField {
   kind: 'text';
   type: PrimitiveTypeString;
+  optional?: boolean;
 }
 
 /**
@@ -64,11 +66,13 @@ export type ElemField<
       kind: 'elem';
       name: Name; // QName, e.g. "pak:transport"
       schema: Sub;
+      optional?: boolean;
     }
   | {
       kind: 'elem';
       name: Name; // QName, e.g. "atom:title"
       type: PrimitiveTypeString;
+      optional?: boolean;
     };
 
 /**
@@ -81,6 +85,7 @@ export interface ElemsField<
   kind: 'elems';
   name: Name; // QName, e.g. "atom:link"
   schema: Sub;
+  optional?: boolean;
 }
 
 /**
@@ -120,28 +125,45 @@ type MapPrimitiveType<T extends PrimitiveTypeString> = T extends 'string'
   : never;
 
 /**
+ * Helper type to determine if a field is optional
+ */
+type IsOptional<F extends Field> = F extends { optional: true } ? true : false;
+
+/**
+ * Helper type to infer the value type of a field
+ */
+type InferFieldType<F extends Field> = F extends AttrField<any>
+  ? F['type'] extends PrimitiveTypeString
+    ? MapPrimitiveType<F['type']>
+    : string | number | boolean | Date
+  : F extends TextField
+  ? F['type'] extends PrimitiveTypeString
+    ? MapPrimitiveType<F['type']>
+    : string | number | boolean | Date
+  : F extends ElemField<any, infer Sub>
+  ? F extends { type: infer T }
+    ? T extends PrimitiveTypeString
+      ? MapPrimitiveType<T>
+      : never
+    : Sub extends ElementSchema
+    ? InferSchema<Sub>
+    : never
+  : F extends ElemsField<any, infer Sub>
+  ? Sub extends ElementSchema
+    ? InferSchema<Sub>[]
+    : never
+  : never;
+
+/**
  * Infer TypeScript type from element schema
+ * Fields with optional: true will be optional in the inferred type
  */
 export type InferSchema<S extends ElementSchema> = {
-  [K in keyof S['fields']]: S['fields'][K] extends AttrField<any>
-    ? S['fields'][K]['type'] extends PrimitiveTypeString
-      ? MapPrimitiveType<S['fields'][K]['type']>
-      : string | number | boolean | Date
-    : S['fields'][K] extends TextField
-    ? S['fields'][K]['type'] extends PrimitiveTypeString
-      ? MapPrimitiveType<S['fields'][K]['type']>
-      : string | number | boolean | Date
-    : S['fields'][K] extends ElemField<any, infer Sub>
-    ? S['fields'][K] extends { type: infer T }
-      ? T extends PrimitiveTypeString
-        ? MapPrimitiveType<T>
-        : never
-      : Sub extends ElementSchema
-      ? InferSchema<Sub>
-      : never
-    : S['fields'][K] extends ElemsField<any, infer Sub>
-    ? Sub extends ElementSchema
-      ? InferSchema<Sub>[]
-      : never
-    : never;
+  [K in keyof S['fields'] as IsOptional<S['fields'][K]> extends true
+    ? never
+    : K]: InferFieldType<S['fields'][K]>;
+} & {
+  [K in keyof S['fields'] as IsOptional<S['fields'][K]> extends true
+    ? K
+    : never]?: InferFieldType<S['fields'][K]>;
 };

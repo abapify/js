@@ -7,6 +7,11 @@
 
 import { parse, build as tsxmlBuild, type ElementSchema } from './base';
 import type { AdtConnectionConfig } from './types';
+import type {
+  HttpAdapter as SpeciHttpAdapter,
+  HttpRequestOptions,
+} from 'speci/rest';
+import type { ResponsePlugin, ResponseContext } from './plugins';
 
 /**
  * Type-safe wrapper for build that accepts unknown body
@@ -18,27 +23,30 @@ function buildXml(schema: ElementSchema, data: unknown): string {
 }
 
 /**
- * HTTP Adapter interface (matching speci's HttpAdapter)
+ * HTTP Adapter - uses speci's standard interface
  */
-export interface HttpAdapter {
-  request<TResponse = unknown>(options: RequestOptions): Promise<TResponse>;
-}
+export type HttpAdapter = SpeciHttpAdapter;
 
-export interface RequestOptions {
-  method: string;
-  url: string;
-  body?: unknown;
-  query?: Record<string, any>;
-  headers?: Record<string, string>;
-  bodySchema?: ElementSchema; // Schema for serializing request body (Inferrable)
-  responseSchema?: ElementSchema; // Schema for parsing response body (Inferrable)
+/**
+ * Extended ADT connection config with plugins
+ */
+export interface AdtAdapterConfig extends AdtConnectionConfig {
+  /** Response plugins for intercepting and transforming responses */
+  plugins?: ResponsePlugin[];
 }
 
 /**
- * Create ADT HTTP adapter with Basic Authentication
+ * Create ADT HTTP adapter with Basic Authentication and plugin support
  */
-export function createAdtAdapter(config: AdtConnectionConfig): HttpAdapter {
-  const { baseUrl, username, password, client, language } = config;
+export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
+  const {
+    baseUrl,
+    username,
+    password,
+    client,
+    language,
+    plugins = [],
+  } = config;
 
   // Create Basic Auth header
   const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString(
@@ -47,7 +55,7 @@ export function createAdtAdapter(config: AdtConnectionConfig): HttpAdapter {
 
   return {
     async request<TResponse = unknown>(
-      options: RequestOptions
+      options: HttpRequestOptions
     ): Promise<TResponse> {
       // Build full URL
       const url = new URL(options.url, baseUrl);
@@ -74,9 +82,32 @@ export function createAdtAdapter(config: AdtConnectionConfig): HttpAdapter {
         ...options.headers,
       };
 
-      // Get schemas from options (passed via bodySchema/responseSchema from Speci)
-      const bodySchema = options.bodySchema;
-      const responseSchema = options.responseSchema;
+      // Get schemas from speci's standard fields
+      // Check if bodySchema is an ElementSchema (has 'tag' and 'fields' properties)
+      let bodySchema: ElementSchema | undefined;
+      if (
+        options.bodySchema &&
+        typeof options.bodySchema === 'object' &&
+        'tag' in options.bodySchema &&
+        'fields' in options.bodySchema
+      ) {
+        bodySchema = options.bodySchema as ElementSchema;
+      }
+
+      // Extract response schema from responses object (passed by speci)
+      let responseSchema: ElementSchema | undefined;
+      if (options.responses) {
+        const schema200 = options.responses[200];
+        // Check if it's an ElementSchema (has 'tag' and 'fields' properties)
+        if (
+          schema200 &&
+          typeof schema200 === 'object' &&
+          'tag' in schema200 &&
+          'fields' in schema200
+        ) {
+          responseSchema = schema200 as ElementSchema;
+        }
+      }
 
       // Build request body using schema if available
       let requestBody: string | undefined;
@@ -108,20 +139,42 @@ export function createAdtAdapter(config: AdtConnectionConfig): HttpAdapter {
 
       // Parse response
       const contentType = response.headers.get('content-type') || '';
+      const rawText = await response.text();
       let data: any;
 
       if (contentType.includes('application/json')) {
-        data = await response.json();
+        data = JSON.parse(rawText);
       } else if (contentType.includes('text/') || contentType.includes('xml')) {
-        const xmlText = await response.text();
         // If response schema available and content is XML, parse it automatically
         if (responseSchema && contentType.includes('xml')) {
-          data = parse(responseSchema, xmlText);
+          data = parse(responseSchema, rawText);
         } else {
-          data = xmlText;
+          data = rawText;
         }
       } else {
-        data = await response.text();
+        data = rawText;
+      }
+
+      // Apply plugins if any
+      if (plugins.length > 0) {
+        const context: ResponseContext = {
+          rawText,
+          parsedData: data,
+          schema: responseSchema,
+          url: url.toString(),
+          method: options.method,
+          contentType,
+        };
+
+        // Run plugins in sequence
+        for (const plugin of plugins) {
+          const result = await plugin.process(context);
+          // Plugin can modify the data
+          if (result !== undefined) {
+            data = result;
+            context.parsedData = result;
+          }
+        }
       }
 
       // Return just the data (matching Speci's HttpAdapter interface)
