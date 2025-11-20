@@ -36,21 +36,46 @@ export interface FormatPlugin {
   readonly description: string;
 
   /**
-   * Serialize ADK objects to file system
+   * Serialize a single ADK object to file system
+   * CLI handles iteration and calls this for each object
+   *
+   * @param object - The ADK object to serialize (Class, Interface, Domain, Package, etc.)
+   * @param targetPath - Base output directory
+   * @param context - Context about the object's location in the package tree
    */
-  serialize(
+  serializeObject(
+    object: AdkObject,
+    targetPath: string,
+    context: SerializationContext
+  ): Promise<SerializeObjectResult>;
+
+  /**
+   * Legacy: Serialize multiple ADK objects to file system (bulk operation)
+   * Used for backward compatibility and batch operations
+   */
+  serialize?(
     objects: AdkObject[],
     targetPath: string,
     options?: SerializeOptions
   ): Promise<SerializeResult>;
 
   /**
-   * Deserialize file system to ADK objects
+   * Deserialize file system to ADK objects (optional - for future use)
    */
-  deserialize(
+  deserialize?(
     sourcePath: string,
     options?: DeserializeOptions
   ): Promise<AdkObject[]>;
+
+  /**
+   * Called before import starts (optional lifecycle hook)
+   */
+  beforeImport?(targetPath: string): Promise<void>;
+
+  /**
+   * Called after import completes (optional lifecycle hook)
+   */
+  afterImport?(targetPath: string, result: SerializeResult): Promise<void>;
 
   /**
    * Validate plugin configuration
@@ -61,6 +86,39 @@ export interface FormatPlugin {
    * Get supported object types
    */
   getSupportedObjectTypes(): string[];
+}
+
+/**
+ * Context provided to plugin during serialization
+ * Contains information about the object's location in the package hierarchy
+ */
+export interface SerializationContext {
+  /** The package containing this object */
+  package: AdkObject; // ADK_Package
+
+  /** Path from root to this package (e.g., ["ZROOT", "ZSUB1", "ZSUB1_A"]) */
+  packagePath: string[];
+
+  /** Relative directory path for this package (e.g., "zroot/zsub1/zsub1_a") */
+  packageDir: string;
+
+  /** All parent packages (ordered from root to immediate parent) */
+  parents: AdkObject[]; // ADK_Package[]
+
+  /** Total objects being processed (for progress tracking) */
+  totalObjects: number;
+
+  /** Current object index (for progress tracking) */
+  currentIndex: number;
+}
+
+/**
+ * Result of serializing a single object
+ */
+export interface SerializeObjectResult {
+  success: boolean;
+  filesCreated: string[];
+  errors?: string[];
 }
 
 /**
@@ -133,6 +191,25 @@ export interface PluginSpec {
   name: string;
   version?: string;
   config?: PluginConfig;
+}
+
+/**
+ * Plugin factory - creates a typed plugin with minimal boilerplate
+ *
+ * @example
+ * export default createFormatPlugin({
+ *   name: 'abapGit',
+ *   version: '1.0.0',
+ *   description: 'abapGit serializer',
+ *   getSupportedObjectTypes: () => ['CLAS', 'INTF', 'DOMA', 'DEVC'],
+ *   serializeObject: async (object, targetPath, context) => {
+ *     // Implementation
+ *     return { success: true, filesCreated: [] };
+ *   }
+ * });
+ */
+export function createFormatPlugin(plugin: FormatPlugin): FormatPlugin {
+  return plugin;
 }
 
 /**

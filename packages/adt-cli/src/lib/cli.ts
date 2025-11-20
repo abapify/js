@@ -214,7 +214,12 @@ export async function main(): Promise<void> {
 
     // Create and set global logger for ADT client
     const logger = createCliLogger({ verbose: globalOptions.verbose });
-    setGlobalLogger(logger);
+    const loggingConfig = {
+      logLevel: globalOptions.logLevel || 'info',
+      logOutput: globalOptions.logOutput || './tmp/logs',
+      logResponseFiles: Boolean(globalOptions.logResponseFiles),
+    };
+    setGlobalLogger(logger, loggingConfig);
   });
 
   await program.parseAsync(process.argv);

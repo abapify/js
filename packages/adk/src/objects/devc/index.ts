@@ -1,4 +1,5 @@
 import { PackageAdtSchema } from '@abapify/adt-schemas';
+import type { PackagesType } from '@abapify/adt-schemas';
 
 import type { AdkObject, AdkObjectConstructor } from '../../base/adk-object';
 import { createAdkObject } from '../../base/class-factory';
@@ -80,6 +81,14 @@ export class Package extends BasePackage {
    */
   addSubpackage(subpackage: Package): void {
     this.subpackages.push(subpackage);
+  }
+
+  /**
+   * Get package data with proper typing
+   * Overrides base implementation to return PackagesType instead of unknown
+   */
+  override getData(): PackagesType {
+    return super.getData() as PackagesType;
   }
 
   /**

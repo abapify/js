@@ -1,57 +1,80 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { AdtClientImpl } from '@abapify/adt-client';
+import {
+  createAdtClient,
+  type WorkspaceXml,
+  type CollectionXml,
+} from '@abapify/adt-client-v2';
 
 export const discoveryCommand = new Command('discovery')
   .description('Discover available ADT services')
   .option('-o, --output <file>', 'Save discovery data to file')
   .action(async (options, command) => {
-    const logger = command.parent?.logger;
-
     try {
-      // Create ADT client with logger
-      const adtClient = new AdtClientImpl({
-        logger: logger?.child({ component: 'cli' }),
-      });
+      // Create ADT v2 client
+      const adtClient = createAdtClient();
 
-      if (options.output && !options.output.endsWith('.json')) {
-        // For XML output, go directly to raw XML request - no double call
-        const xmlResponse = await adtClient.request('/sap/bc/adt/discovery', {
-          headers: { Accept: 'application/atomsvc+xml' },
-        });
-        const xmlContent = await xmlResponse.text();
-        writeFileSync(options.output, xmlContent);
-        console.log(`💾 Discovery data saved as XML to: ${options.output}`);
-        return;
+      // Call discovery endpoint
+      const response = await adtClient.discovery.getDiscovery();
+
+      if (response.status !== 200) {
+        throw new Error(`Discovery failed with status ${response.status}`);
       }
 
-      // For JSON output or console display, use parsed discovery
-      const discovery = await adtClient.discovery.getDiscovery();
+      const discovery = response.body;
 
       if (options.output) {
-        // Save JSON to file
-        const outputData = {
-          workspaces: discovery.workspaces,
-        };
-        writeFileSync(options.output, JSON.stringify(outputData, null, 2));
-        console.log(`💾 Discovery data saved as JSON to: ${options.output}`);
+        if (options.output.endsWith('.json')) {
+          // Save as JSON
+          const outputData = {
+            workspaces: discovery.workspace.map((ws: WorkspaceXml) => ({
+              title: ws.title.text,
+              collections: ws.collection.map((coll: CollectionXml) => ({
+                href: coll.href,
+                title: coll.title.text,
+                accept: coll.accept?.text,
+                category: coll.category
+                  ? {
+                      term: coll.category.term,
+                      scheme: coll.category.scheme,
+                    }
+                  : undefined,
+                templateLinks: coll.templateLinks?.templateLink.map(
+                  (link: { rel: string; template: string; type?: string }) => ({
+                    rel: link.rel,
+                    template: link.template,
+                    type: link.type,
+                  })
+                ),
+              })),
+            })),
+          };
+          writeFileSync(options.output, JSON.stringify(outputData, null, 2));
+          console.log(`💾 Discovery data saved as JSON to: ${options.output}`);
+        } else {
+          // Save as XML - need to rebuild from parsed data
+          // For now, just save JSON with .xml extension as a placeholder
+          console.warn(
+            '⚠️  XML output not yet supported with v2 client, saving as JSON'
+          );
+          const outputData = { workspaces: discovery.workspace };
+          writeFileSync(options.output, JSON.stringify(outputData, null, 2));
+          console.log(`💾 Discovery data saved to: ${options.output}`);
+        }
       } else {
         // Display in console
-        console.log(`\n📋 Found ${discovery.workspaces.length} workspaces:\n`);
+        console.log(`\n📋 Found ${discovery.workspace.length} workspaces:\n`);
 
-        for (const workspace of discovery.workspaces) {
-          console.log(`📁 ${workspace.title}`);
-          for (const collection of workspace.collections) {
-            console.log(`  └─ ${collection.title} (${collection.href})`);
+        for (const workspace of discovery.workspace) {
+          console.log(`📁 ${workspace.title.text}`);
+          for (const collection of workspace.collection) {
+            console.log(`  └─ ${collection.title.text} (${collection.href})`);
             if (collection.category) {
               console.log(`     Category: ${collection.category.term}`);
             }
-            if (
-              collection.templateLinks &&
-              collection.templateLinks.length > 0
-            ) {
+            if (collection.templateLinks?.templateLink) {
               console.log(
-                `     Templates: ${collection.templateLinks.length} available`
+                `     Templates: ${collection.templateLinks.templateLink.length} available`
               );
             }
           }

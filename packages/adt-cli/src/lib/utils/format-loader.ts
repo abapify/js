@@ -1,6 +1,4 @@
-import {
-  shouldUseMockClient,
-} from '../testing/cli-test-utils';
+import { shouldUseMockClient } from '../testing/cli-test-utils';
 
 /**
  * Parse format specification with optional preset
@@ -71,7 +69,13 @@ export async function loadFormatPlugin(formatSpec: string) {
 
     // Create plugin instance with preset options
     const options = preset ? { preset } : {};
-    const plugin = new PluginClass(options);
+
+    // Check if PluginClass is already an instance (from createFormatPlugin)
+    // or if it's a constructor function that needs to be instantiated
+    const plugin =
+      typeof PluginClass === 'function' && PluginClass.prototype
+        ? new PluginClass(options)
+        : PluginClass;
 
     return {
       name: plugin.name || packageName,
