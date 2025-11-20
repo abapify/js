@@ -29,6 +29,11 @@ export const build = tsxmlBuild;
 export type InferSchemaType<T extends ElementSchema> = InferSchema<T>;
 
 /**
+ * Type alias for schema fields - cleaner than ElementSchema['fields']
+ */
+export type SchemaFields = ElementSchema['fields'];
+
+/**
  * Create a typed XML schema with Speci Inferrable support
  *
  * Automatically adds _infer property for automatic type inference in Speci.
