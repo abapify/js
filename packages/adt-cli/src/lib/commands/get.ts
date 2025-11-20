@@ -7,6 +7,16 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { XMLParser } from 'fast-xml-parser';
 
+/**
+ * Extract base object type from ADT type string
+ * ADT types can include subtypes (e.g., "DOMA/DD", "CLAS/OC")
+ * This function extracts the base type before the slash
+ */
+function getBaseObjectType(adtType: string): string {
+  const slashIndex = adtType.indexOf('/');
+  return slashIndex >= 0 ? adtType.substring(0, slashIndex) : adtType;
+}
+
 export const getCommand = new Command('get')
   .argument('<objectName>', 'ABAP object name to inspect')
   .description('Get details about a specific ABAP object')
@@ -25,7 +35,7 @@ export const getCommand = new Command('get')
   .action(async (objectName, options, command) => {
     const logger = command.parent?.logger;
     const loggingConfig = command.parent?.loggingConfig;
-    
+
     try {
       // Create file logger if response logging is enabled
       let fileLogger;
@@ -36,7 +46,7 @@ export const getCommand = new Command('get')
           writeMetadata: true, // Always write metadata.json files
         });
       }
-      
+
       // Search for the specific object by name
       // Create ADT client with logger and file logger
       const adtClient = new AdtClientImpl({
@@ -79,11 +89,26 @@ export const getCommand = new Command('get')
       }
 
       // Get object details from ADT client (type-agnostic)
-      // The client will use the registry to handle type-specific logic
-      const objectDetails = await adtClient.repository.getObject(
-        exactMatch.type,
-        exactMatch.name
-      );
+      // Note: This is currently only used for display purposes, not for --output option
+      // Skip for object types not supported by ADT client's internal handler factory
+      const baseType = getBaseObjectType(exactMatch.type);
+
+      // Try to get object details, but don't fail if handler not registered in ADT client
+      try {
+        const objectDetails = await adtClient.repository.getObject(
+          baseType,
+          exactMatch.name
+        );
+      } catch (error) {
+        // Ignore errors from ADT client's handler factory
+        // The CLI's ObjectRegistry will handle these types for --output option
+        if (
+          error instanceof Error &&
+          !error.message.includes('No handler registered')
+        ) {
+          throw error; // Re-throw if it's a different error
+        }
+      }
 
       // Handle output to file option
       if (options.output) {
@@ -96,17 +121,14 @@ export const getCommand = new Command('get')
             xmlContent = await adtClient.get(structureUri);
           } else {
             // Otherwise get the regular ADT XML
-            if (!ObjectRegistry.isSupported(exactMatch.type)) {
+            if (!ObjectRegistry.isSupported(baseType)) {
               console.log(
                 `❌ ADT XML export not supported for object type: ${exactMatch.type}`
               );
               return;
             }
 
-            const objectHandler = ObjectRegistry.get(
-              exactMatch.type,
-              adtClient
-            );
+            const objectHandler = ObjectRegistry.get(baseType, adtClient);
             xmlContent = await objectHandler.getAdtXml(
               exactMatch.name,
               exactMatch.uri
@@ -172,13 +194,10 @@ export const getCommand = new Command('get')
 
       // Show object outline if requested
       if (options.outline) {
-        if (ObjectRegistry.isSupported(exactMatch.type)) {
+        if (ObjectRegistry.isSupported(baseType)) {
           try {
             console.log(`\n🏗️ Object Outline:`);
-            const objectHandler = ObjectRegistry.get(
-              exactMatch.type,
-              adtClient
-            );
+            const objectHandler = ObjectRegistry.get(baseType, adtClient);
             await objectHandler.getStructure(exactMatch.name);
           } catch (error) {
             console.log(
@@ -249,12 +268,9 @@ export const getCommand = new Command('get')
           });
 
           // Get additional metadata from object if supported
-          if (ObjectRegistry.isSupported(exactMatch.type)) {
+          if (ObjectRegistry.isSupported(baseType)) {
             try {
-              const objectHandler = ObjectRegistry.get(
-                exactMatch.type,
-                adtClient
-              );
+              const objectHandler = ObjectRegistry.get(baseType, adtClient);
               const objectData = await objectHandler.read(exactMatch.name);
 
               if (objectData.responsible) {
@@ -283,9 +299,9 @@ export const getCommand = new Command('get')
       }
 
       // Show source code preview if requested and object is supported
-      if (options.source && ObjectRegistry.isSupported(exactMatch.type)) {
+      if (options.source && ObjectRegistry.isSupported(baseType)) {
         try {
-          const objectHandler = ObjectRegistry.get(exactMatch.type, adtClient);
+          const objectHandler = ObjectRegistry.get(baseType, adtClient);
           const objectData = await objectHandler.read(exactMatch.name);
 
           console.log(`\n📄 Source Code Preview:`);

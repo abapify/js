@@ -1,6 +1,6 @@
-import { createNamespace, createAdtSchema } from "../../../base/namespace";
-import { AdtCoreObjectFields, adtcore } from "../core/schema";
-import { AtomLinkSchema, atom } from "../../atom/schema";
+import { createNamespace, createAdtSchema } from '../../../base/namespace';
+import { AdtCoreObjectFields, adtcore } from '../core/schema';
+import { AtomLinkSchema, atom } from '../../atom/schema';
 
 /**
  * DDIC (Data Dictionary) namespace schemas
@@ -14,39 +14,116 @@ import { AtomLinkSchema, atom } from "../../atom/schema";
  * Use ddic.uri for namespace URI, ddic.prefix for prefix
  */
 export const ddic = createNamespace({
-  uri: "http://www.sap.com/adt/ddic",
-  prefix: "ddic",
+  uri: 'http://www.sap.com/adt/ddic',
+  prefix: 'ddic',
 });
 
 /**
- * Domain fixed value schema
+ * Domain namespace (different from general DDIC)
+ * Namespace: http://www.sap.com/dictionary/domain
+ * Prefix: doma
  */
-export const DdicFixedValueSchema = ddic.schema({
-  tag: "ddic:fixedValue",
+export const doma = createNamespace({
+  uri: 'http://www.sap.com/dictionary/domain',
+  prefix: 'doma',
+});
+
+/**
+ * Helper to create a simple text element schema
+ */
+const textElem = (name: string) =>
+  doma.elem(
+    name,
+    doma.schema({
+      tag: `doma:${name}`,
+      fields: { text: { kind: 'text' as const } },
+    } as const)
+  );
+
+/**
+ * Domain type information schema (nested under content)
+ */
+export const DomaTypeInformationSchema = doma.schema({
+  tag: 'doma:typeInformation',
   fields: {
-    lowValue: ddic.elem("lowValue", ddic.schema({ tag: "ddic:lowValue", fields: {} } as const)),
-    highValue: ddic.elem("highValue", ddic.schema({ tag: "ddic:highValue", fields: {} } as const)),
-    description: ddic.elem("description", ddic.schema({ tag: "ddic:description", fields: {} } as const)),
+    datatype: textElem('datatype'),
+    length: textElem('length'),
+    decimals: textElem('decimals'),
+  },
+} as const);
+
+/**
+ * Domain output information schema (nested under content)
+ */
+export const DomaOutputInformationSchema = doma.schema({
+  tag: 'doma:outputInformation',
+  fields: {
+    length: textElem('length'),
+    style: textElem('style'),
+    conversionExit: textElem('conversionExit'),
+    signExists: textElem('signExists'),
+    lowercase: textElem('lowercase'),
+    ampmFormat: textElem('ampmFormat'),
+  },
+} as const);
+
+/**
+ * Domain fixed value schema (for value table)
+ */
+export const DomaFixedValueSchema = doma.schema({
+  tag: 'doma:fixValue',
+  fields: {
+    position: textElem('position'),
+    low: textElem('low'),
+    high: textElem('high'),
+    text: textElem('text'),
   },
 } as const);
 
 /**
  * Domain fixed values container schema
  */
-export const DdicFixedValuesSchema = ddic.schema({
-  tag: "ddic:fixedValues",
+export const DomaFixValuesSchema = doma.schema({
+  tag: 'doma:fixValues',
   fields: {
-    fixedValue: ddic.elems("fixedValue", DdicFixedValueSchema),
+    fixValue: doma.elems('fixValue', DomaFixedValueSchema),
+  },
+} as const);
+
+/**
+ * Domain value information schema (nested under content)
+ */
+export const DomaValueInformationSchema = doma.schema({
+  tag: 'doma:valueInformation',
+  fields: {
+    valueTableRef: textElem('valueTableRef'),
+    appendExists: textElem('appendExists'),
+    fixValues: doma.elem('fixValues', DomaFixValuesSchema),
+  },
+} as const);
+
+/**
+ * Domain content schema (contains all domain-specific data)
+ */
+export const DomaContentSchema = doma.schema({
+  tag: 'doma:content',
+  fields: {
+    typeInformation: doma.elem('typeInformation', DomaTypeInformationSchema),
+    outputInformation: doma.elem(
+      'outputInformation',
+      DomaOutputInformationSchema
+    ),
+    valueInformation: doma.elem('valueInformation', DomaValueInformationSchema),
   },
 } as const);
 
 /**
  * Complete ABAP Domain schema
  */
-export const DdicDomainSchema = ddic.schema({
-  tag: "ddic:domain",
+export const DdicDomainSchema = doma.schema({
+  tag: 'doma:domain',
   ns: {
-    ddic: ddic.uri,
+    doma: doma.uri,
     adtcore: adtcore.uri,
     atom: atom.uri,
   },
@@ -55,16 +132,14 @@ export const DdicDomainSchema = ddic.schema({
     ...AdtCoreObjectFields,
 
     // Atom links
-    links: { kind: "elems" as const, name: "atom:link", schema: AtomLinkSchema },
+    links: {
+      kind: 'elems' as const,
+      name: 'atom:link',
+      schema: AtomLinkSchema,
+    },
 
-    // DDIC domain-specific elements
-    dataType: ddic.elem("dataType", ddic.schema({ tag: "ddic:dataType", fields: {} } as const)),
-    length: ddic.elem("length", ddic.schema({ tag: "ddic:length", fields: {} } as const)),
-    decimals: ddic.elem("decimals", ddic.schema({ tag: "ddic:decimals", fields: {} } as const)),
-    outputLength: ddic.elem("outputLength", ddic.schema({ tag: "ddic:outputLength", fields: {} } as const)),
-    conversionExit: ddic.elem("conversionExit", ddic.schema({ tag: "ddic:conversionExit", fields: {} } as const)),
-    valueTable: ddic.elem("valueTable", ddic.schema({ tag: "ddic:valueTable", fields: {} } as const)),
-    fixedValues: ddic.elem("fixedValues", DdicFixedValuesSchema),
+    // Domain content (all domain-specific data is nested here)
+    content: doma.elem('content', DomaContentSchema),
   },
 } as const);
 

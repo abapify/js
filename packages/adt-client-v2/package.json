@@ -1,0 +1,25 @@
+{
+  "name": "@abapify/adt-client-v2",
+  "version": "0.0.1",
+  "description": "Minimalistic speci-based ADT client for SAP ABAP Development Tools",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "speci": "*",
+    "ts-xml": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsdown": "^0.15.0"
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts",
+    "watch": "tsdown --watch src/index.ts"
+  }
+}
