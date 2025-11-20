@@ -11,6 +11,7 @@ export enum Kind {
   Class = 'Class',
   Domain = 'Domain',
   Package = 'Package',
+  DataElement = 'DataElement',
 }
 
 /**
@@ -25,6 +26,7 @@ export const ADT_TYPE_TO_KIND: Record<string, Kind> = {
   'INTF/OI': Kind.Interface,
   'DOMA/DD': Kind.Domain,
   'DEVC/K': Kind.Package,
+  'DTEL/DE': Kind.DataElement,
 } as const;
 
 /**
@@ -35,4 +37,5 @@ export const KIND_TO_ADT_TYPE: Record<Kind, string> = {
   [Kind.Interface]: 'INTF/OI',
   [Kind.Domain]: 'DOMA/DD',
   [Kind.Package]: 'DEVC/K',
+  [Kind.DataElement]: 'DTEL/DE',
 } as const;

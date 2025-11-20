@@ -1,0 +1,31 @@
+{
+  "href": "/sap/bc/adt/bopf/businessobjects",
+  "title": "Business Objects",
+  "accepts": [
+    "application/vnd.sap.ap.adt.bopf.businessobjects.v4+xml",
+    "application/vnd.sap.ap.adt.bopf.businessobjects.v2+xml",
+    "application/vnd.sap.ap.adt.bopf.businessobjects.v3+xml"
+  ],
+  "category": {
+    "term": "BusinessObjects",
+    "scheme": "http://www.sap.com/adt/categories/businessobjects"
+  },
+  "templateLinks": [
+    {
+      "rel": "http://www.sap.com/adt/categories/businessobjects/newAttributeBinding",
+      "template": "/sap/bc/adt/bopf/newAttributeBinding"
+    },
+    {
+      "rel": "http://www.sap.com/adt/categories/businessobjects/actionExportingParameter",
+      "template": "/sap/bc/adt/bopf/actionExportingParameter"
+    },
+    {
+      "rel": "http://www.sap.com/adt/categories/businessobjects/draftObject",
+      "template": "/sap/bc/adt/bopf/draftObject"
+    },
+    {
+      "rel": "http://www.sap.com/adt/categories/businessobjects/nodeProperty",
+      "template": "/sap/bc/adt/bopf/nodeProperty"
+    }
+  ]
+}
