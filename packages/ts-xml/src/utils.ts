@@ -1,16 +1,18 @@
-import type { PrimitiveType } from "./types";
+import type { PrimitiveTypeString } from './types';
 
 /**
  * Convert value to string based on primitive type
  */
-export function toString(type: PrimitiveType, value: any): string {
-  if (type === "date") {
-    return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+export function toString(type: PrimitiveTypeString, value: any): string {
+  if (type === 'date') {
+    return value instanceof Date
+      ? value.toISOString()
+      : new Date(value).toISOString();
   }
-  if (type === "boolean") {
+  if (type === 'boolean') {
     return String(value);
   }
-  if (type === "number") {
+  if (type === 'number') {
     return String(value);
   }
   return String(value);
@@ -19,14 +21,14 @@ export function toString(type: PrimitiveType, value: any): string {
 /**
  * Parse string to typed value based on primitive type
  */
-export function fromString(type: PrimitiveType, raw: string): any {
-  if (type === "boolean") {
-    return raw === "true";
+export function fromString(type: PrimitiveTypeString, raw: string): any {
+  if (type === 'boolean') {
+    return raw === 'true';
   }
-  if (type === "number") {
+  if (type === 'number') {
     return Number(raw);
   }
-  if (type === "date") {
+  if (type === 'date') {
     return new Date(raw);
   }
   return raw;

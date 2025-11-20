@@ -1,0 +1,23 @@
+{
+  "name": "speci",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Minimal arrow-function-based contract specification system for TypeScript",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./rest": "./dist/rest/index.js",
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "api",
+    "contract",
+    "specification",
+    "typescript",
+    "client-generation",
+    "openapi"
+  ],
+  "dependencies": {}
+}

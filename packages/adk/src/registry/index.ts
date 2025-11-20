@@ -32,8 +32,10 @@ import { InterfaceConstructor } from '../objects/intf';
 import { ClassConstructor } from '../objects/clas';
 import { DomainConstructor } from '../objects/doma';
 import { PackageConstructor } from '../objects/devc';
+import { DataElementConstructor } from '../objects/dtel';
 
 ObjectRegistry.register(Kind.Interface, InterfaceConstructor);
 ObjectRegistry.register(Kind.Class, ClassConstructor);
 ObjectRegistry.register(Kind.Domain, DomainConstructor);
 ObjectRegistry.register(Kind.Package, PackageConstructor);
+ObjectRegistry.register(Kind.DataElement, DataElementConstructor);
