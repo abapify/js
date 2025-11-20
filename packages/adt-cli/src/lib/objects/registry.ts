@@ -2,13 +2,11 @@ import { BaseObject } from './base/base-object';
 import { ObjectData } from './base/types';
 import { AdkObjectHandler } from './adk-bridge/adk-object-handler';
 import {
-  createClass,
-  createInterface,
-  createDomain,
-  ClassSpec,
-  IntfSpec,
-  DomainSpec,
-  Kind,
+  ADK_Class,
+  ADK_Interface,
+  ADK_Domain,
+  ADK_Package,
+  type AdkObject as AdkObjectType,
 } from '@abapify/adk';
 import { getAdtClient } from '../shared/clients';
 
@@ -21,16 +19,7 @@ export class ObjectRegistry {
       'CLAS',
       () =>
         new AdkObjectHandler(
-          (xml: string) => {
-            // Parse XML using ADK ClassSpec and create Class object
-            const spec = ClassSpec.fromXMLString(xml);
-            const classObj = createClass();
-            classObj.spec = spec;
-            // Populate top-level properties from spec
-            (classObj as any).name = spec.core?.name || '';
-            (classObj as any).description = spec.core?.description || '';
-            return classObj;
-          },
+          (xml: string) => ADK_Class.fromAdtXml(xml) as any,
           (name: string) => `/sap/bc/adt/oo/classes/${name.toLowerCase()}`,
           getAdtClient(),
           'application/vnd.sap.adt.oo.classes.v4+xml, application/vnd.sap.adt.oo.classes.v3+xml, application/vnd.sap.adt.oo.classes.v2+xml, application/vnd.sap.adt.oo.classes+xml'
@@ -40,16 +29,7 @@ export class ObjectRegistry {
       'INTF',
       () =>
         new AdkObjectHandler(
-          (xml: string) => {
-            // Parse XML using ADK IntfSpec and create Interface object
-            const spec = IntfSpec.fromXMLString(xml);
-            const intfObj = createInterface();
-            intfObj.spec = spec;
-            // Populate top-level properties from spec
-            (intfObj as any).name = spec.core?.name || '';
-            (intfObj as any).description = spec.core?.description || '';
-            return intfObj;
-          },
+          (xml: string) => ADK_Interface.fromAdtXml(xml) as any,
           (name: string) => `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`,
           getAdtClient(),
           'application/vnd.sap.adt.oo.interfaces.v5+xml, application/vnd.sap.adt.oo.interfaces.v4+xml, application/vnd.sap.adt.oo.interfaces.v3+xml, application/vnd.sap.adt.oo.interfaces.v2+xml, application/vnd.sap.adt.oo.interfaces+xml'
@@ -59,19 +39,20 @@ export class ObjectRegistry {
       'DOMA',
       () =>
         new AdkObjectHandler(
-          (xml: string) => {
-            // Parse XML using ADK DomainSpec and create Domain object
-            const spec = DomainSpec.fromXMLString(xml);
-            const domainObj = createDomain();
-            domainObj.spec = spec;
-            // Populate top-level properties from spec
-            (domainObj as any).name = spec.core?.name || '';
-            (domainObj as any).description = spec.core?.description || '';
-            return domainObj;
-          },
+          (xml: string) => ADK_Domain.fromAdtXml(xml) as any,
           (name: string) => `/sap/bc/adt/ddic/domains/${name.toLowerCase()}`,
           getAdtClient(),
-          'application/vnd.sap.adt.ddic.domains.v2+xml, application/vnd.sap.adt.ddic.domains+xml'
+          'application/vnd.sap.adt.domains.v2+xml, application/vnd.sap.adt.domains.v1+xml, application/vnd.sap.adt.domains+xml'
+        )
+    );
+    this.handlers.set(
+      'DEVC',
+      () =>
+        new AdkObjectHandler(
+          (xml: string) => ADK_Package.fromAdtXml(xml) as any,
+          (name: string) => `/sap/bc/adt/packages/${name.toLowerCase()}`,
+          getAdtClient(),
+          'application/vnd.sap.adt.packages.v1+xml, application/vnd.sap.adt.packages+xml'
         )
     );
   }

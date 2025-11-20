@@ -7,7 +7,7 @@ import { AdtObject, ObjectMetadata } from '../types/objects';
 import { UpdateResult, CreateResult, DeleteResult } from '../types/client';
 import { XmlParser } from '../utils/xml-parser';
 import { ErrorHandler } from '../utils/error-handler';
-import { ClassSpec, ClassInclude, createCachedLazyLoader } from '@abapify/adk';
+import { ADK_Class } from '@abapify/adk';
 import type { AdkObject } from '@abapify/adk';
 
 export class ClassHandler extends BaseObjectHandler {
@@ -70,51 +70,99 @@ export class ClassHandler extends BaseObjectHandler {
 
       const metadataXml = await response.text();
 
-      // Parse to ADK ClassSpec
-      const spec = ClassSpec.fromXMLString(metadataXml);
+      // Parse to ADK Class
+      const classObject = ADK_Class.fromAdtXml(metadataXml);
 
-      // Setup lazy loading for includes
-      if (lazyLoad && spec.include) {
-        spec.include = spec.include.map((inc) => {
-          const include = new ClassInclude();
-          include.includeType = inc.includeType;
-          include.sourceUri = inc.sourceUri;
+      // Attach lazy loaders to includes if requested
+      if (lazyLoad) {
+        const originalData = classObject.getData() as Record<string, unknown>;
 
-          // Create lazy loader for content
-          if (inc.sourceUri) {
-            include.content = createCachedLazyLoader(async () => {
-              const sourceUrl = inc.sourceUri!;
-              const sourceResponse = await this.connectionManager.request(
-                sourceUrl
-              );
-              if (!sourceResponse.ok) {
-                throw new Error(
-                  `Failed to fetch ${inc.includeType}: ${sourceResponse.statusText}`
+        // Use Proxy to intercept getData() calls
+        if (Array.isArray(originalData.include)) {
+          const self = this; // Capture ClassHandler instance
+
+          // Pre-compute includes with content loaders
+          const includesWithContent = originalData.include.map((include) => {
+            const inc = include as Record<string, unknown>;
+            const includeType = String(inc.includeType);
+
+            return {
+              ...inc,
+              content: async () => {
+                return await self.getClassIncludeSource(
+                  objectName,
+                  includeType
                 );
-              }
-              return await sourceResponse.text();
-            });
-          }
+              },
+            };
+          });
 
-          return include;
-        });
+          // Create modified data object once
+          const modifiedData = {
+            ...originalData,
+            include: includesWithContent,
+          };
+
+          return new Proxy(classObject, {
+            get(target, prop) {
+              // Intercept getData calls and return pre-computed modified data
+              if (prop === 'getData') {
+                return () => modifiedData;
+              }
+
+              // Pass through all other property accesses
+              const value = (target as any)[prop];
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          }) as AdkObject;
+        }
       }
 
-      // Create ADK object
-      const adkObject: AdkObject = {
-        kind: 'Class',
-        name: spec.core?.name || objectName,
-        type: 'CLAS/OC',
-        description: spec.core?.description,
-        spec,
-      };
-
-      return adkObject;
+      return classObject;
     } catch (error) {
       if (error instanceof Error && 'category' in error) {
         throw error;
       }
       throw ErrorHandler.handleNetworkError(error as Error);
+    }
+  }
+
+  /**
+   * Get class include source by include type
+   * Maps include types to ADT API endpoints
+   */
+  private async getClassIncludeSource(
+    objectName: string,
+    includeType: string
+  ): Promise<string> {
+    try {
+      // Map include types to ADT API fragment names
+      const fragmentMap: Record<string, string> = {
+        main: 'source/main',
+        definitions: 'source/definitions',
+        implementations: 'source/implementations',
+        macros: 'source/macros',
+        testclasses: 'source/testclasses',
+      };
+
+      const fragment = fragmentMap[includeType];
+      if (!fragment) {
+        // Unknown include type, return empty
+        return '';
+      }
+
+      const url = this.buildClassUrl(objectName, fragment);
+      const response = await this.connectionManager.request(url);
+
+      if (!response.ok) {
+        // Include might not exist (e.g., no test classes), return empty
+        return '';
+      }
+
+      return await response.text();
+    } catch (error) {
+      // If fetch fails, return empty string (include might not exist)
+      return '';
     }
   }
 
