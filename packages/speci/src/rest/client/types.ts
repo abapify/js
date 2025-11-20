@@ -31,19 +31,30 @@ export class HttpError<TPayload = unknown> extends Error {
 }
 
 /**
- * HTTP adapter interface - consumer provides their own implementation
+ * HTTP request options
  */
-export interface HttpAdapter {
+export interface HttpRequestOptions {
+  method: string;
+  url: string;
+  body?: unknown;
+  query?: Record<string, any>;
+  headers?: Record<string, string>;
+  bodySchema?: unknown; // Schema for serializing body (passed when body is Inferrable)
+  responses?: Record<number, unknown>; // Response schemas by status code
+}
+
+/**
+ * HTTP adapter interface - consumer provides their own implementation
+ *
+ * @template TDefaultResponse - Default response type for all requests (useful for testing)
+ */
+export interface HttpAdapter<TDefaultResponse = unknown> {
   /**
    * Execute an HTTP request
    */
-  request<TResponse = unknown>(options: {
-    method: string;
-    url: string;
-    body?: unknown;
-    query?: Record<string, any>;
-    headers?: Record<string, string>;
-  }): Promise<TResponse>;
+  request<TResponse = TDefaultResponse>(
+    options?: HttpRequestOptions
+  ): Promise<TResponse>;
 }
 
 /**
@@ -70,12 +81,50 @@ export interface ClientConfig {
 }
 
 /**
+ * Check if body is an Inferrable schema (has _infer property)
+ */
+type IsInferrableBody<TBody> = TBody extends { _infer?: any } ? true : false;
+
+/**
+ * Extract body type from a REST endpoint descriptor
+ * Only extracts if the body is an Inferrable schema
+ */
+type ExtractBodyType<TDescriptor> = TDescriptor extends RestEndpointDescriptor<
+  any,
+  any,
+  infer TBody,
+  any
+>
+  ? IsInferrableBody<TBody> extends true
+    ? TBody extends { _infer?: infer U }
+      ? U
+      : never
+    : never
+  : never;
+
+/**
+ * Build parameter list for a REST client method
+ * - If descriptor has a body with Inferrable schema, append the inferred type as a parameter
+ * - Otherwise, use the function's declared parameters
+ */
+type BuildParams<T extends OperationFunction> =
+  ExtractDescriptor<T> extends RestEndpointDescriptor
+    ? ExtractBodyType<ExtractDescriptor<T>> extends never
+      ? ExtractParams<T> // No body - use declared params
+      : ExtractParams<T> extends []
+      ? [ExtractBodyType<ExtractDescriptor<T>>] // Empty params + body - add body param
+      : [...ExtractParams<T>, ExtractBodyType<ExtractDescriptor<T>>] // Has params + body - append body
+    : ExtractParams<T>;
+
+/**
  * Convert a REST operation function to a client method
  * Only returns success response types (2xx) - errors are thrown as HttpError
  * Includes typed error property for error response payloads
+ *
+ * Automatically infers parameter types from body schema if present
  */
 export type RestClientMethod<T extends OperationFunction> = {
-  (...params: ExtractParams<T>): Promise<
+  (...params: BuildParams<T>): Promise<
     ExtractDescriptor<T> extends RestEndpointDescriptor
       ? InferSuccessResponse<ExtractDescriptor<T>>
       : never

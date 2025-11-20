@@ -392,6 +392,10 @@ From your arrow-function contracts, Speci can generate:
 | **Server**         | 🚧 Planned      | ✅ Yes      | ✅ Yes     | ⚠️ Partial |
 | **Validation**     | 🚧 Planned      | ✅ Zod      | ✅ Zod     | ⚠️ Varies  |
 
+## Documentation
+
+- [Body Parameter Inference](./docs/body-inference.md) - Automatic body type inference from schemas
+
 ## License
 
 MIT
