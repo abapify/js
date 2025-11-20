@@ -28,17 +28,17 @@ export function addLazyLoadingToIncludes(
   const log = logger || createLogger('include-loader');
 
   // Check if class has includes
-  if (!classObject.spec.include || classObject.spec.include.length === 0) {
+  if (!classObject.data.include || classObject.data.include.length === 0) {
     log.debug(`Class ${classObject.name} has no includes`);
     return classObject;
   }
 
   log.debug(
-    `Adding lazy loading to ${classObject.spec.include.length} includes for class ${classObject.name}`
+    `Adding lazy loading to ${classObject.data.include.length} includes for class ${classObject.name}`
   );
 
   // Add lazy loader to each include
-  for (const include of classObject.spec.include) {
+  for (const include of classObject.data.include) {
     if (!include.sourceUri) {
       log.warn(
         `Include ${include.includeType} has no sourceUri, skipping lazy loading`
@@ -47,22 +47,30 @@ export function addLazyLoadingToIncludes(
     }
 
     // Create cached lazy loader for this include
-    include.content = createCachedLazyLoader(async () => {
+    // Note: content is not in the schema, it's added dynamically
+    (include as any).content = createCachedLazyLoader(async () => {
       log.debug(
-        `Fetching include content: ${include.includeType} from ${include.sourceUri}`
+        `Fetching include content: ${include.includeType} from ${String(
+          include.sourceUri
+        )}`
       );
 
       try {
-        const response = await connectionManager.request(include.sourceUri, {
-          method: 'GET',
-          headers: {
-            Accept: 'text/plain',
-          },
-        });
+        const response = await connectionManager.request(
+          String(include.sourceUri),
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'text/plain',
+            },
+          }
+        );
 
         const content = await response.text();
         log.debug(
-          `Successfully fetched ${content.length} bytes for include ${include.includeType}`
+          `Successfully fetched ${content.length} bytes for include ${String(
+            include.includeType
+          )}`
         );
 
         return content;
@@ -100,34 +108,34 @@ export async function fetchAllIncludes(
 ): Promise<Class> {
   const log = logger || createLogger('include-loader');
 
-  if (!classObject.spec.include || classObject.spec.include.length === 0) {
+  if (!classObject.data.include || classObject.data.include.length === 0) {
     return classObject;
   }
 
   log.debug(
-    `Fetching all ${classObject.spec.include.length} includes for class ${classObject.name}`
+    `Fetching all ${classObject.data.include.length} includes for class ${classObject.name}`
   );
 
   // Fetch all includes in parallel
-  const fetchPromises = classObject.spec.include.map(async (include) => {
+  const fetchPromises = classObject.data.include.map(async (include) => {
     if (!include.sourceUri) {
       return;
     }
 
     try {
-      const response = await connectionManager.request(include.sourceUri, {
-        method: 'GET',
-        headers: {
-          Accept: 'text/plain',
-        },
-      });
-
-      include.content = await response.text();
-    } catch (error) {
-      log.error(
-        `Failed to fetch include ${include.includeType}:`,
-        error
+      const response = await connectionManager.request(
+        String(include.sourceUri),
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'text/plain',
+          },
+        }
       );
+
+      (include as any).content = await response.text();
+    } catch (error) {
+      log.error(`Failed to fetch include ${include.includeType}:`, error);
       throw error;
     }
   });

@@ -13,5 +13,8 @@
   "nx": {
     "name": "abapgit"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@abapify/adt-schemas": "workspace:*",
+    "ts-xml": "workspace:*"
+  }
 }
