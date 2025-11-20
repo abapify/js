@@ -4,7 +4,16 @@
   "include": [],
   "references": [
     {
+      "path": "../../adt-cli"
+    },
+    {
       "path": "../../adk"
+    },
+    {
+      "path": "../../ts-xml"
+    },
+    {
+      "path": "../../adt-schemas"
     },
     {
       "path": "./tsconfig.lib.json"
