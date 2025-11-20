@@ -81,9 +81,10 @@ function createMethod(
     let bodySchema = undefined;
 
     if (isInferrableSchema(descriptor.body)) {
-      // Body is a schema - body data is second argument (after params object)
+      // Body is a schema - body data comes after all path parameters
       bodySchema = descriptor.body;
-      bodyData = args[1];
+      // Body is at position: number of path params (or 0 if no path params)
+      bodyData = args[pathParamNames.length];
     }
 
     // Replace path parameters if path exists

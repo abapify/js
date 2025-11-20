@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../adt-client-v2"
+    },
+    {
       "path": "../adt-client"
     },
     {

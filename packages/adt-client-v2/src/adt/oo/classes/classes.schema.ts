@@ -48,29 +48,57 @@ export const ClassSchema = createCoreSchema({
     // Note: ADT Core attributes automatically included by createCoreSchema
 
     // Class-specific attributes
-    final: { kind: 'attr', name: 'class:final', type: 'boolean' },
-    abstract: { kind: 'attr', name: 'class:abstract', type: 'boolean' },
-    visibility: { kind: 'attr', name: 'class:visibility', type: 'string' },
-    category: { kind: 'attr', name: 'class:category', type: 'string' },
+    final: {
+      kind: 'attr',
+      name: 'class:final',
+      type: 'boolean',
+      optional: true,
+    },
+    abstract: {
+      kind: 'attr',
+      name: 'class:abstract',
+      type: 'boolean',
+      optional: true,
+    },
+    visibility: {
+      kind: 'attr',
+      name: 'class:visibility',
+      type: 'string',
+      optional: true,
+    },
+    category: {
+      kind: 'attr',
+      name: 'class:category',
+      type: 'string',
+      optional: true,
+    },
     sharedMemoryEnabled: {
       kind: 'attr',
       name: 'class:sharedMemoryEnabled',
       type: 'boolean',
+      optional: true,
     },
 
     // ABAP OO attributes
-    modeled: { kind: 'attr', name: 'abapoo:modeled', type: 'boolean' },
+    modeled: {
+      kind: 'attr',
+      name: 'abapoo:modeled',
+      type: 'boolean',
+      optional: true,
+    },
 
     // ABAP Source attributes
     fixPointArithmetic: {
       kind: 'attr',
       name: 'abapsource:fixPointArithmetic',
       type: 'boolean',
+      optional: true,
     },
     activeUnicodeCheck: {
       kind: 'attr',
       name: 'abapsource:activeUnicodeCheck',
       type: 'boolean',
+      optional: true,
     },
 
     // Child elements
@@ -78,11 +106,13 @@ export const ClassSchema = createCoreSchema({
       kind: 'elem',
       name: 'adtcore:packageRef',
       schema: AdtCoreRefSchema,
+      optional: true,
     },
     includes: {
       kind: 'elems',
       name: 'class:include',
       schema: ClassIncludeSchema,
+      optional: true,
     },
     // Note: links field automatically included by createCoreSchema
   },

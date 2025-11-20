@@ -59,6 +59,9 @@
     },
     {
       "path": "./packages/speci"
+    },
+    {
+      "path": "./packages/adt-client-v2"
     }
   ]
 }

@@ -24,7 +24,10 @@ describe('http helpers', () => {
 
   describe('post', () => {
     it('should create POST endpoint descriptor', () => {
-      const endpoint = http.post('/users', { body: { name: 'test' } });
+      const endpoint = http.post('/users', {
+        body: { name: 'test' },
+        responses: { 201: undefined },
+      });
       expect(endpoint.method).toBe('POST');
       expect(endpoint.path).toBe('/users');
       expect(endpoint.body).toEqual({ name: 'test' });
@@ -34,7 +37,10 @@ describe('http helpers', () => {
 
   describe('put', () => {
     it('should create PUT endpoint descriptor', () => {
-      const endpoint = http.put('/users/1', { body: { name: 'updated' } });
+      const endpoint = http.put('/users/1', {
+        body: { name: 'updated' },
+        responses: { 200: undefined },
+      });
       expect(endpoint.method).toBe('PUT');
       expect(endpoint.path).toBe('/users/1');
       expect(endpoint.body).toEqual({ name: 'updated' });
@@ -43,9 +49,13 @@ describe('http helpers', () => {
 
   describe('patch', () => {
     it('should create PATCH endpoint descriptor', () => {
-      const endpoint = http.patch('/users/1', { body: { name: 'patched' } });
+      const endpoint = http.patch('/users/1', {
+        body: { name: 'patched' },
+        responses: { 200: undefined },
+      });
       expect(endpoint.method).toBe('PATCH');
       expect(endpoint.path).toBe('/users/1');
+      expect(endpoint.body).toEqual({ name: 'patched' });
     });
   });
 

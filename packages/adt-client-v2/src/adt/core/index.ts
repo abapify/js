@@ -5,7 +5,11 @@
  * that are shared across different ADT object types.
  */
 
-import { createSchema, type ElementSchema } from '../../base';
+import {
+  createSchema,
+  type SchemaFields,
+  type ElementSchema,
+} from '../../base/schema';
 import { NS } from '../../namespaces';
 
 /**
@@ -30,7 +34,12 @@ export const AtomLinkSchema = createSchema({
  * Common fields that appear on all ADT core objects
  */
 const adtCoreCommonFields = {
-  links: { kind: 'elems' as const, name: 'atom:link', schema: AtomLinkSchema },
+  links: {
+    kind: 'elems' as const,
+    name: 'atom:link',
+    schema: AtomLinkSchema,
+    optional: true,
+  },
 };
 
 /**
@@ -105,75 +114,75 @@ export const AdtCoreRefSchema = createCoreSchema(
  * ADT Core attributes that appear on most ADT objects
  * These can be spread into schema field definitions
  */
-export const adtCoreFields = {
+export const adtCoreFields: SchemaFields = {
   name: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:name',
-    type: 'string' as const,
+    type: 'string',
   },
   type: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:type',
-    type: 'string' as const,
+    type: 'string',
   },
   description: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:description',
-    type: 'string' as const,
+    type: 'string',
   },
   descriptionTextLimit: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:descriptionTextLimit',
-    type: 'string' as const,
+    type: 'string',
   },
   language: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:language',
-    type: 'string' as const,
+    type: 'string',
   },
   masterLanguage: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:masterLanguage',
-    type: 'string' as const,
+    type: 'string',
   },
   masterSystem: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:masterSystem',
-    type: 'string' as const,
+    type: 'string',
   },
   responsible: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:responsible',
-    type: 'string' as const,
+    type: 'string',
   },
   version: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:version',
-    type: 'string' as const,
+    type: 'string',
   },
   createdBy: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:createdBy',
-    type: 'string' as const,
+    type: 'string',
   },
   createdAt: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:createdAt',
-    type: 'string' as const,
+    type: 'string',
   },
   changedBy: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:changedBy',
-    type: 'string' as const,
+    type: 'string',
   },
   changedAt: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:changedAt',
-    type: 'string' as const,
+    type: 'string',
   },
   abapLanguageVersion: {
-    kind: 'attr' as const,
+    kind: 'attr',
     name: 'adtcore:abapLanguageVersion',
-    type: 'string' as const,
+    type: 'string',
   },
 };

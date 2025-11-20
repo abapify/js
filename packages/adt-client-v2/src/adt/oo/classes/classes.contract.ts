@@ -77,9 +77,9 @@ export const classesContract = createContract({
    * Update main source
    * PUT /sap/bc/adt/oo/classes/{className}/source/main
    */
-  updateMainSource: (className: string, source: string) =>
+  updateMainSource: (className: string) =>
     adtHttp.put(`/sap/bc/adt/oo/classes/${className}/source/main`, {
-      body: source,
+      body: undefined as unknown as string, // Body type - inferred as parameter
       responses: { 200: undefined as unknown as void },
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     }),
