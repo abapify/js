@@ -1,6 +1,11 @@
-import { DOMImplementation, XMLSerializer, Document, Element } from "@xmldom/xmldom";
-import type { ElementSchema, InferSchema } from "./types";
-import { toString } from "./utils";
+import {
+  DOMImplementation,
+  XMLSerializer,
+  Document,
+  Element,
+} from '@xmldom/xmldom';
+import type { ElementSchema, InferSchema } from './types';
+import { toString } from './utils';
 
 export interface BuildOptions {
   /** Include XML declaration (default: true) */
@@ -17,13 +22,17 @@ export function build<S extends ElementSchema>(
   data: InferSchema<S>,
   opts?: BuildOptions
 ): string {
-  const doc = new DOMImplementation().createDocument(null as any, null as any, null as any);
+  const doc = new DOMImplementation().createDocument(
+    null as any,
+    null as any,
+    null as any
+  );
   const root = buildBySchema(schema, data as any, doc);
   doc.appendChild(root);
 
   const xml = new XMLSerializer().serializeToString(doc);
 
-  const encoding = opts?.encoding ?? "utf-8";
+  const encoding = opts?.encoding ?? 'utf-8';
   const xmlDecl = opts?.xmlDecl ?? true;
 
   return xmlDecl ? `<?xml version="1.0" encoding="${encoding}"?>\n${xml}` : xml;
@@ -32,7 +41,11 @@ export function build<S extends ElementSchema>(
 /**
  * Build a DOM element from schema and JSON data
  */
-function buildBySchema(schema: ElementSchema, json: any, doc: Document): Element {
+function buildBySchema(
+  schema: ElementSchema,
+  json: any,
+  doc: Document
+): Element {
   const el = doc.createElement(schema.tag);
 
   // Add namespace declarations
@@ -47,14 +60,23 @@ function buildBySchema(schema: ElementSchema, json: any, doc: Document): Element
     const val = json[key];
     if (val == null) continue;
 
-    if (field.kind === "attr") {
+    if (field.kind === 'attr') {
       el.setAttribute(field.name, toString(field.type, val));
-    } else if (field.kind === "text") {
+    } else if (field.kind === 'text') {
       el.textContent = toString(field.type, val);
-    } else if (field.kind === "elem") {
-      const child = buildBySchema(field.schema, val, doc);
-      el.appendChild(child);
-    } else if (field.kind === "elems") {
+    } else if (field.kind === 'elem') {
+      // Check if it's a simple text element or complex schema
+      if ('type' in field) {
+        // Simple text element: <title>text</title>
+        const child = doc.createElement(field.name);
+        child.textContent = toString(field.type, val);
+        el.appendChild(child);
+      } else {
+        // Complex element with schema
+        const child = buildBySchema(field.schema, val, doc);
+        el.appendChild(child);
+      }
+    } else if (field.kind === 'elems') {
       for (const item of val) {
         const child = buildBySchema(field.schema, item, doc);
         el.appendChild(child);

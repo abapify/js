@@ -1,0 +1,22 @@
+{
+  "name": "@e2e/adt-codegen",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@abapify/adt-cli": "workspace:*",
+    "@abapify/adt-codegen": "workspace:*",
+    "typescript": "^5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "build-discovery-xml": "adt discovery --output=generated/discovery.xml",
+    "codegen": "adt-codegen",
+    "codegen:full": "adt-codegen --config full.adt.config.ts",
+    "codegen:filtered": "adt-codegen --config adt.config.ts"
+  }
+}

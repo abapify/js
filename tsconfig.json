@@ -50,6 +50,15 @@
     },
     {
       "path": "./tools/nx-typecheck"
+    },
+    {
+      "path": "./packages/adt-schemas-v2"
+    },
+    {
+      "path": "./packages/adt-codegen"
+    },
+    {
+      "path": "./packages/speci"
     }
   ]
 }

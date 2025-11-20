@@ -160,8 +160,16 @@ export class FileLogger {
 
       // Write metadata if enabled
       if (this.writeMetadata && metadata) {
-        // Replace response.xml with metadata.json
-        const metaPath = fullPath.replace(/-response\.xml$/, '-metadata.json');
+        // Replace response.xml with metadata.json when pattern matches,
+        // otherwise append .metadata.json to avoid overwriting the XML payload
+        let metaPath: string;
+        if (/-response\.xml$/.test(fullPath)) {
+          metaPath = fullPath.replace(/-response\.xml$/, '-metadata.json');
+        } else if (/\.xml$/.test(fullPath)) {
+          metaPath = fullPath.replace(/\.xml$/, '.metadata.json');
+        } else {
+          metaPath = `${fullPath}.metadata.json`;
+        }
         writeFileSync(metaPath, JSON.stringify(metadata, null, 2), 'utf8');
         this.baseLogger.trace(`Wrote metadata: ${metaPath}`);
       }
@@ -178,7 +186,10 @@ export class FileLogger {
    * Generate file path for logging ADT responses
    * Converts ADT endpoint to fixture-style path structure
    */
-  generateLogFilePath(endpoint: string, headers?: Record<string, string>): string {
+  generateLogFilePath(
+    endpoint: string,
+    headers?: Record<string, string>
+  ): string {
     // Remove /sap/bc/adt prefix
     let path = endpoint.replace(/^\/sap\/bc\/adt\/?/, '');
 
@@ -213,7 +224,8 @@ export class FileLogger {
       requestId = headers.etag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
     } else {
       // Use high-precision timestamp as request ID
-      requestId = Date.now().toString() + Math.random().toString(36).slice(2, 7);
+      requestId =
+        Date.now().toString() + Math.random().toString(36).slice(2, 7);
     }
 
     // Build directory path from segments and query
