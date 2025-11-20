@@ -31,5 +31,14 @@ export type {
 export {
   createAdtAdapter,
   type HttpAdapter,
-  type RequestOptions,
+  type AdtAdapterConfig,
 } from './adapter';
+
+// Export plugins
+export {
+  type ResponsePlugin,
+  type ResponseContext,
+  FileStoragePlugin,
+  TransformPlugin,
+  LoggingPlugin,
+} from './plugins';

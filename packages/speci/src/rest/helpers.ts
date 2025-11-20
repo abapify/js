@@ -56,86 +56,50 @@ type Http<TGlobalResponses extends ResponseMap = {}> = {
     >;
   };
 
-  // POST - with shortcut syntax
-  post: {
-    <TSuccess = unknown, TBody = unknown>(
-      path: string,
-      body: TBody
-    ): RestEndpointDescriptor<
-      'POST',
-      string,
-      TBody,
-      { 201: TSuccess } & TGlobalResponses
-    >;
+  // POST - always use options (no shortcut)
+  post: <
+    TPath extends string,
+    TBody = unknown,
+    TResponses extends ResponseMap = ResponseMap
+  >(
+    path: TPath,
+    options: RestEndpointOptions<TBody, TResponses>
+  ) => RestEndpointDescriptor<
+    'POST',
+    TPath,
+    TBody,
+    TResponses & TGlobalResponses
+  >;
 
-    <
-      TPath extends string,
-      TBody = unknown,
-      TResponses extends ResponseMap = ResponseMap
-    >(
-      path: TPath,
-      options: RestEndpointOptions<TBody, TResponses>
-    ): RestEndpointDescriptor<
-      'POST',
-      TPath,
-      TBody,
-      TResponses & TGlobalResponses
-    >;
-  };
+  // PUT - always use options (no shortcut)
+  put: <
+    TPath extends string,
+    TBody = unknown,
+    TResponses extends ResponseMap = ResponseMap
+  >(
+    path: TPath,
+    options: RestEndpointOptions<TBody, TResponses>
+  ) => RestEndpointDescriptor<
+    'PUT',
+    TPath,
+    TBody,
+    TResponses & TGlobalResponses
+  >;
 
-  // PUT - with shortcut syntax
-  put: {
-    <TSuccess = unknown, TBody = unknown>(
-      path: string,
-      body: TBody
-    ): RestEndpointDescriptor<
-      'PUT',
-      string,
-      TBody,
-      { 200: TSuccess } & TGlobalResponses
-    >;
-
-    <
-      TPath extends string,
-      TBody = unknown,
-      TResponses extends ResponseMap = ResponseMap
-    >(
-      path: TPath,
-      options: RestEndpointOptions<TBody, TResponses>
-    ): RestEndpointDescriptor<
-      'PUT',
-      TPath,
-      TBody,
-      TResponses & TGlobalResponses
-    >;
-  };
-
-  // PATCH - with shortcut syntax
-  patch: {
-    <TSuccess = unknown, TBody = unknown>(
-      path: string,
-      body: TBody
-    ): RestEndpointDescriptor<
-      'PATCH',
-      string,
-      TBody,
-      { 200: TSuccess } & TGlobalResponses
-    >;
-
-    <
-      TPath extends string,
-      TBody = unknown,
-      TResponses extends ResponseMap = ResponseMap
-    >(
-      path: TPath,
-      options: RestEndpointOptions<TBody, TResponses>
-    ): RestEndpointDescriptor<
-      'PATCH',
-      TPath,
-      TBody,
-      TResponses & TGlobalResponses
-    >;
-  };
+  // PATCH - always use options (no shortcut)
+  patch: <
+    TPath extends string,
+    TBody = unknown,
+    TResponses extends ResponseMap = ResponseMap
+  >(
+    path: TPath,
+    options: RestEndpointOptions<TBody, TResponses>
+  ) => RestEndpointDescriptor<
+    'PATCH',
+    TPath,
+    TBody,
+    TResponses & TGlobalResponses
+  >;
 
   // DELETE - with shortcut syntax
   delete: {
@@ -230,64 +194,36 @@ export function createHttp<TGlobalResponses extends ResponseMap = {}>(
         responses: mergeResponses(options.responses || { 200: undefined }),
       };
     },
-    post: (path: string, bodyOrOptions: any) => {
-      // Shortcut: api.post<User>('/path', body)
-      if (bodyOrOptions && !('responses' in bodyOrOptions)) {
-        return {
-          method: 'POST' as const,
-          path,
-          body: bodyOrOptions,
-          responses: mergeResponses({ 201: undefined }),
-        };
-      }
-      // Full: api.post('/path', { body, responses: {...} })
+    post: (path, options) => {
+      const { body, responses, ...rest } = options;
       return {
         method: 'POST' as const,
         path,
-        ...bodyOrOptions,
-        responses: mergeResponses(
-          bodyOrOptions?.responses || { 201: undefined }
-        ),
+        body,
+        ...rest,
+        responses: mergeResponses(responses),
       };
     },
-    put: (path: string, bodyOrOptions: any) => {
-      // Shortcut: api.put<User>('/path', body)
-      if (bodyOrOptions && !('responses' in bodyOrOptions)) {
-        return {
-          method: 'PUT' as const,
-          path,
-          body: bodyOrOptions,
-          responses: mergeResponses({ 200: undefined }),
-        };
-      }
-      // Full: api.put('/path', { body, responses: {...} })
+
+    put: (path, options) => {
+      const { body, responses, ...rest } = options;
       return {
         method: 'PUT' as const,
         path,
-        ...bodyOrOptions,
-        responses: mergeResponses(
-          bodyOrOptions?.responses || { 200: undefined }
-        ),
+        body,
+        ...rest,
+        responses: mergeResponses(responses),
       };
     },
-    patch: (path: string, bodyOrOptions: any) => {
-      // Shortcut: api.patch<User>('/path', body)
-      if (bodyOrOptions && !('responses' in bodyOrOptions)) {
-        return {
-          method: 'PATCH' as const,
-          path,
-          body: bodyOrOptions,
-          responses: mergeResponses({ 200: undefined }),
-        };
-      }
-      // Full: api.patch('/path', { body, responses: {...} })
+
+    patch: (path, options) => {
+      const { body, responses, ...rest } = options;
       return {
         method: 'PATCH' as const,
         path,
-        ...bodyOrOptions,
-        responses: mergeResponses(
-          bodyOrOptions?.responses || { 200: undefined }
-        ),
+        body,
+        ...rest,
+        responses: mergeResponses(responses),
       };
     },
     delete: (path: string, options?: any) => {
