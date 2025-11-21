@@ -5,6 +5,8 @@
  * Separated into testable modules for better maintainability.
  */
 
+import type { Logger } from '../types';
+
 /**
  * Cookie Store - Manages HTTP cookies for stateful sessions
  */
@@ -200,6 +202,8 @@ export class SessionManager {
   private cookieStore = new CookieStore();
   private csrfManager = new CsrfTokenManager();
 
+  constructor(private logger?: Logger) {}
+
   /**
    * Process response to update session state
    * Extracts cookies and CSRF tokens
@@ -209,6 +213,7 @@ export class SessionManager {
     const setCookieHeader = response.headers.get('set-cookie');
     if (setCookieHeader) {
       this.cookieStore.parseCookies(setCookieHeader);
+      this.logger?.debug('Session: Cookies updated from response');
     }
 
     // Try to extract and cache CSRF token from header
@@ -216,6 +221,7 @@ export class SessionManager {
     const csrfToken = this.csrfManager.extractFromHeader(csrfHeader);
     if (csrfToken) {
       this.csrfManager.cache(csrfToken);
+      this.logger?.debug('Session: CSRF token cached from header');
     }
 
     // Try to extract CSRF from cookies if not in header
@@ -225,6 +231,7 @@ export class SessionManager {
       );
       if (cookieCsrf) {
         this.csrfManager.cache(cookieCsrf);
+        this.logger?.debug('Session: CSRF token cached from cookies');
       }
     }
   }
@@ -294,20 +301,30 @@ export class SessionManager {
     }
 
     try {
+      this.logger?.debug('Session: Initializing CSRF token');
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers,
       });
 
       if (!response.ok) {
+        this.logger?.warn(`Session: CSRF initialization failed with status ${response.status}`);
         return false;
       }
 
       // Process response to extract cookies and CSRF
       this.processResponse(response);
 
-      return this.csrfManager.hasCached();
-    } catch {
+      const success = this.csrfManager.hasCached();
+      if (success) {
+        this.logger?.debug('Session: CSRF token initialized successfully');
+      } else {
+        this.logger?.warn('Session: CSRF initialization succeeded but no token found');
+      }
+
+      return success;
+    } catch (error) {
+      this.logger?.error(`Session: CSRF initialization error: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
   }
@@ -318,6 +335,7 @@ export class SessionManager {
   clear(): void {
     this.cookieStore.clear();
     this.csrfManager.clear();
+    this.logger?.debug('Session: Cleared all session state (cookies and CSRF)');
   }
 
   /**
