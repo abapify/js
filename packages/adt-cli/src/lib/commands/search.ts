@@ -1,6 +1,5 @@
 import { Command } from 'commander';
-import { createAdtClient } from '@abapify/adt-client-v2';
-import { AuthManager } from '@abapify/adt-client';
+import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const searchCommand = new Command('search')
   .description('Search for ABAP objects in the repository')
@@ -9,24 +8,7 @@ export const searchCommand = new Command('search')
   .option('--json', 'Output results as JSON')
   .action(async (query: string, options) => {
     try {
-      // Load session from v1 auth manager
-      const authManager = new AuthManager();
-      const session = authManager.loadSession();
-
-      if (!session || !session.basicAuth) {
-        console.error('❌ Not authenticated');
-        console.error('💡 Run "npx adt auth login" to authenticate first');
-        process.exit(1);
-      }
-
-      // Create v2 client
-      const adtClient = createAdtClient({
-        baseUrl: session.basicAuth.host,
-        username: session.basicAuth.username,
-        password: session.basicAuth.password,
-        client: session.basicAuth.client,
-      });
-
+      const adtClient = getAdtClientV2();
       const maxResults = parseInt(options.max, 10);
 
       console.log(`🔍 Searching for: "${query}" (max: ${maxResults} results)...\n`);
