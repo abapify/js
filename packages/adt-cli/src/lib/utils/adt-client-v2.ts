@@ -14,11 +14,27 @@ import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
 import { loadAuthSession } from './auth';
 
 /**
+ * Simple logger interface for CLI messages
+ */
+export interface Logger {
+  error(message: string): void;
+}
+
+/**
+ * Default console logger
+ */
+const defaultLogger: Logger = {
+  error: (message: string) => console.error(message),
+};
+
+/**
  * Options for creating ADT v2 client
  */
 export interface AdtClientV2Options {
   /** Optional response plugins */
   plugins?: AdtAdapterConfig['plugins'];
+  /** Optional logger for error messages (defaults to console.error) */
+  logger?: Logger;
 }
 
 /**
@@ -41,11 +57,12 @@ export interface AdtClientV2Options {
  * });
  */
 export function getAdtClientV2(options?: AdtClientV2Options) {
+  const logger = options?.logger ?? defaultLogger;
   const session = loadAuthSession();
 
   if (!session || !session.basicAuth) {
-    console.error('❌ Not authenticated');
-    console.error('💡 Run "npx adt auth login" to authenticate first');
+    logger.error('❌ Not authenticated');
+    logger.error('💡 Run "npx adt auth login" to authenticate first');
     process.exit(1);
   }
 
