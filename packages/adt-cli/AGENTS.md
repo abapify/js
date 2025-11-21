@@ -26,34 +26,51 @@ commands/
 
 **CRITICAL: Always use the shared client helper for v2 commands**
 
-#### ❌ WRONG - Duplicated Code
+#### Architecture: Clean Separation of Concerns
+
+```
+┌─────────────────────────────────────┐
+│ Commands (search, fetch, info)     │
+│ - Business logic only               │
+└─────────────┬───────────────────────┘
+              │ getAdtClientV2()
+              ▼
+┌─────────────────────────────────────┐
+│ CLI Auth Bridge (utils/auth.ts)    │
+│ - Loads credentials from ~/.adt/   │
+│ - Wraps v1 AuthManager              │
+└─────────────┬───────────────────────┘
+              │ Credentials only
+              ▼
+┌─────────────────────────────────────┐
+│ V2 Client (adt-client-v2)           │
+│ - Pure HTTP client                  │
+│ - No file I/O dependencies          │
+│ - Plugin system for extensions      │
+└─────────────────────────────────────┘
+```
+
+#### ❌ WRONG - Importing v1 Directly
 ```typescript
 import { createAdtClient } from '@abapify/adt-client-v2';
-import { AuthManager } from '@abapify/adt-client';
+import { AuthManager } from '@abapify/adt-client'; // ❌ NO!
 
-// DON'T do this in every command!
+// DON'T import v1 AuthManager in commands!
 const authManager = new AuthManager();
 const session = authManager.loadSession();
-
-if (!session || !session.basicAuth) {
-  console.error('❌ Not authenticated');
-  console.error('💡 Run "npx adt auth login" to authenticate first');
-  process.exit(1);
-}
-
-const adtClient = createAdtClient({
-  baseUrl: session.basicAuth.host,
-  username: session.basicAuth.username,
-  password: session.basicAuth.password,
-  client: session.basicAuth.client,
-});
+// ... 15 more lines of boilerplate
 ```
+
+**Why wrong?**
+- Couples commands to v1 implementation
+- Duplicates auth logic across every command
+- Mixes CLI concerns with client logic
 
 #### ✅ CORRECT - Use Shared Helper
 ```typescript
 import { getAdtClientV2 } from '../utils/adt-client-v2';
 
-// Simple usage
+// Simple usage - auth handled automatically
 const adtClient = getAdtClientV2();
 ```
 
@@ -76,13 +93,16 @@ const adtClient = getAdtClientV2({
 });
 ```
 
-**Location:** `src/lib/utils/adt-client-v2.ts`
+**Locations:**
+- `src/lib/utils/adt-client-v2.ts` - Client initialization helper
+- `src/lib/utils/auth.ts` - Auth bridge (wraps v1 AuthManager)
 
-**Why?**
+**Why correct?**
 - **DRY**: Eliminates 15-20 lines of boilerplate per command
 - **Consistency**: Same error messages across all commands
-- **Maintainability**: Changes to auth/client logic in one place
-- **Tested**: Helper is battle-tested across multiple commands
+- **Maintainability**: Auth logic in one place, v1 dependency isolated
+- **Testability**: Commands don't need to mock AuthManager
+- **Clean Architecture**: v2 client stays pure, CLI handles I/O
 
 ## Command Implementation Guidelines
 
