@@ -18,6 +18,7 @@ export type {
   OperationResult,
   LockHandle,
   AdtError,
+  Logger,
 } from './types';
 
 // Export discovery types
