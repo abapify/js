@@ -11,7 +11,8 @@ import type {
   HttpAdapter as SpeciHttpAdapter,
   HttpRequestOptions,
 } from 'speci/rest';
-import type { ResponsePlugin, ResponseContext } from './plugins';
+import type { ResponsePlugin, ResponseContext } from './plugins/types';
+import { SessionManager } from './utils/session';
 
 /**
  * Type-safe wrapper for build that accepts unknown body
@@ -53,6 +54,9 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
     'base64'
   )}`;
 
+  // Create session manager for stateful sessions
+  const sessionManager = new SessionManager();
+
   return {
     async request<TResponse = unknown>(
       options: HttpRequestOptions
@@ -78,7 +82,8 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       // Prepare headers
       const headers: Record<string, string> = {
         Authorization: authHeader,
-        'X-CSRF-Token': 'Fetch', // ADT requires CSRF token
+        'X-sap-adt-sessiontype': sessionManager.getSessionTypeHeader(),
+        ...sessionManager.getRequestHeaders(options.method),
         ...options.headers,
       };
 
@@ -132,8 +137,15 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
         body: requestBody,
       });
 
+      // Process response for session management (cookies, CSRF)
+      sessionManager.processResponse(response);
+
       // Check for HTTP errors
       if (!response.ok) {
+        // On 403, clear session and let caller retry
+        if (response.status === 403) {
+          sessionManager.clear();
+        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -142,7 +154,8 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       const rawText = await response.text();
       let data: any;
 
-      if (contentType.includes('application/json')) {
+      // Check for JSON content (including vendor-specific types like application/vnd.sap.*+json)
+      if (contentType.includes('application/json') || contentType.includes('+json')) {
         data = JSON.parse(rawText);
       } else if (contentType.includes('text/') || contentType.includes('xml')) {
         // If response schema available and content is XML, parse it automatically

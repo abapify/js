@@ -7,6 +7,10 @@
 import { type RestContract } from './base';
 import { classesContract } from './adt/oo/classes';
 import { discoveryContract } from './adt/discovery';
+import {
+  sessionsContract,
+  systeminformationContract,
+} from './adt/core/http';
 
 /**
  * Complete ADT API Contract
@@ -16,6 +20,12 @@ import { discoveryContract } from './adt/discovery';
 export const adtContract = {
   discovery: discoveryContract,
   classes: classesContract,
+  core: {
+    http: {
+      sessions: sessionsContract,
+      systeminformation: systeminformationContract,
+    },
+  },
 } satisfies RestContract;
 
 export type AdtContract = typeof adtContract;
