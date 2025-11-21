@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { createAdtClient, type ResponseContext } from '@abapify/adt-client-v2';
-import { AuthManager } from '@abapify/adt-client';
+import type { ResponseContext } from '@abapify/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const discoveryCommand = new Command('discovery')
   .description('Discover available ADT services')
@@ -11,26 +11,12 @@ export const discoveryCommand = new Command('discovery')
   )
   .action(async (options, command) => {
     try {
-      // Load session from v1 auth manager
-      const authManager = new AuthManager();
-      const session = authManager.loadSession();
-
-      if (!session || !session.basicAuth) {
-        console.error('❌ Not authenticated');
-        console.error('💡 Run "npx adt login" to authenticate first');
-        process.exit(1);
-      }
-
       // Capture plugin to get both XML and JSON
       let capturedXml: string | undefined;
       let capturedJson: unknown | undefined;
 
       // Create v2 client with capture plugin
-      const adtClient = createAdtClient({
-        baseUrl: session.basicAuth.host,
-        username: session.basicAuth.username,
-        password: session.basicAuth.password,
-        client: session.basicAuth.client,
+      const adtClient = getAdtClientV2({
         plugins: [
           {
             name: 'capture',

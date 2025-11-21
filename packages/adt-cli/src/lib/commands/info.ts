@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { createAdtClient, type ResponseContext, type SessionXml, type SystemInformationJson } from '@abapify/adt-client-v2';
-import { AuthManager } from '@abapify/adt-client';
+import type { ResponseContext, SessionXml, SystemInformationJson } from '@abapify/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const infoCommand = new Command('info')
   .description('Get SAP system and session information')
@@ -17,25 +17,11 @@ export const infoCommand = new Command('info')
       const showSession = options.session || (!options.session && !options.system);
       const showSystem = options.system || (!options.session && !options.system);
 
-      // Load session from v1 auth manager
-      const authManager = new AuthManager();
-      const session = authManager.loadSession();
-
-      if (!session || !session.basicAuth) {
-        console.error('❌ Not authenticated');
-        console.error('💡 Run "npx adt auth login" to authenticate first');
-        process.exit(1);
-      }
-
       // Capture plugin to get both XML and JSON
       let capturedData: any = {};
 
       // Create v2 client with capture plugin
-      const adtClient = createAdtClient({
-        baseUrl: session.basicAuth.host,
-        username: session.basicAuth.username,
-        password: session.basicAuth.password,
-        client: session.basicAuth.client,
+      const adtClient = getAdtClientV2({
         plugins: [
           {
             name: 'capture',
