@@ -1,0 +1,31 @@
+{
+  "name": "@abapify/adt-schemas-v2",
+  "version": "0.1.0",
+  "description": "Next-generation ADT schemas with content-type registry and clean API types",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./registry": "./dist/registry/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "schemas",
+    "types",
+    "xml",
+    "typescript",
+    "content-type",
+    "registry"
+  ],
+  "dependencies": {
+    "ts-xml": "*"
+  }
+}

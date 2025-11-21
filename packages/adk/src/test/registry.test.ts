@@ -5,12 +5,10 @@ import { fileURLToPath } from 'node:url';
 import {
   ObjectRegistry,
   Kind,
-  createInterface,
-  createClass,
-  createDomain,
   createObject,
 } from '../registry';
 import { Interface, Class, Domain } from '../objects';
+import type { AdkObject, AdkObjectConstructor } from '../base/adk-object';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -67,20 +65,6 @@ describe('ADK Registry Tests', () => {
     expect(nonExistent).toBeUndefined();
   });
 
-  it('should create objects using factory functions', () => {
-    const interfaceObj = createInterface();
-    expect(interfaceObj).toBeInstanceOf(Interface);
-    expect(interfaceObj.kind).toBe('Interface');
-
-    const classObj = createClass();
-    expect(classObj).toBeInstanceOf(Class);
-    expect(classObj.kind).toBe('Class');
-
-    const domainObj = createDomain();
-    expect(domainObj).toBeInstanceOf(Domain);
-    expect(domainObj.kind).toBe('Domain');
-  });
-
   it('should create objects using generic factory', () => {
     const interfaceObj = createObject(Kind.Interface);
     expect(interfaceObj).toBeInstanceOf(Interface);
@@ -100,8 +84,8 @@ describe('ADK Registry Tests', () => {
 
   it('should allow registering new object types', () => {
     // Mock constructor for testing
-    const mockConstructor = {
-      fromAdtXml: (xml: string) => ({
+    const mockConstructor: AdkObjectConstructor<AdkObject> = {
+      fromAdtXml: (_xml: string): AdkObject => ({
         kind: 'MockObject',
         name: 'MOCK',
         type: 'MOCK/MO',
@@ -109,7 +93,7 @@ describe('ADK Registry Tests', () => {
       }),
     };
 
-    ObjectRegistry.register('MockObject', mockConstructor as any);
+    ObjectRegistry.register('MockObject', mockConstructor);
 
     expect(ObjectRegistry.isRegistered('MockObject')).toBe(true);
     expect(ObjectRegistry.getRegisteredKinds()).toContain('MockObject');

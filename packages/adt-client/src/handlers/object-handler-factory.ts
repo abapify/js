@@ -2,6 +2,7 @@ import { ConnectionManager } from '../client/connection-manager.js';
 import { ObjectHandler } from './base-object-handler.js';
 import { ClassHandler } from './class-handler.js';
 import { ProgramHandler } from './program-handler.js';
+import { PackageHandler } from './package-handler.js';
 
 export class ObjectHandlerFactory {
   private static handlers = new Map<
@@ -13,6 +14,7 @@ export class ObjectHandlerFactory {
     // Register built-in handlers
     ObjectHandlerFactory.registerHandler('CLAS', ClassHandler);
     ObjectHandlerFactory.registerHandler('PROG', ProgramHandler);
+    ObjectHandlerFactory.registerHandler('DEVC', PackageHandler);
   }
 
   /**

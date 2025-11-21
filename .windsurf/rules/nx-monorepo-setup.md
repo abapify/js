@@ -1,97 +1,67 @@
 # Nx Monorepo Setup Rules
 
-## Core Nx Commands
+> **See**: [`.agents/rules/development/tooling/nx-monorepo.md`](../../../.agents/rules/development/tooling/nx-monorepo.md) for complete Nx plugin inference system documentation.
 
-**Always use `npx nx` - never global nx installation**
+## Quick Reference
 
-- `npx nx g` - Generate new packages/components
-- `npx nx build` - Build packages
-- `npx nx test` - Run tests
-- `npx nx typecheck` - Type checking
-
-## Package Creation Workflow
-
-### 1. Generate Base Package
+### Core Commands
 
 ```bash
-npx nx g @nx/js:lib --name=[library-name] --directory=[path] --importPath=@abapify/[library-name] --bundler=none --unitTestRunner=none --linter=eslint
+npx nx build [package]           # Build (inferred from tsdown.config.ts)
+npx nx test [package]            # Test (inferred from vitest.config.ts)
+npx nx test:coverage [package]   # Test with coverage
+npx nx typecheck [package]       # Typecheck (inferred from tsconfig.json)
+npx nx lint [package]            # Lint (inferred from eslint config)
 ```
 
-**Key Parameters:**
+### Package Creation Workflow
 
-- `--name`: Library name (e.g., `oat`, `abapgit`, `gcts`)
-- `--directory`: Path relative to workspace root (e.g., `packages/plugins/oat`)
-- `--importPath`: Full npm package name (e.g., `@abapify/oat`)
-- `--bundler=none`: We use tsdown instead of default tsc
-- `--unitTestRunner=none`: Avoid vitest generator loop, add manually later
-- `--linter=eslint`: Enable ESLint
+**Step 1: Generate Base Package**
 
-### 2. Configure tsdown Build System
+```bash
+npx nx g @nx/js:lib \
+  --name=[library-name] \
+  --directory=packages/[name] \
+  --importPath=@abapify/[library-name] \
+  --bundler=none \
+  --unitTestRunner=none \
+  --linter=eslint
+```
 
-Copy configuration from `packages/sample-tsdown/`:
+**Step 2: Add Config Files (Plugins Will Infer Targets)**
 
-- `tsdown.config.ts`
-- Update `package.json` build script to `"build": "tsdown"`
-- Ensure `skipNodeModulesBundle: true` in tsdown config
-
-### 3. Standard Package Structure
+Create these files and Nx plugins will automatically create build/test targets:
 
 ```
 packages/[name]/
 ├── src/
-│   ├── lib/
 │   └── index.ts
 ├── package.json
 ├── tsconfig.json
-├── tsconfig.lib.json
-└── tsdown.config.ts
+├── tsdown.config.ts      # ← nx-tsdown plugin detects → creates 'build' target
+└── vitest.config.ts      # ← nx-vitest plugin detects → creates 'test' targets
 ```
 
-## Technology Stack
-
-- **Language**: TypeScript only (ES2015, strict mode)
-- **Linting**: ESLint (configured via nx)
-- **Testing**: Vitest (not Jest)
-- **Build**: tsdown (not nx default tsc builder)
-- **Package Manager**: npm workspaces (NOT pnpm)
-
-## Plugin Package Creation
-
-For creating plugin packages in `packages/plugins/`:
-
-```bash
-# Create plugin directory structure
-mkdir -p packages/plugins
-
-# Generate OAT plugin
-npx nx g @nx/js:lib --name=oat --directory=packages/plugins/oat --importPath=@abapify/oat --bundler=none --unitTestRunner=none --linter=eslint
-
-# Generate abapGit plugin
-npx nx g @nx/js:lib --name=abapgit --directory=packages/plugins/abapgit --importPath=@abapify/abapgit --bundler=none --unitTestRunner=none --linter=eslint
-
-# Generate GCTS plugin
-npx nx g @nx/js:lib --name=gcts --directory=packages/plugins/gcts --importPath=@abapify/gcts --bundler=none --unitTestRunner=none --linter=eslint
-```
-
-## Package Configuration Template
-
-### package.json
+**Step 3: Minimal project.json**
 
 ```json
 {
-  "name": "@abapify/[plugin-name]",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsdown"
-  },
-  "dependencies": {
-    "@abapify/adk": "*"
+  "name": "[package-name]",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/[name]/src",
+  "projectType": "library",
+  "tags": ["type:library"],
+  "targets": {
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
   }
 }
 ```
+
+**That's it\!** Don't declare `build`, `test`, or `typecheck` targets - they're inferred automatically.
+
+## Config File Templates
 
 ### tsdown.config.ts
 
@@ -102,27 +72,94 @@ export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm'],
   dts: true,
-  skipNodeModulesBundle: true,
+  clean: true,
+  sourcemap: true,
 });
 ```
 
-## Development Workflow
+### vitest.config.ts
 
-1. **Generate package**: `npx nx g @nx/js:lib --name=[name] --directory=[path] --importPath=@abapify/[name] --bundler=none --unitTestRunner=none --linter=eslint`
-2. **Configure tsdown**: Copy from sample-tsdown
-3. **Add Vitest manually**: Copy vitest config from existing package (avoids nx vitest generator loop)
-4. **Build**: `npx nx build [library-name]`
-5. **Test**: `npx nx test [library-name]`
-6. **Typecheck**: `npx nx typecheck`
+```typescript
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      all: true,
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+    },
+  },
+});
+```
+
+**Important**: The root `vitest.config.ts` must include your package in the `projects` array for test targets to be inferred.
+
+## Technology Stack
+
+- **Language**: TypeScript (ES2015+, strict mode)
+- **Build**: tsdown (via nx-tsdown plugin inference)
+- **Testing**: Vitest (via nx-vitest plugin inference)
+- **Linting**: ESLint (via @nx/eslint plugin)
+- **Package Manager**: bun
+
+## Plugin Package Creation
+
+For packages in `packages/plugins/`:
+
+```bash
+npx nx g @nx/js:lib \
+  --name=oat \
+  --directory=packages/plugins/oat \
+  --importPath=@abapify/oat \
+  --bundler=none \
+  --unitTestRunner=none \
+  --linter=eslint
+```
+
+Then add `tsdown.config.ts` and `vitest.config.ts` - targets will be inferred automatically.
+
+## Common Mistakes
+
+### ❌ DON'T: Declare build/test targets manually
+
+```json
+{
+  "targets": {
+    "build": {
+      "executor": "@abapify/nx-tsdown:build" // ❌ NO SUCH EXECUTOR\!
+    }
+  }
+}
+```
+
+### ✅ DO: Let plugins infer targets
+
+Just create `tsdown.config.ts` and the nx-tsdown plugin will automatically create the `build` target.
+
+### Verification
+
+Check what targets were inferred:
+
+```bash
+npx nx show project [package-name] --json | jq '.targets | keys'
+```
+
+You should see: `["build", "lint", "nx-release-publish", "test", "test:coverage", "test:watch", "typecheck"]`
 
 ## Import Rules
 
 - **Cross-package**: `@abapify/[package-name]`
-- **Internal files**: `../relative/path`
-- **No workspace:\* dependencies** (use `*` instead)
+- **Internal files**: `../relative/path` (no extensions for TS files)
+- **Workspace deps**: Use `*` (not `workspace:*`)
 
 ## File Organization
 
 - **Source code**: `packages/[name]/src/`
 - **Temporary files**: `tmp/` (never commit)
 - **Build output**: `packages/[name]/dist/`
+- **Tests**: Co-located with source (`*.test.ts`)

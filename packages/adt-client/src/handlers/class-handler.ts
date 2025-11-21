@@ -2,17 +2,22 @@ import {
   BaseObjectHandler,
   ObjectOutlineElement,
   ObjectProperties,
-} from './base-object-handler.js';
-import { AdtObject, ObjectMetadata } from '../types/objects.js';
-import { UpdateResult, CreateResult, DeleteResult } from '../types/client.js';
-import { XmlParser } from '../utils/xml-parser.js';
-import { ErrorHandler } from '../utils/error-handler.js';
+} from './base-object-handler';
+import { AdtObject, ObjectMetadata } from '../types/objects';
+import { UpdateResult, CreateResult, DeleteResult } from '../types/client';
+import { XmlParser } from '../utils/xml-parser';
+import { ErrorHandler } from '../utils/error-handler';
+import { ADK_Class } from '@abapify/adk';
+import type { AdkObject } from '@abapify/adk';
 
 export class ClassHandler extends BaseObjectHandler {
   constructor(connectionManager: any) {
     super(connectionManager, 'CLAS');
   }
 
+  /**
+   * Get class as ADK object with lazy loading support
+   */
   async getObject(objectName: string): Promise<AdtObject> {
     try {
       const metadata = await this.getObjectMetadata(objectName);
@@ -36,6 +41,128 @@ export class ClassHandler extends BaseObjectHandler {
         throw error;
       }
       throw ErrorHandler.handleNetworkError(error as Error);
+    }
+  }
+
+  /**
+   * Get class as ADK object with lazy loading
+   * Returns ADK ClassSpec with lazy-loaded includes
+   */
+  async getAdkObject(
+    objectName: string,
+    options?: { lazyLoad?: boolean }
+  ): Promise<AdkObject> {
+    try {
+      const lazyLoad = options?.lazyLoad ?? true;
+
+      // Get metadata XML
+      const url = this.buildClassUrl(objectName);
+      const response = await this.connectionManager.request(url, {
+        headers: { Accept: 'application/vnd.sap.adt.oo.classes.v2+xml' },
+      });
+
+      if (!response.ok) {
+        throw await ErrorHandler.handleHttpError(response, {
+          objectType: this.objectType,
+          objectName,
+        });
+      }
+
+      const metadataXml = await response.text();
+
+      // Parse to ADK Class
+      const classObject = ADK_Class.fromAdtXml(metadataXml);
+
+      // Attach lazy loaders to includes if requested
+      if (lazyLoad) {
+        const originalData = classObject.getData() as Record<string, unknown>;
+
+        // Use Proxy to intercept getData() calls
+        if (Array.isArray(originalData.include)) {
+          const self = this; // Capture ClassHandler instance
+
+          // Pre-compute includes with content loaders
+          const includesWithContent = originalData.include.map((include) => {
+            const inc = include as Record<string, unknown>;
+            const includeType = String(inc.includeType);
+
+            return {
+              ...inc,
+              content: async () => {
+                return await self.getClassIncludeSource(
+                  objectName,
+                  includeType
+                );
+              },
+            };
+          });
+
+          // Create modified data object once
+          const modifiedData = {
+            ...originalData,
+            include: includesWithContent,
+          };
+
+          return new Proxy(classObject, {
+            get(target, prop) {
+              // Intercept getData calls and return pre-computed modified data
+              if (prop === 'getData') {
+                return () => modifiedData;
+              }
+
+              // Pass through all other property accesses
+              const value = (target as any)[prop];
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          }) as AdkObject;
+        }
+      }
+
+      return classObject;
+    } catch (error) {
+      if (error instanceof Error && 'category' in error) {
+        throw error;
+      }
+      throw ErrorHandler.handleNetworkError(error as Error);
+    }
+  }
+
+  /**
+   * Get class include source by include type
+   * Maps include types to ADT API endpoints
+   */
+  private async getClassIncludeSource(
+    objectName: string,
+    includeType: string
+  ): Promise<string> {
+    try {
+      // Map include types to ADT API fragment names
+      const fragmentMap: Record<string, string> = {
+        main: 'source/main',
+        definitions: 'source/definitions',
+        implementations: 'source/implementations',
+        macros: 'source/macros',
+        testclasses: 'source/testclasses',
+      };
+
+      const fragment = fragmentMap[includeType];
+      if (!fragment) {
+        // Unknown include type, return empty
+        return '';
+      }
+
+      const url = this.buildClassUrl(objectName, fragment);
+      const response = await this.connectionManager.request(url);
+
+      if (!response.ok) {
+        // Include might not exist (e.g., no test classes), return empty
+        return '';
+      }
+
+      return await response.text();
+    } catch (error) {
+      // If fetch fails, return empty string (include might not exist)
+      return '';
     }
   }
 

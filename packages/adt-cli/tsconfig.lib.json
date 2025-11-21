@@ -12,7 +12,7 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../plugins/abapgit/tsconfig.lib.json"
+      "path": "../adt-client-v2"
     },
     {
       "path": "../adt-client/tsconfig.lib.json"

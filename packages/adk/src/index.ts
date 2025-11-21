@@ -1,60 +1,48 @@
 /**
- * ADK public API
+ * ADK - ABAP Development Kit
  *
- * This package provides type-safe ABAP object modeling with xmld-based XML serialization.
- * Implementation follows docs/specs/adk-on-xmld.md.
+ * Minimalistic object registry and factory layer over adt-schemas.
+ * Provides OOP wrappers for ABAP objects with automatic XML serialization.
  */
 
-// Base classes and types
-export type { AdkObject } from './base/adk-object';
-export { BaseSpec } from './base/base-spec';
-export { OoSpec } from './base/oo-xml';
-export { createFromXml } from './base/generic-factory';
+// Core interfaces
+export * from './base/adk-object';
 
-// Namespace-based exports (Phase A)
-export type { AdtCoreAttrs } from './namespaces/adtcore';
-export { AtomLink } from './namespaces/atom';
-export type { AtomRelation } from './namespaces/atom';
+// Lazy content utilities
+export { createCachedLazyLoader, type LazyContent } from './base/lazy-content';
+
+// Object registry (imports trigger registration)
+export {
+  ObjectRegistry,
+  ObjectTypeRegistry,
+  objectRegistry,
+  Kind,
+} from './registry';
+
+// Factory functions
+export { fromAdtXml } from './base/instance-factory';
+export { GenericAbapObject } from './objects/generic';
+
+// Object classes
+export { Interface, InterfaceConstructor } from './objects/intf';
+export { Class, ClassConstructor } from './objects/clas';
+export { Domain, DomainConstructor } from './objects/doma';
+export { Package, PackageConstructor } from './objects/devc';
+
+// Object classes with ADK_ prefix (for clarity when used as constructors)
+export { Class as ADK_Class } from './objects/clas';
+export { Interface as ADK_Interface } from './objects/intf';
+export { Domain as ADK_Domain } from './objects/doma';
+export { Package as ADK_Package } from './objects/devc';
+
+// Object types
+export type { Interface as InterfaceType } from './objects/intf';
+export type { Class as ClassType } from './objects/clas';
+export type { Domain as DomainType } from './objects/doma';
+export type { Package as PackageType } from './objects/devc';
+
+// Re-export schema data types that external packages need
 export type {
-  AbapSourceAttrs,
-  SyntaxConfiguration,
-} from './namespaces/abapsource';
-export type { AbapOOAttrs } from './namespaces/abapoo';
-
-// Object XML classes (Phase A)
-export { IntfSpec } from './namespaces/intf';
-export { ClassSpec, ClassInclude } from './namespaces/class';
-export { DomainSpec, DdicFixedValueElement } from './namespaces/ddic';
-
-// Object kinds and registration
-export { Kind } from './kind';
-
-// Register object types with the registry
-import { Interface } from './objects/interface';
-import { Class } from './objects/class';
-import { Domain } from './objects/domain';
-import { InterfaceConstructor } from './objects/interface';
-import { ClassConstructor } from './objects/class';
-import { DomainConstructor } from './objects/domain';
-import { ObjectRegistry, ObjectTypeRegistry } from './registry';
-import { Kind } from './kind';
-
-ObjectRegistry.register(Kind.Interface, InterfaceConstructor as any);
-ObjectRegistry.register(Kind.Class, ClassConstructor as any);
-ObjectRegistry.register(Kind.Domain, DomainConstructor as any);
-
-// Export a facade instance that ADT client can use
-export const objectRegistry = new ObjectTypeRegistry();
-
-// Convenience factory functions
-export const createInterface = () => new Interface();
-export const createClass = () => new Class();
-export const createDomain = () => new Domain();
-
-// Export object types for use by adt-client
-export type { Interface } from './objects/interface';
-export type { Class } from './objects/class';
-export type { Domain } from './objects/domain';
-
-// Public types placeholder (reserved for future stable types)
-export type {} from './types';
+  ClassType as ClassSpec,
+  ClassIncludeElementType as ClassInclude,
+} from '@abapify/adt-schemas';

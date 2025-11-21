@@ -40,7 +40,10 @@ export default [
         'error',
         {
           enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?js$'],
+          allow: [
+            '^.*/eslint(\\.base)?\\.config\\.[cm]?js$',
+            '^.*/tsdown\\.config\\.(ts|js|mjs)$',
+          ],
           depConstraints: [
             {
               sourceTag: '*',

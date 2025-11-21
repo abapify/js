@@ -97,6 +97,7 @@ export interface RepositoryOperations {
   // Search operations
   searchObjects(query: string, options?: SearchOptions): Promise<SearchResult>;
   searchObjectsDetailed(options: SearchOptions): Promise<SearchResultDetailed>;
+  getPackage(packageName: string): Promise<{ name: string; description: string }>;
   getPackageContents(packageName: string): Promise<PackageContent>;
   getSupportedObjectTypes(): Promise<ObjectTypeInfo[]>;
 

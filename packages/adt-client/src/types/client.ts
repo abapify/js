@@ -12,6 +12,7 @@ export interface AdtConnectionConfig {
 export interface AdtClientConfig {
   connection?: AdtConnectionConfig;
   logger?: import('../utils/logger.js').Logger; // Pino logger instance from CLI
+  fileLogger?: import('../utils/file-logger.js').FileLogger; // File logger for ADT responses
   cache?: CacheConfig;
   retry?: RetryConfig;
   logging?: LoggingConfig;
