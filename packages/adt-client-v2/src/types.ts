@@ -4,6 +4,20 @@
 
 import type { RestContract, ElementSchema } from './base';
 
+/**
+ * Logger interface for ADT Client V2
+ * Compatible with pino/winston/bunyan and custom loggers
+ */
+export interface Logger {
+  trace(msg: string, obj?: any): void;
+  debug(msg: string, obj?: any): void;
+  info(msg: string, obj?: any): void;
+  warn(msg: string, obj?: any): void;
+  error(msg: string, obj?: any): void;
+  fatal(msg: string, obj?: any): void;
+  child(bindings: Record<string, any>): Logger;
+}
+
 // Connection configuration
 export interface AdtConnectionConfig {
   baseUrl: string;
@@ -11,6 +25,7 @@ export interface AdtConnectionConfig {
   password: string;
   client?: string;
   language?: string;
+  logger?: Logger;
 }
 
 /**

@@ -9,9 +9,8 @@
  * - This module extracts credentials and creates v2 client
  * - v2 client remains pure (no CLI/file I/O dependencies)
  */
-import { createAdtClient, LoggingPlugin } from '@abapify/adt-client-v2';
+import { createAdtClient, LoggingPlugin, type Logger } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
-import type { Logger } from '@abapify/adt-client';
 import { loadAuthSession } from './auth';
 
 /**
@@ -89,6 +88,7 @@ export function getAdtClientV2(options?: AdtClientV2Options) {
     username: session.basicAuth.username,
     password: session.basicAuth.password,
     client: session.basicAuth.client,
+    logger,  // Pass logger to v2 client
     plugins,
   });
 }
