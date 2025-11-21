@@ -589,6 +589,15 @@ const adtClient = getAdtClientV2({
 - **Maintainability**: Changes to client initialization in one place
 - **Flexibility**: Optional plugin support through options parameter
 
+**Architecture Note:**
+The CLI integration uses a clean separation of concerns:
+- `packages/adt-cli/src/lib/utils/auth.ts` - Auth bridge that wraps v1 AuthManager
+- v2 client remains pure (no file I/O or CLI dependencies)
+- Auth credentials are loaded from `~/.adt/auth.json` via the bridge
+- v2 client only receives connection parameters (baseUrl, username, password, client)
+
+This keeps the v2 client framework-agnostic and testable while allowing CLI to manage authentication.
+
 ## Questions or Issues?
 
 - Check [SERVICE-ARCHITECTURE.md](./docs/SERVICE-ARCHITECTURE.md) for architecture patterns
