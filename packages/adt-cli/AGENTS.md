@@ -93,6 +93,24 @@ const adtClient = getAdtClientV2({
 });
 ```
 
+#### With Logger
+```typescript
+import { getAdtClientV2 } from '../utils/adt-client-v2';
+
+// Enable HTTP request/response logging
+const adtClient = getAdtClientV2({
+  enableLogging: true,  // Logs HTTP requests/responses to console
+});
+
+// Or pass custom logger
+import { createLogger } from '../utils/logger';
+const customLogger = createLogger({ level: 'debug' });
+const adtClient = getAdtClientV2({
+  logger: customLogger,
+  enableLogging: true,
+});
+```
+
 **Locations:**
 - `src/lib/utils/adt-client-v2.ts` - Client initialization helper
 - `src/lib/utils/auth.ts` - Auth bridge (wraps v1 AuthManager)
@@ -276,6 +294,18 @@ npx adt <command> [args]
 **`utils/object-uri.ts`**
 - URI parsing and construction utilities
 
+## Critical Rules
+
+### NO CONSOLE USAGE in Commands
+**NEVER use `console.log`, `console.error`, `console.warn`, etc. directly in command implementations.**
+
+Commands should output to users using standard output/error streams:
+- Use `console.log()` and `console.error()` only for **user-facing output** (results, messages)
+- For debug logging, pass a logger to the client via `getAdtClientV2({ logger, enableLogging: true })`
+- The v2 client will use the logger internally for HTTP requests, session management, errors, etc.
+
+**Why?** Commands are user-facing tools - they should produce clean output, not debug noise.
+
 ## Common Mistakes
 
 ### Mistake 1: Duplicating Client Initialization
@@ -297,6 +327,10 @@ npx adt <command> [args]
 ### Mistake 5: Mixing V1 and V2 Unnecessarily
 **Symptom:** Using v1 client when v2 contract exists
 **Fix:** Check if v2 contract exists and use it
+
+### Mistake 6: Using Console for Debug Logging
+**Symptom:** Debug logs mixed with user output
+**Fix:** Pass logger to client and use `enableLogging` option
 
 ## Command Registration
 

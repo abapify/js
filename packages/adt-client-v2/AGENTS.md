@@ -67,7 +67,55 @@ client.fetch('/arbitrary/endpoint', { method: 'GET' })
 
 See [SERVICE-ARCHITECTURE.md](./docs/SERVICE-ARCHITECTURE.md) for detailed examples.
 
-## Critical Rules for Contracts
+## Critical Rules
+
+### Rule 0: NO CONSOLE USAGE
+**NEVER use `console.log`, `console.error`, `console.warn`, or any console methods directly in the v2 client code.**
+
+The v2 client is a pure library that must not perform direct I/O. Instead:
+
+✅ **CORRECT** - Use the logger parameter:
+```typescript
+// In adapter.ts, session manager, etc.
+logger?.debug('Session: CSRF token cached');
+logger?.error(`Request failed: ${error.message}`);
+logger?.warn('Session cleared due to 403');
+```
+
+❌ **WRONG** - Direct console usage:
+```typescript
+console.log('Debug info');  // ❌ NEVER
+console.error('Error');     // ❌ NEVER
+```
+
+**Why?**
+- V2 client is a library, not a CLI tool
+- Callers control logging via the `logger` parameter
+- Enables testability (mock logger in tests)
+- Allows integration with any logging framework (pino, winston, bunyan, etc.)
+
+**Logger Interface:**
+```typescript
+export interface Logger {
+  trace(msg: string, obj?: any): void;
+  debug(msg: string, obj?: any): void;
+  info(msg: string, obj?: any): void;
+  warn(msg: string, obj?: any): void;
+  error(msg: string, obj?: any): void;
+  fatal(msg: string, obj?: any): void;
+  child(bindings: Record<string, any>): Logger;
+}
+```
+
+Pass logger to client:
+```typescript
+const client = createAdtClient({
+  baseUrl: 'https://...',
+  username: 'user',
+  password: 'pass',
+  logger: myLogger,  // ← Optional, but required for internal logging
+});
+```
 
 ### Rule 1: ALWAYS Specify Response Types
 

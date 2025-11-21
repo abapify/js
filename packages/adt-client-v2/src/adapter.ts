@@ -46,6 +46,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
     password,
     client,
     language,
+    logger,
     plugins = [],
   } = config;
 
@@ -55,7 +56,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
   )}`;
 
   // Create session manager for stateful sessions
-  const sessionManager = new SessionManager();
+  const sessionManager = new SessionManager(logger);
 
   return {
     async request<TResponse = unknown>(
@@ -131,6 +132,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       }
 
       // Make request
+      logger?.debug(`HTTP ${options.method} ${url.toString()}`);
       const response = await fetch(url.toString(), {
         method: options.method,
         headers,
@@ -142,11 +144,15 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
 
       // Check for HTTP errors
       if (!response.ok) {
+        const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+        logger?.error(`Request failed - ${errorMsg} (${options.method} ${url.toString()})`);
+
         // On 403, clear session and let caller retry
         if (response.status === 403) {
           sessionManager.clear();
+          logger?.warn('Session cleared due to 403 Forbidden response');
         }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(errorMsg);
       }
 
       // Parse response
