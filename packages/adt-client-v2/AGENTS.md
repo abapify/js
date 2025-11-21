@@ -10,18 +10,62 @@ This file provides guidance to AI coding assistants when working with the `adt-c
 
 ### Two-Layer Architecture
 
-1. **Contracts Layer** (`src/adt/`): Thin, declarative HTTP definitions
-   - Pure data structures (no business logic)
-   - Schema-driven type inference
-   - Direct mapping to SAP ADT REST endpoints
+The client exposes two distinct APIs:
 
-2. **Services Layer** (future - `src/services/`): Business logic orchestration
-   - Combines multiple contract calls
-   - Domain-specific workflows
-   - Error handling and retries
-   - State management
+```typescript
+const client = createAdtClient({...});
 
-See [SERVICE-ARCHITECTURE.md](./SERVICE-ARCHITECTURE.md) for detailed examples.
+// 1. Low-level contracts (direct ADT REST access)
+client.adt.core.http.sessions.getSession()
+client.adt.repository.informationsystem.search.quickSearch({...})
+
+// 2. High-level services (business logic)
+client.services.*  // Future: orchestration, validation, workflows
+
+// 3. Utility methods (debugging/testing)
+client.fetch('/arbitrary/endpoint', { method: 'GET' })
+```
+
+**Layer 1: Contracts** (`src/adt/` → `client.adt.*`)
+- Thin, declarative HTTP definitions
+- Pure data structures (no business logic)
+- Schema-driven type inference
+- Direct 1:1 mapping to SAP ADT REST endpoints
+- Example: `client.adt.core.http.sessions.getSession()`
+
+**Layer 2: Services** (`src/services/` → `client.services.*`)
+- Business logic orchestration
+- Combines multiple contract calls
+- Domain-specific workflows
+- Error handling, retries, validation
+- State management
+- Example: `client.services.transports.importAndActivate(transportId)`
+
+**Utility Methods** (on client directly)
+- `client.fetch(url, options)` - Generic authenticated HTTP requests
+- Not contracts (no schema), not services (no business logic)
+- For debugging, testing, undocumented endpoints
+
+### When to Use Each Layer
+
+**Use Contracts when:**
+- You need direct access to a specific SAP ADT endpoint
+- You want 1:1 HTTP mapping with type safety
+- The operation is a simple request/response (no orchestration)
+- Example: Fetching session data, searching objects, reading class metadata
+
+**Use Services when:**
+- You need to combine multiple contract calls
+- Business logic, validation, or error handling is required
+- The operation involves workflows or state management
+- Example: Import transport + activate objects + verify success
+
+**Use Utilities when:**
+- Testing undocumented endpoints
+- Debugging raw API responses
+- One-off requests that don't justify a contract
+
+See [SERVICE-ARCHITECTURE.md](./docs/SERVICE-ARCHITECTURE.md) for detailed examples.
 
 ## Critical Rules for Contracts
 
@@ -359,6 +403,48 @@ Then use `responses: { 200: MySchema }` (not `responses: { 200: undefined as unk
 **Symptom**: Contracts become hard to test and reuse
 **Fix**: Keep contracts thin - move logic to services layer
 
+### Mistake 8: Adding `metadata` Field to Contracts
+**Symptom**: Redundant code that duplicates `responses` field
+**Fix**: **NEVER** add `metadata: { responseSchema: ... }` to contracts. The adapter automatically detects schemas from `responses[200]`. This field is legacy and should be removed if found.
+```typescript
+// ❌ WRONG - Redundant metadata
+adtHttp.get('/endpoint', {
+  responses: { 200: MySchema },
+  metadata: { responseSchema: MySchema },  // ← Remove this!
+})
+
+// ✅ CORRECT - Adapter auto-detects from responses
+adtHttp.get('/endpoint', {
+  responses: { 200: MySchema },  // ← This is enough!
+})
+```
+The adapter checks if `responses[200]` is an `ElementSchema` (has `tag` and `fields`) and automatically uses it for XML parsing.
+
+### Mistake 9: Using `as any` Type Assertions
+**Symptom**: Type safety violations, runtime errors not caught at compile time
+**Fix**: **NEVER** use `as any` without explicit justification. If type inference fails, fix the schema/contract, don't bypass it with casts.
+```typescript
+// ❌ WRONG - Defeats type safety
+const sys = systemData as any;
+sessionData.links.forEach((link: any) => { ... });
+
+// ✅ CORRECT - Let TypeScript infer types
+if (systemData.systemID) { ... }  // Type-safe access
+sessionData.links.forEach((link) => { ... });  // Type inferred from schema
+```
+
+### Mistake 10: Exposing fetch() as a Contract
+**Symptom**: Generic utility methods appearing in contract hierarchy
+**Fix**: The `fetch()` method is a **utility function on the client**, not a contract endpoint. Contracts must map to specific SAP ADT endpoints with known schemas.
+```typescript
+// ❌ WRONG - fetch in contracts
+client.adt.core.http.fetch.fetch(url)
+
+// ✅ CORRECT - fetch as client utility
+client.fetch(url, { method: 'GET', headers: {...} })
+```
+Contracts are for typed, schema-driven endpoints. `fetch()` is for debugging and ad-hoc requests.
+
 ## Testing Strategy
 
 ### Compile-Time Type Tests
@@ -428,7 +514,27 @@ When migrating from `adt-client` (v1):
 5. **Update CLI command** to use v2 client
 6. **Delete v1 code** only after v2 is tested and working
 
-See [CLAUDE.md](../../../CLAUDE.md) for full migration strategy.
+### Migration Status
+
+**Migrated to V2** (CLI commands using `adt-client-v2`):
+- ✅ `info` - Session and system information
+- ✅ `fetch` - Generic authenticated HTTP requests
+- ✅ `search` - ABAP object repository search
+- ✅ `discovery` - Discovery service
+
+**Still Using V1** (CLI commands using `adt-client`):
+- ⏳ `get` - Uses `searchObjectsDetailed` from v1
+- ⏳ `lock` - Uses `searchObjectsDetailed` from v1
+- ⏳ `outline` - Uses `searchObjectsDetailed` from v1
+- ⏳ `import/transport` - Uses `transport.getObjects()` and handlers from v1
+- ⏳ Other commands - See `packages/adt-cli/src/lib/commands/`
+
+**V1 Cleanup Workflow:**
+1. Ensure v2 functionality is stable and tested
+2. Identify all v1 usages: `grep -r "adt-client" packages/adt-cli/src/`
+3. Remove unused v1 services/methods (e.g., if `searchObjectsDetailed` is fully replaced)
+4. Track removal in this section
+5. Only deprecate v1 package when all functionality is migrated
 
 ## Questions or Issues?
 
