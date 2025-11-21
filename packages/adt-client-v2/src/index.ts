@@ -27,6 +27,10 @@ export type {
   CollectionXml,
 } from './adt/discovery';
 
+// Export core HTTP types
+export type { SessionXml } from './adt/core/http/sessions-schema';
+export type { SystemInformationJson } from './adt/core/http/systeminformation-schema';
+
 // Export adapter for advanced use cases
 export {
   createAdtAdapter,
@@ -38,7 +42,17 @@ export {
 export {
   type ResponsePlugin,
   type ResponseContext,
+  type FileStorageOptions,
+  type TransformFunction,
+  type LogFunction,
   FileStoragePlugin,
   TransformPlugin,
   LoggingPlugin,
 } from './plugins';
+
+// Export session management
+export {
+  SessionManager,
+  CookieStore,
+  CsrfTokenManager,
+} from './utils/session';
