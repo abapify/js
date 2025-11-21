@@ -1,9 +1,17 @@
 /**
  * Utility for initializing ADT Client V2 in CLI commands
+ *
+ * This module provides CLI-specific auth integration for the v2 client.
+ * It bridges the gap between CLI's auth management and v2's pure client API.
+ *
+ * Architecture Note:
+ * - CLI handles auth management (via v1 AuthManager stored in ~/.adt/auth.json)
+ * - This module extracts credentials and creates v2 client
+ * - v2 client remains pure (no CLI/file I/O dependencies)
  */
 import { createAdtClient } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
-import { AuthManager } from '@abapify/adt-client';
+import { loadAuthSession } from './auth';
 
 /**
  * Options for creating ADT v2 client
@@ -16,7 +24,7 @@ export interface AdtClientV2Options {
 /**
  * Get authenticated ADT v2 client
  *
- * Loads session from v1 auth manager and creates v2 client.
+ * Loads auth session from CLI config and creates v2 client.
  * Exits with error if not authenticated.
  *
  * @param options - Optional configuration (plugins, etc.)
@@ -33,8 +41,7 @@ export interface AdtClientV2Options {
  * });
  */
 export function getAdtClientV2(options?: AdtClientV2Options) {
-  const authManager = new AuthManager();
-  const session = authManager.loadSession();
+  const session = loadAuthSession();
 
   if (!session || !session.basicAuth) {
     console.error('❌ Not authenticated');
