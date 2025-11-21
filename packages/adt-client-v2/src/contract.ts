@@ -11,6 +11,7 @@ import {
   sessionsContract,
   systeminformationContract,
 } from './adt/core/http';
+import { searchContract } from './adt/repository/informationsystem';
 
 /**
  * Complete ADT API Contract
@@ -24,6 +25,11 @@ export const adtContract = {
     http: {
       sessions: sessionsContract,
       systeminformation: systeminformationContract,
+    },
+  },
+  repository: {
+    informationsystem: {
+      search: searchContract,
     },
   },
 } satisfies RestContract;
