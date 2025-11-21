@@ -1,17 +1,28 @@
 /**
- * ADT Client V2 - Using Speci's Client Generation
+ * ADT Client V2 - Two-Layer Architecture
  *
- * Creates a type-safe ADT client from the contract.
- * The contract defines all available operations.
- * Business logic should be built separately using this client.
+ * Provides both low-level contract access and high-level service APIs:
+ * - client.adt.*       - Raw ADT REST contracts (speci-generated)
+ * - client.services.*  - Business logic and orchestration
+ * - client.fetch()     - Generic HTTP utility method
  */
 
 import { createClient } from './base';
 import { adtContract } from './contract';
 import { createAdtAdapter, type AdtAdapterConfig } from './adapter';
+import type { HttpRequestOptions } from 'speci/rest';
 
 /**
- * Create ADT client with automatic XML parsing/building and optional plugins
+ * Fetch options for generic HTTP requests
+ */
+export interface FetchOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+/**
+ * Create ADT client with two-layer architecture
  *
  * @example
  * // Basic usage
@@ -22,31 +33,69 @@ import { createAdtAdapter, type AdtAdapterConfig } from './adapter';
  *   client: '100'
  * });
  *
- * // With file storage plugin
- * import { FileStoragePlugin } from '@abapify/adt-client-v2';
- * const client = createAdtClient({
- *   baseUrl: 'https://sap-system.com:8000',
- *   username: 'user',
- *   password: 'pass',
- *   client: '100',
- *   plugins: [
- *     new FileStoragePlugin({
- *       outputDir: './adt-responses',
- *       saveXml: true,
- *       saveJson: true
- *     })
- *   ]
- * });
+ * // Low-level contract access
+ * const session = await client.adt.core.http.sessions.getSession();
+ * const info = await client.adt.core.http.systeminformation.getSystemInformation();
  *
- * // Use the generated client
- * const metadata = await client.classes.getMetadata('ZCL_MY_CLASS');
- * await client.classes.create('ZCL_NEW_CLASS', classData);
+ * // High-level service API (future)
+ * // await client.services.classes.get('ZCL_MY_CLASS');
+ *
+ * // Generic fetch utility
+ * const response = await client.fetch('/sap/bc/adt/arbitrary/endpoint', {
+ *   method: 'GET',
+ *   headers: { Accept: 'application/xml' }
+ * });
  */
 export function createAdtClient(config: AdtAdapterConfig) {
-  return createClient(adtContract, {
+  const adapter = createAdtAdapter(config);
+  const adtClient = createClient(adtContract, {
     baseUrl: config.baseUrl,
-    adapter: createAdtAdapter(config),
+    adapter,
   });
+
+  return {
+    /**
+     * Low-level ADT REST contracts
+     * Direct access to speci-generated client methods
+     */
+    adt: adtClient,
+
+    /**
+     * High-level service APIs (placeholder for future implementation)
+     * Will contain business logic, validation, and orchestration
+     */
+    services: {
+      // TODO: Implement service layer
+      // classes: createClassesService(adtClient),
+      // packages: createPackagesService(adtClient),
+      // transports: createTransportsService(adtClient),
+    },
+
+    /**
+     * Generic fetch utility for arbitrary ADT endpoints
+     * Useful for debugging, testing, or accessing undocumented APIs
+     *
+     * @param url - The ADT endpoint path (e.g., '/sap/bc/adt/core/http/sessions')
+     * @param options - Request options (method, headers, body)
+     * @returns Raw response as string
+     */
+    async fetch(url: string, options?: FetchOptions): Promise<string> {
+      const method = options?.method || 'GET';
+      const headers = options?.headers || {};
+      const body = options?.body;
+
+      const requestOptions: HttpRequestOptions = {
+        method,
+        url,
+        headers,
+        body,
+      };
+
+      // Make request through adapter and return as string
+      const response = await adapter.request<string>(requestOptions);
+      return response;
+    },
+  };
 }
 
 export type AdtClient = ReturnType<typeof createAdtClient>;

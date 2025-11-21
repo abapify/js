@@ -4,6 +4,8 @@ export { importTransportCommand } from './import/transport';
 export { exportPackageCommand } from './export/package';
 export { searchCommand } from './search';
 export { discoveryCommand } from './discovery';
+export { infoCommand } from './info';
+export { fetchCommand } from './fetch';
 export { getCommand } from './get';
 export { outlineCommand } from './outline';
 export { atcCommand } from './atc';

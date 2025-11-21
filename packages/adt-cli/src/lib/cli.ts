@@ -7,6 +7,8 @@ import {
   exportPackageCommand,
   searchCommand,
   discoveryCommand,
+  infoCommand,
+  fetchCommand,
   getCommand,
   outlineCommand,
   atcCommand,
@@ -133,6 +135,12 @@ export async function createCLI(): Promise<Command> {
 
   // Discovery command
   program.addCommand(discoveryCommand);
+
+  // Info command (system and session info)
+  program.addCommand(infoCommand);
+
+  // Fetch command (authenticated HTTP requests)
+  program.addCommand(fetchCommand);
 
   // Object inspector command
   program.addCommand(getCommand);
