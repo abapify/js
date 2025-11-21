@@ -9,47 +9,23 @@
  * - This module extracts credentials and creates v2 client
  * - v2 client remains pure (no CLI/file I/O dependencies)
  */
-import { createAdtClient, type ResponsePlugin, type ResponseContext } from '@abapify/adt-client-v2';
+import { createAdtClient, LoggingPlugin } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
+import type { Logger } from '@abapify/adt-client';
 import { loadAuthSession } from './auth';
 
 /**
- * Simple logger interface for CLI messages
- */
-export interface Logger {
-  error(message: string): void;
-  info?(message: string): void;
-  debug?(message: string): void;
-}
-
-/**
- * Default console logger
+ * Default console logger (implements v1 Logger interface)
  */
 const defaultLogger: Logger = {
-  error: (message: string) => console.error(message),
-  info: (message: string) => console.log(message),
-  debug: (message: string) => console.debug(message),
+  trace: (msg: string) => console.debug(msg),
+  debug: (msg: string) => console.debug(msg),
+  info: (msg: string) => console.log(msg),
+  warn: (msg: string) => console.warn(msg),
+  error: (msg: string) => console.error(msg),
+  fatal: (msg: string) => console.error(msg),
+  child: () => defaultLogger,
 };
-
-/**
- * Create logging plugin that bridges CLI logger to v2 client
- *
- * @param logger - CLI logger instance
- * @returns Response plugin for HTTP request/response logging
- */
-function createLoggingPlugin(logger: Logger): ResponsePlugin {
-  return {
-    name: 'cli-logger',
-    process(context: ResponseContext) {
-      // Log HTTP requests at debug level if available
-      if (logger.debug) {
-        logger.debug(`[${context.method}] ${context.url}`);
-      }
-      // Don't modify data, just observe
-      return context.parsedData;
-    },
-  };
-}
 
 /**
  * Options for creating ADT v2 client
@@ -102,7 +78,10 @@ export function getAdtClientV2(options?: AdtClientV2Options) {
   // Build plugin list: user plugins + optional logging plugin
   const plugins = [...(options?.plugins ?? [])];
   if (options?.enableLogging) {
-    plugins.push(createLoggingPlugin(logger));
+    // Use v2's LoggingPlugin with logger.info as the log function
+    plugins.push(new LoggingPlugin((msg, data) => {
+      logger.info(`${msg}${data ? ` ${JSON.stringify(data)}` : ''}`);
+    }));
   }
 
   return createAdtClient({
