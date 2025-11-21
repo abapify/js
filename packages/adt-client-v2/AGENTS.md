@@ -536,6 +536,59 @@ When migrating from `adt-client` (v1):
 4. Track removal in this section
 5. Only deprecate v1 package when all functionality is migrated
 
+## CLI Integration
+
+### Using v2 Client in CLI Commands
+
+**DON'T** duplicate client initialization in every command:
+```typescript
+// ❌ WRONG - Duplicated in every command
+const authManager = new AuthManager();
+const session = authManager.loadSession();
+if (!session || !session.basicAuth) {
+  console.error('❌ Not authenticated');
+  process.exit(1);
+}
+const adtClient = createAdtClient({
+  baseUrl: session.basicAuth.host,
+  username: session.basicAuth.username,
+  password: session.basicAuth.password,
+  client: session.basicAuth.client,
+});
+```
+
+**DO** use the shared utility helper:
+```typescript
+// ✅ CORRECT - Use shared helper
+import { getAdtClientV2 } from '../utils/adt-client-v2';
+
+const adtClient = getAdtClientV2();
+```
+
+**With plugins:**
+```typescript
+// For commands that need response plugins
+const adtClient = getAdtClientV2({
+  plugins: [
+    {
+      name: 'capture',
+      process: (context) => {
+        // Custom processing
+        return context.parsedData;
+      },
+    },
+  ],
+});
+```
+
+**Location:** `packages/adt-cli/src/lib/utils/adt-client-v2.ts`
+
+**Benefits:**
+- **DRY**: No duplicated auth/client creation code
+- **Consistency**: Same error messages across all commands
+- **Maintainability**: Changes to client initialization in one place
+- **Flexibility**: Optional plugin support through options parameter
+
 ## Questions or Issues?
 
 - Check [SERVICE-ARCHITECTURE.md](./docs/SERVICE-ARCHITECTURE.md) for architecture patterns

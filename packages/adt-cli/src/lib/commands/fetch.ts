@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { createAdtClient } from '@abapify/adt-client-v2';
-import { AuthManager } from '@abapify/adt-client';
+import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const fetchCommand = new Command('fetch')
   .description('Fetch a URL with authentication (like curl but authenticated)')
@@ -12,23 +11,7 @@ export const fetchCommand = new Command('fetch')
   .option('-o, --output <file>', 'Save response to file')
   .action(async (url: string, options) => {
     try {
-      // Load session from v1 auth manager
-      const authManager = new AuthManager();
-      const session = authManager.loadSession();
-
-      if (!session || !session.basicAuth) {
-        console.error('❌ Not authenticated');
-        console.error('💡 Run "npx adt auth login" to authenticate first');
-        process.exit(1);
-      }
-
-      // Create v2 client
-      const adtClient = createAdtClient({
-        baseUrl: session.basicAuth.host,
-        username: session.basicAuth.username,
-        password: session.basicAuth.password,
-        client: session.basicAuth.client,
-      });
+      const adtClient = getAdtClientV2();
 
       // Parse custom headers
       const customHeaders: Record<string, string> = {};
