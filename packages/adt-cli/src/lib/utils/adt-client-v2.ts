@@ -9,7 +9,7 @@
  * - This module extracts credentials and creates v2 client
  * - v2 client remains pure (no CLI/file I/O dependencies)
  */
-import { createAdtClient } from '@abapify/adt-client-v2';
+import { createAdtClient, type ResponsePlugin, type ResponseContext } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
 import { loadAuthSession } from './auth';
 
@@ -18,6 +18,8 @@ import { loadAuthSession } from './auth';
  */
 export interface Logger {
   error(message: string): void;
+  info?(message: string): void;
+  debug?(message: string): void;
 }
 
 /**
@@ -25,7 +27,29 @@ export interface Logger {
  */
 const defaultLogger: Logger = {
   error: (message: string) => console.error(message),
+  info: (message: string) => console.log(message),
+  debug: (message: string) => console.debug(message),
 };
+
+/**
+ * Create logging plugin that bridges CLI logger to v2 client
+ *
+ * @param logger - CLI logger instance
+ * @returns Response plugin for HTTP request/response logging
+ */
+function createLoggingPlugin(logger: Logger): ResponsePlugin {
+  return {
+    name: 'cli-logger',
+    process(context: ResponseContext) {
+      // Log HTTP requests at debug level if available
+      if (logger.debug) {
+        logger.debug(`[${context.method}] ${context.url}`);
+      }
+      // Don't modify data, just observe
+      return context.parsedData;
+    },
+  };
+}
 
 /**
  * Options for creating ADT v2 client
@@ -33,8 +57,10 @@ const defaultLogger: Logger = {
 export interface AdtClientV2Options {
   /** Optional response plugins */
   plugins?: AdtAdapterConfig['plugins'];
-  /** Optional logger for error messages (defaults to console.error) */
+  /** Optional logger for CLI messages (defaults to console) */
   logger?: Logger;
+  /** Enable request/response logging (default: false) */
+  enableLogging?: boolean;
 }
 
 /**
@@ -43,12 +69,19 @@ export interface AdtClientV2Options {
  * Loads auth session from CLI config and creates v2 client.
  * Exits with error if not authenticated.
  *
- * @param options - Optional configuration (plugins, etc.)
+ * @param options - Optional configuration (plugins, logger, etc.)
  * @returns Authenticated ADT v2 client
  *
  * @example
  * // Simple usage
  * const client = getAdtClientV2();
+ *
+ * @example
+ * // With custom logger
+ * const client = getAdtClientV2({
+ *   logger: myLogger,
+ *   enableLogging: true  // Enable HTTP request/response logging
+ * });
  *
  * @example
  * // With plugins
@@ -66,11 +99,17 @@ export function getAdtClientV2(options?: AdtClientV2Options) {
     process.exit(1);
   }
 
+  // Build plugin list: user plugins + optional logging plugin
+  const plugins = [...(options?.plugins ?? [])];
+  if (options?.enableLogging) {
+    plugins.push(createLoggingPlugin(logger));
+  }
+
   return createAdtClient({
     baseUrl: session.basicAuth.host,
     username: session.basicAuth.username,
     password: session.basicAuth.password,
     client: session.basicAuth.client,
-    plugins: options?.plugins,
+    plugins,
   });
 }
