@@ -1,0 +1,26 @@
+{
+  "name": "@abapify/logger",
+  "version": "0.1.0",
+  "description": "Shared logger interface for abapify packages",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "logger",
+    "abap",
+    "sap",
+    "adt"
+  ],
+  "author": "abapify",
+  "license": "MIT"
+}

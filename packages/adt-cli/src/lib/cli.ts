@@ -15,6 +15,8 @@ import {
   loginCommand,
   logoutCommand,
   statusCommand,
+  authListCommand,
+  setDefaultCommand,
   transportListCommand,
   transportGetCommand,
   transportCreateCommand,
@@ -87,6 +89,10 @@ export async function createCLI(): Promise<Command> {
     .description('ADT CLI tool for managing SAP ADT services')
     .version('1.0.0')
     .option(
+      '--sid <sid>',
+      'SAP System ID (e.g., BHF, S0D) - overrides default system'
+    )
+    .option(
       '-v, --verbose [components]',
       `Enable verbose logging. Optionally filter by components: ${AVAILABLE_COMPONENTS.join(
         ', '
@@ -132,6 +138,8 @@ export async function createCLI(): Promise<Command> {
   authCmd.addCommand(loginCommand);
   authCmd.addCommand(logoutCommand);
   authCmd.addCommand(statusCommand);
+  authCmd.addCommand(authListCommand);
+  authCmd.addCommand(setDefaultCommand);
 
   // Discovery command
   program.addCommand(discoveryCommand);

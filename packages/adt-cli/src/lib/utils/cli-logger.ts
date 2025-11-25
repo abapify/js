@@ -1,4 +1,4 @@
-import type { Logger } from '@abapify/adt-client';
+import type { Logger } from '@abapify/logger';
 
 /**
  * CLI Logger interface that extends the base logger with CLI-specific methods
