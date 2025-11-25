@@ -5,7 +5,7 @@
  * Separated into testable modules for better maintainability.
  */
 
-import type { Logger } from '../types';
+import type { Logger } from '@abapify/logger';
 
 /**
  * Cookie Store - Manages HTTP cookies for stateful sessions
@@ -107,6 +107,22 @@ export class CookieStore {
    */
   getAll(): Map<string, string> {
     return new Map(this.cookies);
+  }
+
+  /**
+   * Inject pre-existing cookies (e.g., from SAML authentication)
+   * @param cookieString Cookie string in "name=value; name2=value2" format
+   */
+  injectCookie(cookieString: string): void {
+    // Split by "; " to handle multiple cookies
+    const cookies = cookieString.split('; ');
+    for (const cookie of cookies) {
+      const [name, ...valueParts] = cookie.split('=');
+      const value = valueParts.join('='); // Handle values containing '='
+      if (name && value) {
+        this.cookies.set(name.trim(), value.trim());
+      }
+    }
   }
 }
 
@@ -344,5 +360,14 @@ export class SessionManager {
    */
   getSessionTypeHeader(): string {
     return 'stateful';
+  }
+
+  /**
+   * Inject a pre-existing cookie (e.g., from SAML authentication)
+   * @param cookieString Cookie string in "name=value" format
+   */
+  injectCookie(cookieString: string): void {
+    this.cookieStore.injectCookie(cookieString);
+    this.logger?.debug(`Session: Injected cookie from external source`);
   }
 }

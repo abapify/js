@@ -142,3 +142,6 @@ vite.config.*.timestamp*
 
 vitest.config.*.timestamp*
 secrets
+
+bun.lock
+bun.lockb

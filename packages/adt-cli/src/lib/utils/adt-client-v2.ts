@@ -9,21 +9,34 @@
  * - This module extracts credentials and creates v2 client
  * - v2 client remains pure (no CLI/file I/O dependencies)
  */
-import { createAdtClient, LoggingPlugin, type Logger } from '@abapify/adt-client-v2';
+import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
-import { loadAuthSession } from './auth';
+import { loadAuthSession, isExpired, type CookieCredentials, type BasicCredentials } from './auth';
 
 /**
- * Default console logger (implements v1 Logger interface)
+ * Silent logger - suppresses all output (default for CLI)
  */
-const defaultLogger: Logger = {
+const silentLogger: Logger = {
+  trace: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  fatal: () => {},
+  child: () => silentLogger,
+};
+
+/**
+ * Console logger - outputs to console (used when enableLogging is true)
+ */
+const consoleLogger: Logger = {
   trace: (msg: string) => console.debug(msg),
   debug: (msg: string) => console.debug(msg),
   info: (msg: string) => console.log(msg),
   warn: (msg: string) => console.warn(msg),
   error: (msg: string) => console.error(msg),
   fatal: (msg: string) => console.error(msg),
-  child: () => defaultLogger,
+  child: () => consoleLogger,
 };
 
 /**
@@ -36,6 +49,14 @@ export interface AdtClientV2Options {
   logger?: Logger;
   /** Enable request/response logging (default: false) */
   enableLogging?: boolean;
+  /** Enable response file logging (default: false) */
+  logResponseFiles?: boolean;
+  /** Output directory for response files (default: './tmp/logs') */
+  logOutput?: string;
+  /** Write metadata alongside response files (default: false) */
+  writeMetadata?: boolean;
+  /** SAP System ID (SID) - e.g., 'BHF', 'S0D' (default: uses default SID from config) */
+  sid?: string;
 }
 
 /**
@@ -65,30 +86,74 @@ export interface AdtClientV2Options {
  * });
  */
 export function getAdtClientV2(options?: AdtClientV2Options) {
-  const logger = options?.logger ?? defaultLogger;
-  const session = loadAuthSession();
+  // Priority: 1) user-provided logger, 2) console if enableLogging, 3) silent
+  const logger = options?.logger ?? (options?.enableLogging ? consoleLogger : silentLogger);
+  const session = loadAuthSession(options?.sid);
 
-  if (!session || !session.basicAuth) {
-    logger.error('❌ Not authenticated');
-    logger.error('💡 Run "npx adt auth login" to authenticate first');
+  if (!session) {
+    const sidMsg = options?.sid ? ` for SID ${options.sid}` : '';
+    console.error(`❌ Not authenticated${sidMsg}`);
+    console.error(`💡 Run "npx adt auth login${options?.sid ? ` --sid=${options.sid}` : ''}" to authenticate first`);
     process.exit(1);
   }
 
-  // Build plugin list: user plugins + optional logging plugin
+  // Extract credentials based on auth method
+  const baseUrl = session.host;
+  const client = session.client;
+  let username: string | undefined;
+  let password: string | undefined;
+  let cookieHeader: string | undefined;
+
+  if (session.auth.method === 'basic') {
+    const creds = session.auth.credentials as BasicCredentials;
+    username = creds.username;
+    password = creds.password;
+  } else if (session.auth.method === 'cookie') {
+    // Check if session is expired
+    if (isExpired(session)) {
+      console.error('❌ Session expired');
+      console.error('💡 Run "npx adt auth login" to re-authenticate');
+      process.exit(1);
+    }
+
+    const creds = session.auth.credentials as CookieCredentials;
+    // Decode URL-encoded cookie values (e.g., %3d -> =)
+    cookieHeader = decodeURIComponent(creds.cookies);
+
+    // Cookie-based sessions often use hosts with self-signed certs (dev environments)
+    // Disable SSL verification to match browser behavior
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  } else {
+    console.error(`❌ Unsupported auth method: ${session.auth.method}`);
+    process.exit(1);
+  }
+
+  // Build plugin list: user plugins + optional plugins
   const plugins = [...(options?.plugins ?? [])];
+
+  // Add file logging plugin if enabled
+  if (options?.logResponseFiles) {
+    plugins.push(new FileLoggingPlugin({
+      outputDir: options.logOutput ?? './tmp/logs',
+      writeMetadata: options.writeMetadata ?? false,
+      logger,
+    }));
+  }
+
+  // Add console logging plugin if enabled
   if (options?.enableLogging) {
-    // Use v2's LoggingPlugin with logger.info as the log function
     plugins.push(new LoggingPlugin((msg, data) => {
       logger.info(`${msg}${data ? ` ${JSON.stringify(data)}` : ''}`);
     }));
   }
 
   return createAdtClient({
-    baseUrl: session.basicAuth.host,
-    username: session.basicAuth.username,
-    password: session.basicAuth.password,
-    client: session.basicAuth.client,
-    logger,  // Pass logger to v2 client
+    baseUrl,
+    username,
+    password,
+    cookieHeader,
+    client,
+    logger,
     plugins,
   });
 }

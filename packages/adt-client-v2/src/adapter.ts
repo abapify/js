@@ -37,26 +37,35 @@ export interface AdtAdapterConfig extends AdtConnectionConfig {
 }
 
 /**
- * Create ADT HTTP adapter with Basic Authentication and plugin support
+ * Create ADT HTTP adapter with Basic or SAML Authentication and plugin support
  */
 export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
   const {
     baseUrl,
     username,
     password,
+    cookieHeader,
     client,
     language,
     logger,
     plugins = [],
   } = config;
 
-  // Create Basic Auth header
-  const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString(
-    'base64'
-  )}`;
+  // Determine auth method
+  const isSamlAuth = !!cookieHeader;
+
+  // Create Basic Auth header (if not using SAML)
+  const authHeader = isSamlAuth
+    ? undefined
+    : `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
   // Create session manager for stateful sessions
   const sessionManager = new SessionManager(logger);
+
+  // Inject SAML cookie if provided
+  if (cookieHeader) {
+    sessionManager.injectCookie(cookieHeader);
+  }
 
   return {
     async request<TResponse = unknown>(
@@ -82,11 +91,15 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
 
       // Prepare headers
       const headers: Record<string, string> = {
-        Authorization: authHeader,
         'X-sap-adt-sessiontype': sessionManager.getSessionTypeHeader(),
         ...sessionManager.getRequestHeaders(options.method),
         ...options.headers,
       };
+
+      // Add Authorization header only for Basic Auth
+      if (authHeader) {
+        headers.Authorization = authHeader;
+      }
 
       // Get schemas from speci's standard fields
       // Check if bodySchema is an ElementSchema (has 'tag' and 'fields' properties)

@@ -1,5 +1,5 @@
 import pino from 'pino';
-import type { Logger } from '@abapify/adt-client';
+import type { Logger } from '@abapify/logger';
 
 export interface LoggerOptions {
   verbose?: boolean | string;

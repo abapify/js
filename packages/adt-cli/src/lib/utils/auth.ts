@@ -1,57 +1,92 @@
 /**
  * CLI Auth Utilities
  *
- * Thin wrapper around v1 AuthManager for loading session credentials.
- * This isolates the v1 dependency to just auth management.
+ * Thin wrapper around @abapify/adt-auth
+ * All auth logic is in the adt-auth package (single source of truth)
  */
-import { AuthManager } from '@abapify/adt-client';
+
+import { AuthManager } from '@abapify/adt-auth';
+
+// Re-export types from adt-auth
+export type {
+  AuthSession,
+  AuthConfig,
+  AuthMethod,
+  BasicCredentials,
+  CookieCredentials,
+  Credentials,
+  AuthPlugin,
+  AuthPluginOptions,
+  AuthPluginResult,
+} from '@abapify/adt-auth';
+
+// Singleton AuthManager instance for CLI
+const authManager = new AuthManager();
+
+// =============================================================================
+// Session Management - Delegates to AuthManager
+// =============================================================================
 
 /**
- * Basic auth credentials from session
+ * Load auth session
  */
-export interface BasicAuthCredentials {
-  host: string;
-  username: string;
-  password: string;
-  client?: string;
+export function loadAuthSession(sid?: string) {
+  return authManager.getSession(sid);
 }
 
 /**
- * Minimal auth session interface (subset of v1's AuthSession)
+ * Save auth session
  */
-export interface AuthSession {
-  basicAuth?: BasicAuthCredentials;
-  authType: 'oauth' | 'basic';
+export function saveAuthSession(session: Parameters<typeof authManager.saveSession>[0]) {
+  authManager.saveSession(session);
 }
 
 /**
- * Load auth session from CLI storage (~/.adt/auth.json)
- *
- * @returns Auth session or null if not authenticated
+ * List all available SIDs
  */
-export function loadAuthSession(): AuthSession | null {
-  const authManager = new AuthManager();
-  return authManager.loadSession();
+export function listAvailableSids() {
+  return authManager.listSids();
+}
+
+// =============================================================================
+// Default SID Management
+// =============================================================================
+
+/**
+ * Get default SID
+ */
+export function getDefaultSid() {
+  return authManager.getDefaultSid() ?? undefined;
 }
 
 /**
- * Get basic auth credentials or throw if not authenticated
- *
- * @returns Basic auth credentials
- * @throws Error if not authenticated or not using basic auth
+ * Set default SID
  */
-export function getBasicAuthCredentials(): BasicAuthCredentials {
-  const session = loadAuthSession();
+export function setDefaultSid(sid: string) {
+  authManager.setDefaultSid(sid);
+}
 
-  if (!session) {
-    throw new Error('Not authenticated. Run "npx adt auth login" first.');
-  }
+// =============================================================================
+// Credential Helpers
+// =============================================================================
 
-  if (session.authType !== 'basic' || !session.basicAuth) {
-    throw new Error(
-      'Basic auth credentials not found. Please login with basic auth.'
-    );
-  }
+/**
+ * Check if session is expired
+ */
+export function isExpired(session: Parameters<typeof authManager.isExpired>[0]) {
+  return authManager.isExpired(session);
+}
 
-  return session.basicAuth;
+/**
+ * Refresh credentials using auth plugin
+ */
+export async function refreshCredentials(session: Parameters<typeof authManager.refreshCredentials>[0]) {
+  return authManager.refreshCredentials(session);
+}
+
+/**
+ * Get the AuthManager instance (for advanced use)
+ */
+export function getAuthManager() {
+  return authManager;
 }
