@@ -46,9 +46,11 @@ export {
   type FileStorageOptions,
   type TransformFunction,
   type LogFunction,
+  type FileLoggingConfig,
   FileStoragePlugin,
   TransformPlugin,
   LoggingPlugin,
+  FileLoggingPlugin,
 } from './plugins';
 
 // Export session management
