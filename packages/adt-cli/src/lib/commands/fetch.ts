@@ -9,9 +9,19 @@ export const fetchCommand = new Command('fetch')
   .option('-H, --header <header>', 'Add header (can be used multiple times)', collect, [])
   .option('-d, --data <data>', 'Request body (for POST/PUT)')
   .option('-o, --output <file>', 'Save response to file')
-  .action(async (url: string, options) => {
+  .option('--accept <type>', 'Set Accept header (shorthand for -H "Accept: <type>")')
+  .action(async (url: string, options, command) => {
     try {
-      const adtClient = getAdtClientV2();
+      // Get global logging options
+      const globalOpts = command.optsWithGlobals();
+
+      const adtClient = getAdtClientV2({
+        logger: (command as any).logger,
+        logResponseFiles: globalOpts.logResponseFiles,
+        logOutput: globalOpts.logOutput,
+        writeMetadata: true, // Always write metadata for debugging
+        sid: globalOpts.sid, // Use --sid flag if provided
+      });
 
       // Parse custom headers
       const customHeaders: Record<string, string> = {};
@@ -20,6 +30,11 @@ export const fetchCommand = new Command('fetch')
         if (key && valueParts.length > 0) {
           customHeaders[key.trim()] = valueParts.join(':').trim();
         }
+      }
+
+      // Add Accept header if specified
+      if (options.accept) {
+        customHeaders['Accept'] = options.accept;
       }
 
       const method = options.method.toUpperCase() as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

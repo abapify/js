@@ -62,6 +62,12 @@
     },
     {
       "path": "./packages/adt-client-v2"
+    },
+    {
+      "path": "./packages/adt-config"
+    },
+    {
+      "path": "./packages/adt-puppeteer"
     }
   ]
 }

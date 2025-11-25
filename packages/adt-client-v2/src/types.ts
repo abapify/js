@@ -3,26 +3,17 @@
  */
 
 import type { RestContract, ElementSchema } from './base';
+import type { Logger } from '@abapify/logger';
 
-/**
- * Logger interface for ADT Client V2
- * Compatible with pino/winston/bunyan and custom loggers
- */
-export interface Logger {
-  trace(msg: string, obj?: any): void;
-  debug(msg: string, obj?: any): void;
-  info(msg: string, obj?: any): void;
-  warn(msg: string, obj?: any): void;
-  error(msg: string, obj?: any): void;
-  fatal(msg: string, obj?: any): void;
-  child(bindings: Record<string, any>): Logger;
-}
+// Re-export Logger for convenience
+export type { Logger };
 
 // Connection configuration
 export interface AdtConnectionConfig {
   baseUrl: string;
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
+  cookieHeader?: string; // For SAML authentication
   client?: string;
   language?: string;
   logger?: Logger;

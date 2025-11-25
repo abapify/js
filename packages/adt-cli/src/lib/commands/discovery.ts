@@ -30,7 +30,7 @@ export const discoveryCommand = new Command('discovery')
       });
 
       // Call discovery endpoint
-      const discovery = await adtClient.discovery.getDiscovery();
+      const discovery = await adtClient.adt.discovery.getDiscovery();
 
       if (options.output) {
         // Detect format based on file extension

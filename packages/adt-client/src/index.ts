@@ -92,3 +92,4 @@ import { AdtClientImpl } from './client/adt-client';
 export function createAdtClient(config?: AdtClientConfig): AdtClientImpl {
   return new AdtClientImpl(config);
 }
+
