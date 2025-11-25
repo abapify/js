@@ -148,7 +148,7 @@ export const loginCommand = new Command('login')
 
         // Set insecure SSL flag if requested
         if (options.insecure) {
-          process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+          // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Commented out for testing proper cert validation
           console.log('⚠️  SSL certificate verification disabled\n');
         }
 

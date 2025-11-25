@@ -45,7 +45,7 @@ function applyInsecureSslFlag(): void {
     if (existsSync(authFile)) {
       const session = JSON.parse(readFileSync(authFile, 'utf8'));
       if (session.insecure) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Commented out for testing proper cert validation
       }
     }
   } catch (error) {
