@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { createCliLogger } from './logger-config';
-import type { Logger } from '@abapify/adt-client';
+import type { Logger } from '@abapify/logger';
 
 /**
  * Extract global options from a command by traversing up to the root
