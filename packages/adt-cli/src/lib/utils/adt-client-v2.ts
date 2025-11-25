@@ -122,7 +122,7 @@ export function getAdtClientV2(options?: AdtClientV2Options) {
 
     // Cookie-based sessions often use hosts with self-signed certs (dev environments)
     // Disable SSL verification to match browser behavior
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Commented out for testing proper cert validation
   } else {
     console.error(`❌ Unsupported auth method: ${session.auth.method}`);
     process.exit(1);
