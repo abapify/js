@@ -17,6 +17,7 @@ export default {
   elements: {
     AdtLogpointLogKeys: {
       sequence: [
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
         { name: 'progVersion', type: 'AdtLogpointProgVersion', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
       attributes: [
@@ -31,6 +32,7 @@ export default {
     AdtLogpointLogEntry: {
       sequence: [
         { name: 'fieldList', type: 'AdtLogpointLogFieldList' },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
     },
     AdtLogpointLogField: {
@@ -50,6 +52,9 @@ export default {
       ],
     },
     AdtLogpointLogKey: {
+      sequence: [
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
       attributes: [
         { name: 'value', type: 'string' },
         { name: 'calls', type: 'number' },
@@ -57,6 +62,9 @@ export default {
       ],
     },
     AdtLogpointLogComponentValue: {
+      sequence: [
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
     },
     AdtLogpointLogStructure: {
       sequence: [

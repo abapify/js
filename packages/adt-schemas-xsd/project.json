@@ -19,18 +19,6 @@
       "dependsOn": ["download", "ts-xsd:build"],
       "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/scripts/*.ts"],
       "outputs": ["{projectRoot}/src/schemas"]
-    },
-    "build": {
-      "executor": "@nickvision/nx-tsdown:build",
-      "dependsOn": ["generate"],
-      "inputs": ["{projectRoot}/src/**/*.ts", "{projectRoot}/tsconfig.json"],
-      "outputs": ["{projectRoot}/dist"]
-    },
-    "lint": {
-      "executor": "@nickvision/nx-biome:lint",
-      "options": {
-        "cwd": "{projectRoot}"
-      }
     }
   }
 }

@@ -13,14 +13,19 @@ import {
 } from './adt/core/http';
 import { searchContract } from './adt/repository/informationsystem';
 
+// Import CTS contracts from adt-contracts package
+import { ctsContract } from 'adt-contracts';
+
 /**
  * Complete ADT API Contract
  *
  * Organized to mirror the ADT API structure.
+ * CTS namespace imported from adt-contracts package.
  */
 export const adtContract = {
   discovery: discoveryContract,
   classes: classesContract,
+  cts: ctsContract,  // /sap/bc/adt/cts/*
   core: {
     http: {
       sessions: sessionsContract,

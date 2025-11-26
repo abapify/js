@@ -82,6 +82,7 @@ export default {
         { name: 'summary', type: 'AdtLogpointSummary', minOccurs: 0 },
         { name: 'definition', type: 'AdtLogpointDefinition', minOccurs: 0 },
         { name: 'activation', type: 'AdtLogpointActivation', minOccurs: 0 },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
         { name: 'location', type: 'AdtLogpointLocationInfo', minOccurs: 0 },
       ],
     },
@@ -101,6 +102,9 @@ export default {
       ],
     },
     AdtLogpointProgram: {
+      sequence: [
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
       attributes: [
         { name: 'name', type: 'string' },
       ],

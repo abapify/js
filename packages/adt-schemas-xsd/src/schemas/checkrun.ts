@@ -61,6 +61,7 @@ export default {
       sequence: [
         { name: 't100Key', type: 'T100Message', minOccurs: 0 },
         { name: 'correctionHint', type: 'CorrectionHint', minOccurs: 0, maxOccurs: 'unbounded' },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
       attributes: [
         { name: 'uri', type: 'string' },

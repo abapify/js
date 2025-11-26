@@ -27,11 +27,15 @@ export default {
     },
     EvaluationResult: {
       sequence: [
+        { name: 'objectReference', type: 'ObjectReference' },
         { name: 'userContent', type: 'string', minOccurs: 0 },
         { name: 'affectedObjects', type: 'AffectedObjectsWithoutSource', minOccurs: 0 },
       ],
     },
     AffectedObjectsWithoutSource: {
+      sequence: [
+        { name: 'objectReference', type: 'ObjectReference', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
     },
     ProposalRequest: {
       sequence: [
@@ -61,9 +65,14 @@ export default {
     Unit: {
       sequence: [
         { name: 'content', type: 'string' },
+        { name: 'objectReference', type: 'ObjectReference' },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
     },
     VariableSourceStates: {
+      sequence: [
+        { name: 'objectReferences', type: 'ObjectReferences', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
       attributes: [
         { name: 'keepCursor', type: 'boolean' },
       ],

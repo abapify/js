@@ -36,6 +36,7 @@ export default {
         { name: 'longText', type: 'TextList', minOccurs: 0 },
         { name: 't100Key', type: 'T100Message', minOccurs: 0 },
         { name: 'correctionHint', type: 'CorrectionHint', minOccurs: 0, maxOccurs: 'unbounded' },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
       attributes: [
         { name: 'objDescr', type: 'string', required: true },
