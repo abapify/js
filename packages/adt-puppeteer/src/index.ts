@@ -97,6 +97,9 @@ export const defineConfig = withPuppeteer;
 // Main exports
 export { puppeteerAuth, puppeteer, toHeaders, toCookieHeader } from './puppeteer-auth';
 
+// Default export: Standard authPlugin for AuthManager compatibility
+export { default } from './auth-plugin';
+
 // Types
 export type {
   PuppeteerCredentials,

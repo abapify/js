@@ -29,6 +29,7 @@ import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setGlobalLogger } from './shared/clients';
+import { setCliContext } from './utils/adt-client-v2';
 import { AuthManager } from '@abapify/adt-client';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -236,6 +237,15 @@ export async function main(): Promise<void> {
       logResponseFiles: Boolean(globalOptions.logResponseFiles),
     };
     setGlobalLogger(logger, loggingConfig);
+
+    // Set CLI context for getAdtClientV2 (auto-reads these options)
+    setCliContext({
+      sid: globalOptions.sid,
+      logger,
+      logLevel: loggingConfig.logLevel,
+      logOutput: loggingConfig.logOutput,
+      logResponseFiles: loggingConfig.logResponseFiles,
+    });
   });
 
   await program.parseAsync(process.argv);
