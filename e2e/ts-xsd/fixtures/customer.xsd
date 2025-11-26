@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://example.com/customer"
+           xmlns:cust="http://example.com/customer"
+           xmlns:common="http://example.com/common"
+           elementFormDefault="qualified">
+
+  <!-- Import common types -->
+  <xs:import namespace="http://example.com/common" schemaLocation="common.xsd"/>
+
+  <xs:element name="Customer">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="address" type="common:AddressType"/>
+        <xs:element name="contact" type="common:ContactType"/>
+      </xs:sequence>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

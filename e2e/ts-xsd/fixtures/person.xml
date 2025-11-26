@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<per:Person xmlns:per="http://example.com/person" per:id="user-123" per:status="active">
+  <per:FirstName>John</per:FirstName>
+  <per:LastName>Doe</per:LastName>
+  <per:Age>30</per:Age>
+  <per:Email>john.doe@example.com</per:Email>
+</per:Person>

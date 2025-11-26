@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ord:Order xmlns:ord="http://example.com/order" ord:id="ORD-ROUNDTRIP" ord:date="2024-12-01"><ord:customer>Roundtrip Inc</ord:customer><ord:items><ord:item ord:sku="RT-001"><ord:name>Roundtrip Product</ord:name><ord:quantity>10</ord:quantity><ord:price>5</ord:price></ord:item></ord:items><ord:total>50</ord:total></ord:Order>

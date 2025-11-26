@@ -1,0 +1,25 @@
+{
+  "name": "adt-sdk",
+  "targets": {
+    "download": {
+      "command": "npx p2 download https://tools.hana.ondemand.com/latest -o .cache -f 'com.sap.adt.*,com.sap.conn.jco.*' --extract --extract-output dist",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": ["p2-cli:build"],
+      "inputs": [],
+      "outputs": ["{projectRoot}/.cache", "{projectRoot}/dist"],
+      "cache": false
+    },
+    "decompile": {
+      "command": "npx p2 decompile .cache/plugins -o dist",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": ["p2-cli:build", "download"],
+      "inputs": ["{projectRoot}/.cache/plugins"],
+      "outputs": ["{projectRoot}/dist"],
+      "cache": false
+    }
+  }
+}

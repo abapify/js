@@ -1,0 +1,69 @@
+import type { XsdSchema } from 'ts-xsd';
+
+export default {
+  root: 'Order',
+  elements: {
+    ItemType: {
+      sequence: [
+        {
+          name: 'name',
+          type: 'string',
+        },
+        {
+          name: 'quantity',
+          type: 'number',
+        },
+        {
+          name: 'price',
+          type: 'number',
+        },
+      ],
+      attributes: [
+        {
+          name: 'sku',
+          type: 'string',
+          required: true,
+        },
+      ],
+    },
+    ItemsType: {
+      sequence: [
+        {
+          name: 'item',
+          type: 'ItemType',
+          minOccurs: 0,
+          maxOccurs: 'unbounded',
+        },
+      ],
+    },
+    Order: {
+      sequence: [
+        {
+          name: 'customer',
+          type: 'string',
+        },
+        {
+          name: 'items',
+          type: 'ItemsType',
+        },
+        {
+          name: 'total',
+          type: 'number',
+        },
+      ],
+      attributes: [
+        {
+          name: 'id',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'date',
+          type: 'date',
+        },
+      ],
+    },
+  },
+  ns: 'http://example.com/order',
+  prefix: 'order',
+} as const satisfies XsdSchema;

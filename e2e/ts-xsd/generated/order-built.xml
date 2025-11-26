@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ord:Order xmlns:ord="http://example.com/order" ord:id="ORD-2024-002" ord:date="2024-11-26"><ord:customer>Test Corp</ord:customer><ord:items><ord:item ord:sku="ITEM-001"><ord:name>Test Item</ord:name><ord:quantity>3</ord:quantity><ord:price>19.99</ord:price></ord:item><ord:item ord:sku="ITEM-002"><ord:name>Another Item</ord:name><ord:quantity>1</ord:quantity><ord:price>99.99</ord:price></ord:item></ord:items><ord:total>159.96</ord:total></ord:Order>

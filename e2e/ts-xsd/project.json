@@ -1,0 +1,8 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "e2e-ts-xsd",
+  "sourceRoot": "e2e/ts-xsd",
+  "projectType": "application",
+  "tags": ["scope:e2e"],
+  "targets": {}
+}

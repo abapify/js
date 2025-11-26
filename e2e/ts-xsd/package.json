@@ -1,0 +1,17 @@
+{
+  "name": "@e2e/ts-xsd",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests for ts-xsd - XSD import and XML parsing/building",
+  "scripts": {},
+  "dependencies": {
+    "ts-xsd": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "vitest": "^1.0.0",
+    "typescript": "^5.0.0"
+  },
+  "nx": {}
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ord:Order xmlns:ord="http://example.com/order" ord:id="ORD-2024-001" ord:date="2024-11-26T14:00:00Z">
+  <ord:customer>Acme Corp</ord:customer>
+  <ord:items>
+    <ord:item ord:sku="WIDGET-001">
+      <ord:name>Premium Widget</ord:name>
+      <ord:quantity>5</ord:quantity>
+      <ord:price>29.99</ord:price>
+    </ord:item>
+    <ord:item ord:sku="GADGET-002">
+      <ord:name>Super Gadget</ord:name>
+      <ord:quantity>2</ord:quantity>
+      <ord:price>49.99</ord:price>
+    </ord:item>
+  </ord:items>
+  <ord:total>249.93</ord:total>
+</ord:Order>

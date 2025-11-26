@@ -315,6 +315,119 @@ npm run typecheck # Type check
 - **Data exchange** - Transform between XML and JSON formats
 - **SAP integration** - ADT, RFC, IDoc XML processing
 
+## Alternatives Comparison
+
+### Why ts-xml vs Other Libraries?
+
+| Feature | ts-xml | fast-xml-parser | Zod | Valibot | JSONIX |
+|---------|--------|-----------------|-----|---------|--------|
+| **XML ↔ JSON bidirectional** | ✅ | ✅ | ❌ | ❌ | ✅ |
+| **Type inference from schema** | ✅ | ❌ | ✅ | ✅ | ❌ |
+| **Clean domain objects** | ✅ | ❌ | ✅ | ✅ | ❌ |
+| **Namespace support** | ✅ | ✅ | N/A | N/A | ✅ |
+| **No runtime overhead** | ✅ | ✅ | ❌ | ✅ | ❌ |
+| **Zero dependencies** | ✅* | ✅ | ✅ | ✅ | ❌ |
+| **Bundle size** | ~5KB | ~50KB | ~12KB | ~5KB | ~200KB |
+| **XSD codegen support** | ✅ | ❌ | ❌ | ❌ | ✅ |
+
+*ts-xml uses `@xmldom/xmldom` for DOM parsing
+
+### fast-xml-parser
+
+**Good for:** Quick XML parsing without type safety
+
+**Problems:**
+- Forces awkward data structure with `@_` prefixes
+- No TypeScript type inference
+- Your domain objects must match parser's expected format
+
+```typescript
+// fast-xml-parser requires this structure
+const data = {
+  "bk:book": {
+    "@_xmlns:bk": "http://example.com/books",
+    "@_bk:isbn": "123",
+  }
+};
+
+// ts-xml lets you use clean objects
+const data = { isbn: "123" };
+```
+
+### Zod / Valibot
+
+**Good for:** JSON validation and type inference
+
+**Problems:**
+- **No XML support** - JSON only
+- Runtime validation overhead (Zod)
+- Can't handle XML namespaces, attributes vs elements
+
+```typescript
+// Zod can't distinguish between:
+// <book isbn="123"/>  (attribute)
+// <book><isbn>123</isbn></book>  (element)
+
+// ts-xml handles both explicitly
+const schema = tsxml.schema({
+  tag: "book",
+  fields: {
+    isbn: { kind: "attr", name: "isbn", type: "string" },  // attribute
+    // OR
+    isbn: { kind: "elem", name: "isbn", type: "string" },  // element
+  }
+});
+```
+
+### JSONIX
+
+**Good for:** XSD-driven XML binding (Java-style)
+
+**Problems:**
+- **Huge bundle size** (~200KB)
+- Complex setup with XSD compilation
+- Java-style API, not TypeScript-native
+- Requires pre-compiled mappings
+
+```typescript
+// JSONIX requires XSD compilation step
+// $ java -jar jsonix-schema-compiler.jar schema.xsd
+
+// ts-xml works directly with TypeScript
+const schema = tsxml.schema({ ... });
+```
+
+### When to Use ts-xml
+
+✅ **Use ts-xml when:**
+- You need bidirectional XML ↔ JSON transformation
+- You want TypeScript type inference from schemas
+- You're working with namespaced XML (SOAP, SAP ADT, etc.)
+- You want clean domain objects without XML pollution
+- Bundle size matters
+- You want to generate schemas from XSD (via `ts-xml-codegen`)
+
+❌ **Consider alternatives when:**
+- You only need JSON validation → use Zod/Valibot
+- You need streaming XML parsing → use sax-js
+- You have complex XSD with inheritance → consider JSONIX
+- You need XPath queries → use xmldom directly
+
+## Ecosystem
+
+ts-xml is part of a family of packages:
+
+| Package | Description |
+|---------|-------------|
+| `ts-xml` | Core XML ↔ JSON transformation |
+| `ts-xml-xsd` | Parse XSD files using ts-xml (dogfooding!) |
+| `ts-xml-codegen` | Generate ts-xml schemas from XSD files |
+
+```bash
+# Generate ts-xml schemas from XSD
+npx ts-xml-codegen schema.xsd -o generated/
+```
+
 ## License
 
 MIT

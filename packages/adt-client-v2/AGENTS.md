@@ -301,19 +301,102 @@ The adapter recognizes `+json` and `+xml` suffixes automatically (fixed in [adap
 
 ## Workflow: Adding a New Contract
 
-### Step 1: Create Schema File
+**CRITICAL: NEVER guess schemas. Always derive them from real API responses.**
+
+### Step 0: Explore the API (MANDATORY)
+
+Before writing any code, understand the actual API using ALL THREE sources:
+
+**Source 1: Discovery Collections** (URL + Content Types)
+```bash
+# Check existing parsed collections
+ls e2e/adt-codegen/generated/collections/sap/bc/adt/<feature>/
+
+# Read collection JSON to understand endpoints
+cat e2e/adt-codegen/generated/collections/sap/bc/adt/<feature>/<endpoint>.json
+```
+
+Collections contain:
+- `href` - Endpoint path
+- `accepts` - Content types the endpoint accepts
+- `templateLinks` - URL templates with parameters
+- `category` - Endpoint classification
+
+**Source 2: SAP SDK XSD Schemas** (Official Schema Definitions)
+
+First, extract SDK if not done:
+```bash
+# From abapify root, extract SDK from existing installation
+cd e2e/adt-sdk
+npx tsx scripts/extract-sdk.ts /path/to/sdk/jars
+```
+
+Then read schemas:
+```bash
+# List available schemas
+ls e2e/adt-sdk/extracted/schemas/xsd/*.xsd
+
+# Read the schema for your feature
+cat e2e/adt-sdk/extracted/schemas/xsd/<feature>.xsd
+```
+
+SDK schemas provide:
+- Official XML element/attribute definitions
+- Namespace URIs (e.g., `http://www.sap.com/cts/adt/tm`)
+- Type definitions and constraints
+- Relationships between elements
+
+**Key CTS schemas:**
+- `transportmanagment.xsd` - Transport requests, tasks, objects
+- `transportsearch.xsd` - Transport search results
+- `transport-properties.xsd` - Transport properties
+
+**Source 3: Real Endpoint Calls** (Actual Response Data)
+```bash
+# Use adt fetch to get real response
+npx adt fetch /sap/bc/adt/<endpoint> -o tmp/response.xml
+
+# Or with specific Accept header
+npx adt fetch /sap/bc/adt/<endpoint> -H "Accept: application/vnd.sap.adt.feature.v1+xml" -o tmp/response.xml
+```
+
+**⚠️ IMPORTANT: Use ALL THREE sources together!**
+- Collections → URL and content types
+- XSD schemas → Official structure and namespaces
+- Real calls → Actual data to verify and create fixtures
+
+### Step 1: Create/Update Fixtures
+
+**Location:** `fixtures/sap/bc/adt/<path>/<filename>.xml`
+
+**CRITICAL: Mock all sensitive data!**
+- ❌ Real transport IDs (DEVK900001)
+- ✅ Mock transport IDs (MOCK900001)
+- ❌ Real usernames (PPLENKOV)
+- ✅ Mock usernames (TESTUSER)
+- ❌ Real system URLs
+- ✅ Mock URLs (https://mock-system.example.com)
 
 ```bash
-# For XML endpoint
-touch src/adt/path/to/feature-schema.ts
+# Create fixture directory structure matching endpoint path
+mkdir -p fixtures/sap/bc/adt/cts/transportrequests
 
-# For JSON endpoint
+# Copy and sanitize real response
+cp tmp/response.xml fixtures/sap/bc/adt/cts/transportrequests/list-response.xml
+# Then edit to replace real data with mocks
+```
+
+### Step 2: Create Schema File
+
+**ONLY after you have real response data**, create the schema:
+
+```bash
 touch src/adt/path/to/feature-schema.ts
 ```
 
 Define the schema (see Rule 3 above).
 
-### Step 2: Create Contract File
+### Step 3: Create Contract File
 
 ```bash
 touch src/adt/path/to/feature-contract.ts
@@ -337,7 +420,7 @@ export const featureContract = createContract({
 export type FeatureContract = typeof featureContract;
 ```
 
-### Step 3: Register in Main Contract
+### Step 4: Register in Main Contract
 
 Edit `src/contract.ts`:
 
@@ -357,7 +440,7 @@ export const adtContract = {
 } satisfies RestContract;
 ```
 
-### Step 4: Create Type Inference Test
+### Step 5: Create Type Inference Test
 
 ```bash
 touch tests/feature-type-inference.test.ts
@@ -365,7 +448,7 @@ touch tests/feature-type-inference.test.ts
 
 Follow the pattern from Rule 2 above.
 
-### Step 5: Build and Validate
+### Step 6: Build and Validate
 
 ```bash
 # Build the package
@@ -377,7 +460,45 @@ cd packages/adt-client-v2 && npx tsc --noEmit
 # If typecheck fails, you forgot the responses field or have a type error
 ```
 
-### Step 6: Create CLI Command (Optional)
+### Step 7: Create Service (Optional)
+
+If you need business logic wrappers on top of contract endpoints:
+
+```bash
+touch src/services/feature-service.ts
+```
+
+**When to create a service:**
+- Combining multiple contract calls into a workflow
+- Adding validation, error handling, or retries
+- Managing state across multiple operations
+- Providing a higher-level API for complex operations
+
+```typescript
+// src/services/feature-service.ts
+import type { AdtClient } from '../client';
+
+export function createFeatureService(client: AdtClient) {
+  return {
+    async doComplexOperation(params: ComplexParams) {
+      // Step 1: Call first contract
+      const step1 = await client.adt.feature.getFeature();
+      
+      // Step 2: Business logic
+      if (!step1.isValid) {
+        throw new Error('Invalid state');
+      }
+      
+      // Step 3: Call second contract
+      const step2 = await client.adt.feature.updateFeature(params);
+      
+      return { step1, step2 };
+    },
+  };
+}
+```
+
+### Step 8: Create CLI Command (Optional)
 
 If the contract needs a CLI command for testing:
 

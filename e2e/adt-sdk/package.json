@@ -1,0 +1,10 @@
+{
+  "name": "@abapify/adt-sdk",
+  "version": "0.0.1",
+  "description": "SAP ADT SDK for abapify - uses @abapify/p2-cli",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@abapify/p2-cli": "workspace:*"
+  }
+}
