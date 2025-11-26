@@ -1,0 +1,8 @@
+{
+  "name": "adt-contracts",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-contracts/src",
+  "projectType": "library",
+  "tags": ["type:library"],
+  "targets": {}
+}

@@ -25,16 +25,28 @@ export function generateFieldsObj(
     const localName = child.localName || child.tagName?.split(':').pop();
     if (localName !== 'element') continue;
 
-    const name = child.getAttribute('name');
-    const type = child.getAttribute('type');
+    let name = child.getAttribute('name');
+    let type = child.getAttribute('type');
+    const ref = child.getAttribute('ref');
     const minOccurs = child.getAttribute('minOccurs');
     const maxOccurs = child.getAttribute('maxOccurs');
+
+    // Handle ref="namespace:element" - extract element name and use as both name and type
+    let isRefType = false;
+    if (ref && !name) {
+      const refName = ref.includes(':') ? ref.split(':').pop()! : ref;
+      name = refName;
+      // Capitalize first letter for type (element name -> Type name convention)
+      type = refName.charAt(0).toUpperCase() + refName.slice(1);
+      isRefType = true; // Don't resolve - it's from an included schema
+    }
 
     if (!name) continue;
 
     const field: Record<string, unknown> = {
       name,
-      type: resolveType(type, complexTypes, simpleTypes),
+      // For ref types, use the type directly (it's from an included schema)
+      type: isRefType ? type : (type ? resolveType(type, complexTypes, simpleTypes) : name),
     };
 
     if (minOccurs === '0') {
@@ -71,17 +83,28 @@ export function generateFields(
     const localName = child.localName || child.tagName.split(':').pop();
     if (localName !== 'element') continue;
 
-    const name = child.getAttribute('name');
-    const type = child.getAttribute('type');
+    let name = child.getAttribute('name');
+    let type = child.getAttribute('type');
+    const ref = child.getAttribute('ref');
     const minOccurs = child.getAttribute('minOccurs');
     const maxOccurs = child.getAttribute('maxOccurs');
+
+    // Handle ref="namespace:element" - extract element name and use as both name and type
+    let isRefType = false;
+    if (ref && !name) {
+      const refName = ref.includes(':') ? ref.split(':').pop()! : ref;
+      name = refName;
+      // Capitalize first letter for type (element name -> Type name convention)
+      type = refName.charAt(0).toUpperCase() + refName.slice(1);
+      isRefType = true; // Don't resolve - it's from an included schema
+    }
 
     if (!name) continue;
 
     const parts: string[] = [`{ name: '${name}'`];
 
-    // Determine type
-    const resolvedType = resolveType(type, complexTypes, simpleTypes);
+    // Determine type - for ref types, use directly (from included schema)
+    const resolvedType = isRefType ? type : (type ? resolveType(type, complexTypes, simpleTypes) : name);
     parts.push(`type: '${resolvedType}'`);
 
     // Optional?

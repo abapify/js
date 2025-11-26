@@ -17,6 +17,7 @@ export default {
     AdtObject: {
       sequence: [
         { name: 'containerRef', type: 'AdtObjectReference', minOccurs: 0 },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
         { name: 'adtTemplate', type: 'AdtTemplate', minOccurs: 0 },
       ],
       attributes: [
@@ -35,6 +36,9 @@ export default {
     AdtMainObject: {
     },
     AdtObjectReferenceList: {
+      sequence: [
+        { name: 'objectReference', type: 'ObjectReference', maxOccurs: 'unbounded' },
+      ],
       attributes: [
         { name: 'name', type: 'string' },
       ],
@@ -63,12 +67,21 @@ export default {
       ],
     },
     AdtTemplateProperty: {
+      text: true,
+      attributes: [
+        { name: 'key', type: 'string' },
+      ],
     },
     AdtPackageReference: {
     },
     AdtSwitchReference: {
     },
     AdtContent: {
+      text: true,
+      attributes: [
+        { name: 'type', type: 'string' },
+        { name: 'encoding', type: 'string' },
+      ],
     },
   },
 } as const satisfies XsdSchema;

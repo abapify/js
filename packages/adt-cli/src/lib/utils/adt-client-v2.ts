@@ -123,6 +123,8 @@ export interface AdtClientV2Options {
   sid?: string;
   /** Enable capture plugin to capture raw XML and parsed JSON (default: false) */
   capture?: boolean;
+  /** Enable automatic SAML re-authentication when session expires (default: true for cookie auth) */
+  autoReauth?: boolean;
 }
 
 /**
@@ -193,6 +195,7 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
     writeMetadata: options?.writeMetadata ?? false,
     capture: options?.capture ?? false,
     plugins: options?.plugins ?? [],
+    autoReauth: options?.autoReauth ?? true, // Enable auto-reauth by default
   };
 
   // Priority: 1) user-provided logger, 2) global CLI logger, 3) console if enableLogging, 4) silent
@@ -268,6 +271,37 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
   // Add user-provided plugins last
   plugins.push(...effectiveOptions.plugins);
 
+  // Create onSessionExpired callback for automatic SAML re-authentication
+  // Only applicable for cookie-based auth with a plugin that can refresh
+  let onSessionExpired: (() => Promise<string>) | undefined;
+  
+  if (effectiveOptions.autoReauth && session.auth.method === 'cookie' && session.auth.plugin) {
+    // Capture current session for the callback closure
+    let currentSession = session;
+    
+    onSessionExpired = async (): Promise<string> => {
+      console.log(`🔄 Session expired, refreshing credentials for ${currentSession.sid}...`);
+      
+      try {
+        // Refresh credentials using the auth plugin (opens browser for SAML)
+        const refreshedSession = await refreshCredentials(currentSession);
+        currentSession = refreshedSession;
+        
+        // Extract new cookie from refreshed session
+        const creds = refreshedSession.auth.credentials as CookieCredentials;
+        const newCookie = decodeURIComponent(creds.cookies);
+        
+        console.log(`✅ Session refreshed for ${currentSession.sid}`);
+        return newCookie;
+      } catch (error) {
+        console.error('❌ Auto-refresh failed:', error instanceof Error ? error.message : String(error));
+        const sidArg = effectiveOptions.sid ? ` --sid=${effectiveOptions.sid}` : '';
+        console.error(`💡 Run "npx adt auth login${sidArg}" to re-authenticate manually`);
+        throw error;
+      }
+    };
+  }
+
   return createAdtClient({
     baseUrl,
     username,
@@ -276,5 +310,6 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
     client,
     logger,
     plugins,
+    onSessionExpired,
   });
 }

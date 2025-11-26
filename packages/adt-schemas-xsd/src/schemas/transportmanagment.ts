@@ -96,6 +96,7 @@ export default {
     request: {
       sequence: [
         { name: 'task', type: 'task', minOccurs: 0, maxOccurs: 'unbounded' },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
         { name: 'abap_object', type: 'abap_object', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
       attributes: [
@@ -109,6 +110,7 @@ export default {
     task: {
       sequence: [
         { name: 'abap_object', type: 'abap_object', minOccurs: 0, maxOccurs: 'unbounded' },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
       attributes: [
         { name: 'number', type: 'string' },

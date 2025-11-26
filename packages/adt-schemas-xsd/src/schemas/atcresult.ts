@@ -27,6 +27,7 @@ export default {
         { name: 'createdAt', type: 'date' },
         { name: 'aggregates', type: 'AtcResultAggregates' },
         { name: 'objects', type: 'string' },
+        { name: 'descriptionTags', type: 'DescriptionTags' },
         { name: 'infos', type: 'string' },
       ],
     },
@@ -45,6 +46,11 @@ export default {
       ],
     },
     AtcResultQueryChoice: {
+      choice: [
+        { name: 'activeResultQuery', type: 'ActiveResultQuery' },
+        { name: 'specificResultQuery', type: 'SpecificResultQuery' },
+        { name: 'userResultQuery', type: 'UserResultQuery' },
+      ],
     },
   },
 } as const satisfies XsdSchema;

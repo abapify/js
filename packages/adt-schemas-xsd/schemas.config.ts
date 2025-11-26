@@ -30,6 +30,10 @@ export const schemas = [
   'transportmanagment',
   'transportsearch',
   
+  // Configuration
+  'configuration',
+  'configurations',
+  
   // Checks & Activation
   'checkrun',
   'checklist',
