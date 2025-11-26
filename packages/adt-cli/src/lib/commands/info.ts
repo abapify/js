@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import type { ResponseContext, SessionXml, SystemInformationJson } from '@abapify/adt-client-v2';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const infoCommand = new Command('info')
@@ -17,20 +16,11 @@ export const infoCommand = new Command('info')
       const showSession = options.session || (!options.session && !options.system);
       const showSystem = options.system || (!options.session && !options.system);
 
-      // Capture plugin to get both XML and JSON
+      // Capture data for output
       let capturedData: any = {};
 
-      // Create v2 client with capture plugin
-      const adtClient = getAdtClientV2({
-        plugins: [
-          {
-            name: 'capture',
-            process: (context: ResponseContext) => {
-              return context.parsedData;
-            },
-          },
-        ],
-      });
+      // Create v2 client (uses global CLI context automatically)
+      const adtClient = await getAdtClientV2();
 
       // Fetch session info
       if (showSession) {
