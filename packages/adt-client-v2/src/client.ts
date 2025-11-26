@@ -10,7 +10,9 @@
 import { createClient } from './base';
 import { adtContract } from './contract';
 import { createAdtAdapter, type AdtAdapterConfig } from './adapter';
-import type { HttpRequestOptions } from 'speci/rest';
+import { createTransportService } from './services/cts';
+import type { HttpRequestOptions, RestClient } from 'speci/rest';
+import { AdtContract } from 'adt-contracts';
 
 /**
  * Fetch options for generic HTTP requests
@@ -46,6 +48,8 @@ export interface FetchOptions {
  *   headers: { Accept: 'application/xml' }
  * });
  */
+
+export type AdtClientType = RestClient<typeof adtContract>
 export function createAdtClient(config: AdtAdapterConfig) {
   const adapter = createAdtAdapter(config);
   const adtClient = createClient(adtContract, {
@@ -61,14 +65,12 @@ export function createAdtClient(config: AdtAdapterConfig) {
     adt: adtClient,
 
     /**
-     * High-level service APIs (placeholder for future implementation)
-     * Will contain business logic, validation, and orchestration
+     * High-level service APIs
+     * Business logic, validation, and orchestration
      */
     services: {
-      // TODO: Implement service layer
-      // classes: createClassesService(adtClient),
-      // packages: createPackagesService(adtClient),
-      // transports: createTransportsService(adtClient),
+      /** CTS Transport management */
+      transports: createTransportService(adtClient, config.logger),
     },
 
     /**

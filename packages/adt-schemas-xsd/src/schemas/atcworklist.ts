@@ -20,6 +20,7 @@ export default {
       sequence: [
         { name: 'objectSets', type: 'AtcObjectSetList' },
         { name: 'objects', type: 'string' },
+        { name: 'descriptionTags', type: 'DescriptionTags' },
         { name: 'infos', type: 'string' },
       ],
       attributes: [

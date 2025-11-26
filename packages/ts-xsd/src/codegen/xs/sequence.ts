@@ -22,6 +22,7 @@ export function generateElementObj(
   // Find sequence/choice
   const sequence = findChild(typeEl, 'sequence');
   const choice = findChild(typeEl, 'choice');
+  const simpleContent = findChild(typeEl, 'simpleContent');
 
   if (sequence) {
     const fields = generateFieldsObj(sequence, complexTypes, simpleTypes);
@@ -37,7 +38,22 @@ export function generateElementObj(
     }
   }
 
-  // Find attributes
+  // Handle simpleContent with extension (text content + attributes)
+  if (simpleContent) {
+    const extension = findChild(simpleContent, 'extension');
+    if (extension) {
+      // Mark as having text content
+      result.text = true;
+      // Get attributes from extension
+      const extAttrs = findChildren(extension, 'attribute');
+      if (extAttrs.length > 0) {
+        result.attributes = extAttrs.map(generateAttributeObj);
+      }
+      return result;
+    }
+  }
+
+  // Find attributes (direct children)
   const attributes = findChildren(typeEl, 'attribute');
   if (attributes.length > 0) {
     result.attributes = attributes.map(generateAttributeObj);
@@ -57,9 +73,10 @@ export function generateElementDef(
 ): string {
   const parts: string[] = ['{'];
 
-  // Find sequence/choice
+  // Find sequence/choice/simpleContent
   const sequence = findChild(typeEl, 'sequence');
   const choice = findChild(typeEl, 'choice');
+  const simpleContent = findChild(typeEl, 'simpleContent');
 
   if (sequence) {
     const fields = generateFields(sequence, complexTypes, simpleTypes);
@@ -83,7 +100,28 @@ export function generateElementDef(
     }
   }
 
-  // Find attributes
+  // Handle simpleContent with extension (text content + attributes)
+  if (simpleContent) {
+    const extension = findChild(simpleContent, 'extension');
+    if (extension) {
+      // Mark as having text content
+      parts.push(`${indent}  text: true,`);
+      // Get attributes from extension
+      const extAttrs = findChildren(extension, 'attribute');
+      if (extAttrs.length > 0) {
+        parts.push(`${indent}  attributes: [`);
+        for (const attr of extAttrs) {
+          const attrDef = generateAttributeDef(attr);
+          parts.push(`${indent}    ${attrDef},`);
+        }
+        parts.push(`${indent}  ],`);
+      }
+      parts.push(`${indent}}`);
+      return parts.join('\n');
+    }
+  }
+
+  // Find attributes (direct children)
   const attributes = findChildren(typeEl, 'attribute');
   if (attributes.length > 0) {
     parts.push(`${indent}  attributes: [`);
