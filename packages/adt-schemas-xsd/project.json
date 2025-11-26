@@ -1,0 +1,36 @@
+{
+  "name": "adt-schemas-xsd",
+  "targets": {
+    "download": {
+      "command": "npx tsx ../../tools/p2-cli/src/cli.ts download https://tools.hana.ondemand.com/latest -o .cache -f 'com.sap.adt.*' --extract --extract-output .xsd --extract-patterns 'model/*.xsd'",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": [],
+      "inputs": [],
+      "outputs": ["{projectRoot}/.cache", "{projectRoot}/.xsd"],
+      "cache": false
+    },
+    "generate": {
+      "command": "tsx scripts/generate.ts",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": ["download", "ts-xsd:build"],
+      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/scripts/*.ts"],
+      "outputs": ["{projectRoot}/src/schemas"]
+    },
+    "build": {
+      "executor": "@nickvision/nx-tsdown:build",
+      "dependsOn": ["generate"],
+      "inputs": ["{projectRoot}/src/**/*.ts", "{projectRoot}/tsconfig.json"],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "lint": {
+      "executor": "@nickvision/nx-biome:lint",
+      "options": {
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
+}
