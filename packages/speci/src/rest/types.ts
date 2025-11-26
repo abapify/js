@@ -17,19 +17,16 @@ export type RestMethod =
   | 'OPTIONS';
 
 /**
- * Inferrable schema interface
+ * Inferrable schema interface (explicit _infer property)
  *
  * Schemas that implement this interface will have their types automatically inferred.
- * No need for helper functions or type assertions!
  *
  * @example
- * // Define your schema with _infer property
  * const UserSchema = {
  *   ...yourSchemaDefinition,
  *   _infer: undefined as unknown as User
  * } as const;
  *
- * // Use directly - type is inferred automatically!
  * responses: { 200: UserSchema }  // Type is User
  */
 export interface Inferrable<T = unknown> {
@@ -37,6 +34,27 @@ export interface Inferrable<T = unknown> {
   _infer?: T;
   /** Allow any other properties for schema definition */
   [key: string]: unknown;
+}
+
+/**
+ * Serializable schema interface (parse/build methods)
+ *
+ * Schemas with parse() method will have their return type automatically inferred.
+ * This is the preferred pattern for schema libraries like ts-xsd.
+ *
+ * @example
+ * const UserSchema = {
+ *   parse: (raw: string): User => JSON.parse(raw),
+ *   build: (data: User): string => JSON.stringify(data),
+ * };
+ *
+ * responses: { 200: UserSchema }  // Type is User (inferred from parse return type)
+ */
+export interface Serializable<T = unknown> {
+  /** Parse raw string to typed object */
+  parse(raw: string): T;
+  /** Build typed object to string */
+  build?(data: T): string;
 }
 
 /**
@@ -48,13 +66,31 @@ export function createInferrable<T>(): Inferrable<T> {
 }
 
 /**
- * Infer type from an Inferrable schema
- * Falls back to the original type if not Inferrable (supports type assertions)
+ * Infer type from a schema
+ * 
+ * Supports multiple inference patterns (checked in order):
+ * 1. Explicit _infer property (Inferrable<T>)
+ * 2. parse() method return type (Serializable<T>)
+ * 3. Falls back to the original type T
+ *
+ * @example
+ * // Pattern 1: _infer property
+ * type A = InferSchema<{ _infer: User }>  // User
+ *
+ * // Pattern 2: parse() method
+ * type B = InferSchema<{ parse(s: string): User }>  // User
+ *
+ * // Pattern 3: fallback
+ * type C = InferSchema<string>  // string
  */
-export type InferSchema<T> = T extends Inferrable<infer U>
-  ? U extends undefined
-    ? T
-    : U // If U is undefined, return T (for plain type assertions)
+export type InferSchema<T> = 
+  // Pattern 1: Check for explicit _infer property
+  T extends { _infer: infer U } 
+    ? U 
+  // Pattern 2: Check for parse() method and infer from return type
+  : T extends { parse(raw: string): infer U } 
+    ? U 
+  // Pattern 3: Fallback to original type
   : T;
 
 /**

@@ -20,6 +20,8 @@ export { default as atcworklist } from './schemas/atcworklist';
 export { default as transportmanagment } from './schemas/transportmanagment';
 export { default as checkrun } from './schemas/checkrun';
 export { default as transportsearch } from './schemas/transportsearch';
+export { default as configuration } from './schemas/configuration';
+export { default as configurations } from './schemas/configurations';
 export { default as checklist } from './schemas/checklist';
 export { default as debugger } from './schemas/debugger';
 export { default as logpoint } from './schemas/logpoint';

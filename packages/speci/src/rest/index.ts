@@ -42,6 +42,7 @@ export type {
   InferSuccessResponse,
   SchemaLike,
   Inferrable,
+  Serializable,
   InferSchema,
 } from './types';
 

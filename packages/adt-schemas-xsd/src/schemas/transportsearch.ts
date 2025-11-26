@@ -22,6 +22,7 @@ export default {
     },
     request: {
       sequence: [
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
         { name: 'tasks', type: 'string', minOccurs: 0 },
       ],
       attributes: [
@@ -39,6 +40,9 @@ export default {
       ],
     },
     task: {
+      sequence: [
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
       attributes: [
         { name: 'number', type: 'string' },
         { name: 'owner', type: 'string' },

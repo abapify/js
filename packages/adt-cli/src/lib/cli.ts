@@ -23,6 +23,7 @@ import {
   createTestLogCommand,
   createTestAdtCommand,
   createResearchSessionsCommand,
+  createCtsCommand,
 } from './commands';
 import { deployCommand } from './commands/deploy/index';
 import { createUnlockCommand } from './commands/unlock/index';
@@ -199,6 +200,9 @@ export async function createCLI(): Promise<Command> {
 
   // Research command
   program.addCommand(createResearchSessionsCommand());
+
+  // CTS commands (v2 client)
+  program.addCommand(createCtsCommand());
 
   // Test commands for debugging
   program.addCommand(createTestLogCommand());

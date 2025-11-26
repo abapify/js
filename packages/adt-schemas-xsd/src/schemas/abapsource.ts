@@ -26,6 +26,10 @@ export default {
       ],
     },
     AbapSourceTemplateProperty: {
+      text: true,
+      attributes: [
+        { name: 'key', type: 'string' },
+      ],
     },
     AbapSourceObject: {
     },
@@ -36,14 +40,21 @@ export default {
       ],
     },
     AbapSyntaxConfigurations: {
+      sequence: [
+        { name: 'syntaxConfiguration', type: 'SyntaxConfiguration', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
     },
     AbapLanguage: {
       sequence: [
         { name: 'version', type: 'string', minOccurs: 0 },
         { name: 'description', type: 'string', minOccurs: 0 },
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
       ],
     },
     AbapObjectUsage: {
+      sequence: [
+        { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
       attributes: [
         { name: 'restricted', type: 'boolean' },
       ],
