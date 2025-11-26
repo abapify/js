@@ -210,6 +210,52 @@ const info = await client.adt.core.http.systeminformation.getSystemInformation()
 console.log('System:', info);
 ```
 
+## Plugin Architecture
+
+Auth plugins provide authentication methods. AuthManager is generic and delegates to plugins.
+
+### Plugin Contract
+
+All auth plugins MUST:
+
+1. **Export default** - The plugin must be the default export
+2. **Implement AuthPlugin interface** - Must have `authenticate(options): Promise<AuthPluginResult>`
+3. **Return AuthPluginResult** - Standard format
+
+```typescript
+// Plugin implementation
+import type { AuthPlugin, AuthPluginResult, AuthPluginOptions } from '@abapify/adt-auth';
+
+const authPlugin: AuthPlugin = {
+  async authenticate(options: AuthPluginOptions): Promise<AuthPluginResult> {
+    // Your auth logic...
+    return {
+      method: 'cookie',
+      credentials: {
+        cookies: 'cookie-string',
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+      },
+    };
+  },
+};
+
+export default authPlugin;
+```
+
+### Available Plugins
+
+- **@abapify/adt-puppeteer** - Browser-based SSO authentication
+
+### Credential Refresh
+
+When sessions expire, AuthManager automatically refreshes using the stored plugin:
+
+```typescript
+// AuthManager loads plugin dynamically
+const pluginModule = await import(session.auth.plugin);
+const result = await pluginModule.default.authenticate(options);
+```
+
 ## Security
 
 ### Credential Storage

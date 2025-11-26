@@ -189,11 +189,11 @@ export class AuthManager {
       throw new Error('No auth plugin configured. Please re-authenticate manually.');
     }
 
-    // Dynamic import of the auth plugin
-    const pluginModule = await import(session.auth.plugin) as { authPlugin: AuthPlugin };
+    // Dynamic import of the auth plugin (expects default export)
+    const pluginModule = await import(session.auth.plugin) as { default?: AuthPlugin };
     
-    if (!pluginModule.authPlugin?.authenticate) {
-      throw new Error(`Plugin ${session.auth.plugin} does not export authPlugin.authenticate`);
+    if (!pluginModule.default?.authenticate) {
+      throw new Error(`Plugin ${session.auth.plugin} does not have a default export with authenticate method`);
     }
 
     const options: AuthPluginOptions = { 
@@ -201,7 +201,8 @@ export class AuthManager {
       client: session.client,
     };
 
-    const result = await pluginModule.authPlugin.authenticate(options);
+    // Plugin MUST return standard AuthPluginResult
+    const result = await pluginModule.default.authenticate(options);
 
     // Build destination for buildSession
     const destination: Destination = {
