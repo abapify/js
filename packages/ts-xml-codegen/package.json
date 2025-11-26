@@ -1,0 +1,35 @@
+{
+  "name": "ts-xml-codegen",
+  "version": "0.1.0",
+  "description": "Code generator for ts-xml schemas from XSD files",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "ts-xml-codegen": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "xsd",
+    "codegen",
+    "ts-xml",
+    "typescript",
+    "code-generation"
+  ],
+  "author": "abapify",
+  "license": "MIT",
+  "dependencies": {
+    "ts-xml": "workspace:*",
+    "ts-xml-xsd": "workspace:*"
+  },
+  "module": "./dist/index.js"
+}
