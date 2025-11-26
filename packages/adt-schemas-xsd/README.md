@@ -108,44 +108,6 @@ const SCHEMAS_TO_GENERATE = [
 
 The custom resolver handles SAP's non-standard `platform:/plugin/...` URLs in `xsd:import` statements.
 
-## Legal Compliance
-
-### EU Directive 2009/24/EC Article 6
-
-This package generates TypeScript types from **XSD schema files** obtained from SAP's public Eclipse update site. This is legally permissible because:
-
-1. **Schemas are interface definitions** - XSD files define XML structure (element names, attributes, types), not implementation code
-2. **Interoperability purpose** - We need these schemas to build compatible tools that communicate with SAP systems
-3. **No code copying** - We generate fresh TypeScript code based on schema structure, not SAP's Java implementation
-4. **Public distribution** - SAP distributes these schemas via public Eclipse P2 repository
-
-### What This Package Contains
-
-| Content | Source | Legal Status |
-|---------|--------|--------------|
-| TypeScript interfaces | **Generated** from XSD | ✅ Original work |
-| XML element names | From XSD schemas | ✅ Interface definitions (not copyrightable) |
-| Namespace URIs | From XSD schemas | ✅ Functional identifiers |
-
-### What This Package Does NOT Contain
-
-- ❌ SAP Java source code
-- ❌ Decompiled implementations
-- ❌ SAP proprietary algorithms
-- ❌ Eclipse plugin binaries
-
-### Clean-Room Approach
-
-The generated TypeScript is created through automated transformation:
-
-```
-XSD Schema (public) → ts-xsd codegen → TypeScript types (original)
-```
-
-No human reads SAP implementation code during this process. The codegen tool only parses XML schema definitions.
-
 ## License
 
 MIT
-
-The MIT license applies to the **generated TypeScript code** in this package. The underlying XSD schemas are obtained from SAP's public Eclipse update site and remain SAP's intellectual property. This package does not redistribute the original XSD files.
