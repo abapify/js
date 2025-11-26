@@ -147,3 +147,5 @@ No human reads SAP implementation code during this process. The codegen tool onl
 ## License
 
 MIT
+
+The MIT license applies to the **generated TypeScript code** in this package. The underlying XSD schemas are obtained from SAP's public Eclipse update site and remain SAP's intellectual property. This package does not redistribute the original XSD files.
