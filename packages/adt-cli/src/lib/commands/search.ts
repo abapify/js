@@ -8,7 +8,7 @@ export const searchCommand = new Command('search')
   .option('--json', 'Output results as JSON')
   .action(async (query: string, options) => {
     try {
-      const adtClient = getAdtClientV2();
+      const adtClient = await getAdtClientV2();
       const maxResults = parseInt(options.max, 10);
 
       console.log(`🔍 Searching for: "${query}" (max: ${maxResults} results)...\n`);
