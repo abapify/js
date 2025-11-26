@@ -9,7 +9,7 @@
  * - This module extracts credentials and creates v2 client
  * - v2 client remains pure (no CLI/file I/O dependencies)
  */
-import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type ResponseContext } from '@abapify/adt-client-v2';
+import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type ResponseContext, type AdtClient } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
 import { loadAuthSession, isExpired, refreshCredentials, type CookieCredentials, type BasicCredentials, type AuthSession } from './auth';
 
@@ -181,7 +181,7 @@ async function tryAutoRefresh(session: AuthSession, sid?: string): Promise<AuthS
  *   plugins: [myPlugin]
  * });
  */
-export async function getAdtClientV2(options?: AdtClientV2Options) {
+export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtClient> {
   // Merge with global CLI context (explicit options take precedence)
   const ctx = getCliContext();
   const effectiveOptions = {
