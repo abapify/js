@@ -1,0 +1,9 @@
+# Downloaded SDK
+.cache/
+.xsd/
+
+# Build output
+dist/
+
+# Generated schemas (committed for convenience, but can be regenerated)
+# src/schemas/
