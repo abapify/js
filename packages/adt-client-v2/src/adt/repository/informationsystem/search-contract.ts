@@ -5,7 +5,7 @@
  */
 
 import { createContract, adtHttp } from '../../../base/contract';
-import { ObjectReferencesSchema, type ObjectReferencesXml } from './search-schema';
+import { ObjectReferencesSchema } from './search-schema';
 
 /**
  * Search contract for ABAP repository objects

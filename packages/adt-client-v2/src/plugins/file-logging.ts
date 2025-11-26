@@ -3,7 +3,7 @@
  */
 
 import { mkdirSync, writeFileSync } from 'fs';
-import { dirname, join, resolve } from 'path';
+import { dirname, join } from 'path';
 import type { ResponsePlugin, ResponseContext } from './types';
 import type { Logger } from '@abapify/logger';
 
@@ -75,7 +75,7 @@ export class FileLoggingPlugin implements ResponsePlugin {
     }
 
     // Parse segments
-    const [basePath, ...rest] = path.split('?');
+    const [basePath] = path.split('?');
     const segments = basePath.split('/').filter((s) => s);
 
     // Check if source endpoint (no extension)

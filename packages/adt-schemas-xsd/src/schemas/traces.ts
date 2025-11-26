@@ -152,6 +152,9 @@ export default {
       ],
     },
     UriMapping: {
+      sequence: [
+        { name: 'objectReference', type: 'ObjectReference' },
+      ],
     },
   },
 } as const satisfies XsdSchema;
