@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import type { ResponseContext } from '@abapify/adt-client-v2';
-import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getAdtClientV2, getCaptured } from '../utils/adt-client-v2';
 
 export const discoveryCommand = new Command('discovery')
   .description('Discover available ADT services')
@@ -11,40 +10,26 @@ export const discoveryCommand = new Command('discovery')
   )
   .action(async (options, command) => {
     try {
-      // Capture plugin to get both XML and JSON
-      let capturedXml: string | undefined;
-      let capturedJson: unknown | undefined;
-
-      // Create v2 client with capture plugin
-      const adtClient = getAdtClientV2({
-        plugins: [
-          {
-            name: 'capture',
-            process: (context: ResponseContext) => {
-              capturedXml = context.rawText;
-              capturedJson = context.parsedData;
-              return context.parsedData;
-            },
-          },
-        ],
-      });
+      // Create v2 client with capture enabled
+      const adtClient = await getAdtClientV2({ capture: true });
 
       // Call discovery endpoint
       const discovery = await adtClient.adt.discovery.getDiscovery();
+
+      // Get captured data
+      const captured = getCaptured();
 
       if (options.output) {
         // Detect format based on file extension
         const isXml = options.output.toLowerCase().endsWith('.xml');
 
         if (isXml) {
-          if (capturedXml) {
+          if (captured.xml) {
             // Save raw XML
-            writeFileSync(options.output, capturedXml);
+            writeFileSync(options.output, captured.xml);
             console.log(`💾 Discovery XML saved to: ${options.output}`);
           } else {
-            console.error('❌ No XML captured - plugin may not have run');
-            console.error('Captured XML:', capturedXml);
-            console.error('Captured JSON:', capturedJson);
+            console.error('❌ No XML captured');
             process.exit(1);
           }
         } else {

@@ -12,15 +12,9 @@ export const fetchCommand = new Command('fetch')
   .option('--accept <type>', 'Set Accept header (shorthand for -H "Accept: <type>")')
   .action(async (url: string, options, command) => {
     try {
-      // Get global logging options
-      const globalOpts = command.optsWithGlobals();
-
-      const adtClient = getAdtClientV2({
-        logger: (command as any).logger,
-        logResponseFiles: globalOpts.logResponseFiles,
-        logOutput: globalOpts.logOutput,
+      // Create v2 client (uses global CLI context automatically)
+      const adtClient = await getAdtClientV2({
         writeMetadata: true, // Always write metadata for debugging
-        sid: globalOpts.sid, // Use --sid flag if provided
       });
 
       // Parse custom headers
