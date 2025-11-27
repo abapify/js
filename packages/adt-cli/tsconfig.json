@@ -4,15 +4,6 @@
   "include": [],
   "references": [
     {
-      "path": "../adt-client-v2"
-    },
-    {
-      "path": "../adt-client"
-    },
-    {
-      "path": "../adk"
-    },
-    {
       "path": "./tsconfig.lib.json"
     }
   ]
