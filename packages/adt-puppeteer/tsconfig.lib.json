@@ -10,9 +10,6 @@
   "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"],
   "references": [
     {
-      "path": "../.."
-    },
-    {
       "path": "../adt-config/tsconfig.lib.json"
     },
     {

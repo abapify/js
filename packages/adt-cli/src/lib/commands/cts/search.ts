@@ -96,8 +96,8 @@ export const ctsSearchCommand = new Command('search')
 
       console.log('🔍 Searching transports...');
 
-      // Use transport service - handles config lookup automatically
-      const result = await client.services.transports.list();
+      // Use transport service - listRaw() returns the raw response for tree display
+      const result = await client.services.transports.listRaw();
 
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));

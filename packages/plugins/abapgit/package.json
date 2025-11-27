@@ -14,7 +14,7 @@
     "name": "abapgit"
   },
   "dependencies": {
-    "@abapify/adt-schemas": "workspace:*",
-    "ts-xml": "workspace:*"
+    "@abapify/adt-schemas": "*",
+    "ts-xml": "*"
   }
 }

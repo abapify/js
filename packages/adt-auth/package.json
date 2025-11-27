@@ -19,19 +19,9 @@
     "dist",
     "README.md"
   ],
-  "scripts": {
-    "build": "tsdown",
-    "test": "vitest",
-    "typecheck": "tsc --noEmit"
-  },
   "dependencies": {
+    "@abapify/logger": "*",
     "proxy-agent": "^6.4.0"
-  },
-  "devDependencies": {
-    "@abapify/logger": "workspace:*",
-    "tsdown": "^0.15.0",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
   },
   "keywords": [
     "sap",
