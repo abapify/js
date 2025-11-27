@@ -250,4 +250,224 @@ describe('ts-xsd', () => {
       assert.ok(age !== undefined);
     });
   });
+
+  describe('cross-namespace element references', () => {
+    // This tests the fix for element references from imported schemas
+    // When XSD uses ref="atom:link", codegen generates type: 'Link'
+    // but the actual type in atom.xsd is 'linkType'
+    // The parser should create aliases to handle this mismatch
+    
+    const AtomSchema = {
+      ns: 'http://www.w3.org/2005/Atom',
+      prefix: 'atom',
+      root: 'linkType',  // Note: root is 'linkType', not 'Link'
+      elements: {
+        linkType: {
+          attributes: [
+            { name: 'href', type: 'string', required: true },
+            { name: 'rel', type: 'string' },
+            { name: 'type', type: 'string' },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    const ConfigurationSchema = {
+      ns: 'http://www.sap.com/adt/configuration',
+      prefix: 'config',
+      root: 'Configuration',
+      include: [AtomSchema],
+      elements: {
+        Configuration: {
+          sequence: [
+            { name: 'link', type: 'Link', minOccurs: 0 },  // Note: type is 'Link', not 'linkType'
+          ],
+          attributes: [
+            { name: 'client', type: 'string' },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    it('should parse cross-namespace element references', () => {
+      const xml = `
+        <config:Configuration xmlns:config="http://www.sap.com/adt/configuration" config:client="200">
+          <atom:link xmlns:atom="http://www.w3.org/2005/Atom" href="/path/to/resource" rel="self" type="application/xml"/>
+        </config:Configuration>
+      `;
+
+      const config = parse(ConfigurationSchema, xml) as any;
+
+      assert.equal(config.client, '200');
+      assert.ok(config.link, 'link should be parsed');
+      assert.equal(config.link.href, '/path/to/resource');
+      assert.equal(config.link.rel, 'self');
+      assert.equal(config.link.type, 'application/xml');
+    });
+
+    it('should handle linkType alias for Link', () => {
+      // Test that 'Link' is aliased to 'linkType' when root ends with 'Type'
+      const ConfigurationsSchema = {
+        ns: 'http://www.sap.com/adt/configurations',
+        root: 'Configurations',
+        include: [AtomSchema, ConfigurationSchema],
+        elements: {
+          Configurations: {
+            sequence: [
+              { name: 'configuration', type: 'Configuration', maxOccurs: 'unbounded' },
+            ],
+          },
+        },
+      } as const satisfies XsdSchema;
+
+      const xml = `
+        <configurations:configurations xmlns:configurations="http://www.sap.com/adt/configurations">
+          <configuration:configuration xmlns:configuration="http://www.sap.com/adt/configuration" configuration:client="100">
+            <atom:link xmlns:atom="http://www.w3.org/2005/Atom" href="/config/1" rel="self" type="application/xml"/>
+          </configuration:configuration>
+        </configurations:configurations>
+      `;
+
+      const configs = parse(ConfigurationsSchema, xml) as any;
+
+      assert.ok(configs.configuration, 'configuration should be parsed');
+      assert.equal(configs.configuration.length, 1);
+      assert.equal(configs.configuration[0].client, '100');
+      assert.ok(configs.configuration[0].link, 'link should be parsed');
+      assert.equal(configs.configuration[0].link.href, '/config/1');
+    });
+  });
+
+  describe('maxOccurs cardinality', () => {
+    // Schema with explicit maxOccurs="1" - should NOT be an array
+    const ConfigSchema = {
+      root: 'Configuration',
+      elements: {
+        Configuration: {
+          sequence: [
+            { name: 'name', type: 'string' },
+            { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 1 },  // explicit maxOccurs=1
+          ],
+        },
+        Link: {
+          attributes: [
+            { name: 'href', type: 'string', required: true },
+            { name: 'rel', type: 'string' },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    type Config = InferXsd<typeof ConfigSchema>;
+
+    it('should parse maxOccurs=1 as single element, not array', () => {
+      const xml = `
+        <Configuration>
+          <name>Test Config</name>
+          <link href="http://example.com" rel="self"/>
+        </Configuration>
+      `;
+
+      const config = parse(ConfigSchema, xml);
+
+      assert.equal(config.name, 'Test Config');
+      // link should be a single object, not an array
+      assert.equal(typeof config.link, 'object');
+      assert.ok(!Array.isArray(config.link), 'link should NOT be an array when maxOccurs=1');
+      assert.equal(config.link?.href, 'http://example.com');
+      assert.equal(config.link?.rel, 'self');
+    });
+
+    it('should build maxOccurs=1 as single element', () => {
+      const config: Config = {
+        name: 'Build Test',
+        link: { href: 'http://build.com', rel: 'self' },
+      };
+
+      const xml = build(ConfigSchema, config);
+
+      // Should contain single link element, not wrapped in array
+      assert.ok(xml.includes('<name>Build Test</name>'));
+      assert.ok(xml.includes('href="http://build.com"'));
+      assert.ok(xml.includes('rel="self"'));
+      // Verify it's a single element (no duplicate link tags)
+      const linkCount = (xml.match(/<link/g) || []).length;
+      assert.equal(linkCount, 1, 'Should have exactly one link element');
+    });
+
+    it('should round-trip maxOccurs=1 correctly', () => {
+      const original: Config = {
+        name: 'Round Trip',
+        link: { href: 'http://roundtrip.com', rel: 'alternate' },
+      };
+
+      const xml = build(ConfigSchema, original);
+      const parsed = parse(ConfigSchema, xml);
+
+      assert.equal(parsed.name, original.name);
+      assert.equal(parsed.link?.href, original.link?.href);
+      assert.equal(parsed.link?.rel, original.link?.rel);
+    });
+
+    it('should infer maxOccurs=1 as single element type', () => {
+      // Compile-time type check: link should be Link | undefined, NOT Link[]
+      const config: Config = {
+        name: 'Type Test',
+        link: { href: 'http://test.com', rel: 'alternate' },  // single object, not array
+      };
+
+      // This should compile - link is optional single object
+      const href: string | undefined = config.link?.href;
+      assert.equal(href, 'http://test.com');
+    });
+
+    // Schema with maxOccurs > 1 - SHOULD be an array
+    const MultiLinkSchema = {
+      root: 'Entry',
+      elements: {
+        Entry: {
+          sequence: [
+            { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 5 },  // explicit maxOccurs > 1
+          ],
+        },
+        Link: {
+          attributes: [
+            { name: 'href', type: 'string', required: true },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    type Entry = InferXsd<typeof MultiLinkSchema>;
+
+    it('should parse maxOccurs > 1 as array', () => {
+      const xml = `
+        <Entry>
+          <link href="http://one.com"/>
+          <link href="http://two.com"/>
+        </Entry>
+      `;
+
+      const entry = parse(MultiLinkSchema, xml);
+
+      assert.ok(Array.isArray(entry.link), 'link should be an array when maxOccurs > 1');
+      assert.equal(entry.link.length, 2);
+      assert.equal(entry.link[0].href, 'http://one.com');
+      assert.equal(entry.link[1].href, 'http://two.com');
+    });
+
+    it('should infer maxOccurs > 1 as array type', () => {
+      // Compile-time type check: link should be Link[]
+      const entry: Entry = {
+        link: [
+          { href: 'http://a.com' },
+          { href: 'http://b.com' },
+        ],
+      };
+
+      // This should compile - link is an array
+      const firstHref: string | undefined = entry.link[0]?.href;
+      assert.equal(firstHref, 'http://a.com');
+    });
+  });
 });
