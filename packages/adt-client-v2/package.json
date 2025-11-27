@@ -14,7 +14,8 @@
     "@abapify/logger": "*",
     "adt-contracts": "*",
     "speci": "*",
-    "ts-xml": "*"
+    "ts-xml": "*",
+    "ts-xsd": "*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

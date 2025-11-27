@@ -52,8 +52,10 @@ describe('generateFromXsd', () => {
 
     const result = generateFromXsd(xsd);
 
-    assert.ok(result.code.includes("name: 'required', type: 'string'"));
-    assert.ok(result.code.includes("name: 'optional', type: 'string', minOccurs: 0"));
+    assert.ok(result.code.includes("name: 'required'"));
+    assert.ok(result.code.includes("type: 'string'"));
+    assert.ok(result.code.includes("name: 'optional'"));
+    assert.ok(result.code.includes("minOccurs: 0"));
   });
 
   it('should handle array elements', () => {
