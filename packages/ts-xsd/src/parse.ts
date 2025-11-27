@@ -12,6 +12,7 @@ type XmlElement = any;
 
 /**
  * Merge all elements from schema and its includes
+ * Also creates aliases for root elements (e.g., 'Link' -> 'linkType' if root is 'linkType')
  */
 function getAllElements(schema: XsdSchema): { readonly [key: string]: XsdElement } {
   if (!schema.include || schema.include.length === 0) {
@@ -21,7 +22,28 @@ function getAllElements(schema: XsdSchema): { readonly [key: string]: XsdElement
   // Merge elements from all includes
   const merged: Record<string, XsdElement> = { ...schema.elements };
   for (const included of schema.include) {
-    Object.assign(merged, getAllElements(included));
+    const includedElements = getAllElements(included);
+    Object.assign(merged, includedElements);
+    
+    // Create alias for root element with capitalized name
+    // This handles cases like ref="atom:link" which generates type: 'Link'
+    // but the actual type in atom.xsd is 'linkType'
+    if (included.root && includedElements[included.root]) {
+      // Create alias: 'Link' -> linkType element definition
+      const capitalizedName = included.root.charAt(0).toUpperCase() + included.root.slice(1);
+      if (!merged[capitalizedName] && capitalizedName !== included.root) {
+        merged[capitalizedName] = includedElements[included.root];
+      }
+      // Also create alias without 'Type' suffix if root ends with 'Type'
+      // e.g., 'linkType' -> also accessible as 'Link'
+      if (included.root.endsWith('Type')) {
+        const baseName = included.root.slice(0, -4); // Remove 'Type'
+        const capitalizedBase = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+        if (!merged[capitalizedBase]) {
+          merged[capitalizedBase] = includedElements[included.root];
+        }
+      }
+    }
   }
   return merged;
 }

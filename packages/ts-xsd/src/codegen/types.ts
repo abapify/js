@@ -13,11 +13,21 @@ export type XmlElement = any;
  */
 export type ImportResolver = (schemaLocation: string, namespace: string) => string;
 
+/** Parsed imported schema info for resolving element references */
+export interface ImportedSchema {
+  /** Namespace URI */
+  namespace: string;
+  /** Element definitions: element name -> type name */
+  elements: Map<string, string>;
+}
+
 export interface CodegenOptions {
   /** Namespace prefix to use */
   prefix?: string;
   /** Resolver for xsd:import schemaLocation */
   resolver?: ImportResolver;
+  /** Pre-parsed imported schemas for resolving element references */
+  importedSchemas?: ImportedSchema[];
 }
 
 export interface GeneratedSchema {
@@ -45,4 +55,6 @@ export interface ParsedSchema {
   simpleTypes: Map<string, XmlElement>;
   rootElement: { name: string; type?: string } | null;
   imports: XsdImport[];
+  /** Namespace prefix to URI mapping from xmlns:* attributes */
+  nsMap: Map<string, string>;
 }

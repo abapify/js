@@ -6,6 +6,7 @@
  */
 
 import { parse, build as tsxmlBuild, type ElementSchema } from './base';
+import { parse as tsxsdParse, type XsdSchema } from 'ts-xsd';
 import type { AdtConnectionConfig } from './types';
 import type {
   HttpAdapter as SpeciHttpAdapter,
@@ -121,9 +122,15 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
 
       // Extract response schema from responses object (passed by speci)
       let responseSchema: ElementSchema | undefined;
+      let xsdSchema: XsdSchema | undefined;
       let serializableSchema: { parse: (xml: string) => unknown } | undefined;
       if (options.responses) {
         const schema200 = options.responses[200];
+        logger?.debug('Schema detection:', {
+          hasSchema: !!schema200,
+          type: typeof schema200,
+          keys: schema200 && typeof schema200 === 'object' ? Object.keys(schema200) : [],
+        });
         // Check if it's a Serializable schema (has 'parse' method)
         if (
           schema200 &&
@@ -133,7 +140,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
         ) {
           serializableSchema = schema200 as { parse: (xml: string) => unknown };
         }
-        // Check if it's an ElementSchema (has 'tag' and 'fields' properties)
+        // Check if it's an ElementSchema (ts-xml: has 'tag' and 'fields' properties)
         else if (
           schema200 &&
           typeof schema200 === 'object' &&
@@ -141,6 +148,15 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
           'fields' in schema200
         ) {
           responseSchema = schema200 as ElementSchema;
+        }
+        // Check if it's an XsdSchema (ts-xsd: has 'root' and 'elements' properties)
+        else if (
+          schema200 &&
+          typeof schema200 === 'object' &&
+          'root' in schema200 &&
+          'elements' in schema200
+        ) {
+          xsdSchema = schema200 as XsdSchema;
         }
       }
 
@@ -224,6 +240,10 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
         // If ts-xml ElementSchema available and content is XML, parse it automatically
         else if (responseSchema && contentType.includes('xml')) {
           data = parse(responseSchema, rawText);
+        }
+        // If ts-xsd XsdSchema available and content is XML, parse it automatically
+        else if (xsdSchema && contentType.includes('xml')) {
+          data = tsxsdParse(xsdSchema, rawText);
         } else {
           data = rawText;
         }

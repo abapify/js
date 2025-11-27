@@ -4,7 +4,7 @@
  * Generates sequence/choice definitions from XSD
  */
 
-import type { XmlElement } from '../types';
+import type { XmlElement, ImportedSchema } from '../types';
 import { findChild, findChildren } from '../utils';
 import { generateFieldsObj, generateFields } from './element';
 import { generateAttributeObj, generateAttributeDef } from './attribute';
@@ -15,7 +15,9 @@ import { generateAttributeObj, generateAttributeDef } from './attribute';
 export function generateElementObj(
   typeEl: XmlElement,
   complexTypes: Map<string, XmlElement>,
-  simpleTypes: Map<string, XmlElement>
+  simpleTypes: Map<string, XmlElement>,
+  nsMap?: Map<string, string>,
+  importedSchemas?: ImportedSchema[]
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
@@ -25,14 +27,14 @@ export function generateElementObj(
   const simpleContent = findChild(typeEl, 'simpleContent');
 
   if (sequence) {
-    const fields = generateFieldsObj(sequence, complexTypes, simpleTypes);
+    const fields = generateFieldsObj(sequence, complexTypes, simpleTypes, nsMap, importedSchemas);
     if (fields.length > 0) {
       result.sequence = fields;
     }
   }
 
   if (choice) {
-    const fields = generateFieldsObj(choice, complexTypes, simpleTypes);
+    const fields = generateFieldsObj(choice, complexTypes, simpleTypes, nsMap, importedSchemas);
     if (fields.length > 0) {
       result.choice = fields;
     }
@@ -69,7 +71,9 @@ export function generateElementDef(
   typeEl: XmlElement,
   complexTypes: Map<string, XmlElement>,
   simpleTypes: Map<string, XmlElement>,
-  indent: string
+  indent: string,
+  nsMap?: Map<string, string>,
+  importedSchemas?: ImportedSchema[]
 ): string {
   const parts: string[] = ['{'];
 
@@ -79,7 +83,7 @@ export function generateElementDef(
   const simpleContent = findChild(typeEl, 'simpleContent');
 
   if (sequence) {
-    const fields = generateFields(sequence, complexTypes, simpleTypes);
+    const fields = generateFields(sequence, complexTypes, simpleTypes, nsMap, importedSchemas);
     if (fields.length > 0) {
       parts.push(`${indent}  sequence: [`);
       for (const field of fields) {
@@ -90,7 +94,7 @@ export function generateElementDef(
   }
 
   if (choice) {
-    const fields = generateFields(choice, complexTypes, simpleTypes);
+    const fields = generateFields(choice, complexTypes, simpleTypes, nsMap, importedSchemas);
     if (fields.length > 0) {
       parts.push(`${indent}  choice: [`);
       for (const field of fields) {
