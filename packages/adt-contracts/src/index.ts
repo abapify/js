@@ -18,9 +18,9 @@
  * ```
  */
 
-// Re-export speci utilities and schema wrapper
+// Re-export speci utilities and contract wrapper
 export { http, createHttp, type RestContract } from 'speci/rest';
-export { schema, contract, type Serializable, type SerializableSchema } from './base';
+export { contract } from './base';
 
 // ADT contracts
 export {

@@ -12,7 +12,6 @@ import { adtContract } from './contract';
 import { createAdtAdapter, type AdtAdapterConfig } from './adapter';
 import { createTransportService } from './services/cts';
 import type { HttpRequestOptions, RestClient } from 'speci/rest';
-import { AdtContract } from 'adt-contracts';
 
 /**
  * Fetch options for generic HTTP requests

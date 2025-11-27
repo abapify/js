@@ -32,14 +32,12 @@ export type RestMethod =
 export interface Inferrable<T = unknown> {
   /** Type inference marker - never accessed at runtime */
   _infer?: T;
-  /** Allow any other properties for schema definition */
-  [key: string]: unknown;
 }
 
 /**
- * Serializable schema interface (parse/build methods)
+ * Serializable schema interface (parse/build methods + Inferrable)
  *
- * Schemas with parse() method will have their return type automatically inferred.
+ * Extends Inferrable so schemas with parse() automatically get _infer marker.
  * This is the preferred pattern for schema libraries like ts-xsd.
  *
  * @example
@@ -48,9 +46,9 @@ export interface Inferrable<T = unknown> {
  *   build: (data: User): string => JSON.stringify(data),
  * };
  *
- * responses: { 200: UserSchema }  // Type is User (inferred from parse return type)
+ * responses: { 200: UserSchema }  // Type is User (inferred via _infer from Inferrable)
  */
-export interface Serializable<T = unknown> {
+export interface Serializable<T = unknown> extends Inferrable<T> {
   /** Parse raw string to typed object */
   parse(raw: string): T;
   /** Build typed object to string */
@@ -68,30 +66,17 @@ export function createInferrable<T>(): Inferrable<T> {
 /**
  * Infer type from a schema
  * 
- * Supports multiple inference patterns (checked in order):
- * 1. Explicit _infer property (Inferrable<T>)
- * 2. parse() method return type (Serializable<T>)
- * 3. Falls back to the original type T
+ * Uses _infer property from Inferrable<T> (which Serializable extends).
+ * Falls back to original type if no _infer property.
  *
  * @example
- * // Pattern 1: _infer property
- * type A = InferSchema<{ _infer: User }>  // User
- *
- * // Pattern 2: parse() method
- * type B = InferSchema<{ parse(s: string): User }>  // User
- *
- * // Pattern 3: fallback
- * type C = InferSchema<string>  // string
+ * type A = InferSchema<{ _infer?: User }>  // User
+ * type B = InferSchema<string>             // string (fallback)
  */
 export type InferSchema<T> = 
-  // Pattern 1: Check for explicit _infer property
-  T extends { _infer: infer U } 
-    ? U 
-  // Pattern 2: Check for parse() method and infer from return type
-  : T extends { parse(raw: string): infer U } 
-    ? U 
-  // Pattern 3: Fallback to original type
-  : T;
+  T extends { _infer?: infer U }
+    ? NonNullable<U>
+    : T;
 
 /**
  * Schema-like object - can be any schema library (Zod, JSON Schema, custom, etc.)

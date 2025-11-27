@@ -3,13 +3,13 @@
  * @source transportmanagement.json
  */
 
-import { http, contract } from '../../../base';
+import { http } from '../../../base';
 import { transportmanagment } from 'adt-schemas-xsd';
 import { valuehelp } from './valuehelp';
 import { reference } from './reference';
 import { searchconfiguration } from './searchconfiguration';
 
-export const transportrequests = contract({
+export const transportrequests = {
   /**
    * GET /sap/bc/adt/cts/transportrequests{?targets,configUri}
    * @accepts application/vnd.sap.adt.transportorganizer.v1+xml
@@ -20,11 +20,11 @@ export const transportrequests = contract({
   get: (params?: { targets?: string; configUri?: string }) =>
     http.get('/sap/bc/adt/cts/transportrequests', {
       query: params,
-      responses: { 200: transportmanagment },  // No schema() needed!
+      responses: { 200: transportmanagment },
       headers: { Accept: '*/*' },
     }),
 
   reference,
   valuehelp,
   searchconfiguration,
-});
+};

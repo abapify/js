@@ -109,11 +109,17 @@ type InferText<T> = T extends true ? { $text?: string } : {};
 type InferFieldType<
   F extends XsdField,
   Elements extends { readonly [key: string]: XsdElement }
-> = F['maxOccurs'] extends 'unbounded' | number
-  ? InferTypeRef<F['type'], Elements>[]
-  : F['minOccurs'] extends 0
-    ? InferTypeRef<F['type'], Elements> | undefined
-    : InferTypeRef<F['type'], Elements>;
+> = F['maxOccurs'] extends 'unbounded'
+  ? InferTypeRef<F['type'], Elements>[]  // unbounded = always array
+  : F['maxOccurs'] extends number
+    ? F['maxOccurs'] extends 0 | 1
+      ? F['minOccurs'] extends 0
+        ? InferTypeRef<F['type'], Elements> | undefined  // maxOccurs 0 or 1 = single/optional
+        : InferTypeRef<F['type'], Elements>              // maxOccurs 1, minOccurs 1 = required single
+      : InferTypeRef<F['type'], Elements>[]              // maxOccurs > 1 = array
+    : F['minOccurs'] extends 0
+      ? InferTypeRef<F['type'], Elements> | undefined    // no maxOccurs, optional
+      : InferTypeRef<F['type'], Elements>;               // no maxOccurs, required
 
 /** Resolve type reference - primitive or complex */
 type InferTypeRef<
@@ -133,3 +139,4 @@ type InferPrimitive<T extends string> = T extends 'string'
       : T extends 'date' | 'dateTime'
         ? Date
         : string; // Default to string for unknown types
+

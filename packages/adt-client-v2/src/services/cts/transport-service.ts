@@ -8,19 +8,13 @@
 
 import { AdtClientType } from '../../client';
 import type { Logger } from '../../types';
-import type { TransportResponse } from './types';
 
 /**
  * Create CTS Transport Service
  * 
  * @param adtClient - The speci-generated ADT client (client.adt from createAdtClient)
  * @param logger - Optional logger for debug output
- * 
- * Note: We use 'any' for adtClient because speci's type inference for ts-xsd schemas
- * produces complex types that don't align with our TransportResponse type at compile time.
- * The runtime works correctly, and the service's public API is fully typed.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createTransportService(adtClient: AdtClientType, logger?: Logger) {
   // Cache config URI to avoid repeated lookups
   let cachedConfigUri: string | undefined;
@@ -32,19 +26,26 @@ export function createTransportService(adtClient: AdtClientType, logger?: Logger
     if (cachedConfigUri) return cachedConfigUri;
 
     logger?.debug('Fetching search configuration...');
-    const response = await adtClient.cts.transportrequests.searchconfiguration.configurations.get() as any;
+    // Type is automatically inferred from speci-compatible schema
+    const response = await adtClient.cts.transportrequests.searchconfiguration.configurations.get();
     
-    // Response is now a parsed object with configuration array
-    // Each configuration has links with href pointing to the config URI
+    // Response is a parsed object with configuration (single or array)
+    // Each configuration has a link with href pointing to the config URI
     const configs = response?.configuration;
-    if (!configs || configs.length === 0) {
+    if (!configs) {
       throw new Error('No search configuration found');
     }
     
-    // Get the first configuration's self link
-    const firstConfig = configs[0];
-    const selfLink = firstConfig?.link?.find((l: { rel?: string }) => l.rel === 'self' || !l.rel);
-    const uri = selfLink?.href as string | undefined;
+    // Normalize to array (schema allows single or multiple)
+    const configArray = Array.isArray(configs) ? configs : [configs];
+    
+    if (configArray.length === 0) {
+      throw new Error('No search configuration found');
+    }
+    
+    // Get the first configuration's link
+    const firstConfig = configArray[0];
+    const uri = firstConfig?.link?.href;
     
     if (!uri) {
       throw new Error('No search configuration URI found');

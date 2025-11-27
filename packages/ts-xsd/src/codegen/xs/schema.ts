@@ -22,6 +22,17 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
   const targetNs = schemaEl.getAttribute('targetNamespace') || undefined;
   const prefix = options.prefix || extractPrefix(targetNs);
 
+  // Extract namespace prefix mappings from xmlns:* attributes
+  const nsMap = new Map<string, string>();
+  const attrs = schemaEl.attributes;
+  for (let i = 0; i < attrs.length; i++) {
+    const attr = attrs[i];
+    if (attr.name.startsWith('xmlns:')) {
+      const nsPrefix = attr.name.slice(6); // Remove 'xmlns:'
+      nsMap.set(nsPrefix, attr.value);
+    }
+  }
+
   // Collect all types, elements, and imports
   const complexTypes = new Map<string, XmlElement>();
   const simpleTypes = new Map<string, XmlElement>();
@@ -69,5 +80,6 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
     simpleTypes,
     rootElement,
     imports,
+    nsMap,
   };
 }

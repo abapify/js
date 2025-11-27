@@ -163,6 +163,100 @@ npx ts-xsd import schema.xsd --json | jq .
 npx ts-xsd import schema.xsd -r ./my-resolver.ts
 ```
 
+## Pluggable Generators
+
+ts-xsd supports pluggable generators that control how TypeScript code is generated from XSD schemas. This enables different output formats for different use cases.
+
+### Built-in Generators
+
+#### Raw Generator (Default)
+
+Generates plain TypeScript schema files with `XsdSchema` type:
+
+```typescript
+// Generated output
+import type { XsdSchema } from 'ts-xsd';
+
+export default {
+  ns: 'http://example.com/person',
+  root: 'Person',
+  elements: { ... },
+} as const satisfies XsdSchema;
+```
+
+#### Factory Generator
+
+Wraps schemas with a factory function for custom processing (e.g., adding `parse`/`build` methods):
+
+```typescript
+// Generated output
+import schema from '../../my-factory';
+
+export default schema({
+  ns: 'http://example.com/person',
+  root: 'Person',
+  elements: { ... },
+});
+```
+
+### Using Generators Programmatically
+
+```typescript
+import { generateFromXsd, factoryGenerator, rawGenerator } from 'ts-xsd/codegen';
+
+// Default: raw generator
+const result1 = generateFromXsd(xsdContent, options);
+
+// Factory generator with custom factory path
+const result2 = generateFromXsd(
+  xsdContent,
+  options,
+  factoryGenerator,
+  { factory: '../../my-factory' }
+);
+```
+
+### Creating Custom Generators
+
+Implement the `Generator` interface:
+
+```typescript
+import type { Generator, GeneratorContext } from 'ts-xsd/codegen';
+
+const myGenerator: Generator = {
+  generate({ schema, args }: GeneratorContext): string {
+    // Generate TypeScript code from schema data
+    return `
+import myWrapper from '${args.wrapper || './wrapper'}';
+
+export default myWrapper(${JSON.stringify(schema.elements)});
+`;
+  },
+  
+  // Optional: generate index file
+  generateIndex(schemas: string[]): string {
+    return schemas.map(s => `export { default as ${s} } from './${s}';`).join('\n');
+  },
+};
+```
+
+### Generator Context
+
+Generators receive a context with:
+
+```typescript
+interface GeneratorContext {
+  schema: {
+    namespace?: string;    // Target namespace URI
+    prefix: string;        // Namespace prefix
+    root?: string;         // Root element name
+    elements: Record<string, unknown>;  // Element definitions
+    imports: SchemaImport[];  // Dependencies
+  };
+  args: Record<string, string>;  // CLI arguments (--key=value)
+}
+```
+
 ### Generated Output
 
 Given this XSD:

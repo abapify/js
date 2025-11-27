@@ -7,6 +7,22 @@
  * - codegen/xs/element.ts  - xs:element handling
  * - codegen/xs/attribute.ts - xs:attribute handling
  * - codegen/xs/sequence.ts - xs:sequence / xs:choice handling
+ * - codegen/generator.ts   - Pluggable generator interface
  */
 
-export { generateFromXsd, type CodegenOptions, type GeneratedSchema, type ImportResolver } from './codegen/index';
+export { 
+  generateFromXsd, 
+  generateIndex,
+  parseXsdToSchemaData,
+  type CodegenOptions, 
+  type GeneratedSchema, 
+  type ImportResolver, 
+  type ImportedSchema,
+  type Generator,
+  type GeneratorContext,
+  type SchemaData,
+  type SchemaImport,
+} from './codegen/index';
+
+// Export built-in generators
+export { raw as rawGenerator, factory as factoryGenerator } from './generators';
