@@ -15,9 +15,6 @@
   "references": [
     {
       "path": "../adt-schemas/tsconfig.lib.json"
-    },
-    {
-      "path": "../.."
-    }
+    }    
   ]
 }
