@@ -4,70 +4,10 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/adt-client"
+      "path": "packages/adt-client"
     },
     {
-      "path": "./packages/adt-cli"
-    },
-    {
-      "path": "./packages/plugins/abapgit"
-    },
-    {
-      "path": "./packages/asjson-parser"
-    },
-    {
-      "path": "./packages/plugins/gcts"
-    },
-    {
-      "path": "./samples/sample-tsdown"
-    },
-    {
-      "path": "./packages/plugins/oat"
-    },
-    {
-      "path": "./packages/adt-schemas"
-    },
-    {
-      "path": "./tools/nx-tsdown"
-    },
-    {
-      "path": "./tools/nx-vitest"
-    },
-    {
-      "path": "./packages/ts-xml"
-    },
-    {
-      "path": "./packages/xmld"
-    },
-    {
-      "path": "./packages/adk"
-    },
-    {
-      "path": "./e2e/adk-xml"
-    },
-    {
-      "path": "./tools/nx-sync"
-    },
-    {
-      "path": "./tools/nx-typecheck"
-    },
-    {
-      "path": "./packages/adt-schemas-v2"
-    },
-    {
-      "path": "./packages/adt-codegen"
-    },
-    {
-      "path": "./packages/speci"
-    },
-    {
-      "path": "./packages/adt-client-v2"
-    },
-    {
-      "path": "./packages/adt-config"
-    },
-    {
-      "path": "./packages/adt-puppeteer"
+      "path": "packages/adt-cli"
     }
   ]
 }

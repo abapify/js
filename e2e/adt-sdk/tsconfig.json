@@ -11,5 +11,10 @@
     "declaration": true
   },
   "include": ["scripts/**/*.ts", "src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "extracted"]
+  "exclude": ["node_modules", "dist", "extracted"],
+  "references": [
+    {
+      "path": "../../packages/ts-xsd"
+    }
+  ]
 }

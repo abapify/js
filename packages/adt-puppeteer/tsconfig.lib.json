@@ -7,5 +7,16 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"],
+  "references": [
+    {
+      "path": "../.."
+    },
+    {
+      "path": "../adt-config/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-auth"
+    }
+  ]
 }
