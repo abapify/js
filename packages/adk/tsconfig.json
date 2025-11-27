@@ -12,9 +12,6 @@
   "include": [],
   "references": [
     {
-      "path": "../adt-schemas"
-    },
-    {
       "path": "./tsconfig.lib.json"
     }
   ]
