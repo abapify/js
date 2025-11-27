@@ -16,7 +16,7 @@
     }
   },
   "dependencies": {
-    "ts-xsd": "workspace:*"
+    "ts-xsd": "*"
   },
   "files": [
     "dist"

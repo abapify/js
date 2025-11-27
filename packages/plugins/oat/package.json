@@ -8,18 +8,8 @@
   "files": [
     "dist"
   ],
-  "scripts": {
-    "test": "vitest run --reporter=basic --passWithNoTests",
-    "test:watch": "vitest",
-    "lint": "eslint src --ext .ts",
-    "clean": "rimraf dist"
-  },
   "dependencies": {
     "js-yaml": "^4.1.0"
-  },
-  "devDependencies": {
-    "@types/js-yaml": "^4.0.5",
-    "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "@abapify/adt-cli": "*"

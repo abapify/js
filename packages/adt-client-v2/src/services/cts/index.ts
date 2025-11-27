@@ -3,4 +3,9 @@
  */
 
 export { createTransportService, type TransportService } from './transport-service';
-export type { TransportResponse } from './types';
+export type { 
+  TransportResponse,
+  TransportRequest,
+  TransportTask,
+  TransportObject,
+} from './types';
