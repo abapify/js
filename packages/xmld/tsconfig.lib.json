@@ -12,7 +12,11 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": [],
+  "references": [
+    {
+      "path": "../.."
+    }
+  ],
   "exclude": [
     "vite.config.ts",
     "vite.config.mts",

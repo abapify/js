@@ -12,9 +12,6 @@
   "include": [],
   "references": [
     {
-      "path": "../ts-xml"
-    },
-    {
       "path": "./tsconfig.lib.json"
     }
   ]
