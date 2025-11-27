@@ -11,9 +11,6 @@
   "include": ["src/**/*"],
   "references": [
     {
-      "path": "../.."
-    },
-    {
       "path": "../adt-schemas-xsd"
     },
     {

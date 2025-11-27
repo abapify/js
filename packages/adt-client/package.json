@@ -14,16 +14,6 @@
     "fast-xml-parser": "^5.3.1",
     "jsonc-eslint-parser": "^2.4.0",
     "open": "^8.4.2",
-    "pino": "^8.17.2",
-    "tsdown": "^0.15.0"
-  },
-  "scripts": {
-    "watch": "tsdown --watch src/index.ts",
-    "test:integration:lock": "tsx integration-tests/lock-test.ts",
-    "test:integration:unlock": "tsx integration-tests/unlock-test.ts"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "pino-pretty": "^10.3.1"
+    "pino": "^8.17.2"
   }
 }

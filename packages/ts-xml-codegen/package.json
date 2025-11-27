@@ -4,6 +4,7 @@
   "description": "Code generator for ts-xml schemas from XSD files",
   "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "ts-xml-codegen": "./dist/cli.js"
@@ -28,8 +29,7 @@
   "author": "abapify",
   "license": "MIT",
   "dependencies": {
-    "ts-xml": "workspace:*",
-    "ts-xml-xsd": "workspace:*"
-  },
-  "module": "./dist/index.js"
+    "ts-xml": "*",
+    "ts-xml-xsd": "*"
+  }
 }
