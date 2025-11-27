@@ -12,8 +12,8 @@
     }
   },
   "dependencies": {
-    "speci": "workspace:*",
-    "adt-schemas-xsd": "workspace:*"
+    "speci": "*",
+    "adt-schemas-xsd": "*"
   },
   "files": [
     "dist"

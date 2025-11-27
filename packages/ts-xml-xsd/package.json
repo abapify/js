@@ -4,6 +4,7 @@
   "description": "XSD schema definitions for ts-xml - parse and build XSD using ts-xml itself",
   "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
@@ -25,7 +26,6 @@
   "author": "abapify",
   "license": "MIT",
   "dependencies": {
-    "ts-xml": "workspace:*"
-  },
-  "module": "./dist/index.js"
+    "ts-xml": "*"
+  }
 }

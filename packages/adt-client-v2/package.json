@@ -16,13 +16,5 @@
     "speci": "*",
     "ts-xml": "*",
     "ts-xsd": "*"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "tsdown": "^0.15.0"
-  },
-  "scripts": {
-    "build": "tsdown src/index.ts",
-    "watch": "tsdown --watch src/index.ts"
   }
 }

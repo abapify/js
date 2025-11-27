@@ -11,10 +11,6 @@
       "import": "./dist/index.js"
     }
   },
-  "scripts": {
-    "build": "tsdown",
-    "typecheck": "tsc --noEmit"
-  },
   "keywords": [
     "logger",
     "abap",
