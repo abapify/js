@@ -3,22 +3,11 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "abapify": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    },
-    "./plugins/fast-xml-parser": {
-      "abapify": "./src/plugins/fast-xml-parser.ts",
-      "types": "./dist/plugins/fast-xml-parser.d.ts",
-      "import": "./dist/plugins/fast-xml-parser.js",
-      "default": "./dist/plugins/fast-xml-parser.js"
-    }
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
   }
 }

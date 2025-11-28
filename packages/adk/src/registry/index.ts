@@ -1,26 +1,41 @@
+/**
+ * Object Registry Module
+ *
+ * Centralized object type management:
+ * - Kind definitions
+ * - Type→Kind mapping
+ * - Kind→Constructor registry
+ */
+
+// Core registry
 export {
   ObjectRegistry,
   createObject,
   ObjectTypeRegistry,
+  objectRegistry,
 } from './object-registry';
-export { Kind } from '../kind';
 
-// Factory functions
-import { Interface } from '../objects/interface';
-import { Class } from '../objects/class';
-import { Domain } from '../objects/domain';
+// Kind enum and type mappings
+export { Kind, ADT_TYPE_TO_KIND, KIND_TO_ADT_TYPE } from './kinds';
 
-export const createInterface = () => new Interface();
-export const createClass = () => new Class();
-export const createDomain = () => new Domain();
+// Type mapping utilities
+export {
+  extractTypeFromXml,
+  extractRootElement,
+  mapTypeToKind,
+} from './type-mapping';
 
-// Register object types with the registry when this module is imported
-import { InterfaceConstructor } from '../objects/interface';
-import { ClassConstructor } from '../objects/class';
-import { DomainConstructor } from '../objects/domain';
+// Auto-register all object types when this module is imported
 import { ObjectRegistry } from './object-registry';
-import { Kind } from '../kind';
+import { Kind } from './kinds';
+import { InterfaceConstructor } from '../objects/intf';
+import { ClassConstructor } from '../objects/clas';
+import { DomainConstructor } from '../objects/doma';
+import { PackageConstructor } from '../objects/devc';
+import { DataElementConstructor } from '../objects/dtel';
 
-ObjectRegistry.register(Kind.Interface, InterfaceConstructor as any);
-ObjectRegistry.register(Kind.Class, ClassConstructor as any);
-ObjectRegistry.register(Kind.Domain, DomainConstructor as any);
+ObjectRegistry.register(Kind.Interface, InterfaceConstructor);
+ObjectRegistry.register(Kind.Class, ClassConstructor);
+ObjectRegistry.register(Kind.Domain, DomainConstructor);
+ObjectRegistry.register(Kind.Package, PackageConstructor);
+ObjectRegistry.register(Kind.DataElement, DataElementConstructor);

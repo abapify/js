@@ -66,6 +66,33 @@ export class RepositoryService {
     }
   }
 
+  async getPackage(packageName: string): Promise<{ name: string; description: string }> {
+    try {
+      const url = `/sap/bc/adt/packages/${encodeURIComponent(packageName)}`;
+      const response = await this.connectionManager.request(url);
+
+      if (!response.ok) {
+        throw await ErrorHandler.handleHttpError(response, { packageName });
+      }
+
+      const xmlContent = await response.text();
+      const parsed = XmlParser.parse(xmlContent);
+
+      // Extract package description from CTEXT field
+      const description = parsed['asx:abap']?.['asx:values']?.DEVC?.CTEXT || packageName;
+
+      return {
+        name: packageName,
+        description
+      };
+    } catch (error) {
+      if (error instanceof Error && 'category' in error) {
+        throw error;
+      }
+      throw ErrorHandler.handleNetworkError(error as Error, { packageName });
+    }
+  }
+
   async getPackageContents(packageName: string): Promise<PackageContent> {
     try {
       const url = this.buildPackageUrl(packageName);

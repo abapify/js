@@ -1,0 +1,21 @@
+{
+  "name": "adt-contracts",
+  "version": "0.1.0",
+  "description": "SAP ADT REST API contracts using speci + ts-xsd",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "speci": "*",
+    "adt-schemas-xsd": "*"
+  },
+  "files": [
+    "dist"
+  ],
+  "private": true,
+  "module": "./dist/index.mjs"
+}
