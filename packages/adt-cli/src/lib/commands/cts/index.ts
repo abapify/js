@@ -1,14 +1,22 @@
 /**
  * CTS Commands - Change and Transport System
- * 
+ *
  * Uses v2 client with adt-contracts for type-safe API access.
- * 
- * Commands:
- * - adt cts search [--owner X] [--status modifiable]
- * - adt cts get <TR>
- * - adt cts create --type task|request --desc "..."
- * - adt cts release <TR>
- * - adt cts check <TR>
+ * Replaces the deprecated 'transport' command.
+ *
+ * Implemented Commands:
+ * - adt cts search [options] [--json] - Search transports (server-side filtering)
+ *     -u, --user <user>               - Filter by owner (* for all, default: *)
+ *     -s, --status <status>           - Filter by status: modifiable/released/locked or D/R/L
+ *     -t, --type <type>               - Filter by type: workbench/customizing/copies or K/W/T
+ *     -n, --number <pattern>          - Transport number pattern (e.g., S0DK*)
+ *     -m, --max <number>              - Maximum results (default: 50)
+ * - adt cts get <TR> [--objects]      - Get transport details
+ *
+ * TODO - Missing features from old 'transport' command:
+ * - adt cts create --desc "..." [--type K] [--target LOCAL] [--project X] [--owner Y]
+ * - adt cts release <TR>              - Release transport
+ * - adt cts check <TR>                - Pre-release validation
  */
 
 import { Command } from 'commander';
@@ -17,7 +25,8 @@ import { ctsGetCommand } from './get';
 
 export function createCtsCommand(): Command {
   const ctsCmd = new Command('cts')
-    .description('CTS (Change and Transport System) - v2 client');
+    .alias('tr')  // Backward compatibility alias
+    .description('CTS (Change and Transport System) operations');
 
   ctsCmd.addCommand(ctsSearchCommand);
   ctsCmd.addCommand(ctsGetCommand);

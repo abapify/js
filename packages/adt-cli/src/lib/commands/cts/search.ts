@@ -1,113 +1,183 @@
 /**
- * adt cts search - Search transports
- * 
- * Uses v2 client services layer with proper search configuration.
+ * adt cts search - Search transports using server-side filtering
+ *
+ * Uses the /sap/bc/adt/cts/transports?_action=FIND endpoint
+ * with proper server-side filtering by user, status, type, and date.
  */
 
 import { Command } from 'commander';
 import { getAdtClientV2 } from '../../utils/adt-client-v2';
-
-// Tree characters
-const T = {
-  branch: '├──',
-  last: '└──',
-  pipe: '│  ',
-  space: '   ',
-};
+import {
+  TransportFunction,
+  TransportStatus,
+  normalizeTransportFindResponse,
+  type CtsReqHeader,
+  type TransportFindParams,
+} from 'adt-contracts';
 
 // Status icons
 const STATUS_ICONS: Record<string, string> = {
   D: '📝', // Modifiable
   R: '🔒', // Released
+  O: '🔄', // Release started
+  P: '⏳', // Release in preparation
   L: '🔐', // Locked
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatTransportTree(result: any): void {
-  // Handle workbench and customizing categories
-  const categories = ['workbench', 'customizing'];
-  
-  for (const category of categories) {
-    const data = result[category];
-    if (!data?.target?.length) continue;
+// Human-readable function names
+const FUNCTION_NAMES: Record<string, string> = {
+  K: 'Workbench',
+  W: 'Customizing',
+  T: 'Transport of Copies',
+  S: 'Dev/Correction',
+  R: 'Repair',
+  X: 'Unclassified',
+  Q: 'Customizing Task',
+};
 
-    console.log(`\n📦 ${data.category || category.toUpperCase()}`);
+/**
+ * Format a single transport for display
+ */
+function formatTransport(tr: CtsReqHeader, index: number, total: number): void {
+  const isLast = index === total - 1;
+  const prefix = isLast ? '└──' : '├──';
+  const statusIcon = STATUS_ICONS[tr.TRSTATUS] || '📄';
+  const funcName = FUNCTION_NAMES[tr.TRFUNCTION] || tr.TRFUNCTION;
 
-    for (const target of data.target) {
-      // Modifiable requests
-      if (target.modifiable?.request?.length) {
-        console.log(`${T.branch} 📂 Modifiable`);
-        printRequests(target.modifiable.request, T.pipe);
-      }
+  // Main line: transport number and description
+  console.log(`${prefix} ${statusIcon} ${tr.TRKORR}`);
+  console.log(`    ${tr.AS4TEXT || '(no description)'}`);
+  console.log(`    ${funcName} • ${tr.AS4USER} • ${tr.AS4DATE}`);
 
-      // Released requests
-      if (target.released?.request?.length) {
-        const isLast = !target.modifiable?.request?.length;
-        console.log(`${isLast ? T.last : T.branch} 📁 Released`);
-        printRequests(target.released.request, isLast ? T.space : T.pipe);
-      }
-    }
+  // Add spacing between entries
+  if (!isLast) {
+    console.log('');
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function printRequests(requests: any[], indent: string): void {
-  requests.forEach((req, reqIdx) => {
-    const isLastReq = reqIdx === requests.length - 1;
-    const reqPrefix = isLastReq ? T.last : T.branch;
-    const reqIndent = isLastReq ? T.space : T.pipe;
-    const statusIcon = STATUS_ICONS[req.status] || '📄';
+/**
+ * Parse status option to API format
+ */
+function parseStatus(status?: string): string | undefined {
+  if (!status) return undefined;
 
-    console.log(`${indent}${reqPrefix} ${statusIcon} ${req.number} - ${req.desc || '(no description)'}`);
-    console.log(`${indent}${reqIndent}   👤 ${req.owner}`);
+  const statusMap: Record<string, string> = {
+    modifiable: TransportStatus.MODIFIABLE,
+    released: TransportStatus.RELEASED,
+    locked: TransportStatus.LOCKED,
+    d: TransportStatus.MODIFIABLE,
+    r: TransportStatus.RELEASED,
+    l: TransportStatus.LOCKED,
+  };
 
-    // Print tasks
-    if (req.task?.length) {
-      req.task.forEach((task: any, taskIdx: number) => {
-        const isLastTask = taskIdx === req.task.length - 1;
-        const taskPrefix = isLastTask ? T.last : T.branch;
-        const taskIndent = isLastTask ? T.space : T.pipe;
-        const taskStatusIcon = STATUS_ICONS[task.status] || '📄';
+  return statusMap[status.toLowerCase()] || status.toUpperCase();
+}
 
-        console.log(`${indent}${reqIndent}${taskPrefix} ${taskStatusIcon} ${task.number} - ${task.desc || '(no description)'}`);
+/**
+ * Parse type option to API format
+ */
+function parseType(type?: string): string | undefined {
+  if (!type) return undefined;
 
-        // Print objects count
-        const objCount = task.abap_object?.length || 0;
-        if (objCount > 0) {
-          console.log(`${indent}${reqIndent}${taskIndent}   📎 ${objCount} object${objCount > 1 ? 's' : ''}`);
-        }
-      });
-    }
+  const typeMap: Record<string, string> = {
+    workbench: TransportFunction.WORKBENCH,
+    customizing: TransportFunction.CUSTOMIZING,
+    copies: TransportFunction.TRANSPORT_OF_COPIES,
+    k: TransportFunction.WORKBENCH,
+    w: TransportFunction.CUSTOMIZING,
+    t: TransportFunction.TRANSPORT_OF_COPIES,
+  };
 
-    // Print direct objects on request (for released tasks)
-    const directObjCount = req.abap_object?.filter((o: any) => o.pgmid !== 'CORR')?.length || 0;
-    if (directObjCount > 0 && !req.task?.length) {
-      console.log(`${indent}${reqIndent}   📎 ${directObjCount} object${directObjCount > 1 ? 's' : ''}`);
-    }
-  });
+  return typeMap[type.toLowerCase()] || type.toUpperCase();
 }
 
 export const ctsSearchCommand = new Command('search')
-  .description('Search transport requests')
+  .description('Search transport requests (server-side filtering)')
+  .option('-u, --user <user>', 'Filter by owner (* for all)', '*')
+  .option('-s, --status <status>', 'Filter by status: modifiable/released/locked or D/R/L')
+  .option('-t, --type <type>', 'Filter by type: workbench/customizing/copies or K/W/T', '*')
+  .option('-n, --number <pattern>', 'Transport number pattern (e.g., S0DK*)')
+  .option('-m, --max <number>', 'Maximum results to display', '50')
   .option('--json', 'Output as JSON')
   .action(async (options) => {
     try {
       const client = await getAdtClientV2();
 
-      console.log('🔍 Searching transports...');
+      // Build API parameters
+      const params: TransportFindParams = {
+        _action: 'FIND',
+        user: options.user || '*',
+        trfunction: parseType(options.type) || '*',
+      };
 
-      // Use transport service - listRaw() returns the raw response for tree display
-      const result = await client.services.transports.listRaw();
+      // Add optional filters
+      if (options.number) {
+        params.transportNumber = options.number;
+      }
+      if (options.status) {
+        params.requestStatus = parseStatus(options.status);
+      }
+
+      // Build filter description for output
+      const filterParts: string[] = [];
+      if (params.user !== '*') filterParts.push(`user=${params.user}`);
+      if (params.trfunction !== '*') filterParts.push(`type=${params.trfunction}`);
+      if (params.requestStatus) filterParts.push(`status=${params.requestStatus}`);
+      if (params.transportNumber) filterParts.push(`number=${params.transportNumber}`);
+
+      const filterDesc = filterParts.length > 0 ? ` (${filterParts.join(', ')})` : '';
+      console.log(`🔍 Searching transports${filterDesc}...`);
+
+      // Call the API via adt.cts.transports.find
+      const result = await client.adt.cts.transports.find(params);
+
+      // Normalize response to array
+      const transports = normalizeTransportFindResponse(result);
+      const maxResults = options.max ? parseInt(options.max, 10) : 50;
+      const displayTransports = transports.slice(0, maxResults);
 
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        console.log(JSON.stringify(transports, null, 2));
       } else {
-        formatTransportTree(result);
+        if (transports.length === 0) {
+          console.log('\n📭 No transports found matching the criteria');
+        } else {
+          // Group by status for display
+          const modifiable = displayTransports.filter((t: CtsReqHeader) => t.TRSTATUS === 'D');
+          const released = displayTransports.filter((t: CtsReqHeader) => t.TRSTATUS === 'R');
+          const other = displayTransports.filter(
+            (t: CtsReqHeader) => t.TRSTATUS !== 'D' && t.TRSTATUS !== 'R'
+          );
+
+          if (modifiable.length > 0) {
+            console.log(`\n📂 Modifiable (${modifiable.length})`);
+            modifiable.forEach((tr: CtsReqHeader, i: number) => formatTransport(tr, i, modifiable.length));
+          }
+
+          if (released.length > 0) {
+            console.log(`\n📁 Released (${released.length})`);
+            released.forEach((tr: CtsReqHeader, i: number) => formatTransport(tr, i, released.length));
+          }
+
+          if (other.length > 0) {
+            console.log(`\n📋 Other (${other.length})`);
+            other.forEach((tr: CtsReqHeader, i: number) => formatTransport(tr, i, other.length));
+          }
+
+          if (transports.length > maxResults) {
+            console.log(
+              `\n💡 Showing ${maxResults} of ${transports.length} transports (use --max to see more)`
+            );
+          }
+        }
       }
 
       console.log('\n✅ Search complete');
     } catch (error) {
-      console.error('❌ Search failed:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '❌ Search failed:',
+        error instanceof Error ? error.message : String(error)
+      );
       process.exit(1);
     }
   });
