@@ -3,17 +3,11 @@
   "version": "0.1.0",
   "description": "ADT XML schemas generated from SAP XSD definitions",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./schemas/*": {
-      "types": "./dist/schemas/*.d.ts",
-      "import": "./dist/schemas/*.js"
-    }
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
   },
   "dependencies": {
     "ts-xsd": "*"
@@ -21,5 +15,6 @@
   "files": [
     "dist"
   ],
-  "private": true
+  "private": true,
+  "module": "./dist/index.mjs"
 }

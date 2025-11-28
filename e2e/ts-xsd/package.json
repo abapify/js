@@ -6,7 +6,7 @@
   "description": "End-to-end tests for ts-xsd - XSD import and XML parsing/building",
   "scripts": {},
   "dependencies": {
-    "ts-xsd": "workspace:*"
+    "ts-xsd": "*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

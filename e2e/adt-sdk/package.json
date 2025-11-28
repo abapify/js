@@ -5,6 +5,6 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@abapify/p2-cli": "workspace:*"
+    "@abapify/p2-cli": "*"
   }
 }

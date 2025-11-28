@@ -16,9 +16,6 @@
   "references": [
     {
       "path": "../adk/tsconfig.lib.json"
-    },
-    {
-      "path": "../.."
-    }
+    }   
   ]
 }

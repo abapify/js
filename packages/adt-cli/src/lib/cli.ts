@@ -17,21 +17,18 @@ import {
   statusCommand,
   authListCommand,
   setDefaultCommand,
-  transportListCommand,
-  transportGetCommand,
-  transportCreateCommand,
   createTestLogCommand,
   createTestAdtCommand,
   createResearchSessionsCommand,
   createCtsCommand,
 } from './commands';
+import { refreshCommand } from './commands/auth/refresh';
 import { deployCommand } from './commands/deploy/index';
 import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setGlobalLogger } from './shared/clients';
 import { setCliContext } from './utils/adt-client-v2';
-import { AuthManager } from '@abapify/adt-client';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -142,6 +139,7 @@ export async function createCLI(): Promise<Command> {
   authCmd.addCommand(statusCommand);
   authCmd.addCommand(authListCommand);
   authCmd.addCommand(setDefaultCommand);
+  authCmd.addCommand(refreshCommand);
 
   // Discovery command
   program.addCommand(discoveryCommand);
@@ -164,15 +162,10 @@ export async function createCLI(): Promise<Command> {
   // Search command
   program.addCommand(searchCommand);
 
-  // Transport commands
-  const transportCmd = program
-    .command('transport')
-    .alias('tr')
-    .description('Transport request management');
-
-  transportCmd.addCommand(transportListCommand);
-  transportCmd.addCommand(transportGetCommand);
-  transportCmd.addCommand(transportCreateCommand);
+  // CTS commands (v2 client) - replaces old 'transport' command
+  // Use: adt cts search, adt cts get <TR>
+  // TODO: adt cts create, adt cts release, adt cts check
+  program.addCommand(createCtsCommand());
 
   // Import commands
   const importCmd = program
@@ -201,8 +194,6 @@ export async function createCLI(): Promise<Command> {
   // Research command
   program.addCommand(createResearchSessionsCommand());
 
-  // CTS commands (v2 client)
-  program.addCommand(createCtsCommand());
 
   // Test commands for debugging
   program.addCommand(createTestLogCommand());

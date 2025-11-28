@@ -3,15 +3,18 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@abapify/adt-cli": "workspace:*",
-    "@abapify/adt-codegen": "workspace:*",
+    "@abapify/adt-cli": "*",
+    "@abapify/adt-codegen": "*",
     "typescript": "^5"
   },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5"    
+  },
+  "overrides": {
+    "obug": "^2.1.0"
   },
   "scripts": {
     "build-discovery-xml": "adt discovery --output=generated/discovery.xml",
