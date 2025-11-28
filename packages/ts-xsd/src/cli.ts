@@ -9,17 +9,24 @@
  *   ts-xsd import schema.xsd -o dir/      # Write to file
  *   cat schema.xsd | ts-xsd import        # Read from stdin
  *   ts-xsd import schema.xsd --json       # Output JSON instead of TypeScript
+ *   ts-xsd codegen .xsd/*.xsd -o generated/  # Generate multiple schemas + index
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { parse as parsePath, join, basename, dirname } from 'node:path';
-import { generateFromXsd, type CodegenOptions, type ImportResolver } from './codegen';
+import { parse as parsePath, join, basename, dirname, resolve } from 'node:path';
+import { generateFromXsd, generateBatch, type CodegenOptions, type ImportResolver } from './codegen';
+import type { Generator } from './codegen/generator';
+import type { CodegenConfig } from './config';
 
 interface CliOptions {
   output?: string;
   prefix?: string;
   json?: boolean;
   resolver?: string;
+  generator?: string;
+  factory?: string;
+  config?: string;
+  schemas?: string[];
   help?: boolean;
   version?: boolean;
 }
@@ -31,29 +38,39 @@ ts-xsd - Type-safe XSD schemas for TypeScript
 
 Usage:
   ts-xsd import [xsd-files...] [options]
+  ts-xsd codegen [options]                    # Uses tsxsd.config.ts
+  ts-xsd codegen -c <config>                  # Uses custom config
+  ts-xsd codegen [xsd-files...] -o <dir>      # CLI mode (no config)
   cat schema.xsd | ts-xsd import [options]
 
 Commands:
-  import      Import XSD schemas into TypeScript
+  import      Import single XSD schema to TypeScript (stdout or file)
+  codegen     Generate multiple schemas + index file to directory
 
 Arguments:
-  [xsd-files...]    XSD files or glob patterns (reads stdin if omitted)
+  [xsd-files...]    XSD files or glob patterns (reads stdin if omitted for import)
 
 Options:
-  -o, --output <dir>      Write to files in directory (default: stdout)
+  -c, --config <file>     Config file (default: tsxsd.config.ts)
+  -o, --output <dir>      Output directory (required for codegen without config)
   -p, --prefix <name>     Namespace prefix to use in generated code
   -r, --resolver <file>   Resolver module for xsd:import paths
+  -g, --generator <name>  Generator: raw (default) or factory
+  --factory <path>        Factory import path (for factory generator)
+  --schemas <list>        Comma-separated schema names to generate
   --json                  Output JSON schema instead of TypeScript
-  -h, --help           Show this help message
-  -v, --version        Show version number
+  -h, --help              Show this help message
+  -v, --version           Show version number
 
 Examples:
+  ts-xsd codegen                              # Use tsxsd.config.ts
+  ts-xsd codegen -c my.config.ts              # Use custom config
   ts-xsd import schema.xsd                    # Print TypeScript to stdout
   ts-xsd import schema.xsd -o generated/      # Write to generated/schema.ts
-  ts-xsd import schemas/*.xsd -o out/         # Process multiple files
+  ts-xsd codegen .xsd/*.xsd -o generated/     # Generate all schemas + index
+  ts-xsd codegen .xsd/*.xsd -o out/ -g factory --factory ../speci
   cat schema.xsd | ts-xsd import              # Read from stdin
   ts-xsd import schema.xsd --json             # Output JSON schema
-  ts-xsd import schema.xsd --json | jq .      # Pipe JSON to jq
 `;
 
 function parseArgs(args: string[]): { command: string; files: string[]; options: CliOptions } {
@@ -77,6 +94,14 @@ function parseArgs(args: string[]): { command: string; files: string[]; options:
       options.prefix = args[++i];
     } else if (arg === '-r' || arg === '--resolver') {
       options.resolver = args[++i];
+    } else if (arg === '-g' || arg === '--generator') {
+      options.generator = args[++i];
+    } else if (arg === '--factory') {
+      options.factory = args[++i];
+    } else if (arg === '-c' || arg === '--config') {
+      options.config = args[++i];
+    } else if (arg === '--schemas') {
+      options.schemas = args[++i].split(',').map(s => s.trim());
     } else if (!arg.startsWith('-')) {
       if (!command) {
         command = arg;
@@ -167,6 +192,31 @@ async function loadResolver(resolverPath: string): Promise<ImportResolver> {
 }
 
 /**
+ * Load generator by name or path, with optional configuration
+ */
+async function loadGenerator(name: string, factoryPath?: string): Promise<Generator> {
+  // Built-in generators
+  if (name === 'raw') {
+    const { raw } = await import('./generators/raw');
+    return raw();
+  }
+  if (name === 'factory') {
+    const { factory } = await import('./generators/factory');
+    return factory({ path: factoryPath });
+  }
+  
+  // Custom generator from path
+  const generatorPath = name.startsWith('.')
+    ? join(process.cwd(), name)
+    : name;
+  const module = await import(generatorPath);
+  if (module.default) {
+    return module.default;
+  }
+  throw new Error(`Generator module must export default Generator`);
+}
+
+/**
  * Process a single XSD content and return output
  */
 function processXsd(xsdContent: string, options: CliOptions, resolver?: ImportResolver): string {
@@ -183,6 +233,155 @@ function processXsd(xsdContent: string, options: CliOptions, resolver?: ImportRe
   return result.code;
 }
 
+/**
+ * Load config file
+ */
+async function loadConfig(configPath: string): Promise<CodegenConfig> {
+  const absolutePath = resolve(process.cwd(), configPath);
+  
+  if (!existsSync(absolutePath)) {
+    throw new Error(`Config file not found: ${configPath}`);
+  }
+  
+  const module = await import(absolutePath);
+  if (module.default) {
+    return module.default;
+  }
+  throw new Error(`Config file must export default configuration`);
+}
+
+/**
+ * Find default config file
+ */
+function findDefaultConfig(): string | undefined {
+  const candidates = ['tsxsd.config.ts', 'tsxsd.config.js', 'tsxsd.config.mjs'];
+  for (const name of candidates) {
+    if (existsSync(join(process.cwd(), name))) {
+      return name;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Run codegen command - generate multiple schemas + index
+ */
+async function runCodegen(patterns: string[], options: CliOptions): Promise<void> {
+  // Try to load config file
+  const configPath = options.config || findDefaultConfig();
+  
+  if (configPath) {
+    // Config-based mode
+    console.error(`Using config: ${configPath}`);
+    let config: CodegenConfig;
+    try {
+      config = await loadConfig(configPath);
+    } catch (error) {
+      console.error(`Error loading config: ${error}`);
+      process.exit(1);
+    }
+    
+    // Expand input patterns from config
+    const inputPatterns = Array.isArray(config.input) ? config.input : [config.input];
+    const files = expandFiles(inputPatterns);
+    
+    if (files.length === 0) {
+      console.error('Error: No XSD files found matching input patterns');
+      process.exit(1);
+    }
+    
+    // Resolve resolver if it's a string path
+    let resolver: ImportResolver | undefined;
+    if (typeof config.resolver === 'string') {
+      resolver = await loadResolver(resolve(process.cwd(), config.resolver));
+    } else {
+      resolver = config.resolver;
+    }
+    
+    // Run batch generation with config
+    const result = await generateBatch(files, {
+      output: config.output,
+      generator: config.generator,
+      resolver,
+      prefix: config.prefix,
+      schemas: config.schemas,
+      stubs: config.stubs,
+    }, (name: string, success: boolean, error?: string) => {
+      if (success) {
+        console.error(`✓ ${name}`);
+      } else {
+        console.error(`✗ ${name}: ${error}`);
+      }
+    });
+    
+    console.error('');
+    console.error(`Done! Generated ${result.generated.length} schema(s)`);
+    if (result.failed.length > 0) {
+      console.error(`Failed: ${result.failed.length} (${result.failed.join(', ')})`);
+      process.exit(1);
+    }
+    return;
+  }
+  
+  // CLI mode (no config)
+  if (!options.output) {
+    console.error('Error: --output is required for codegen command (or use a config file)');
+    process.exit(1);
+  }
+
+  const files = expandFiles(patterns);
+  if (files.length === 0) {
+    console.error('Error: No XSD files found');
+    process.exit(1);
+  }
+
+  // Load generator (with factory path if specified)
+  const generatorName = options.generator || 'raw';
+  let generator: Generator;
+  try {
+    generator = await loadGenerator(generatorName, options.factory);
+  } catch (error) {
+    console.error(`Error loading generator: ${error}`);
+    process.exit(1);
+  }
+
+  // Load resolver if specified
+  let resolver: ImportResolver | undefined;
+  if (options.resolver) {
+    try {
+      const resolverPath = options.resolver.startsWith('.')
+        ? join(process.cwd(), options.resolver)
+        : options.resolver;
+      resolver = await loadResolver(resolverPath);
+    } catch (error) {
+      console.error(`Error loading resolver: ${error}`);
+      process.exit(1);
+    }
+  }
+
+  // Run batch generation
+  const result = await generateBatch(files, {
+    output: options.output,
+    generator,
+    resolver,
+    prefix: options.prefix,
+    schemas: options.schemas,
+  }, (name: string, success: boolean, error?: string) => {
+    if (success) {
+      console.error(`✓ ${name}`);
+    } else {
+      console.error(`✗ ${name}: ${error}`);
+    }
+  });
+
+  console.error('');
+  console.error(`Done! Generated ${result.generated.length} schema(s)`);
+  if (result.failed.length > 0) {
+    console.error(`Failed: ${result.failed.length} (${result.failed.join(', ')})`);
+    process.exit(1);
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const { command, files: patterns, options } = parseArgs(args);
@@ -197,10 +396,16 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  if (command !== 'import') {
+  if (command !== 'import' && command !== 'codegen') {
     console.error(`Unknown command: ${command}`);
     console.log(HELP);
     process.exit(1);
+  }
+
+  // Handle codegen command
+  if (command === 'codegen') {
+    await runCodegen(patterns, options);
+    return;
   }
 
   // Load resolver if specified

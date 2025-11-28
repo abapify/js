@@ -46,19 +46,25 @@ export function generateElementObj(
     if (extension) {
       // Mark as having text content
       result.text = true;
-      // Get attributes from extension
+      // Get attributes from extension (filter out nulls from ref attrs without names)
       const extAttrs = findChildren(extension, 'attribute');
       if (extAttrs.length > 0) {
-        result.attributes = extAttrs.map(generateAttributeObj);
+        const attrs = extAttrs.map(generateAttributeObj).filter((a): a is Record<string, unknown> => a !== null);
+        if (attrs.length > 0) {
+          result.attributes = attrs;
+        }
       }
       return result;
     }
   }
 
-  // Find attributes (direct children)
+  // Find attributes (direct children, filter out nulls from ref attrs without names)
   const attributes = findChildren(typeEl, 'attribute');
   if (attributes.length > 0) {
-    result.attributes = attributes.map(generateAttributeObj);
+    const attrs = attributes.map(generateAttributeObj).filter((a): a is Record<string, unknown> => a !== null);
+    if (attrs.length > 0) {
+      result.attributes = attrs;
+    }
   }
 
   return result;
@@ -110,12 +116,12 @@ export function generateElementDef(
     if (extension) {
       // Mark as having text content
       parts.push(`${indent}  text: true,`);
-      // Get attributes from extension
+      // Get attributes from extension (filter out nulls from ref attrs)
       const extAttrs = findChildren(extension, 'attribute');
-      if (extAttrs.length > 0) {
+      const attrDefs = extAttrs.map(generateAttributeDef).filter((a): a is string => a !== null);
+      if (attrDefs.length > 0) {
         parts.push(`${indent}  attributes: [`);
-        for (const attr of extAttrs) {
-          const attrDef = generateAttributeDef(attr);
+        for (const attrDef of attrDefs) {
           parts.push(`${indent}    ${attrDef},`);
         }
         parts.push(`${indent}  ],`);
@@ -125,12 +131,12 @@ export function generateElementDef(
     }
   }
 
-  // Find attributes (direct children)
+  // Find attributes (direct children, filter out nulls from ref attrs)
   const attributes = findChildren(typeEl, 'attribute');
-  if (attributes.length > 0) {
+  const attrDefs = attributes.map(generateAttributeDef).filter((a): a is string => a !== null);
+  if (attrDefs.length > 0) {
     parts.push(`${indent}  attributes: [`);
-    for (const attr of attributes) {
-      const attrDef = generateAttributeDef(attr);
+    for (const attrDef of attrDefs) {
       parts.push(`${indent}    ${attrDef},`);
     }
     parts.push(`${indent}  ],`);

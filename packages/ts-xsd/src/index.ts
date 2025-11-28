@@ -10,6 +10,12 @@ import type { XsdSchema, XsdElement } from './types';
 export { parse } from './parse';
 export { build, type BuildOptions } from './build';
 
+// Config helpers
+export { defineConfig, type CodegenConfig } from './config';
+
+// Generator factory functions
+export { raw, factory, type RawOptions, type FactoryOptions } from './generators';
+
 // Types
 export type {
   XsdSchema,
@@ -18,6 +24,9 @@ export type {
   XsdAttribute,
   InferXsd,
 } from './types';
+
+export type { Generator, GeneratorContext, SchemaData, SchemaImport } from './codegen/generator';
+export type { ImportResolver, ImportedSchema } from './codegen/types';
 
 /**
  * JSON schema input type (loose typing for JSON imports)

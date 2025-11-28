@@ -180,4 +180,4 @@ export function createNamespace(config: NamespaceConfig): Namespace {
 /**
  * Re-export ts-xml type utilities for external use
  */
-export type { InferSchema } from "ts-xml";
+export type { InferSchema, ElementSchema } from "ts-xml";

@@ -5,15 +5,18 @@
  * Replaces the deprecated 'transport' command.
  *
  * Implemented Commands:
- * - adt cts search [options] [--json] - Search transports (server-side filtering)
+ * - adt cts search [options] [--json] - Search transports (basic endpoint)
  *     -u, --user <user>               - Filter by owner (* for all, default: *)
- *     -s, --status <status>           - Filter by status: modifiable/released/locked or D/R/L
  *     -t, --type <type>               - Filter by type: workbench/customizing/copies or K/W/T
- *     -n, --number <pattern>          - Transport number pattern (e.g., S0DK*)
+ *     -m, --max <number>              - Maximum results (default: 50)
+ * - adt cts tree [options] [--json]   - List transports using search configuration
  *     -m, --max <number>              - Maximum results (default: 50)
  * - adt cts get <TR> [--objects]      - Get transport details
  *
- * TODO - Missing features from old 'transport' command:
+ * Note: 'search' uses the basic find endpoint with limited filtering.
+ * 'tree' uses the search configuration endpoint which respects ADT tree settings.
+ *
+ * TODO - Missing features:
  * - adt cts create --desc "..." [--type K] [--target LOCAL] [--project X] [--owner Y]
  * - adt cts release <TR>              - Release transport
  * - adt cts check <TR>                - Pre-release validation
@@ -21,6 +24,7 @@
 
 import { Command } from 'commander';
 import { ctsSearchCommand } from './search';
+import { createTreeCommand } from './tree';
 import { ctsGetCommand } from './get';
 
 export function createCtsCommand(): Command {
@@ -29,6 +33,7 @@ export function createCtsCommand(): Command {
     .description('CTS (Change and Transport System) operations');
 
   ctsCmd.addCommand(ctsSearchCommand);
+  ctsCmd.addCommand(createTreeCommand());
   ctsCmd.addCommand(ctsGetCommand);
   // TODO: ctsCmd.addCommand(ctsCreateCommand);
   // TODO: ctsCmd.addCommand(ctsReleaseCommand);

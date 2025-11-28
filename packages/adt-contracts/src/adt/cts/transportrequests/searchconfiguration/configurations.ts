@@ -1,10 +1,10 @@
 /**
  * /sap/bc/adt/cts/transportrequests/searchconfiguration/configurations
- * @schema configurations.xsd
+ * @schema configurations.xsd, configuration.xsd
  */
 
 import { http, contract } from '../../../../base';
-import { configurations as configurationsSchema } from 'adt-schemas-xsd';
+import { configurations as configurationsSchema, configuration as configurationSchema } from 'adt-schemas-xsd';
 
 export const configurations = contract({
   /** GET list of search configurations */
@@ -12,5 +12,12 @@ export const configurations = contract({
     http.get('/sap/bc/adt/cts/transportrequests/searchconfiguration/configurations', {
       responses: { 200: configurationsSchema },
       headers: { Accept: 'application/vnd.sap.adt.configurations.v1+xml' },
+    }),
+
+  /** GET a specific configuration by ID */
+  getById: (configId: string) =>
+    http.get(`/sap/bc/adt/cts/transportrequests/searchconfiguration/configurations/${configId}`, {
+      responses: { 200: configurationSchema },
+      headers: { Accept: 'application/vnd.sap.adt.configuration.v1+xml' },
     }),
 });

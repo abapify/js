@@ -32,7 +32,7 @@ export default schema({
       ],
       attributes: [
         {
-          name: null,
+          name: 'base',
           type: 'string',
         },
       ],

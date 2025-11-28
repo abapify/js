@@ -14,6 +14,14 @@
 
 export type { CodegenOptions, GeneratedSchema, ImportResolver, ImportedSchema } from './types';
 export type { Generator, GeneratorContext, SchemaData, SchemaImport } from './generator';
+export { 
+  generateBatch, 
+  scanXsdDirectory,
+  collectDependencies,
+  extractImportedSchemas,
+  type BatchOptions, 
+  type BatchResult,
+} from './batch';
 
 import type { CodegenOptions, GeneratedSchema, ImportResolver } from './types';
 import type { Generator, SchemaData, SchemaImport } from './generator';
