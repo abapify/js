@@ -1,8 +1,8 @@
 {
-  "name": "@abapify/adt-puppeteer",
+  "name": "@abapify/adt-playwright",
   "version": "0.0.1",
   "type": "module",
-  "description": "Puppeteer-based authentication for SAP ADT (SSO/IDP)",
+  "description": "Playwright-based SSO authentication plugin for ADT client",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -11,12 +11,11 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@abapify/adt-auth": "*",
     "@abapify/adt-config": "*",
     "@abapify/browser-auth": "*",
-    "puppeteer": "^24.0.0"
+    "playwright": "^1.57.0"
   },
-  "peerDependencies": {
-    "puppeteer": ">=22.0.0"
+  "devDependencies": {
+    "@types/node": "^22.10.2"
   }
 }

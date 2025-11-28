@@ -82,6 +82,7 @@ export class AuthManager {
         auth: {
           method: 'cookie',
           plugin: destination.type,
+          pluginOptions: destination.options, // Store full plugin options for refresh fallback
           credentials: {
             cookies: result.credentials.cookies,
             expiresAt: result.credentials.expiresAt.toISOString(),
@@ -96,6 +97,7 @@ export class AuthManager {
         auth: {
           method: 'basic',
           plugin: destination.type,
+          pluginOptions: destination.options, // Store full plugin options for consistency
           credentials: result.credentials,
         },
       };
@@ -180,29 +182,53 @@ export class AuthManager {
 
   /**
    * Refresh credentials using the auth plugin
-   * 
-   * @returns Updated session with new credentials
-   * @throws Error if no plugin configured or refresh fails
+   *
+   * @returns Updated session with new credentials, or null if refresh not supported/failed
    */
-  async refreshCredentials(session: AuthSession): Promise<AuthSession> {
+  async refreshCredentials(session: AuthSession): Promise<AuthSession | null> {
     if (!session.auth.plugin) {
-      throw new Error('No auth plugin configured. Please re-authenticate manually.');
+      return null; // No plugin = can't refresh
     }
 
     // Dynamic import of the auth plugin (expects default export)
     const pluginModule = await import(session.auth.plugin) as { default?: AuthPlugin };
-    
-    if (!pluginModule.default?.authenticate) {
-      throw new Error(`Plugin ${session.auth.plugin} does not have a default export with authenticate method`);
+
+    if (!pluginModule.default) {
+      throw new Error(`Plugin ${session.auth.plugin} does not have a default export`);
     }
 
-    const options: AuthPluginOptions = { 
-      url: session.host, 
+    const plugin = pluginModule.default;
+
+    // Try plugin's refresh method first (preferred for session-based auth)
+    if (plugin.refresh) {
+      const result = await plugin.refresh(session);
+
+      if (result) {
+        // Refresh succeeded - build and save updated session
+        // Preserve original plugin options (including userDataDir)
+        const destination: Destination = {
+          type: session.auth.plugin,
+          options: session.auth.pluginOptions || { url: session.host, client: session.client },
+        };
+
+        const updatedSession = this.buildSession(session.sid, destination, result);
+        this.saveSession(updatedSession);
+
+        return updatedSession;
+      }
+
+      // Refresh failed - fall through to interactive authenticate
+      console.log('⚠️  Silent refresh failed - falling back to interactive authentication...');
+    }
+
+    // Fallback: Call authenticate (full re-auth with browser interaction)
+    // Use stored plugin options to preserve settings like userDataDir
+    const options: AuthPluginOptions = session.auth.pluginOptions || {
+      url: session.host,
       client: session.client,
     };
 
-    // Plugin MUST return standard AuthPluginResult
-    const result = await pluginModule.default.authenticate(options);
+    const result = await plugin.authenticate(options);
 
     // Build destination for buildSession
     const destination: Destination = {
