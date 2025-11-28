@@ -1,8 +1,15 @@
-// tsdown.config.ts
 import { defineConfig } from 'tsdown';
+import baseConfig from '../../../tsdown.config.ts';
 
 export default defineConfig({
-  sourcemap: true,
+  ...baseConfig,
+  entry: ['src/index.ts'],
   tsconfig: 'tsconfig.lib.json',
-  skipNodeModulesBundle: true,
+  dts: { build: false }, // Temporarily disabled due to rolldown-plugin-dts bug with ADK types
+  external: [
+    // External all node built-ins and npm packages to avoid bundling issues
+    /^node:/,
+    /^@abapify\//,
+    'fast-xml-parser',
+  ],
 });

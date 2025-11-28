@@ -1,0 +1,32 @@
+{
+  "name": "@abapify/adt-auth",
+  "version": "0.1.0",
+  "description": "Authentication package for SAP ADT systems - supports multiple auth methods",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./plugins/basic": "./dist/plugins/basic.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@abapify/logger": "*",
+    "proxy-agent": "^6.4.0"
+  },
+  "keywords": [
+    "sap",
+    "adt",
+    "authentication",
+    "abap",
+    "slc",
+    "oauth"
+  ],
+  "author": "Booking.com",
+  "license": "MIT",
+  "module": "./dist/index.mjs"
+}

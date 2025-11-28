@@ -57,6 +57,7 @@ export class AdtClientImpl implements AdtClient {
   private adkFacade: AdkFacade;
   private debugMode = false;
   private logger: any;
+  private fileLogger?: any; // FileLogger for ADT response logging
 
   // Service accessors
   readonly cts: CtsOperations;
@@ -69,9 +70,11 @@ export class AdtClientImpl implements AdtClient {
   constructor(config: AdtClientConfig = {}) {
     // Initialize logger - use provided logger or create default
     this.logger = config.logger || createLogger('adt-client');
+    this.fileLogger = config.fileLogger;
 
     this.connectionManager = new ConnectionManager(
-      this.logger.child({ component: 'connection' })
+      this.logger.child({ component: 'connection' }),
+      this.fileLogger
     );
     this.sessionManager = new SessionManager();
     this.objectService = new ObjectService(this.connectionManager);

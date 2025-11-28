@@ -4,9 +4,6 @@
   "include": [],
   "references": [
     {
-      "path": "../../adt-cli"
-    },
-    {
       "path": "./tsconfig.lib.json"
     }
   ]

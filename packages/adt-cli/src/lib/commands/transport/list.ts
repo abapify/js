@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { AdtClientImpl } from '@abapify/adt-client';
+import { adtClient } from '../../shared/clients';
 
 export const transportListCommand = new Command('list')
   .alias('ls')
@@ -7,15 +7,8 @@ export const transportListCommand = new Command('list')
   .option('-u, --user <user>', 'Filter by user')
   .option('-s, --status <status>', 'Filter by status')
   .option('-m, --max <number>', 'Maximum number of results', '50')
-  .action(async (options, command) => {
-    const logger = command.parent?.parent?.logger;
-
+  .action(async (options) => {
     try {
-      // Create ADT client with logger
-      const adtClient = new AdtClientImpl({
-        logger: logger?.child({ component: 'cli' }),
-      });
-
       const filters = {
         user: options.user,
         status: options.status,

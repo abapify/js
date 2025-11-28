@@ -3,23 +3,13 @@
   "version": "1.0.0",
   "description": "OAT format plugin for ADT CLI",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "dist"
   ],
-  "scripts": {
-    "test": "vitest run --reporter=basic --passWithNoTests",
-    "test:watch": "vitest",
-    "lint": "eslint src --ext .ts",
-    "clean": "rimraf dist"
-  },
   "dependencies": {
     "js-yaml": "^4.1.0"
-  },
-  "devDependencies": {
-    "@types/js-yaml": "^4.0.5",
-    "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "@abapify/adt-cli": "*"
@@ -33,5 +23,10 @@
     "format"
   ],
   "author": "Abapify Team",
-  "license": "MIT"
+  "license": "MIT",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  }
 }

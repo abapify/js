@@ -7,25 +7,28 @@ import {
   exportPackageCommand,
   searchCommand,
   discoveryCommand,
+  infoCommand,
+  fetchCommand,
   getCommand,
   outlineCommand,
   atcCommand,
   loginCommand,
   logoutCommand,
   statusCommand,
-  transportListCommand,
-  transportGetCommand,
-  transportCreateCommand,
+  authListCommand,
+  setDefaultCommand,
   createTestLogCommand,
   createTestAdtCommand,
   createResearchSessionsCommand,
+  createCtsCommand,
 } from './commands';
+import { refreshCommand } from './commands/auth/refresh';
 import { deployCommand } from './commands/deploy/index';
 import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setGlobalLogger } from './shared/clients';
-import { AuthManager } from '@abapify/adt-client';
+import { setCliContext } from './utils/adt-client-v2';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -37,11 +40,11 @@ function applyInsecureSslFlag(): void {
       '.adt',
       'auth.json'
     );
-    
+
     if (existsSync(authFile)) {
       const session = JSON.parse(readFileSync(authFile, 'utf8'));
       if (session.insecure) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Commented out for testing proper cert validation
       }
     }
   } catch (error) {
@@ -85,10 +88,29 @@ export async function createCLI(): Promise<Command> {
     .description('ADT CLI tool for managing SAP ADT services')
     .version('1.0.0')
     .option(
+      '--sid <sid>',
+      'SAP System ID (e.g., BHF, S0D) - overrides default system'
+    )
+    .option(
       '-v, --verbose [components]',
       `Enable verbose logging. Optionally filter by components: ${AVAILABLE_COMPONENTS.join(
         ', '
       )} or 'all'`
+    )
+    .option(
+      '--log-level <level>',
+      'Log level: trace|debug|info|warn|error',
+      'info'
+    )
+    .option(
+      '--log-output <dir>',
+      'Output directory for log files',
+      './tmp/logs'
+    )
+    .option(
+      '--log-response-files',
+      'Save ADT responses as separate files',
+      false
     )
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.optsWithGlobals();
@@ -98,8 +120,13 @@ export async function createCLI(): Promise<Command> {
         verbose: opts.verbose,
       });
 
-      // Store logger for use in commands
+      // Store logger and logging config for use in commands
       (thisCommand as any).logger = logger;
+      (thisCommand as any).loggingConfig = {
+        logLevel: opts.logLevel || 'info',
+        logOutput: opts.logOutput || './tmp/logs',
+        logResponseFiles: opts.logResponseFiles || false,
+      };
     });
 
   // Auth commands
@@ -110,9 +137,18 @@ export async function createCLI(): Promise<Command> {
   authCmd.addCommand(loginCommand);
   authCmd.addCommand(logoutCommand);
   authCmd.addCommand(statusCommand);
+  authCmd.addCommand(authListCommand);
+  authCmd.addCommand(setDefaultCommand);
+  authCmd.addCommand(refreshCommand);
 
   // Discovery command
   program.addCommand(discoveryCommand);
+
+  // Info command (system and session info)
+  program.addCommand(infoCommand);
+
+  // Fetch command (authenticated HTTP requests)
+  program.addCommand(fetchCommand);
 
   // Object inspector command
   program.addCommand(getCommand);
@@ -126,15 +162,10 @@ export async function createCLI(): Promise<Command> {
   // Search command
   program.addCommand(searchCommand);
 
-  // Transport commands
-  const transportCmd = program
-    .command('transport')
-    .alias('tr')
-    .description('Transport request management');
-
-  transportCmd.addCommand(transportListCommand);
-  transportCmd.addCommand(transportGetCommand);
-  transportCmd.addCommand(transportCreateCommand);
+  // CTS commands (v2 client) - replaces old 'transport' command
+  // Use: adt cts search, adt cts get <TR>
+  // TODO: adt cts create, adt cts release, adt cts check
+  program.addCommand(createCtsCommand());
 
   // Import commands
   const importCmd = program
@@ -162,6 +193,7 @@ export async function createCLI(): Promise<Command> {
 
   // Research command
   program.addCommand(createResearchSessionsCommand());
+
 
   // Test commands for debugging
   program.addCommand(createTestLogCommand());
@@ -194,7 +226,21 @@ export async function main(): Promise<void> {
 
     // Create and set global logger for ADT client
     const logger = createCliLogger({ verbose: globalOptions.verbose });
-    setGlobalLogger(logger);
+    const loggingConfig = {
+      logLevel: globalOptions.logLevel || 'info',
+      logOutput: globalOptions.logOutput || './tmp/logs',
+      logResponseFiles: Boolean(globalOptions.logResponseFiles),
+    };
+    setGlobalLogger(logger, loggingConfig);
+
+    // Set CLI context for getAdtClientV2 (auto-reads these options)
+    setCliContext({
+      sid: globalOptions.sid,
+      logger,
+      logLevel: loggingConfig.logLevel,
+      logOutput: loggingConfig.logOutput,
+      logResponseFiles: loggingConfig.logResponseFiles,
+    });
   });
 
   await program.parseAsync(process.argv);
