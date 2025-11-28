@@ -189,6 +189,77 @@ export default schema({
 });
 ```
 
+## Manual Schemas for ABAP XML Format
+
+Some SAP endpoints return ABAP XML format (`asx:abap` envelope) which doesn't have official XSD definitions. For these, create manual schemas in `src/schemas/manual/`:
+
+### Creating a Manual Schema
+
+```typescript
+// src/schemas/manual/transportfind.ts
+import schema from '../../speci';
+
+export default schema({
+  ns: 'http://www.sap.com/abapxml',
+  prefix: 'asx',
+  root: 'abap',  // Element name WITHOUT namespace prefix
+  elements: {
+    abap: {
+      sequence: [{ name: 'values', type: 'values' }],
+      attributes: [{ name: 'version', type: 'string' }],
+    },
+    values: {
+      sequence: [{ name: 'DATA', type: 'DATA' }],
+    },
+    DATA: {
+      sequence: [
+        { name: 'CTS_REQ_HEADER', type: 'CTS_REQ_HEADER', minOccurs: 0, maxOccurs: 'unbounded' },
+      ],
+    },
+    CTS_REQ_HEADER: {
+      sequence: [
+        { name: 'TRKORR', type: 'string' },
+        { name: 'TRFUNCTION', type: 'string' },
+        // ... more fields
+      ],
+    },
+  },
+} as const);  // CRITICAL: 'as const' is required for proper type inference!
+```
+
+### Key Points for ABAP XML Schemas
+
+1. **ALWAYS use `as const`**: Required for TypeScript to infer literal types from the schema definition
+2. **Element names WITHOUT namespace prefix**: Use `'abap'`, `'values'` - NOT `'asx:abap'`, `'asx:values'`
+3. **Root element content is parsed directly**: The parsed result is the content of the root element, not wrapped in it
+4. **Export from index**: Add to `src/schemas/index.ts`:
+   ```typescript
+   export { default as transportfind } from './manual/transportfind';
+   ```
+
+### Parsed Structure
+
+For XML like:
+```xml
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+    <DATA><CTS_REQ_HEADER>...</CTS_REQ_HEADER></DATA>
+  </asx:values>
+</asx:abap>
+```
+
+ts-xsd parses to:
+```javascript
+{
+  version: "1.0",           // Root element attributes
+  values: {                 // Root element content (no 'abap' wrapper)
+    DATA: {
+      CTS_REQ_HEADER: [...]
+    }
+  }
+}
+```
+
 ## Development
 
 ### Regenerate Schemas

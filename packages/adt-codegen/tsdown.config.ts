@@ -1,12 +1,8 @@
 import { defineConfig } from 'tsdown';
+import baseConfig from '../../tsdown.config.ts';
 
 export default defineConfig({
+  ...baseConfig,
   entry: ['src/index.ts', 'src/cli.ts', 'src/plugins/index.ts'],
-  format: ['esm'],
-  dts: true,
-  clean: true,
   shims: true,
-  platform: 'node',
-  target: 'node18',
-  outDir: 'dist',
 });

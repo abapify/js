@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "description": "Code generation toolkit for SAP ADT APIs",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "bin": {
     "adt-codegen": "./dist/cli.js"
   },
   "exports": {
-    ".": "./dist/index.js",
-    "./plugins": "./dist/plugins/index.js",
+    ".": "./dist/index.mjs",
+    "./cli": "./dist/cli.mjs",
+    "./plugins": "./dist/plugins/index.mjs",
     "./package.json": "./package.json"
   },
   "files": [
@@ -29,5 +30,6 @@
     "fast-xml-parser": "^4.3.2",
     "commander": "^11.1.0",
     "chalk": "^5.3.0"
-  }
+  },
+  "module": "./dist/index.mjs"
 }

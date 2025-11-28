@@ -34,5 +34,20 @@ export {
   type OoContract,
 } from './adt';
 
+// Re-export CTS transport types for convenience
+export {
+  TransportFunction,
+  TransportStatus,
+  SearchMode,
+  DateFilter,
+  normalizeTransportFindResponse,
+  type TransportFindParams,
+  type CtsReqHeader,
+  type TransportFunctionCode,
+  type TransportStatusCode,
+  type SearchModeValue,
+  type DateFilterValue,
+} from './adt/cts/transports';
+
 // Re-export schemas for convenience
 export * from 'adt-schemas-xsd';

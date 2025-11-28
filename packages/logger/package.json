@@ -3,13 +3,11 @@
   "version": "0.1.0",
   "description": "Shared logger interface for abapify packages",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
   },
   "keywords": [
     "logger",
@@ -18,5 +16,6 @@
     "adt"
   ],
   "author": "abapify",
-  "license": "MIT"
+  "license": "MIT",
+  "module": "./dist/index.mjs"
 }
