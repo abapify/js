@@ -59,3 +59,10 @@ export {
   CookieStore,
   CsrfTokenManager,
 } from './utils/session';
+
+// Export CTS transport service
+export { createTransportService, type TransportService } from './services/cts/transport-service';
+export type { TransportRequest, TransportTask, TransportObject } from './services/cts/types';
+
+// Re-export speci types needed for declaration generation
+export type { RestEndpointDescriptor, Serializable, RestContract } from 'speci/rest';

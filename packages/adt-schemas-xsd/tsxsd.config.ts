@@ -1,17 +1,18 @@
 /**
- * ADT Schemas Configuration
+ * ts-xsd Configuration for ADT Schemas
  * 
- * List the XSD schemas to generate TypeScript from.
- * The codegen will automatically resolve dependencies via xsd:import.
+ * Generates TypeScript schemas from SAP ADT XSD files.
  * 
  * Usage:
- *   npx tsx scripts/generate.ts
+ *   npx nx generate adt-schemas-xsd
  */
 
-// Import XSD files directly - ts-xsd loader handles parsing
-// Note: These imports will be resolved by the generate script
+import { defineConfig, factory } from 'ts-xsd';
 
-export const schemas = [
+/**
+ * Schemas to generate (dependencies are auto-resolved)
+ */
+const schemas = [
   // Core ADT types
   'adtcore',
   'abapsource',
@@ -48,12 +49,12 @@ export const schemas = [
   
   // Other
   'log',
-] as const;
+];
 
 /**
  * Custom resolver for SAP platform:/ URLs
  */
-export function resolveImport(schemaLocation: string, _namespace: string): string {
+function resolveImport(schemaLocation: string): string {
   // platform:/plugin/.../model/foo.xsd → ./foo
   const match = schemaLocation.match(/\/model\/([^/]+)\.xsd$/);
   if (match) return `./${match[1]}`;
@@ -65,3 +66,12 @@ export function resolveImport(schemaLocation: string, _namespace: string): strin
   
   return schemaLocation.replace(/\.xsd$/, '');
 }
+
+export default defineConfig({
+  input: '.xsd/model/*.xsd',
+  output: 'src/schemas/generated',
+  generator: factory({ path: '../../speci' }),
+  resolver: resolveImport,
+  schemas,
+  stubs: true,
+});

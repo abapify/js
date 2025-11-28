@@ -46,3 +46,6 @@ export type {
   ClassType as ClassSpec,
   ClassIncludeElementType as ClassInclude,
 } from '@abapify/adt-schemas';
+
+// Re-export ts-xml types needed for declaration generation (via adt-schemas)
+export type { InferSchema, ElementSchema } from '@abapify/adt-schemas';
