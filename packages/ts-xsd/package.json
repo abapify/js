@@ -3,28 +3,18 @@
   "version": "0.1.0",
   "description": "Type-safe XSD schemas for TypeScript - parse and build XML with full type inference",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "bin": {
     "ts-xsd": "./dist/cli.js"
   },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./register": {
-      "types": "./dist/register.d.ts",
-      "import": "./dist/register.js"
-    },
-    "./loader": {
-      "types": "./dist/loader.d.ts",
-      "import": "./dist/loader.js"
-    },
-    "./codegen": {
-      "types": "./dist/codegen.d.ts",
-      "import": "./dist/codegen.js"
-    }
+    ".": "./dist/index.mjs",
+    "./cli": "./dist/cli.mjs",
+    "./codegen": "./dist/codegen.mjs",
+    "./loader": "./dist/loader.mjs",
+    "./register": "./dist/register.mjs",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -43,5 +33,5 @@
   "dependencies": {
     "@xmldom/xmldom": "^0.9.8"
   },
-  "module": "./dist/index.js"
+  "module": "./dist/index.mjs"
 }

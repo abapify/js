@@ -3,13 +3,11 @@
   "version": "0.1.0",
   "description": "SAP ADT REST API contracts using speci + ts-xsd",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
   },
   "dependencies": {
     "speci": "*",
@@ -18,5 +16,6 @@
   "files": [
     "dist"
   ],
-  "private": true
+  "private": true,
+  "module": "./dist/index.mjs"
 }
