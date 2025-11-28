@@ -10,4 +10,5 @@ export default defineConfig({
   treeshake: true,
   minify: false,
   exports: true,
+  shims: true,
 });

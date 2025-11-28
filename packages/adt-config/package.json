@@ -1,5 +1,6 @@
 {
   "name": "@abapify/adt-config",
+  "type": "module",
   "version": "0.0.1",
   "description": "Configuration loader for ADT CLI",
   "main": "./dist/index.mjs",
