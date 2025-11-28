@@ -43,14 +43,16 @@ export type Credentials = BasicCredentials | CookieCredentials;
 
 /**
  * Auth configuration in session file
- * 
+ *
  * - `method`: What the HTTP client uses ("cookie" | "basic")
  * - `plugin`: Package to dynamically import for refresh (optional)
+ * - `pluginOptions`: Original plugin options (for refresh fallback)
  * - `credentials`: Method-specific credentials
  */
 export interface AuthConfig {
   method: AuthMethod;
   plugin?: string;  // e.g., "@abapify/adt-puppeteer" - for refresh
+  pluginOptions?: AuthPluginOptions;  // Original options (url, userDataDir, etc.)
   credentials: Credentials;
 }
 
@@ -87,6 +89,9 @@ export interface AuthSession {
 export interface AuthPlugin {
   /** Authenticate and return credentials */
   authenticate(options: AuthPluginOptions): Promise<AuthPluginResult>;
+
+  /** Optional: Refresh existing credentials (for session-based auth) */
+  refresh?(session: AuthSession): Promise<AuthPluginResult | null>;
 }
 
 export interface AuthPluginOptions {

@@ -274,24 +274,37 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
   // Create onSessionExpired callback for automatic SAML re-authentication
   // Only applicable for cookie-based auth with a plugin that can refresh
   let onSessionExpired: (() => Promise<string>) | undefined;
-  
+
   if (effectiveOptions.autoReauth && session.auth.method === 'cookie' && session.auth.plugin) {
     // Capture current session for the callback closure
     let currentSession = session;
-    
+    let refreshAttempts = 0;
+    const MAX_REFRESH_ATTEMPTS = 1;
+
     onSessionExpired = async (): Promise<string> => {
-      console.log(`🔄 Session expired, refreshing credentials for ${currentSession.sid}...`);
-      
+      refreshAttempts++;
+
+      if (refreshAttempts > MAX_REFRESH_ATTEMPTS) {
+        const error = new Error(`Maximum refresh attempts (${MAX_REFRESH_ATTEMPTS}) exceeded`);
+        console.error('❌ Auto-refresh failed: Too many attempts');
+        const sidArg = effectiveOptions.sid ? ` --sid=${effectiveOptions.sid}` : '';
+        console.error(`💡 Run "npx adt auth login${sidArg}" to re-authenticate manually`);
+        throw error;
+      }
+
+      console.log(`🔄 Session expired, refreshing credentials for ${currentSession.sid}... (attempt ${refreshAttempts}/${MAX_REFRESH_ATTEMPTS})`);
+
       try {
         // Refresh credentials using the auth plugin (opens browser for SAML)
         const refreshedSession = await refreshCredentials(currentSession);
         currentSession = refreshedSession;
-        
+
         // Extract new cookie from refreshed session
         const creds = refreshedSession.auth.credentials as CookieCredentials;
         const newCookie = decodeURIComponent(creds.cookies);
-        
+
         console.log(`✅ Session refreshed for ${currentSession.sid}`);
+        // DON'T reset counter - if cookies don't work, we'll hit the limit
         return newCookie;
       } catch (error) {
         console.error('❌ Auto-refresh failed:', error instanceof Error ? error.message : String(error));
