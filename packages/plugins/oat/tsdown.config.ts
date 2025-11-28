@@ -1,8 +1,8 @@
-// tsdown.config.ts
 import { defineConfig } from 'tsdown';
+import baseConfig from '../../../tsdown.config.ts';
 
 export default defineConfig({
-  sourcemap: true,
+  ...baseConfig,
+  entry: ['src/index.ts'],
   tsconfig: 'tsconfig.lib.json',
-  skipNodeModulesBundle: true,
 });

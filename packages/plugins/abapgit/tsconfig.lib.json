@@ -5,10 +5,27 @@
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "declaration": true,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../../adt-cli/tsconfig.lib.json"
+    },
+    {
+      "path": "../../adk/tsconfig.lib.json"
+    },
+    {
+      "path": "../../ts-xml/tsconfig.build.json"
+    },
+    {
+      "path": "../../adt-schemas/tsconfig.lib.json"
+    },
+    {
+      "path": "../../.."
+    }
+  ]
 }

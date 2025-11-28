@@ -4,40 +4,10 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/asjson-parser"
+      "path": "packages/adt-client"
     },
     {
-      "path": "./packages/adt-cli"
-    },
-    {
-      "path": "./packages/adk"
-    },
-    {
-      "path": "./packages/adt-client"
-    },
-    {
-      "path": "./packages/plugins/oat"
-    },
-    {
-      "path": "./packages/plugins/abapgit"
-    },
-    {
-      "path": "./packages/plugins/gcts"
-    },
-    {
-      "path": "./tools/nx-tsdown"
-    },
-    {
-      "path": "./samples/sample-tsdown"
-    },
-    {
-      "path": "./packages/xmld"
-    },
-    {
-      "path": "./tools/nx-vitest"
-    },
-    {
-      "path": "./e2e/adk-xml"
+      "path": "packages/adt-cli"
     }
   ]
 }

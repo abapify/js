@@ -1,76 +1,65 @@
 import { Command } from 'commander';
-import { IconRegistry } from '../utils/icon-registry';
-import { AdtClientImpl } from '@abapify/adt-client';
+import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const searchCommand = new Command('search')
-  .argument('[searchTerm]', 'Search term (optional)')
-  .description('Search ABAP objects using ADT Repository Information System')
-  .option('-p, --package <package>', 'Filter by package name')
-  .option(
-    '-t, --object-type <type>',
-    'Filter by object type (CLAS, INTF, PROG, etc.)'
-  )
-  .option('-m, --max-results <number>', 'Maximum number of results', '100')
-  .option('--no-description', 'Exclude descriptions from results')
-  .action(async (searchTerm, options, command) => {
-    const logger = command.parent?.logger;
-
+  .description('Search for ABAP objects in the repository')
+  .argument('<query>', 'Search query (supports wildcards like *)')
+  .option('-m, --max <number>', 'Maximum number of results', '50')
+  .option('--json', 'Output results as JSON')
+  .action(async (query: string, options) => {
     try {
-      // Create ADT client with logger
-      const adtClient = new AdtClientImpl({
-        logger: logger?.child({ component: 'cli' }),
+      const adtClient = await getAdtClientV2();
+      const maxResults = parseInt(options.max, 10);
+
+      console.log(`🔍 Searching for: "${query}" (max: ${maxResults} results)...\n`);
+
+      // Perform search
+      const results = await adtClient.adt.repository.informationsystem.search.quickSearch({
+        query,
+        maxResults,
       });
 
-      console.log(`🔍 Searching ABAP objects...`);
+      // Handle results
+      const objects = results.objectReference
+        ? (Array.isArray(results.objectReference)
+            ? results.objectReference
+            : [results.objectReference])
+        : [];
 
-      const searchOptions = {
-        operation: 'quickSearch' as const,
-        query: searchTerm,
-        packageName: options.package,
-        objectType: options.objectType,
-        maxResults: parseInt(options.maxResults),
-        noDescription: options.noDescription,
-      };
-
-      const result = await adtClient.repository.searchObjectsDetailed(
-        searchOptions
-      );
-
-      if (result.objects.length === 0) {
-        console.log('No objects found matching the search criteria.');
+      if (objects.length === 0) {
+        console.log('No objects found matching your query.');
         return;
       }
 
-      console.log(`\n📋 Found ${result.totalCount} objects:\n`);
+      if (options.json) {
+        // Output as JSON
+        console.log(JSON.stringify(objects, null, 2));
+      } else {
+        // Format as table
+        console.log(`Found ${objects.length} object(s):\n`);
 
-      // Group by object type for better display
-      const groupedObjects = result.objects.reduce((groups, obj) => {
-        const type = obj.type;
-        if (!groups[type]) groups[type] = [];
-        groups[type].push(obj);
-        return groups;
-      }, {} as Record<string, typeof result.objects>);
-
-      for (const [objectType, objects] of Object.entries(groupedObjects)) {
-        const icon = IconRegistry.getIcon(objectType);
-        console.log(`${icon} ${objectType} (${objects.length} objects):`);
-        for (const obj of objects) {
-          console.log(`   ${obj.name}`);
+        objects.forEach((obj, index) => {
+          console.log(`${index + 1}. ${obj.name} (${obj.type})`);
           if (obj.description) {
-            console.log(`     📝 ${obj.description}`);
+            console.log(`   ${obj.description}`);
           }
-          console.log(`     📦 Package: ${obj.packageName}`);
-          if (options.debug) {
-            console.log(`     🔗 URI: ${obj.uri}`);
+          if (obj.packageName) {
+            console.log(`   Package: ${obj.packageName}`);
           }
+          console.log(`   URI: ${obj.uri}`);
           console.log();
-        }
+        });
       }
+
+      console.log('✅ Search complete!');
     } catch (error) {
       console.error(
-        `❌ Search failed:`,
+        '❌ Search failed:',
         error instanceof Error ? error.message : String(error)
       );
+      if (error instanceof Error && error.stack) {
+        console.error('\nStack trace:', error.stack);
+      }
       process.exit(1);
     }
   });

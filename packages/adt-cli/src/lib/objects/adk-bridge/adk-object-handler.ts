@@ -1,6 +1,6 @@
 import { BaseObject } from '../base/base-object';
 import { ObjectData } from '../base/types';
-import { Kind } from '@abapify/adk';
+import { Kind, createCachedLazyLoader } from '@abapify/adk';
 import type { AdtClient } from '@abapify/adt-client';
 
 // Temporary interface until ADK stabilizes
@@ -17,7 +17,8 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
   constructor(
     private parseXmlToObject: (xml: string) => AdkObject,
     private uriFactory: (name: string) => string,
-    private adtClient: AdtClient
+    private adtClient: AdtClient,
+    private acceptHeader?: string
   ) {
     super();
   }
@@ -30,9 +31,74 @@ export class AdkObjectHandler extends BaseObject<ObjectData> {
     return this.adkObjectToObjectData(adkObject, xml);
   }
 
+  /**
+   * Get object as ADK object directly (for format plugins that support ADK)
+   */
+  async getAdkObject(name: string): Promise<AdkObject> {
+    const xml = await this.getAdtXml(name);
+    const adkObject = this.parseXmlToObject(xml);
+
+    // Add lazy loading for class includes
+    if (adkObject.kind === Kind.Class) {
+      const data = (adkObject as any).getData?.() || (adkObject as any).data;
+
+      if (data && Array.isArray(data.include)) {
+        const baseUri = this.uriFactory(name);
+
+        for (const include of data.include) {
+          if (include.sourceUri) {
+            // Create lazy loader for this include
+            // Note: sourceUri might be relative (e.g., "source/main" or "/source") or absolute
+            const fullUri = include.sourceUri.startsWith('http')
+              ? include.sourceUri
+              : include.sourceUri.startsWith('/')
+              ? `${baseUri}${include.sourceUri}`
+              : `${baseUri}/${include.sourceUri}`;
+
+            include.content = createCachedLazyLoader(async () => {
+              const response = await this.adtClient.request(fullUri, {
+                method: 'GET',
+                headers: {
+                  Accept: 'text/plain',
+                },
+              });
+              return await response.text();
+            });
+          }
+        }
+      }
+    }
+
+    // Add lazy loading for interface source
+    if (adkObject.kind === Kind.Interface) {
+      const data = (adkObject as any).getData?.() || (adkObject as any).data;
+
+      if (data && data.sourceUri) {
+        const baseUri = this.uriFactory(name);
+        const fullUri = data.sourceUri.startsWith('http')
+          ? data.sourceUri
+          : data.sourceUri.startsWith('/')
+          ? `${baseUri}${data.sourceUri}`
+          : `${baseUri}/${data.sourceUri}`;
+
+        (data as any).content = createCachedLazyLoader(async () => {
+          const response = await this.adtClient.request(fullUri, {
+            method: 'GET',
+            headers: {
+              Accept: 'text/plain',
+            },
+          });
+          return await response.text();
+        });
+      }
+    }
+
+    return adkObject;
+  }
+
   override async getAdtXml(name: string): Promise<string> {
     const uri = this.uriFactory(name);
-    return this.fetchFromAdt(uri, 'application/xml');
+    return this.fetchFromAdt(uri, this.acceptHeader || 'application/xml');
   }
 
   override async getStructure(name: string): Promise<void> {
