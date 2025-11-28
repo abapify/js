@@ -1,58 +1,76 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { AdtClientImpl } from '@abapify/adt-client';
+import { getAdtClientV2, getCaptured } from '../utils/adt-client-v2';
 
 export const discoveryCommand = new Command('discovery')
   .description('Discover available ADT services')
-  .option('-o, --output <file>', 'Save discovery data to file')
+  .option(
+    '-o, --output <file>',
+    'Save discovery data to file (JSON or XML based on extension)'
+  )
   .action(async (options, command) => {
-    const logger = command.parent?.logger;
-
     try {
-      // Create ADT client with logger
-      const adtClient = new AdtClientImpl({
-        logger: logger?.child({ component: 'cli' }),
-      });
+      // Create v2 client with capture enabled
+      const adtClient = await getAdtClientV2({ capture: true });
 
-      if (options.output && !options.output.endsWith('.json')) {
-        // For XML output, go directly to raw XML request - no double call
-        const xmlResponse = await adtClient.request('/sap/bc/adt/discovery', {
-          headers: { Accept: 'application/atomsvc+xml' },
-        });
-        const xmlContent = await xmlResponse.text();
-        writeFileSync(options.output, xmlContent);
-        console.log(`💾 Discovery data saved as XML to: ${options.output}`);
-        return;
-      }
+      // Call discovery endpoint
+      const discovery = await adtClient.adt.discovery.getDiscovery();
 
-      // For JSON output or console display, use parsed discovery
-      const discovery = await adtClient.discovery.getDiscovery();
+      // Get captured data
+      const captured = getCaptured();
 
       if (options.output) {
-        // Save JSON to file
-        const outputData = {
-          workspaces: discovery.workspaces,
-        };
-        writeFileSync(options.output, JSON.stringify(outputData, null, 2));
-        console.log(`💾 Discovery data saved as JSON to: ${options.output}`);
+        // Detect format based on file extension
+        const isXml = options.output.toLowerCase().endsWith('.xml');
+
+        if (isXml) {
+          if (captured.xml) {
+            // Save raw XML
+            writeFileSync(options.output, captured.xml);
+            console.log(`💾 Discovery XML saved to: ${options.output}`);
+          } else {
+            console.error('❌ No XML captured');
+            process.exit(1);
+          }
+        } else {
+          // Save as JSON (default)
+          writeFileSync(options.output, JSON.stringify(discovery, null, 2));
+          console.log(`💾 Discovery JSON saved to: ${options.output}`);
+        }
       } else {
         // Display in console
-        console.log(`\n📋 Found ${discovery.workspaces.length} workspaces:\n`);
+        if (!discovery.workspace || !Array.isArray(discovery.workspace)) {
+          console.error('❌ Unexpected response structure');
+          console.error('Response:', discovery);
+          process.exit(1);
+        }
+        console.log(`\n📋 Found ${discovery.workspace.length} workspaces:\n`);
 
-        for (const workspace of discovery.workspaces) {
+        for (const workspace of discovery.workspace) {
           console.log(`📁 ${workspace.title}`);
-          for (const collection of workspace.collections) {
-            console.log(`  └─ ${collection.title} (${collection.href})`);
-            if (collection.category) {
-              console.log(`     Category: ${collection.category.term}`);
+
+          // Ensure collection is an array
+          const collections = Array.isArray(workspace.collection)
+            ? workspace.collection
+            : [workspace.collection];
+
+          for (const collection of collections) {
+            // Type assertion since schema types are generic
+            const coll = collection as any;
+            console.log(`  └─ ${coll.title} (${coll.href})`);
+
+            if (coll.category) {
+              console.log(`     Category: ${coll.category.term}`);
             }
-            if (
-              collection.templateLinks &&
-              collection.templateLinks.length > 0
-            ) {
-              console.log(
-                `     Templates: ${collection.templateLinks.length} available`
-              );
+
+            if (coll.templateLinks?.templateLink) {
+              const templates = Array.isArray(coll.templateLinks.templateLink)
+                ? coll.templateLinks.templateLink
+                : [coll.templateLinks.templateLink];
+
+              if (templates.length > 0) {
+                console.log(`     Templates: ${templates.length} available`);
+              }
             }
           }
         }

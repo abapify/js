@@ -1,0 +1,34 @@
+{
+  "name": "ts-xml",
+  "version": "0.1.0",
+  "description": "Type-safe, schema-driven bidirectional XML ↔ JSON transformer with QName-first design",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "xml",
+    "json",
+    "schema",
+    "typescript",
+    "type-safe",
+    "qname",
+    "namespace",
+    "bidirectional",
+    "round-trip"
+  ],
+  "author": "Claude",
+  "license": "MIT",
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.5"
+  },
+  "module": "./dist/index.mjs"
+}

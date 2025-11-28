@@ -5,6 +5,8 @@
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "declaration": true,
+    "declarationMap": true,
     "emitDeclarationOnly": false,
     "types": ["node"],
     "lib": ["es2022", "dom"]
@@ -14,6 +16,6 @@
   "references": [
     {
       "path": "../adk/tsconfig.lib.json"
-    }
+    }   
   ]
 }

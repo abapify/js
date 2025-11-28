@@ -1,0 +1,29 @@
+{
+  "name": "@abapify/adt-schemas",
+  "version": "0.1.0",
+  "description": "Shared TypeScript types and ts-xml schemas for SAP ADT APIs",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "schemas",
+    "types",
+    "xml",
+    "typescript"
+  ],
+  "dependencies": {
+    "ts-xml": "*"
+  },
+  "module": "./dist/index.mjs"
+}

@@ -2,10 +2,10 @@ import {
   AdtConnectionConfig,
   RequestOptions,
   AdtClientError,
-} from '../types/client.js';
-import { AuthManager } from './auth-manager.js';
-// import { ErrorHandler } from '../utils/error-handler.js'; // Removed unused import
-import { createLogger } from '../utils/logger.js';
+} from '../types/client';
+import { AuthManager } from './auth-manager';
+import { createLogger } from '../utils/logger';
+import type { FileLogger } from '../utils/file-logger';
 
 export class ConnectionManager {
   private authManager: AuthManager;
@@ -13,11 +13,13 @@ export class ConnectionManager {
   private cookies = new Map<string, string>();
   private debugMode = false;
   private logger: any;
+  private fileLogger?: FileLogger;
   private connectionId?: string;
   private cachedCsrfToken?: string;
 
-  constructor(logger?: any) {
+  constructor(logger?: any, fileLogger?: FileLogger) {
     this.logger = logger || createLogger('connection');
+    this.fileLogger = fileLogger;
     this.authManager = new AuthManager(
       this.logger.child({ component: 'auth' })
     );
@@ -109,7 +111,8 @@ export class ConnectionManager {
         if (session.authType === 'basic' && session.basicAuth) {
           abapEndpoint = session.basicAuth.host;
         } else if (session.serviceKey) {
-          abapEndpoint = session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
+          abapEndpoint =
+            session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
         } else {
           throw new Error('Invalid session: no endpoint information available');
         }
@@ -118,7 +121,8 @@ export class ConnectionManager {
         this.debug(`🌐 ${options.method || 'GET'} ${url}`);
 
         const headers: Record<string, string> = {
-          Authorization: session.authType === 'basic' ? `Basic ${token}` : `Bearer ${token}`,
+          Authorization:
+            session.authType === 'basic' ? `Basic ${token}` : `Bearer ${token}`,
           Accept: 'application/xml',
           'X-sap-adt-sessiontype': 'stateful',
           ...options.headers,
@@ -203,6 +207,28 @@ export class ConnectionManager {
           // Format XML response for better readability by adding line breaks before '<' symbols
           const formattedResponse = responseText.replace(/</g, '\n<').trim();
           this.debug(`📄 Success Response Body: ${formattedResponse}`);
+
+          // Log response to file if FileLogger is enabled
+          if (this.fileLogger) {
+            // Extract headers for metadata
+            const headers: Record<string, string> = {};
+            response.headers.forEach((value, key) => {
+              headers[key] = value;
+            });
+            
+            const logFilePath = this.fileLogger.generateLogFilePath(endpoint, headers);
+            this.fileLogger.log(responseText, {
+              filename: logFilePath,
+              metadata: {
+                endpoint,
+                method: options.method || 'GET',
+                status: response.status,
+                statusText: response.statusText,
+                timestamp: new Date().toISOString(),
+                headers,
+              },
+            });
+          }
         }
 
         if (!response.ok) {
@@ -356,7 +382,8 @@ export class ConnectionManager {
     if (session.authType === 'basic' && session.basicAuth) {
       abapEndpoint = session.basicAuth.host;
     } else if (session.serviceKey) {
-      abapEndpoint = session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
+      abapEndpoint =
+        session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
     } else {
       throw new Error('Invalid session: no endpoint information available');
     }
@@ -474,7 +501,8 @@ export class ConnectionManager {
     if (session.authType === 'basic' && session.basicAuth) {
       abapEndpoint = session.basicAuth.host;
     } else if (session.serviceKey) {
-      abapEndpoint = session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
+      abapEndpoint =
+        session.serviceKey.endpoints?.['abap'] || session.serviceKey.url;
     } else {
       throw new Error('Invalid session: no endpoint information available');
     }

@@ -12,10 +12,25 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../plugins/abapgit/tsconfig.lib.json"
+      "path": "../adt-puppeteer/tsconfig.lib.json"
+    },
+    {
+      "path": "../logger"
+    },
+    {
+      "path": "../adt-config/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-client-v2"
     },
     {
       "path": "../adt-client/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-auth"
+    },
+    {
+      "path": "../adt-contracts"
     },
     {
       "path": "../adk/tsconfig.lib.json"

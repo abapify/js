@@ -1,0 +1,183 @@
+/**
+ * adt cts search - Search transports using server-side filtering
+ *
+ * Uses the /sap/bc/adt/cts/transports?_action=FIND endpoint
+ * with proper server-side filtering by user, status, type, and date.
+ */
+
+import { Command } from 'commander';
+import { getAdtClientV2 } from '../../utils/adt-client-v2';
+import {
+  TransportFunction,
+  TransportStatus,
+  normalizeTransportFindResponse,
+  type CtsReqHeader,
+  type TransportFindParams,
+} from 'adt-contracts';
+
+// Status icons
+const STATUS_ICONS: Record<string, string> = {
+  D: '📝', // Modifiable
+  R: '🔒', // Released
+  O: '🔄', // Release started
+  P: '⏳', // Release in preparation
+  L: '🔐', // Locked
+};
+
+// Human-readable function names
+const FUNCTION_NAMES: Record<string, string> = {
+  K: 'Workbench',
+  W: 'Customizing',
+  T: 'Transport of Copies',
+  S: 'Dev/Correction',
+  R: 'Repair',
+  X: 'Unclassified',
+  Q: 'Customizing Task',
+};
+
+/**
+ * Format a single transport for display
+ */
+function formatTransport(tr: CtsReqHeader, index: number, total: number): void {
+  const isLast = index === total - 1;
+  const prefix = isLast ? '└──' : '├──';
+  const statusIcon = STATUS_ICONS[tr.TRSTATUS] || '📄';
+  const funcName = FUNCTION_NAMES[tr.TRFUNCTION] || tr.TRFUNCTION;
+
+  // Main line: transport number and description
+  console.log(`${prefix} ${statusIcon} ${tr.TRKORR}`);
+  console.log(`    ${tr.AS4TEXT || '(no description)'}`);
+  console.log(`    ${funcName} • ${tr.AS4USER} • ${tr.AS4DATE}`);
+
+  // Add spacing between entries
+  if (!isLast) {
+    console.log('');
+  }
+}
+
+/**
+ * Parse status option to API format
+ */
+function parseStatus(status?: string): string | undefined {
+  if (!status) return undefined;
+
+  const statusMap: Record<string, string> = {
+    modifiable: TransportStatus.MODIFIABLE,
+    released: TransportStatus.RELEASED,
+    locked: TransportStatus.LOCKED,
+    d: TransportStatus.MODIFIABLE,
+    r: TransportStatus.RELEASED,
+    l: TransportStatus.LOCKED,
+  };
+
+  return statusMap[status.toLowerCase()] || status.toUpperCase();
+}
+
+/**
+ * Parse type option to API format
+ */
+function parseType(type?: string): string | undefined {
+  if (!type) return undefined;
+
+  const typeMap: Record<string, string> = {
+    workbench: TransportFunction.WORKBENCH,
+    customizing: TransportFunction.CUSTOMIZING,
+    copies: TransportFunction.TRANSPORT_OF_COPIES,
+    k: TransportFunction.WORKBENCH,
+    w: TransportFunction.CUSTOMIZING,
+    t: TransportFunction.TRANSPORT_OF_COPIES,
+  };
+
+  return typeMap[type.toLowerCase()] || type.toUpperCase();
+}
+
+export const ctsSearchCommand = new Command('search')
+  .description('Search transport requests (server-side filtering)')
+  .option('-u, --user <user>', 'Filter by owner (* for all)', '*')
+  .option('-s, --status <status>', 'Filter by status: modifiable/released/locked or D/R/L')
+  .option('-t, --type <type>', 'Filter by type: workbench/customizing/copies or K/W/T', '*')
+  .option('-n, --number <pattern>', 'Transport number pattern (e.g., S0DK*)')
+  .option('-m, --max <number>', 'Maximum results to display', '50')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    try {
+      const client = await getAdtClientV2();
+
+      // Build API parameters
+      const params: TransportFindParams = {
+        _action: 'FIND',
+        user: options.user || '*',
+        trfunction: parseType(options.type) || '*',
+      };
+
+      // Add optional filters
+      if (options.number) {
+        params.transportNumber = options.number;
+      }
+      if (options.status) {
+        params.requestStatus = parseStatus(options.status);
+      }
+
+      // Build filter description for output
+      const filterParts: string[] = [];
+      if (params.user !== '*') filterParts.push(`user=${params.user}`);
+      if (params.trfunction !== '*') filterParts.push(`type=${params.trfunction}`);
+      if (params.requestStatus) filterParts.push(`status=${params.requestStatus}`);
+      if (params.transportNumber) filterParts.push(`number=${params.transportNumber}`);
+
+      const filterDesc = filterParts.length > 0 ? ` (${filterParts.join(', ')})` : '';
+      console.log(`🔍 Searching transports${filterDesc}...`);
+
+      // Call the API via adt.cts.transports.find
+      const result = await client.adt.cts.transports.find(params);
+
+      // Normalize response to array
+      const transports = normalizeTransportFindResponse(result);
+      const maxResults = options.max ? parseInt(options.max, 10) : 50;
+      const displayTransports = transports.slice(0, maxResults);
+
+      if (options.json) {
+        console.log(JSON.stringify(transports, null, 2));
+      } else {
+        if (transports.length === 0) {
+          console.log('\n📭 No transports found matching the criteria');
+        } else {
+          // Group by status for display
+          const modifiable = displayTransports.filter((t: CtsReqHeader) => t.TRSTATUS === 'D');
+          const released = displayTransports.filter((t: CtsReqHeader) => t.TRSTATUS === 'R');
+          const other = displayTransports.filter(
+            (t: CtsReqHeader) => t.TRSTATUS !== 'D' && t.TRSTATUS !== 'R'
+          );
+
+          if (modifiable.length > 0) {
+            console.log(`\n📂 Modifiable (${modifiable.length})`);
+            modifiable.forEach((tr: CtsReqHeader, i: number) => formatTransport(tr, i, modifiable.length));
+          }
+
+          if (released.length > 0) {
+            console.log(`\n📁 Released (${released.length})`);
+            released.forEach((tr: CtsReqHeader, i: number) => formatTransport(tr, i, released.length));
+          }
+
+          if (other.length > 0) {
+            console.log(`\n📋 Other (${other.length})`);
+            other.forEach((tr: CtsReqHeader, i: number) => formatTransport(tr, i, other.length));
+          }
+
+          if (transports.length > maxResults) {
+            console.log(
+              `\n💡 Showing ${maxResults} of ${transports.length} transports (use --max to see more)`
+            );
+          }
+        }
+      }
+
+      console.log('\n✅ Search complete');
+    } catch (error) {
+      console.error(
+        '❌ Search failed:',
+        error instanceof Error ? error.message : String(error)
+      );
+      process.exit(1);
+    }
+  });

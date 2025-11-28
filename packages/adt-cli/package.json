@@ -1,26 +1,29 @@
 {
   "name": "@abapify/adt-cli",
+  "type": "module",
   "version": "0.0.1",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "abapify": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
+    ".": "./dist/index.mjs",
+    "./bin/adt": "./dist/bin/adt.mjs",
+    "./package.json": "./package.json"
   },
   "dependencies": {
     "@abapify/adk": "*",
+    "@abapify/adt-auth": "*",
     "@abapify/adt-client": "*",
+    "@abapify/adt-client-v2": "*",
+    "@abapify/adt-config": "*",
+    "@abapify/logger": "*",
     "@inquirer/prompts": "^7.9.0",
+    "adt-contracts": "*",
     "commander": "^12.0.0",
-    "fast-xml-parser": "^5.2.5",
+    "fast-xml-parser": "^5.3.1",
     "js-yaml": "^4.1.0",
-    "pino": "^8.17.2"
+    "pino": "^8.17.2",
+    "proxy-agent": "^6.4.0"
   },
   "bin": {
     "adt": "./dist/bin/adt.mjs"

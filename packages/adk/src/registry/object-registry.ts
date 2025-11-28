@@ -127,10 +127,15 @@ export class ObjectTypeRegistry {
    * Get registration info for debugging
    */
   getRegistrationInfo(): Array<{ sapType: string; constructorName: string }> {
-    return ObjectRegistry.getRegisteredKinds().map((kind) => ({
-      sapType: kind,
-      constructorName: ObjectRegistry.getConstructor(kind)?.name || 'Anonymous',
-    }));
+    return ObjectRegistry.getRegisteredKinds().map((kind) => {
+      const constructor = ObjectRegistry.getConstructor(kind);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const name = (constructor as any)?.name || 'Anonymous';
+      return {
+        sapType: kind,
+        constructorName: name,
+      };
+    });
   }
 }
 

@@ -19,7 +19,7 @@ export const importPackageCommand = new Command('package')
   .option('--sub-packages', 'Include subpackages', false)
   .option(
     '--format <format>',
-    'Output format: oat (production) | abapgit (experimental demo) | json',
+    'Output format: oat | abapgit | @abapify/oat | @abapify/abapgit | @abapify/oat/flat',
     'oat'
   )
   .action(async (packageName, targetFolder, options, command) => {

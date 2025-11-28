@@ -22,17 +22,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "skipDefaultLibCheck": true,
-    "baseUrl": ".",
-    "allowSyntheticDefaultImports": true,
-    "paths": {
-      "@abapify/adk": ["packages/adk/src/index.ts"],
-      "@abapify/adt-cli": ["packages/adt-cli/src/index.ts"],
-      "@abapify/asjson-parser": ["packages/asjson-parser/src/index.ts"],
-      "@sap/cds": ["node_modules/@cap-js/cds-types/dist/cds-types.d.ts"],
-      "sample": ["packages/sample/src/index.ts"],
-      "sample-node": ["sample-node/src/index.ts"],
-      "samples/cds": ["samples/cds/src/index.ts"]
-    }
+    "allowSyntheticDefaultImports": true
   },
   "exclude": ["node_modules", "tmp"]
 }

@@ -1,2 +1,3 @@
-nx format:write --uncommitted
+npx nx format:write --uncommitted
 git update-index --again
+

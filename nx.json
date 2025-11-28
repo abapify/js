@@ -74,7 +74,12 @@
     },
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": ["^build"],
+      "dependsOn": [],
+      "inputs": ["default", "^default"]
+    },
+    "typecheck": {
+      "cache": true,
+      "dependsOn": [],
       "inputs": ["default", "^default"]
     },
     "test": {

@@ -26,6 +26,11 @@ export interface AdkObject {
   readonly description?: string;
 
   /**
+   * Get underlying parsed data (type depends on object kind)
+   */
+  getData(): unknown;
+
+  /**
    * Serialize to ADT XML format
    */
   toAdtXml(): string;

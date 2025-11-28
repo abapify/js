@@ -112,6 +112,10 @@ export class SearchService {
     });
   }
 
+  async getPackage(packageName: string): Promise<{ name: string; description: string }> {
+    return this.repositoryService.getPackage(packageName);
+  }
+
   async getPackageContents(packageName: string): Promise<PackageContent> {
     return this.repositoryService.getPackageContents(packageName);
   }

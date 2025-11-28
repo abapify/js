@@ -3,7 +3,7 @@ import { ObjectRegistry } from '../../objects/registry';
 import { IconRegistry } from '../../utils/icon-registry';
 import { ConfigLoader } from '../../config/loader';
 import { PackageMapper } from '../../config/package-mapper';
-import type { Logger } from '@abapify/adt-client';
+import type { Logger } from '@abapify/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 

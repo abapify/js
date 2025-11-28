@@ -1,8 +1,10 @@
 // tsdown.config.ts
 import { defineConfig } from 'tsdown';
+import baseConfig from '../../tsdown.config.ts';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/plugins/fast-xml-parser.ts'],
+  ...baseConfig,
+  entry: ['src/index.ts'],
   sourcemap: true,
   tsconfig: 'tsconfig.lib.json',
   skipNodeModulesBundle: true,
