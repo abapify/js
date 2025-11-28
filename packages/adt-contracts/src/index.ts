@@ -19,7 +19,7 @@
  */
 
 // Re-export speci utilities and contract wrapper
-export { http, createHttp, type RestContract } from 'speci/rest';
+export { http, createHttp, type RestContract, type RestEndpointDescriptor, type Serializable } from 'speci/rest';
 export { contract } from './base';
 
 // ADT contracts
@@ -38,15 +38,11 @@ export {
 export {
   TransportFunction,
   TransportStatus,
-  SearchMode,
-  DateFilter,
   normalizeTransportFindResponse,
   type TransportFindParams,
   type CtsReqHeader,
   type TransportFunctionCode,
   type TransportStatusCode,
-  type SearchModeValue,
-  type DateFilterValue,
 } from './adt/cts/transports';
 
 // Re-export schemas for convenience

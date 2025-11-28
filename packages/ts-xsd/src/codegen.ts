@@ -13,6 +13,10 @@
 export { 
   generateFromXsd, 
   generateIndex,
+  generateBatch,
+  scanXsdDirectory,
+  collectDependencies,
+  extractImportedSchemas,
   parseXsdToSchemaData,
   type CodegenOptions, 
   type GeneratedSchema, 
@@ -22,6 +26,8 @@ export {
   type GeneratorContext,
   type SchemaData,
   type SchemaImport,
+  type BatchOptions,
+  type BatchResult,
 } from './codegen/index';
 
 // Export built-in generators

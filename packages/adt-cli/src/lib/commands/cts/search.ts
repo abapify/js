@@ -1,15 +1,15 @@
 /**
- * adt cts search - Search transports using server-side filtering
+ * adt cts search - Search transports
  *
- * Uses the /sap/bc/adt/cts/transports?_action=FIND endpoint
- * with proper server-side filtering by user, status, type, and date.
+ * Uses the /sap/bc/adt/cts/transports?_action=FIND endpoint.
+ * Note: This basic endpoint only supports user and trfunction filters.
+ * Results are grouped by status for display.
  */
 
 import { Command } from 'commander';
 import { getAdtClientV2 } from '../../utils/adt-client-v2';
 import {
   TransportFunction,
-  TransportStatus,
   normalizeTransportFindResponse,
   type CtsReqHeader,
   type TransportFindParams,
@@ -56,24 +56,6 @@ function formatTransport(tr: CtsReqHeader, index: number, total: number): void {
 }
 
 /**
- * Parse status option to API format
- */
-function parseStatus(status?: string): string | undefined {
-  if (!status) return undefined;
-
-  const statusMap: Record<string, string> = {
-    modifiable: TransportStatus.MODIFIABLE,
-    released: TransportStatus.RELEASED,
-    locked: TransportStatus.LOCKED,
-    d: TransportStatus.MODIFIABLE,
-    r: TransportStatus.RELEASED,
-    l: TransportStatus.LOCKED,
-  };
-
-  return statusMap[status.toLowerCase()] || status.toUpperCase();
-}
-
-/**
  * Parse type option to API format
  */
 function parseType(type?: string): string | undefined {
@@ -92,38 +74,26 @@ function parseType(type?: string): string | undefined {
 }
 
 export const ctsSearchCommand = new Command('search')
-  .description('Search transport requests (server-side filtering)')
+  .description('Search transport requests')
   .option('-u, --user <user>', 'Filter by owner (* for all)', '*')
-  .option('-s, --status <status>', 'Filter by status: modifiable/released/locked or D/R/L')
   .option('-t, --type <type>', 'Filter by type: workbench/customizing/copies or K/W/T', '*')
-  .option('-n, --number <pattern>', 'Transport number pattern (e.g., S0DK*)')
   .option('-m, --max <number>', 'Maximum results to display', '50')
   .option('--json', 'Output as JSON')
   .action(async (options) => {
     try {
       const client = await getAdtClientV2();
 
-      // Build API parameters
+      // Build API parameters (basic find endpoint only supports user and trfunction)
       const params: TransportFindParams = {
         _action: 'FIND',
         user: options.user || '*',
         trfunction: parseType(options.type) || '*',
       };
 
-      // Add optional filters
-      if (options.number) {
-        params.transportNumber = options.number;
-      }
-      if (options.status) {
-        params.requestStatus = parseStatus(options.status);
-      }
-
       // Build filter description for output
       const filterParts: string[] = [];
       if (params.user !== '*') filterParts.push(`user=${params.user}`);
       if (params.trfunction !== '*') filterParts.push(`type=${params.trfunction}`);
-      if (params.requestStatus) filterParts.push(`status=${params.requestStatus}`);
-      if (params.transportNumber) filterParts.push(`number=${params.transportNumber}`);
 
       const filterDesc = filterParts.length > 0 ? ` (${filterParts.join(', ')})` : '';
       console.log(`🔍 Searching transports${filterDesc}...`);
