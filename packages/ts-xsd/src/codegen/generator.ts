@@ -66,10 +66,17 @@ export interface Generator {
   /**
    * Generate index file for all schemas (optional)
    * @param schemas List of schema names
-   * @param args Extra CLI arguments
+   * @param args Extra CLI arguments (deprecated, use generator options instead)
    * @returns Generated index.ts code, or undefined to skip
    */
-  generateIndex?(schemas: string[], args: Record<string, string>): string | undefined;
+  generateIndex?(schemas: string[], args?: Record<string, string>): string | undefined;
+  
+  /**
+   * Generate stub for missing schema dependency (optional)
+   * @param schemaName Name of the missing schema
+   * @returns Generated stub code, or undefined to skip
+   */
+  generateStub?(schemaName: string): string | undefined;
 }
 
 /**

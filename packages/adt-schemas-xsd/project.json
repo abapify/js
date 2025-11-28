@@ -2,7 +2,7 @@
   "name": "adt-schemas-xsd",
   "targets": {
     "download": {
-      "command": "npx tsx ../../tools/p2-cli/src/cli.ts download https://tools.hana.ondemand.com/latest -o .cache -f 'com.sap.adt.*' --extract --extract-output .xsd --extract-patterns 'model/*.xsd'",
+      "command": "npx p2 download https://tools.hana.ondemand.com/latest -o .cache -f 'com.sap.adt.*' --extract --extract-output .xsd --extract-patterns 'model/*.xsd'",
       "options": {
         "cwd": "{projectRoot}"
       },
@@ -12,13 +12,13 @@
       "cache": false
     },
     "generate": {
-      "command": "tsx scripts/generate.ts",
+      "command": "npx ts-xsd codegen",
       "options": {
         "cwd": "{projectRoot}"
       },
       "dependsOn": ["download", "ts-xsd:build"],
-      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/scripts/*.ts"],
-      "outputs": ["{projectRoot}/src/schemas"]
+      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/tsxsd.config.ts"],
+      "outputs": ["{projectRoot}/src/schemas/generated"]
     }
   }
 }

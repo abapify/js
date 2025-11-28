@@ -46,3 +46,6 @@
 
 // Core specification types (protocol-agnostic)
 export * from './core';
+
+// Re-export commonly used REST types for convenience
+export type { Serializable, Inferrable } from './rest/types';

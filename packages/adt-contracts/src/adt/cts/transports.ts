@@ -40,7 +40,7 @@ export type TransportFunctionCode =
   (typeof TransportFunction)[keyof typeof TransportFunction];
 
 /**
- * Transport status codes (TRSTATUS field)
+ * Transport status codes (TRSTATUS field) - for response parsing
  */
 export const TransportStatus = {
   /** Modifiable - can be edited */
@@ -58,46 +58,16 @@ export const TransportStatus = {
 export type TransportStatusCode =
   (typeof TransportStatus)[keyof typeof TransportStatus];
 
-/**
- * Search mode - what to search for
- */
-export const SearchMode = {
-  /** Search requests only */
-  REQUEST_ONLY: 'request',
-  /** Search tasks only */
-  TASK_ONLY: 'task',
-  /** Search both requests and tasks */
-  REQUEST_AND_TASK: 'requestWithTask',
-} as const;
-
-export type SearchModeValue = (typeof SearchMode)[keyof typeof SearchMode];
-
-/**
- * Date filter presets
- */
-export const DateFilter = {
-  /** Last 7 days */
-  LAST_WEEK: '0',
-  /** Last 14 days */
-  LAST_2_WEEKS: '1',
-  /** Last 28 days */
-  LAST_4_WEEKS: '2',
-  /** Last ~3 months (92 days) */
-  LAST_3_MONTHS: '3',
-  /** Custom date range */
-  CUSTOM: '4',
-  /** All time (since 1950-01-01) */
-  ALL: '5',
-} as const;
-
-export type DateFilterValue = (typeof DateFilter)[keyof typeof DateFilter];
-
 // ============================================================================
 // URL Parameters Interface
 // ============================================================================
 
 /**
  * Query parameters for transport find endpoint
+ * 
+ * Note: This is the basic find endpoint (/sap/bc/adt/cts/transports?_action=FIND)
+ * which only supports user and trfunction filters. For advanced filtering
+ * (status, date range, etc.), use the discovery-based search endpoint.
  */
 export interface TransportFindParams {
   /** Action - must be 'FIND' for search */
@@ -106,22 +76,6 @@ export interface TransportFindParams {
   user: string;
   /** Transport function filter - use TransportFunction enum or '*' */
   trfunction: TransportFunctionCode | string;
-  /** Transport number pattern (optional) - e.g., 'S0DK*' */
-  transportNumber?: string;
-  /** Request status filter (optional) - comma-separated TransportStatus codes */
-  requestStatus?: string;
-  /** Task status filter (optional) - comma-separated TransportStatus codes */
-  taskStatus?: string;
-  /** Request type filter (optional) - comma-separated TransportFunction codes */
-  requestType?: string;
-  /** Task type filter (optional) - comma-separated TransportFunction codes */
-  taskType?: string;
-  /** Search mode (optional) */
-  searchFor?: SearchModeValue;
-  /** From date filter (optional) - format: yyyyMMdd */
-  fromDate?: string;
-  /** To date filter (optional) - format: yyyyMMdd */
-  toDate?: string;
 }
 
 // ============================================================================
