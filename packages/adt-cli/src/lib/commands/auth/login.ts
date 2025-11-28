@@ -1,11 +1,10 @@
 import { Command } from 'commander';
-import { input, password, select } from '@inquirer/prompts';
+import { input, select, password } from '@inquirer/prompts';
 import {
   setDefaultSid,
   getDefaultSid,
   listAvailableSids,
-  saveAuthSession,
-  type AuthSession,
+  getAuthManager,
 } from '../../utils/auth';
 import { handleCommandError } from '../../utils/command-helpers';
 import { listDestinations, getDestination, type Destination } from '../../utils/destinations';
@@ -22,25 +21,52 @@ interface DestinationChoice {
 }
 
 export const loginCommand = new Command('login')
-  .description('Login to ADT - supports Basic Auth and Browser-based SSO (Puppeteer)')
+  .description('Login to ADT - supports Basic Auth and Browser-based SSO')
   .option('--insecure', 'Allow insecure SSL connections (ignore certificate errors)')
-  .option('--sid <sid>', 'System ID (e.g., BHF, S0D) - saves auth to separate file')
-  .action(async (options) => {
+  .action(async function(this: Command, options) {
     try {
-      console.log('🔐 Interactive Login\n');
+      // Get SID from global options (--sid is a global option on root program)
+      const globalOpts = this.optsWithGlobals();
+      const sidArg = globalOpts.sid?.toUpperCase() || '';
+
+      console.log('🔐 ADT Login\n');
 
       // Check if we have configured destinations
       const configuredDestinations = await listDestinations();
-      
-      let authMethod: string;
-      let url: string;
-      let sid: string = '';
-      let destinationOptions: DestinationOptions | undefined;
 
+      let sid: string = sidArg;
+
+      // If --sid provided and destination exists in config, use it directly
+      // Case-insensitive match
+      const matchedSid = configuredDestinations.find(d => d.toUpperCase() === sid);
+      if (sid && matchedSid) {
+        const dest = await getDestination(matchedSid);
+        if (dest) {
+          console.log(`📋 Authenticating to ${sid}...\n`);
+
+          const authManager = getAuthManager();
+          const session = await authManager.login(sid, {
+            type: dest.type,
+            options: dest.options as DestinationOptions,
+          });
+
+          // Set as default
+          setDefaultSid(sid);
+          
+          console.log(`\n✅ Successfully logged in!`);
+          console.log(`   System: ${session.sid}`);
+          console.log(`   Host: ${session.host}`);
+          console.log(`   Method: ${session.auth.method}`);
+          console.log(`   💡 ${sid} set as default system`);
+
+          return;
+        }
+      }
+
+      // If destinations configured but no --sid, show selection
       if (configuredDestinations.length > 0) {
-        // Config-driven flow: select destination, auth method comes from config
         const destinationChoices: DestinationChoice[] = [];
-        
+
         for (const destName of configuredDestinations) {
           const dest = await getDestination(destName);
           if (dest) {
@@ -66,122 +92,51 @@ export const loginCommand = new Command('login')
         });
 
         if (selected.destination) {
-          // Use config-driven auth
           sid = selected.sid;
-          destinationOptions = selected.destination.options as DestinationOptions;
-          url = destinationOptions.url;
-          authMethod = selected.destination.type;
-          console.log(`\n📋 Using ${authMethod} authentication for ${sid}\n`);
-        } else {
-          // Fall through to manual flow
-          const manualResult = await promptManualConfig();
-          authMethod = manualResult.authMethod;
-          url = manualResult.url;
+          console.log(`\n📋 Authenticating to ${sid}...\n`);
+
+          const authManager = getAuthManager();
+          const session = await authManager.login(sid, {
+            type: selected.destination.type,
+            options: selected.destination.options as DestinationOptions,
+          });
+
+          // Set as default
+          setDefaultSid(sid);
+
+          console.log(`\n✅ Successfully logged in!`);
+          console.log(`   System: ${session.sid}`);
+          console.log(`   Host: ${session.host}`);
+          console.log(`   Method: ${session.auth.method}`);
+          console.log(`   💡 ${sid} set as default system`);
+
+          return;
         }
-      } else {
-        // No config - use manual flow
-        const manualResult = await promptManualConfig();
-        authMethod = manualResult.authMethod;
-        url = manualResult.url;
       }
 
-      // Step 3: Collect method-specific credentials and login
-      if (authMethod === 'puppeteer' || authMethod === 'browser') {
-        // Dynamically load puppeteer plugin (optional dependency)
-        let mod: typeof import('@abapify/adt-puppeteer');
-        try {
-          mod = await import('@abapify/adt-puppeteer');
-        } catch {
-          console.error('❌ @abapify/adt-puppeteer is not installed.');
-          console.error('   Install it with: bun add @abapify/adt-puppeteer');
-          process.exit(1);
-        }
+      // Manual flow: collect URL and credentials (built-in basic auth only)
+      const manualConfig = await promptManualConfig();
 
-        // Puppeteer browser authentication via plugin
-        // Pass full destination options (includes requiredCookies, timeout, etc.)
-        const credentials = await mod.puppeteerAuth.authenticate(destinationOptions ?? { url });
-
-        // SID comes from destination name (config-driven) or prompt
-        if (!sid) {
-          sid = options.sid?.toUpperCase() || (await promptForSid());
-        }
-
-        // Use plugin's helper to convert credentials to cookie header
-        const cookieHeader = mod.toCookieHeader(credentials);
-
-        // Create auth session with new generic format
-        const session: AuthSession = {
-          sid,
-          host: url,
-          auth: {
-            method: 'cookie',
-            plugin: '@abapify/adt-puppeteer',  // For refresh
-            credentials: {
-              cookies: cookieHeader,
-              expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(), // 8 hours
-            },
-          },
-        };
-
-        // Save session
-        saveAuthSession(session);
-
-        console.log(`\n✅ Successfully logged in via browser!`);
-        console.log(`🌐 Host: ${url}`);
-        console.log(`🍪 Session captured via Puppeteer`);
-      } else if (authMethod === 'basic') {
-        // Ask for client only for Basic Auth
-        const client = await input({
-          message: 'Client (optional, e.g., 100)',
-          default: '',
-        });
-
-        const username = await input({
-          message: 'Username',
-          validate: (value) => (value ? true : 'Username is required'),
-        });
-
-        const userPassword = await password({
-          message: 'Password',
-          validate: (value) => (value ? true : 'Password is required'),
-        });
-
-        // Set insecure SSL flag if requested
-        if (options.insecure) {
-          // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Commented out for testing proper cert validation
-          console.log('⚠️  SSL certificate verification disabled\n');
-        }
-
-        // Get or prompt for SID
+      // Get or prompt for SID
+      if (!sid) {
         sid = options.sid?.toUpperCase() || (await promptForSid());
-
-        // Create session with new generic format
-        const session: AuthSession = {
-          sid,
-          host: url,
-          client: client || undefined,
-          auth: {
-            method: 'basic',
-            credentials: {
-              username,
-              password: userPassword,
-            },
-          },
-        };
-
-        // Save session
-        saveAuthSession(session);
-
-        console.log(`\n✅ Successfully logged in!`);
-        console.log(`🌐 Host: ${url}`);
-        console.log(`👤 User: ${username}`);
-        if (client) {
-          console.log(`🔧 Client: ${client}`);
-        }
-        if (options.insecure) {
-          console.log('⚠️  Remember: SSL verification is disabled!');
-        }
       }
+
+      // Collect credentials for basic auth
+      const pluginOptions = await collectPluginOptions(manualConfig.url, options);
+
+      // Authenticate via AuthManager (always uses built-in basic auth for manual flow)
+      console.log(`\n📋 Authenticating to ${sid}...\n`);
+      const authManager = getAuthManager();
+      const session = await authManager.login(sid, {
+        type: manualConfig.pluginType,
+        options: pluginOptions,
+      });
+
+      console.log(`\n✅ Successfully logged in!`);
+      console.log(`   System: ${session.sid}`);
+      console.log(`   Host: ${session.host}`);
+      console.log(`   Method: ${session.auth.method}`);
 
       // Set as default if it's the first system
       const availableSids = listAvailableSids();
@@ -216,22 +171,52 @@ async function promptForSid(): Promise<string> {
 }
 
 /**
+ * Collect authentication options for manual flow
+ * (Only built-in basic auth supported in manual mode - other plugins require adt.config.ts)
+ */
+async function collectPluginOptions(
+  url: string,
+  commandOptions: any
+): Promise<DestinationOptions> {
+  const client = await input({
+    message: 'Client (optional, e.g., 100)',
+    default: '',
+  });
+
+  const username = await input({
+    message: 'Username',
+    validate: (value) => (value ? true : 'Username is required'),
+  });
+
+  const userPassword = await password({
+    message: 'Password',
+    validate: (value) => (value ? true : 'Password is required'),
+  });
+
+  if (commandOptions.insecure) {
+    console.log('⚠️  SSL certificate verification disabled\n');
+  }
+
+  return {
+    url,
+    client: client || undefined,
+    username,
+    password: userPassword,
+  };
+}
+
+/**
  * Prompt for manual configuration (no adt.config.ts)
  */
-async function promptManualConfig(): Promise<{ authMethod: string; url: string }> {
-  // Step 1: Choose authentication method
-  const authMethod = await select({
+async function promptManualConfig(): Promise<{ pluginType: string; url: string }> {
+  // Step 1: Choose authentication method (built-in plugins only)
+  const pluginType = await select({
     message: 'Authentication method',
     choices: [
       {
         name: 'Basic Authentication (username/password)',
-        value: 'basic',
+        value: '@abapify/adt-auth/basic',
         description: 'Standard username and password authentication',
-      },
-      {
-        name: 'Browser SSO - Opens browser for SSO login',
-        value: 'browser',
-        description: 'SSO via browser automation (Okta, etc.)',
       },
     ],
   });
@@ -257,5 +242,5 @@ async function promptManualConfig(): Promise<{ authMethod: string; url: string }
     url = `https://${url}`;
   }
 
-  return { authMethod, url };
+  return { pluginType, url };
 }
