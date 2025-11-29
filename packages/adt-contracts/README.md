@@ -2,9 +2,32 @@
 
 **SAP ADT REST API Contracts** - Type-safe API contracts using `speci` + `ts-xsd` schemas.
 
+Part of the **ADT Toolkit** - see [main README](../../README.md) for architecture overview.
+
 ## What is it?
 
-This package provides declarative REST API contracts for SAP ADT (ABAP Development Tools) endpoints. Contracts are pure data structures that define:
+This package is the **contract layer** between `adt-client-v2` and `adt-schemas-xsd`. It provides declarative REST API contracts for SAP ADT (ABAP Development Tools) endpoints.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-client-v2                               │
+│              (HTTP Client + Request Execution)                   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-contracts (this package)                │
+│         (REST API Contracts using speci + ts-xsd)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     adt-schemas-xsd                              │
+│        (TypeScript schemas from SAP XSD definitions)             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Contracts are pure data structures that define:
 
 - **Endpoint URLs** - REST paths
 - **HTTP methods** - GET, POST, PUT, DELETE

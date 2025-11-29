@@ -4,6 +4,8 @@
 
 Zero decorators. Zero DSL. Zero dependencies. Just TypeScript arrow functions.
 
+Part of the **ADT Toolkit** foundation - see [main README](../../README.md) for architecture overview.
+
 ## Philosophy
 
 An endpoint = an arrow function whose parameters define the contract and whose return value defines the operation.

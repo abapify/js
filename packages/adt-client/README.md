@@ -1,5 +1,12 @@
 # @abapify/adt-client
 
+> ⚠️ **LEGACY PACKAGE** - This package is being replaced by [@abapify/adt-client-v2](../adt-client-v2/README.md).
+>
+> **Why?** The new architecture uses contract-first design with `speci` + `ts-xsd` for full type safety.
+> This package will be removed once migration is complete.
+
+---
+
 Node.js client library for SAP ABAP Development Tools (ADT) REST APIs. Connect to SAP systems, manage transports, run ATC checks, and work with ABAP objects programmatically.
 
 ## Why Use This?
