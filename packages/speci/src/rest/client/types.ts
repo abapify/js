@@ -86,18 +86,26 @@ export interface ClientConfig {
 type IsInferrableBody<TBody> = TBody extends { _infer?: any } ? true : false;
 
 /**
+ * Check if method is PUT or PATCH (update operations that typically send partial data)
+ */
+type IsUpdateMethod<TMethod> = TMethod extends 'PUT' | 'PATCH' ? true : false;
+
+/**
  * Extract body type from a REST endpoint descriptor
  * Only extracts if the body is an Inferrable schema
+ * For PUT/PATCH methods, returns Partial<T> since updates typically send partial data
  */
 type ExtractBodyType<TDescriptor> = TDescriptor extends RestEndpointDescriptor<
-  any,
+  infer TMethod,
   any,
   infer TBody,
   any
 >
   ? IsInferrableBody<TBody> extends true
     ? TBody extends { _infer?: infer U }
-      ? U
+      ? IsUpdateMethod<TMethod> extends true
+        ? Partial<U>  // PUT/PATCH: allow partial body
+        : U           // POST: require full body
       : never
     : never
   : never;

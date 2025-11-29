@@ -59,7 +59,9 @@ export function build<T extends XsdSchema>(
     throw new Error(`Schema missing root element: ${schema.root}`);
   }
 
-  const rootTag = schema.prefix ? `${schema.prefix}:${schema.root}` : schema.root;
+  // Convert root element name to lowercase (XSD uses PascalCase types, XML uses lowercase elements)
+  const rootName = schema.root.charAt(0).toLowerCase() + schema.root.slice(1);
+  const rootTag = schema.prefix ? `${schema.prefix}:${rootName}` : rootName;
   const root = doc.createElement(rootTag);
 
   // Add namespace declaration
@@ -98,13 +100,12 @@ function buildElement(
   schema: XsdSchema,
   allElements: { readonly [key: string]: XsdElement }
 ): void {
-  // Build attributes
+  // Build attributes (attributes don't get namespace prefix in XML)
   if (elementDef.attributes) {
     for (const attrDef of elementDef.attributes) {
       const value = data[attrDef.name];
       if (value !== undefined && value !== null) {
-        const attrName = schema.prefix ? `${schema.prefix}:${attrDef.name}` : attrDef.name;
-        node.setAttribute(attrName, formatValue(value, attrDef.type));
+        node.setAttribute(attrDef.name, formatValue(value, attrDef.type));
       }
     }
   }

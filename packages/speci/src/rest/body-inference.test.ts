@@ -63,11 +63,11 @@ describe('Body Parameter Inference', () => {
       expectTypeOf(client.createUser).parameter(0).toEqualTypeOf<User>();
     });
 
-    it('should work with path parameters AND inferred body', () => {
+    it('should work with path parameters AND inferred body (PUT uses Partial)', () => {
       const contract = {
         updateUser: (id: number) =>
           http.put(`/users/${id}`, {
-            body: UserSchema, // Body type inferred
+            body: UserSchema, // Body type inferred as Partial<User> for PUT
             responses: { 200: UserSchema },
           }),
       };
@@ -77,9 +77,10 @@ describe('Body Parameter Inference', () => {
         adapter: mockAdapter,
       });
 
-      // Type check: should have 2 parameters: id (number) and body (User)
+      // Type check: should have 2 parameters: id (number) and body (Partial<User>)
+      // PUT/PATCH methods use Partial<T> since updates typically send partial data
       expectTypeOf(client.updateUser).parameters.toEqualTypeOf<
-        [number, User]
+        [number, Partial<User>]
       >();
     });
 

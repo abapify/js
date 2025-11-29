@@ -209,6 +209,66 @@ export class CsrfTokenManager {
   hasCached(): boolean {
     return !!this.cachedToken;
   }
+
+  /**
+   * Alias for hasCached() - for consistency with SessionManager API
+   */
+  hasToken(): boolean {
+    return this.hasCached();
+  }
+}
+
+/**
+ * ETag Manager - Tracks ETags for optimistic locking
+ */
+export class ETagManager {
+  private etags = new Map<string, string>();
+
+  /**
+   * Extract and cache ETag from response header
+   * @param url The request URL (used as key)
+   * @param headerValue The ETag header value
+   */
+  cacheFromHeader(url: string, headerValue: string | null): void {
+    if (headerValue) {
+      // Normalize URL to just the path (remove query params)
+      const key = this.normalizeUrl(url);
+      this.etags.set(key, headerValue);
+    }
+  }
+
+  /**
+   * Get cached ETag for a URL
+   */
+  get(url: string): string | undefined {
+    const key = this.normalizeUrl(url);
+    return this.etags.get(key);
+  }
+
+  /**
+   * Clear cached ETag for a URL
+   */
+  clear(url?: string): void {
+    if (url) {
+      const key = this.normalizeUrl(url);
+      this.etags.delete(key);
+    } else {
+      this.etags.clear();
+    }
+  }
+
+  /**
+   * Normalize URL to use as cache key (remove query params, trailing slashes)
+   */
+  private normalizeUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return parsed.pathname.replace(/\/$/, '');
+    } catch {
+      // If not a full URL, just use the path
+      return url.split('?')[0].replace(/\/$/, '');
+    }
+  }
 }
 
 /**
@@ -217,14 +277,26 @@ export class CsrfTokenManager {
 export class SessionManager {
   private cookieStore = new CookieStore();
   private csrfManager = new CsrfTokenManager();
+  private etagManager = new ETagManager();
 
   constructor(private logger?: Logger) {}
 
   /**
    * Process response to update session state
-   * Extracts cookies and CSRF tokens
+   * Extracts cookies, CSRF tokens, and ETags
+   * @param response The HTTP response
+   * @param url Optional URL for ETag caching (required for ETag tracking)
    */
-  processResponse(response: Response): void {
+  processResponse(response: Response, url?: string): void {
+    // Cache ETag for optimistic locking
+    if (url) {
+      const etag = response.headers.get('etag');
+      if (etag) {
+        this.etagManager.cacheFromHeader(url, etag);
+        this.logger?.debug(`Session: ETag cached for ${url}: ${etag}`);
+      }
+    }
+
     // Update cookies
     const setCookieHeader = response.headers.get('set-cookie');
     if (setCookieHeader) {
@@ -254,8 +326,10 @@ export class SessionManager {
 
   /**
    * Get headers for next request
+   * @param method HTTP method
+   * @param url Optional URL for ETag lookup (for PUT/PATCH with optimistic locking)
    */
-  getRequestHeaders(method: string): Record<string, string> {
+  getRequestHeaders(method: string, url?: string): Record<string, string> {
     const headers: Record<string, string> = {};
 
     // Add cookies if we have any
@@ -278,7 +352,31 @@ export class SessionManager {
       }
     }
 
+    // Add If-Match header for PUT/PATCH if we have a cached ETag
+    const needsEtag = ['PUT', 'PATCH'].includes(method.toUpperCase());
+    if (needsEtag && url) {
+      const etag = this.etagManager.get(url);
+      if (etag) {
+        headers['If-Match'] = etag;
+        this.logger?.debug(`Session: Using cached ETag for If-Match: ${etag}`);
+      }
+    }
+
     return headers;
+  }
+
+  /**
+   * Get cached ETag for a URL
+   */
+  getETag(url: string): string | undefined {
+    return this.etagManager.get(url);
+  }
+
+  /**
+   * Clear cached ETag for a URL
+   */
+  clearETag(url?: string): void {
+    this.etagManager.clear(url);
   }
 
   /**
@@ -352,6 +450,20 @@ export class SessionManager {
     this.cookieStore.clear();
     this.csrfManager.clear();
     this.logger?.debug('Session: Cleared all session state (cookies and CSRF)');
+  }
+
+  /**
+   * Check if we have a cached CSRF token
+   */
+  hasCsrfToken(): boolean {
+    return this.csrfManager.hasCached();
+  }
+
+  /**
+   * Get Cookie header value for requests
+   */
+  getCookieHeader(): string | undefined {
+    return this.cookieStore.getCookieHeader();
   }
 
   /**
