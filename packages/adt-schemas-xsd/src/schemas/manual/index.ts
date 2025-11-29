@@ -2,7 +2,10 @@
  * Manual Schemas Index
  * 
  * Export all manually created schemas (not generated from XSD).
- * Add new manual schemas here.
+ * These are for ABAP XML format schemas without official XSD definitions.
+ * 
+ * Note: XSD-based manual schemas (like transportmanagment-single.xsd)
+ * are now generated to src/schemas/generated/ alongside SAP schemas.
  */
 
 export { default as transportfind } from './transportfind';

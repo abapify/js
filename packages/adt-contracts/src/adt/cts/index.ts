@@ -13,7 +13,12 @@ import { transportrequests } from './transportrequests';
 import { transports } from './transports';
 import { transportchecks } from './transportchecks';
 
-export const ctsContract = {
+// Explicit type to avoid TS7056 "exceeds maximum length" error
+export const ctsContract: {
+  transportrequests: typeof transportrequests;
+  transports: typeof transports;
+  transportchecks: typeof transportchecks;
+} = {
   transportrequests,
   transports,
   transportchecks,

@@ -29,3 +29,4 @@ export { default as logpoint } from './logpoint';
 export { default as traces } from './traces';
 export { default as quickfixes } from './quickfixes';
 export { default as log } from './log';
+export { default as transportmanagmentSingle } from './transportmanagment-single';
