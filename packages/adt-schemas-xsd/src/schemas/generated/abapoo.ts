@@ -14,6 +14,22 @@ export default schema({
   prefix: 'oo',
   include: [Adtcore, Abapsource],
   elements: {
-    AbapOoObject: {},
+    AbapOoObject: {
+      extends: 'AbapSourceMainObject',
+      sequence: [
+        {
+          name: 'interfaceRef',
+          type: 'string',
+          minOccurs: 0,
+          maxOccurs: 'unbounded',
+        },
+      ],
+      attributes: [
+        {
+          name: 'modeled',
+          type: 'boolean',
+        },
+      ],
+    },
   },
 } as const);

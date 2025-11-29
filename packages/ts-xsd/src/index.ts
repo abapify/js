@@ -7,8 +7,7 @@
 import type { XsdSchema, XsdElement } from './types';
 
 // Core functions
-export { parse } from './parse';
-export { build, type BuildOptions } from './build';
+export { parse, build, type BuildOptions } from './xml';
 
 // Config helpers
 export { defineConfig, type CodegenConfig } from './config';
