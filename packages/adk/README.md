@@ -2,7 +2,9 @@
 
 A minimalistic TypeScript library for representing SAP ABAP objects with accurate ADT (ABAP Development Tools) XML parsing and serialization.
 
-Built on `@abapify/adt-schemas` for robust, type-safe XML processing.
+Part of the **ADT Toolkit** - see [main README](../../README.md) for architecture overview.
+
+Built on `@abapify/adt-schemas-xsd` for robust, type-safe XML processing.
 
 ## Features
 

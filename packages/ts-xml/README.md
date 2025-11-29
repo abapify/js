@@ -1,5 +1,12 @@
 # ts-xml
 
+> ⚠️ **LEGACY PACKAGE** - This package is being replaced by [ts-xsd](../ts-xsd/README.md).
+>
+> **Why?** `ts-xsd` provides better XSD compatibility, automatic type inference, and integrates with the `speci` contract system.
+> This package will be removed once migration is complete.
+
+---
+
 **Type-safe XML ↔ JSON transformation with a single schema definition**
 
 ## What is it?

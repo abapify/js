@@ -1,54 +1,109 @@
 # Abapify.js Monorepo
 
-TypeScript libraries and CLI tools for modern SAP ABAP development workflows. Build CLI-first development tools, integrate ABAP with modern CI/CD pipelines, and work with SAP systems programmatically.
+**ADT Toolkit** - TypeScript libraries for SAP ABAP Development Tools (ADT) REST APIs.
 
-## What is Abapify.js?
+## 🎯 Vision
 
-A monorepo containing focused TypeScript packages for SAP development:
+A complete ADT toolkit providing:
 
-- **CLI-First Approach**: Command-line tools for developers and CI/CD automation
-- **Modern Toolchain**: TypeScript, NX monorepo, comprehensive testing
-- **SAP BTP Ready**: OAuth 2.0 authentication and optimized for SAP Business Technology Platform
-- **Modular Architecture**: Use only the packages you need
+- **CLI** - Command-line interface for SAP ADT operations
+- **Client** - Type-safe HTTP client library for ADT REST APIs
+- **MCP** - Model Context Protocol server for AI integration (future)
 
-## ⚠️ AI-Driven Development Disclaimer
+## ⚠️ Current Status: Proof of Concept
 
-**This project is actively developed using AI assistants** for code generation, architecture decisions, and documentation. While we strive for quality and consistency:
+This project is in **PoC phase**, focusing on technical implementation and architecture validation. The goal is to establish a solid foundation with:
 
-- 🔄 **Experimental Nature**: Some features may not work as expected
-- 🏗️ **Evolving Architecture**: Code patterns may vary as AI learns and adapts
-- 🧹 **Legacy Artifacts**: You may encounter unused code or outdated patterns from iterative development
-- 🧪 **Active Development**: APIs and interfaces may change between versions
+- **Contract-first API design** using `speci` + `ts-xsd`
+- **Type-safe XML handling** with automatic schema generation
+- **Clean separation** between contracts, client, and CLI layers
 
-**Recommendation**: Use this project for experimentation and learning. For production use, thoroughly test and review all functionality.
+**AI-Driven Development**: This project is actively developed using AI assistants. APIs may change, and some features are experimental.
 
-## 📦 Core Packages
+## 🏗️ Target Architecture
 
-| Package                                                | Purpose                                       | Status         |
-| ------------------------------------------------------ | --------------------------------------------- | -------------- |
-| **[@abapify/adt-cli](./packages/adt-cli)**             | Command-line interface for SAP ADT operations | ✅ Active      |
-| **[@abapify/adt-client](./packages/adt-client)**       | HTTP client library for SAP ADT REST APIs     | ✅ Active      |
-| **[@abapify/adk](./packages/adk)**                     | ABAP Development Kit - object modeling        | 🚧 Development |
-| **[@abapify/asjson-parser](./packages/asjson-parser)** | ABAP serialized JSON parser                   | ✅ Stable      |
-
-### Package Architecture
+The architecture prioritizes **type safety** and **contract-first design**:
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   @abapify/     │◄───┤ @abapify/adt-cli │◄───┤ CLI Commands    │
-│   adt-client    │    │                  │    │ & User Interface│
-│                 │    │                  │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         ▲                        ▲
-         │                        │
-┌─────────────────┐    ┌──────────────────┐
-│ SAP ADT         │    │ @abapify/adk     │
-│ REST APIs       │    │ Object Models    │
-│                 │    │                  │
-└─────────────────┘    └──────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         ADT CLI                                  │
+│                    (User Interface Layer)                        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-client-v2                               │
+│              (HTTP Client + Request Execution)                   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-contracts                               │
+│         (REST API Contracts using speci + ts-xsd)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     adt-schemas-xsd                              │
+│        (TypeScript schemas from SAP XSD definitions)             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────┬──────────────────────────────────┐
+│           ts-xsd             │             speci                 │
+│   (XSD → TypeScript types)   │    (Contract specification)       │
+└──────────────────────────────┴──────────────────────────────────┘
 ```
 
-**Core Principle**: CLI-first design with reusable client libraries.
+### Why This Architecture?
+
+**Contract-First Design** solves the fundamental problem of SAP ADT integration:
+
+1. **SAP provides XSD schemas** - Official XML schema definitions for ADT APIs
+2. **ts-xsd generates TypeScript** - Automatic type generation from XSD
+3. **speci defines contracts** - Type-safe REST endpoint definitions
+4. **adt-contracts combines them** - Declarative API contracts with full type inference
+5. **adt-client-v2 executes** - HTTP client that understands contracts
+6. **adt-cli exposes** - User-friendly command-line interface
+
+**Benefits:**
+- ✅ **Single source of truth** - XSD schemas define types once
+- ✅ **Full type safety** - TypeScript types flow from schema to CLI
+- ✅ **No manual type definitions** - Generated from official SAP schemas
+- ✅ **Easy to extend** - Add new endpoints by defining contracts
+- ✅ **Testable** - Contracts are pure data, easy to mock
+
+## 📦 Package Overview
+
+### Core Packages (Target Design)
+
+| Package | Purpose | Status |
+|---------|---------|--------|
+| **[ts-xsd](./packages/ts-xsd)** | XSD → TypeScript schema generation | ✅ Active |
+| **[speci](./packages/speci)** | Contract specification system | ✅ Active |
+| **[adt-schemas-xsd](./packages/adt-schemas-xsd)** | SAP ADT schemas (generated from XSD) | ✅ Active |
+| **[adt-contracts](./packages/adt-contracts)** | REST API contracts (speci + ts-xsd) | 🚧 Development |
+| **[adt-client-v2](./packages/adt-client-v2)** | HTTP client using contracts | 🚧 Development |
+| **[adt-cli](./packages/adt-cli)** | Command-line interface | ✅ Active |
+
+### Supporting Packages
+
+| Package | Purpose | Status |
+|---------|---------|--------|
+| **[adt-auth](./packages/adt-auth)** | Authentication (Basic, SLC, OAuth) | ✅ Active |
+| **[adt-config](./packages/adt-config)** | Configuration loader | ✅ Active |
+| **[browser-auth](./packages/browser-auth)** | Browser-based SSO | ✅ Active |
+| **[adt-puppeteer](./packages/adt-puppeteer)** | Puppeteer SSO adapter | ✅ Active |
+| **[adk](./packages/adk)** | ABAP Development Kit - object modeling | 🚧 Development |
+
+### Legacy Packages (Subject to Deletion)
+
+| Package | Replacement | Notes |
+|---------|-------------|-------|
+| **[adt-client](./packages/adt-client)** | adt-client-v2 | Original client without contract support |
+| **[ts-xml](./packages/ts-xml)** | ts-xsd | Earlier XML schema approach |
+
+> ⚠️ **Legacy packages** will be removed once migration to the new architecture is complete.
 
 ## 🛠️ Development Setup
 
@@ -82,16 +137,21 @@ npx nx typecheck
 
 ```
 abapify-js/
-├── packages/              # Core packages
-│   ├── adt-cli/          # ADT Command Line Interface
-│   ├── adt-client/       # ADT Client Library
-│   ├── adk/              # ABAP Development Kit
-│   └── asjson-parser/    # ASJSON Parser
-├── samples/              # Example applications and usage
-├── docs/                 # Documentation and planning
+├── packages/
+│   ├── ts-xsd/           # XSD → TypeScript (foundation)
+│   ├── speci/            # Contract specification (foundation)
+│   ├── adt-schemas-xsd/  # SAP ADT schemas (generated)
+│   ├── adt-contracts/    # REST API contracts
+│   ├── adt-client-v2/    # HTTP client (new)
+│   ├── adt-cli/          # Command-line interface
+│   ├── adt-auth/         # Authentication
+│   ├── adt-config/       # Configuration
+│   ├── adk/              # ABAP object modeling
+│   ├── adt-client/       # ⚠️ Legacy - to be removed
+│   └── ts-xml/           # ⚠️ Legacy - to be removed
+├── docs/                 # Documentation
 ├── e2e/                  # End-to-end tests
-├── tmp/                  # Temporary files (gitignored)
-└── tools/                # Build tools & NX configuration
+└── tmp/                  # Temporary files (gitignored)
 ```
 
 ## 🔧 NX Monorepo Commands
@@ -221,11 +281,75 @@ npx nx g @nx/node:library packages/my-package
 
 MIT License - see [LICENSE](./LICENSE) for details.
 
+## 🔑 Key Concepts
+
+### ts-xsd + speci: The Contract Foundation
+
+The combination of `ts-xsd` and `speci` provides a powerful contract specification system:
+
+**ts-xsd** converts XSD schemas to TypeScript:
+```typescript
+// Generated from SAP's official XSD
+const TransportSchema = {
+  ns: 'http://www.sap.com/adt/cts',
+  root: 'request',
+  elements: {
+    request: {
+      sequence: [
+        { name: 'requestHeader', type: 'requestHeader' },
+        { name: 'tasks', type: 'tasks' },
+      ],
+    },
+    // ... full type definitions
+  },
+} as const;
+
+// TypeScript type is automatically inferred!
+type Transport = InferXsd<typeof TransportSchema>;
+```
+
+**speci** defines REST contracts:
+```typescript
+import { http } from 'speci/rest';
+import { schemas } from 'adt-schemas-xsd';
+
+const ctsContract = {
+  getTransport: (id: string) =>
+    http.get(`/sap/bc/adt/cts/transportrequests/${id}`, {
+      responses: { 200: schemas.transportmanagment },
+    }),
+};
+```
+
+**Result**: Full type safety from XSD to API response, with zero manual type definitions.
+
+### Why Not Just Use fast-xml-parser?
+
+Traditional XML parsers force you into their data format:
+```typescript
+// fast-xml-parser output - awkward structure
+const data = {
+  "cts:request": {
+    "@_xmlns:cts": "http://www.sap.com/adt/cts",
+    "cts:requestHeader": { ... }
+  }
+};
+```
+
+With ts-xsd, you get clean domain objects:
+```typescript
+// ts-xsd output - clean TypeScript types
+const data: Transport = {
+  requestHeader: { trRequestId: 'DEVK900001', ... },
+  tasks: [...]
+};
+```
+
 ## 🗺️ Roadmap
 
-- **Current**: ADT CLI with transport management and source deployment
-- **Next**: Enhanced ADK with more ABAP object types
-- **Future**: Real-time SAP synchronization and advanced tooling
+- **Current (PoC)**: Contract-first architecture with ts-xsd + speci
+- **Next**: Complete adt-contracts coverage for core ADT APIs
+- **Future**: MCP server for AI-assisted ABAP development
 
 ---
 

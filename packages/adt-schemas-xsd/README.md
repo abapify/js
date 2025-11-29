@@ -1,10 +1,14 @@
 # adt-schemas-xsd
 
-**ADT XML Schemas** - Type-safe SAP ADT schemas generated from official XSD definitions, with built-in `parse`/`build` methods for [speci](https://github.com/abapify/speci) integration.
+**ADT XML Schemas** - Type-safe SAP ADT schemas generated from official XSD definitions, with built-in `parse`/`build` methods for [speci](../speci/README.md) integration.
+
+Part of the **ADT Toolkit** - see [main README](../../README.md) for architecture overview.
 
 ## What is it?
 
-This package provides TypeScript schemas for SAP ADT (ABAP Development Tools) REST APIs, auto-generated from SAP's official XSD schema definitions using `ts-xsd` with the factory generator pattern.
+This package provides TypeScript schemas for SAP ADT (ABAP Development Tools) REST APIs, auto-generated from SAP's official XSD schema definitions using [ts-xsd](../ts-xsd/README.md) with the factory generator pattern.
+
+**Key Role**: This is the **single source of truth** for ADT types. All type definitions flow from XSD → TypeScript, eliminating manual type maintenance.
 
 Each schema is pre-wrapped with `parse()` and `build()` methods, making them directly usable in speci contracts for automatic type inference.
 
