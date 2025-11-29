@@ -1,10 +1,29 @@
 # ADT CLI
 
-A command-line interface for SAP ABAP Development Tools (ADT) services, providing authentication and service discovery for BTP (Business Technology Platform) environments.
+Command-line interface for SAP ABAP Development Tools (ADT) REST APIs.
+
+Part of the **ADT Toolkit** - see [main README](../../README.md) for architecture overview.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         ADT CLI (this package)                   │
+│                    (User Interface Layer)                        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-client-v2                               │
+│              (Contract-driven HTTP Client)                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+The CLI uses `adt-client-v2` for type-safe ADT API access, with contracts defined in `adt-contracts` and schemas from `adt-schemas-xsd`.
 
 ## Features
 
-- 🔐 **OAuth Authentication** - Browser-based login using BTP service keys
+- 🔐 **Multiple Auth Methods** - Basic, SLC, OAuth, Browser-based SSO
 - 🔍 **Service Discovery** - Discover available ADT services and endpoints
 - 🚚 **Transport Management** - List and filter transport requests
 - 📋 **Object Inspection** - Get object details, properties, source code, and structure
@@ -12,7 +31,7 @@ A command-line interface for SAP ABAP Development Tools (ADT) services, providin
 - 💾 **Export Options** - Save discovery data as XML or JSON
 - 📤 **Object Export** - Create/update ABAP objects in SAP from local files
 - 🔄 **Automatic Re-authentication** - Seamless token renewal when expired
-- 🚀 **Modern Architecture** - Built with TypeScript, service-oriented design, and fast-xml-parser
+- 🚀 **Type-Safe** - Full TypeScript support with contract-driven design
 
 ## Installation
 
