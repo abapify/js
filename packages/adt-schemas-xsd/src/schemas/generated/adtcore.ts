@@ -80,7 +80,35 @@ export default schema({
         },
       ],
     },
-    AdtMainObject: {},
+    AdtMainObject: {
+      extends: 'AdtObject',
+      sequence: [
+        {
+          name: 'packageRef',
+          type: 'AdtPackageReference',
+          minOccurs: 0,
+          maxOccurs: 1,
+        },
+      ],
+      attributes: [
+        {
+          name: 'masterSystem',
+          type: 'string',
+        },
+        {
+          name: 'masterLanguage',
+          type: 'string',
+        },
+        {
+          name: 'responsible',
+          type: 'string',
+        },
+        {
+          name: 'abapLanguageVersion',
+          type: 'string',
+        },
+      ],
+    },
     AdtObjectReferenceList: {
       sequence: [
         {
@@ -158,8 +186,18 @@ export default schema({
         },
       ],
     },
-    AdtPackageReference: {},
-    AdtSwitchReference: {},
+    AdtPackageReference: {
+      extends: 'AdtObjectReference',
+    },
+    AdtSwitchReference: {
+      extends: 'AdtObjectReference',
+      attributes: [
+        {
+          name: 'state',
+          type: 'string',
+        },
+      ],
+    },
     AdtContent: {
       text: true,
       attributes: [

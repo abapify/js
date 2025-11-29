@@ -16,7 +16,77 @@ export default schema({
   root: 'AbapClassInclude',
   include: [Adtcore, Abapoo, Abapsource],
   elements: {
-    AbapClass: {},
-    AbapClassInclude: {},
+    AbapClass: {
+      extends: 'AbapOoObject',
+      sequence: [
+        {
+          name: 'include',
+          type: 'AbapClassInclude',
+          minOccurs: 0,
+          maxOccurs: 'unbounded',
+        },
+        {
+          name: 'superClassRef',
+          type: 'string',
+          minOccurs: 0,
+          maxOccurs: 1,
+        },
+        {
+          name: 'messageClassRef',
+          type: 'string',
+          minOccurs: 0,
+          maxOccurs: 1,
+        },
+        {
+          name: 'rootEntityRef',
+          type: 'string',
+          minOccurs: 0,
+          maxOccurs: 1,
+        },
+      ],
+      attributes: [
+        {
+          name: 'category',
+          type: 'string',
+        },
+        {
+          name: 'final',
+          type: 'boolean',
+        },
+        {
+          name: 'state',
+          type: 'string',
+        },
+        {
+          name: 'abstract',
+          type: 'boolean',
+        },
+        {
+          name: 'visibility',
+          type: 'string',
+        },
+        {
+          name: 'sharedMemoryEnabled',
+          type: 'boolean',
+        },
+        {
+          name: 'constructorGenerated',
+          type: 'boolean',
+        },
+        {
+          name: 'hasTests',
+          type: 'boolean',
+        },
+      ],
+    },
+    AbapClassInclude: {
+      extends: 'AbapSourceObject',
+      attributes: [
+        {
+          name: 'includeType',
+          type: 'string',
+        },
+      ],
+    },
   },
 } as const);

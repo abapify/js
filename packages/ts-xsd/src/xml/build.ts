@@ -5,7 +5,7 @@
  */
 
 import { DOMImplementation, XMLSerializer } from '@xmldom/xmldom';
-import type { XsdSchema, XsdElement, XsdField, InferXsd } from './types';
+import type { XsdSchema, XsdElement, XsdField, InferXsd } from '../types';
 
 // Use 'any' for xmldom types since they don't match browser DOM types
 type XmlDocument = any;
@@ -90,6 +90,35 @@ export function build<T extends XsdSchema>(
 }
 
 /**
+ * Get merged element definition including inherited fields from base type
+ */
+function getMergedElementDef(
+  elementDef: XsdElement,
+  elements: { readonly [key: string]: XsdElement }
+): XsdElement {
+  if (!elementDef.extends) {
+    return elementDef;
+  }
+
+  const baseElement = elements[elementDef.extends];
+  if (!baseElement) {
+    return elementDef;
+  }
+
+  // Recursively get merged base (handles multi-level inheritance)
+  const mergedBase = getMergedElementDef(baseElement, elements);
+
+  // Merge: base fields first, then derived fields (derived can override)
+  return {
+    extends: elementDef.extends,
+    sequence: [...(mergedBase.sequence || []), ...(elementDef.sequence || [])],
+    choice: [...(mergedBase.choice || []), ...(elementDef.choice || [])],
+    attributes: [...(mergedBase.attributes || []), ...(elementDef.attributes || [])],
+    text: elementDef.text ?? mergedBase.text,
+  };
+}
+
+/**
  * Build element content
  */
 function buildElement(
@@ -100,9 +129,12 @@ function buildElement(
   schema: XsdSchema,
   allElements: { readonly [key: string]: XsdElement }
 ): void {
-  // Build attributes (attributes don't get namespace prefix in XML)
-  if (elementDef.attributes) {
-    for (const attrDef of elementDef.attributes) {
+  // Get merged definition including inherited fields
+  const mergedDef = getMergedElementDef(elementDef, allElements);
+
+  // Build attributes (including inherited, attributes don't get namespace prefix in XML)
+  if (mergedDef.attributes) {
+    for (const attrDef of mergedDef.attributes) {
       const value = data[attrDef.name];
       if (value !== undefined && value !== null) {
         node.setAttribute(attrDef.name, formatValue(value, attrDef.type));
@@ -110,21 +142,21 @@ function buildElement(
     }
   }
 
-  // Build text content
-  if (elementDef.text && data.$text !== undefined) {
+  // Build text content (including inherited)
+  if (mergedDef.text && data.$text !== undefined) {
     node.appendChild(doc.createTextNode(String(data.$text)));
   }
 
-  // Build sequence fields
-  if (elementDef.sequence) {
-    for (const field of elementDef.sequence) {
+  // Build sequence fields (including inherited)
+  if (mergedDef.sequence) {
+    for (const field of mergedDef.sequence) {
       buildField(doc, node, data[field.name], field, schema, allElements);
     }
   }
 
-  // Build choice fields
-  if (elementDef.choice) {
-    for (const field of elementDef.choice) {
+  // Build choice fields (including inherited)
+  if (mergedDef.choice) {
+    for (const field of mergedDef.choice) {
       if (data[field.name] !== undefined) {
         buildField(doc, node, data[field.name], field, schema, allElements);
       }

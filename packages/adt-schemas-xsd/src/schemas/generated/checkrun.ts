@@ -25,7 +25,23 @@ export default schema({
         },
       ],
     },
-    CheckObject: {},
+    CheckObject: {
+      extends: 'AdtObjectReference',
+      sequence: [
+        {
+          name: 'artifacts',
+          type: 'CheckObjectArtifactList',
+          minOccurs: 0,
+          maxOccurs: 'unbounded',
+        },
+      ],
+      attributes: [
+        {
+          name: 'version',
+          type: 'string',
+        },
+      ],
+    },
     CheckObjectArtifactList: {
       sequence: [
         {

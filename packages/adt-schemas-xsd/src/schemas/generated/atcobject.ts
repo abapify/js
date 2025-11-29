@@ -23,7 +23,25 @@ export default schema({
         },
       ],
     },
-    AtcObject: {},
+    AtcObject: {
+      extends: 'AdtObjectReference',
+      sequence: [
+        {
+          name: 'findings',
+          type: 'string',
+        },
+      ],
+      attributes: [
+        {
+          name: 'author',
+          type: 'string',
+        },
+        {
+          name: 'objectTypeId',
+          type: 'string',
+        },
+      ],
+    },
     AtcObjectList: {
       sequence: [
         {

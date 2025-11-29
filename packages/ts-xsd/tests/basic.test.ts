@@ -470,4 +470,193 @@ describe('ts-xsd', () => {
       assert.equal(firstHref, 'http://a.com');
     });
   });
+
+  describe('extends (type inheritance)', () => {
+    // Base type with common fields
+    const BaseSchema = {
+      root: 'Base',
+      elements: {
+        Base: {
+          sequence: [
+            { name: 'name', type: 'string' },
+            { name: 'description', type: 'string', minOccurs: 0 },
+          ],
+          attributes: [
+            { name: 'id', type: 'string', required: true },
+            { name: 'version', type: 'number' },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    // Derived type that extends Base
+    const DerivedSchema = {
+      root: 'Derived',
+      include: [BaseSchema],
+      elements: {
+        Derived: {
+          extends: 'Base',
+          sequence: [
+            { name: 'extra', type: 'string' },
+          ],
+          attributes: [
+            { name: 'category', type: 'string' },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    type Derived = InferXsd<typeof DerivedSchema>;
+
+    it('should parse inherited attributes', () => {
+      const xml = `
+        <Derived id="123" version="1" category="test">
+          <name>Test Name</name>
+          <description>Test Description</description>
+          <extra>Extra Value</extra>
+        </Derived>
+      `;
+
+      const derived = parse(DerivedSchema, xml);
+
+      // Inherited attributes from Base
+      assert.equal(derived.id, '123');
+      assert.equal(derived.version, 1);
+      // Own attribute
+      assert.equal(derived.category, 'test');
+    });
+
+    it('should parse inherited sequence fields', () => {
+      const xml = `
+        <Derived id="456" category="cat">
+          <name>Inherited Name</name>
+          <extra>Own Field</extra>
+        </Derived>
+      `;
+
+      const derived = parse(DerivedSchema, xml);
+
+      // Inherited sequence from Base
+      assert.equal(derived.name, 'Inherited Name');
+      assert.equal(derived.description, undefined);
+      // Own sequence
+      assert.equal(derived.extra, 'Own Field');
+    });
+
+    it('should build with inherited fields', () => {
+      const derived: Derived = {
+        id: '789',
+        version: 2,
+        category: 'build-test',
+        name: 'Build Name',
+        description: 'Build Desc',
+        extra: 'Build Extra',
+      };
+
+      const xml = build(DerivedSchema, derived);
+
+      // Should include inherited attributes
+      assert.ok(xml.includes('id="789"'));
+      assert.ok(xml.includes('version="2"'));
+      // Should include own attributes
+      assert.ok(xml.includes('category="build-test"'));
+      // Should include inherited sequence
+      assert.ok(xml.includes('<name>Build Name</name>'));
+      assert.ok(xml.includes('<description>Build Desc</description>'));
+      // Should include own sequence
+      assert.ok(xml.includes('<extra>Build Extra</extra>'));
+    });
+
+    it('should round-trip with inheritance', () => {
+      const original: Derived = {
+        id: 'round-trip',
+        version: 3,
+        category: 'rt-cat',
+        name: 'RT Name',
+        description: 'RT Desc',
+        extra: 'RT Extra',
+      };
+
+      const xml = build(DerivedSchema, original);
+      const parsed = parse(DerivedSchema, xml);
+
+      assert.equal(parsed.id, original.id);
+      assert.equal(parsed.version, original.version);
+      assert.equal(parsed.category, original.category);
+      assert.equal(parsed.name, original.name);
+      assert.equal(parsed.description, original.description);
+      assert.equal(parsed.extra, original.extra);
+    });
+
+    // Multi-level inheritance: GrandChild -> Child -> Base
+    const ChildSchema = {
+      root: 'Child',
+      include: [BaseSchema],
+      elements: {
+        Child: {
+          extends: 'Base',
+          sequence: [
+            { name: 'childField', type: 'string' },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    const GrandChildSchema = {
+      root: 'GrandChild',
+      include: [BaseSchema, ChildSchema],
+      elements: {
+        GrandChild: {
+          extends: 'Child',
+          sequence: [
+            { name: 'grandChildField', type: 'string' },
+          ],
+        },
+      },
+    } as const satisfies XsdSchema;
+
+    it('should handle multi-level inheritance', () => {
+      const xml = `
+        <GrandChild id="gc-1" version="1">
+          <name>GC Name</name>
+          <childField>Child Value</childField>
+          <grandChildField>GrandChild Value</grandChildField>
+        </GrandChild>
+      `;
+
+      const gc = parse(GrandChildSchema, xml) as any;
+
+      // From Base
+      assert.equal(gc.id, 'gc-1');
+      assert.equal(gc.version, 1);
+      assert.equal(gc.name, 'GC Name');
+      // From Child
+      assert.equal(gc.childField, 'Child Value');
+      // Own
+      assert.equal(gc.grandChildField, 'GrandChild Value');
+    });
+
+    it('should infer types from inherited fields', () => {
+      // Compile-time type check: Derived should have all fields from Base + own
+      const derived: Derived = {
+        id: 'type-test',      // from Base (required)
+        version: 1,           // from Base (optional)
+        name: 'Name',         // from Base sequence
+        description: 'Desc',  // from Base sequence (optional)
+        category: 'cat',      // own attribute
+        extra: 'extra',       // own sequence
+      };
+
+      // These should all be correctly typed
+      const id: string = derived.id;
+      const version: number | undefined = derived.version;
+      const name: string = derived.name;
+      const category: string | undefined = derived.category;
+      const extra: string = derived.extra;
+
+      assert.ok(id);
+      assert.ok(name);
+      assert.ok(extra);
+    });
+  });
 });

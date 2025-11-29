@@ -8,6 +8,7 @@ import type { XmlElement, ImportedSchema } from '../types';
 import { findChild, findChildren } from '../utils';
 import { generateFieldsObj, generateFields } from './element';
 import { generateAttributeObj, generateAttributeDef } from './attribute';
+import { extractExtension, generateExtendsObj } from './extension';
 
 /**
  * Generate complexType definition as JSON object (for --json output)
@@ -21,9 +22,19 @@ export function generateElementObj(
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
-  // Find sequence/choice
-  const sequence = findChild(typeEl, 'sequence');
-  const choice = findChild(typeEl, 'choice');
+  // Handle complexContent > extension (inheritance pattern)
+  const extInfo = extractExtension(typeEl, nsMap);
+  const contentEl: XmlElement = extInfo?.extensionEl ?? typeEl;
+  
+  // Add extends property if this type extends another
+  const extendsType = generateExtendsObj(typeEl, nsMap);
+  if (extendsType) {
+    result.extends = extendsType;
+  }
+
+  // Find sequence/choice (either direct or within extension)
+  const sequence = findChild(contentEl, 'sequence');
+  const choice = findChild(contentEl, 'choice');
   const simpleContent = findChild(typeEl, 'simpleContent');
 
   if (sequence) {
@@ -58,8 +69,9 @@ export function generateElementObj(
     }
   }
 
-  // Find attributes (direct children, filter out nulls from ref attrs without names)
-  const attributes = findChildren(typeEl, 'attribute');
+  // Find attributes (from contentEl for extension, or typeEl directly)
+  // Filter out nulls from ref attrs without names
+  const attributes = findChildren(contentEl, 'attribute');
   if (attributes.length > 0) {
     const attrs = attributes.map(generateAttributeObj).filter((a): a is Record<string, unknown> => a !== null);
     if (attrs.length > 0) {
@@ -83,9 +95,18 @@ export function generateElementDef(
 ): string {
   const parts: string[] = ['{'];
 
-  // Find sequence/choice/simpleContent
-  const sequence = findChild(typeEl, 'sequence');
-  const choice = findChild(typeEl, 'choice');
+  // Handle complexContent > extension (inheritance pattern)
+  const extInfo = extractExtension(typeEl, nsMap);
+  const contentEl: XmlElement = extInfo?.extensionEl ?? typeEl;
+  
+  // Add extends property if this type extends another
+  if (extInfo?.base) {
+    parts.push(`${indent}  extends: '${extInfo.base}',`);
+  }
+
+  // Find sequence/choice/simpleContent (either direct or within extension)
+  const sequence = findChild(contentEl, 'sequence');
+  const choice = findChild(contentEl, 'choice');
   const simpleContent = findChild(typeEl, 'simpleContent');
 
   if (sequence) {
@@ -131,8 +152,9 @@ export function generateElementDef(
     }
   }
 
-  // Find attributes (direct children, filter out nulls from ref attrs)
-  const attributes = findChildren(typeEl, 'attribute');
+  // Find attributes (from contentEl for extension, or typeEl directly)
+  // Filter out nulls from ref attrs
+  const attributes = findChildren(contentEl, 'attribute');
   const attrDefs = attributes.map(generateAttributeDef).filter((a): a is string => a !== null);
   if (attrDefs.length > 0) {
     parts.push(`${indent}  attributes: [`);

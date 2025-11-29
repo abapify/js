@@ -15,6 +15,8 @@ export default schema({
   root: 'AbapInterface',
   include: [Abapsource, Abapoo],
   elements: {
-    AbapInterface: {},
+    AbapInterface: {
+      extends: 'AbapOoObject',
+    },
   },
 } as const);

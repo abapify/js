@@ -145,11 +145,11 @@ async function launchEditor(
     };
 
     const handleCancel = () => {
-      console.log('\n❌ Cancelled');
+      // Silent exit - no message needed
       resolve();
     };
 
-    const { waitUntilExit } = render(
+    const { waitUntilExit, clear } = render(
       React.createElement(TreeConfigEditor, {
         initialConfig,
         onSave: handleSave,
@@ -158,15 +158,23 @@ async function launchEditor(
     );
 
     waitUntilExit().then(async () => {
+      // Clear the TUI from the terminal
+      // Ink's clear() removes rendered content, then we clear remaining lines
+      clear();
+      // Move cursor up ~20 lines (TUI height) and clear from cursor to end of screen
+      const tuiHeight = 20;
+      process.stdout.write(`\x1b[${tuiHeight}A\x1b[J`);
+      
       if (savedConfig) {
         try {
           await onSave(savedConfig);
-          console.log('\n✅ Configuration saved successfully');
+          console.log('✅ Configuration saved successfully');
           resolve();
         } catch (error) {
           reject(error);
         }
       } else {
+        // Silent exit on cancel - no message
         resolve();
       }
     });
@@ -182,7 +190,10 @@ export const treeConfigCommand = new Command('config')
     try {
       const client = await getAdtClientV2();
 
-      console.log('🔍 Fetching search configuration...');
+      // Only show loading message in non-edit mode
+      if (!options.edit) {
+        console.log('🔍 Fetching search configuration...');
+      }
 
       // Get configurations list (typed)
       const configsResponse = await client.adt.cts.transportrequests.searchconfiguration.configurations.get();
@@ -303,7 +314,6 @@ export const treeConfigCommand = new Command('config')
         console.log('💡 Configure in ADT Eclipse: Transport Organizer → Configure Tree');
       }
 
-      console.log('\n✅ Done');
     } catch (error) {
       console.error(
         '❌ Failed:',

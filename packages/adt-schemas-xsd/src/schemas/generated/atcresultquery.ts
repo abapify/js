@@ -27,8 +27,48 @@ export default schema({
         },
       ],
     },
-    ActiveAtcResultQuery: {},
-    SpecificAtcResultQuery: {},
-    UserAtcResultQuery: {},
+    ActiveAtcResultQuery: {
+      extends: 'AtcResultQuery',
+      sequence: [
+        {
+          name: 'queryEnabled',
+          type: 'boolean',
+        },
+      ],
+    },
+    SpecificAtcResultQuery: {
+      extends: 'AtcResultQuery',
+      sequence: [
+        {
+          name: 'queryEnabled',
+          type: 'boolean',
+        },
+        {
+          name: 'displayId',
+          type: 'string',
+        },
+      ],
+    },
+    UserAtcResultQuery: {
+      extends: 'AtcResultQuery',
+      sequence: [
+        {
+          name: 'queryEnabled',
+          type: 'boolean',
+        },
+        {
+          name: 'createdBy',
+          type: 'string',
+        },
+        {
+          name: 'ageMin',
+          type: 'number',
+        },
+        {
+          name: 'ageMax',
+          type: 'number',
+        },
+      ],
+    },
   },
 } as const);

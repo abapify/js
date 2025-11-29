@@ -15,7 +15,41 @@ export default schema({
   root: 'AbapSyntaxConfiguration',
   include: [Adtcore, Atom],
   elements: {
-    AbapSourceMainObject: {},
+    AbapSourceMainObject: {
+      extends: 'AdtMainObject',
+      sequence: [
+        {
+          name: 'template',
+          type: 'AbapSourceTemplate',
+          minOccurs: 0,
+          maxOccurs: 1,
+        },
+        {
+          name: 'syntaxConfiguration',
+          type: 'AbapSyntaxConfiguration',
+          minOccurs: 0,
+          maxOccurs: 1,
+        },
+      ],
+      attributes: [
+        {
+          name: 'sourceUri',
+          type: 'string',
+        },
+        {
+          name: 'sourceObjectStatus',
+          type: 'string',
+        },
+        {
+          name: 'fixPointArithmetic',
+          type: 'boolean',
+        },
+        {
+          name: 'activeUnicodeCheck',
+          type: 'boolean',
+        },
+      ],
+    },
     AbapSourceTemplate: {
       sequence: [
         {
@@ -41,7 +75,15 @@ export default schema({
         },
       ],
     },
-    AbapSourceObject: {},
+    AbapSourceObject: {
+      extends: 'AdtObject',
+      attributes: [
+        {
+          name: 'sourceUri',
+          type: 'string',
+        },
+      ],
+    },
     AbapSyntaxConfiguration: {
       sequence: [
         {
