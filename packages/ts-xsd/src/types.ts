@@ -64,14 +64,25 @@ export type InferXsd<T extends XsdSchema> = T['root'] extends string
   ? InferElement<AllElements<T>[T['root']], AllElements<T>>
   : {};
 
-/** Infer type for a specific element */
+/** Infer type for a specific element (including inherited fields from extends) */
 export type InferElement<
   E extends XsdElement,
   Elements extends { readonly [key: string]: XsdElement }
-> = InferSequence<E['sequence'], Elements> &
+> = InferExtends<E['extends'], Elements> &
+  InferSequence<E['sequence'], Elements> &
   InferChoice<E['choice'], Elements> &
   InferAttributes<E['attributes']> &
   InferText<E['text']>;
+
+/** Infer inherited fields from base type */
+type InferExtends<
+  Base,
+  Elements extends { readonly [key: string]: XsdElement }
+> = Base extends string
+  ? Base extends keyof Elements
+    ? InferElement<Elements[Base], Elements>
+    : {}
+  : {};
 
 /** Infer sequence fields */
 type InferSequence<

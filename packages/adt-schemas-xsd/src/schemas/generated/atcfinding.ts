@@ -61,7 +61,97 @@ export default schema({
         },
       ],
     },
-    AtcFinding: {},
+    AtcFinding: {
+      extends: 'AdtObjectReference',
+      sequence: [
+        {
+          name: 'link',
+          type: 'linkType',
+          minOccurs: 0,
+          maxOccurs: 'unbounded',
+        },
+        {
+          name: 'quickfixes',
+          type: 'AtcQuickfixes',
+        },
+        {
+          name: 'tags',
+          type: 'AtcTags',
+          minOccurs: 0,
+          maxOccurs: 1,
+        },
+      ],
+      attributes: [
+        {
+          name: 'location',
+          type: 'string',
+        },
+        {
+          name: 'effectOnTransports',
+          type: 'string',
+        },
+        {
+          name: 'priority',
+          type: 'string',
+        },
+        {
+          name: 'checkTitle',
+          type: 'string',
+        },
+        {
+          name: 'checkId',
+          type: 'string',
+        },
+        {
+          name: 'messageTitle',
+          type: 'string',
+        },
+        {
+          name: 'messageId',
+          type: 'string',
+        },
+        {
+          name: 'exemptionKind',
+          type: 'string',
+        },
+        {
+          name: 'exemptionApproval',
+          type: 'string',
+        },
+        {
+          name: 'noExemption',
+          type: 'string',
+        },
+        {
+          name: 'quickfixInfo',
+          type: 'string',
+        },
+        {
+          name: 'contactPerson',
+          type: 'string',
+        },
+        {
+          name: 'lastChangedBy',
+          type: 'string',
+        },
+        {
+          name: 'processor',
+          type: 'string',
+        },
+        {
+          name: 'checksum',
+          type: 'number',
+        },
+        {
+          name: 'remarkText',
+          type: 'string',
+        },
+        {
+          name: 'remarkLink',
+          type: 'string',
+        },
+      ],
+    },
     AtcFindingList: {
       sequence: [
         {
@@ -82,7 +172,9 @@ export default schema({
         },
       ],
     },
-    AtcFindingReference: {},
+    AtcFindingReference: {
+      extends: 'AdtObjectReference',
+    },
     AtcItems: {
       sequence: [
         {
@@ -93,7 +185,27 @@ export default schema({
         },
       ],
     },
-    AtcItem: {},
+    AtcItem: {
+      extends: 'AdtObjectReference',
+      attributes: [
+        {
+          name: 'processor',
+          type: 'string',
+        },
+        {
+          name: 'status',
+          type: 'number',
+        },
+        {
+          name: 'remarkText',
+          type: 'string',
+        },
+        {
+          name: 'remarkLink',
+          type: 'string',
+        },
+      ],
+    },
     AtcRemarks: {
       sequence: [
         {
@@ -104,6 +216,18 @@ export default schema({
         },
       ],
     },
-    AtcRemark: {},
+    AtcRemark: {
+      extends: 'AdtObjectReference',
+      attributes: [
+        {
+          name: 'remarkText',
+          type: 'string',
+        },
+        {
+          name: 'remarkLink',
+          type: 'string',
+        },
+      ],
+    },
   },
 } as const);

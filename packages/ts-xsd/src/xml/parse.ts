@@ -5,7 +5,7 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
-import type { XsdSchema, XsdElement, XsdField, InferXsd } from './types';
+import type { XsdSchema, XsdElement, XsdField, InferXsd } from '../types';
 
 // Use 'any' for xmldom types since they don't match browser DOM types
 type XmlElement = any;
@@ -76,6 +76,35 @@ export function parse<T extends XsdSchema>(
 }
 
 /**
+ * Get merged element definition including inherited fields from base type
+ */
+function getMergedElementDef(
+  elementDef: XsdElement,
+  elements: { readonly [key: string]: XsdElement }
+): XsdElement {
+  if (!elementDef.extends) {
+    return elementDef;
+  }
+
+  const baseElement = elements[elementDef.extends];
+  if (!baseElement) {
+    return elementDef;
+  }
+
+  // Recursively get merged base (handles multi-level inheritance)
+  const mergedBase = getMergedElementDef(baseElement, elements);
+
+  // Merge: base fields first, then derived fields (derived can override)
+  return {
+    extends: elementDef.extends,
+    sequence: [...(mergedBase.sequence || []), ...(elementDef.sequence || [])],
+    choice: [...(mergedBase.choice || []), ...(elementDef.choice || [])],
+    attributes: [...(mergedBase.attributes || []), ...(elementDef.attributes || [])],
+    text: elementDef.text ?? mergedBase.text,
+  };
+}
+
+/**
  * Parse a single element
  */
 function parseElement(
@@ -83,11 +112,13 @@ function parseElement(
   elementDef: XsdElement,
   elements: { readonly [key: string]: XsdElement }
 ): Record<string, unknown> {
+  // Get merged definition including inherited fields
+  const mergedDef = getMergedElementDef(elementDef, elements);
   const result: Record<string, unknown> = {};
 
-  // Parse attributes
-  if (elementDef.attributes) {
-    for (const attrDef of elementDef.attributes) {
+  // Parse attributes (including inherited)
+  if (mergedDef.attributes) {
+    for (const attrDef of mergedDef.attributes) {
       const value = getAttributeValue(node, attrDef.name);
       if (value !== null) {
         result[attrDef.name] = convertValue(value, attrDef.type);
@@ -97,17 +128,17 @@ function parseElement(
     }
   }
 
-  // Parse text content
-  if (elementDef.text) {
+  // Parse text content (including inherited)
+  if (mergedDef.text) {
     const text = getTextContent(node);
     if (text) {
       result.$text = text;
     }
   }
 
-  // Parse sequence fields
-  if (elementDef.sequence) {
-    for (const field of elementDef.sequence) {
+  // Parse sequence fields (including inherited)
+  if (mergedDef.sequence) {
+    for (const field of mergedDef.sequence) {
       const value = parseField(node, field, elements);
       if (value !== undefined) {
         result[field.name] = value;
@@ -115,9 +146,9 @@ function parseElement(
     }
   }
 
-  // Parse choice fields
-  if (elementDef.choice) {
-    for (const field of elementDef.choice) {
+  // Parse choice fields (including inherited)
+  if (mergedDef.choice) {
+    for (const field of mergedDef.choice) {
       const value = parseField(node, field, elements);
       if (value !== undefined) {
         result[field.name] = value;
