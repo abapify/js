@@ -4,6 +4,10 @@
  * High-level service for transport management operations.
  * Provides normalized types and business logic on top of raw ADT contracts.
  * 
+ * Architecture:
+ * - Contracts: Pure HTTP endpoint definitions (no business logic)
+ * - Service: Business logic, XML building, response normalization
+ * 
  * Flow:
  * 1. GET /searchconfiguration/configurations → get config ID
  * 2. GET /transportrequests?targets=true&configUri=<encoded-path> → get transports
@@ -12,6 +16,7 @@
 import { AdtClientType } from '../../client';
 import type { Logger } from '../../types';
 import type { TransportRequest, TransportTask, TransportObject } from './types';
+
 
 // Raw types from the schema (internal use)
 interface RawAbapObject {
@@ -159,7 +164,10 @@ function collectAllRequests(result: unknown): RawRequest[] {
  * @param adtClient - The speci-generated ADT client (client.adt from createAdtClient)
  * @param logger - Optional logger for debug output
  */
-export function createTransportService(adtClient: AdtClientType, logger?: Logger) {
+export function createTransportService(
+  adtClient: AdtClientType,
+  logger?: Logger
+) {
   // Cache config URI to avoid repeated lookups
   let cachedConfigUri: string | undefined;
 
@@ -202,7 +210,7 @@ export function createTransportService(adtClient: AdtClientType, logger?: Logger
     const configUri = await getConfigUri();
     
     logger?.debug('Fetching transports with config...');
-    return adtClient.cts.transportrequests.get({
+    return adtClient.cts.transportrequests.list({
       targets: 'true',
       configUri: configUri,
     });
@@ -228,27 +236,92 @@ export function createTransportService(adtClient: AdtClientType, logger?: Logger
     },
 
     /**
-     * Get a specific transport by number
-     * @param transportNumber - Transport number (e.g., S0DK921630)
-     * @returns TransportRequest or null if not found
+     * Get a specific transport by number (direct API call)
+     * @param trkorr - Transport number (e.g., S0DK921630)
+     * @returns Raw transport response from ADT
      */
-    async get(transportNumber: string): Promise<TransportRequest | null> {
-      logger?.debug(`Getting transport ${transportNumber}...`);
+    async get(trkorr: string) {
+      logger?.debug(`Getting transport ${trkorr}...`);
+      const response = await adtClient.cts.transportrequests.get(trkorr);
+      logger?.debug(`Got transport ${trkorr}`);
+      return response;
+    },
+
+    /**
+     * Create a new transport request
+     * @param options - Transport creation options
+     * @returns Created transport response
+     */
+    async create(options: {
+      description: string;
+      type?: 'K' | 'W';
+      target?: string;
+      project?: string;
+      owner?: string;
+    }) {
+      logger?.debug('Creating transport...', options);
       
-      const transports = await this.list();
+      // Build request body using schema type
+      const body = {
+        useraction: 'newrequest',
+        request: [{
+          desc: options.description,
+          type: options.type || 'K',
+          target: options.target || 'LOCAL',
+          cts_project: options.project || '',
+          task: [{
+            owner: options.owner || '',
+          }],
+        }],
+      };
       
-      // Find matching transport (case-insensitive)
-      const found = transports.find(
-        t => t.number.toUpperCase() === transportNumber.toUpperCase()
-      );
+      // Use contract post() without trkorr = POST to base URL
+      const response = await adtClient.cts.transportrequests.post(undefined, body);
       
-      if (!found) {
-        logger?.debug(`Transport ${transportNumber} not found in ${transports.length} transports`);
-        return null;
-      }
+      logger?.debug('Transport created');
+      return response;
+    },
+
+    /**
+     * Update a transport request
+     * @param trkorr - Transport number
+     * @param data - Update data (schema-compliant)
+     * @returns Updated transport response
+     */
+    async update(trkorr: string, data: unknown) {
+      logger?.debug(`Updating transport ${trkorr}...`);
+      const response = await adtClient.cts.transportrequests.put(trkorr, data);
+      logger?.debug(`Transport ${trkorr} updated`);
+      return response;
+    },
+
+    /**
+     * Delete a transport request
+     * @param trkorr - Transport number
+     */
+    async delete(trkorr: string) {
+      logger?.debug(`Deleting transport ${trkorr}...`);
+      await adtClient.cts.transportrequests.delete(trkorr);
+      logger?.debug(`Transport ${trkorr} deleted`);
+    },
+
+    /**
+     * Release a transport request
+     * @param trkorr - Transport number
+     * @returns Release response
+     */
+    async release(trkorr: string) {
+      logger?.debug(`Releasing transport ${trkorr}...`);
       
-      logger?.debug(`Found transport ${transportNumber}`);
-      return found;
+      // Release action - uses schema body with action attribute
+      const body = {
+        useraction: 'release',
+      };
+      
+      const response = await adtClient.cts.transportrequests.post(trkorr, body);
+      
+      logger?.debug(`Transport ${trkorr} released`);
+      return response;
     },
 
     /**

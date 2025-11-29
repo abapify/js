@@ -49,12 +49,38 @@ export interface FetchOptions {
  */
 
 export type AdtClientType = RestClient<typeof adtContract>
-export function createAdtClient(config: AdtAdapterConfig) {
+
+// Return type explicitly defined to avoid TS7056 "exceeds maximum length" error
+interface AdtClientReturn {
+  adt: RestClient<typeof adtContract>;
+  services: {
+    transports: ReturnType<typeof createTransportService>;
+  };
+  fetch: (url: string, options?: FetchOptions) => Promise<string>;
+}
+
+export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
   const adapter = createAdtAdapter(config);
   const adtClient = createClient(adtContract, {
     baseUrl: config.baseUrl,
     adapter,
   });
+
+  // Create fetch function for services that need raw HTTP access
+  const fetchFn = async (url: string, options?: FetchOptions): Promise<string> => {
+    const method = options?.method || 'GET';
+    const headers = options?.headers || {};
+    const body = options?.body;
+
+    const requestOptions: HttpRequestOptions = {
+      method,
+      url,
+      headers,
+      body,
+    };
+
+    return adapter.request<string>(requestOptions);
+  };
 
   return {
     /**
@@ -80,22 +106,7 @@ export function createAdtClient(config: AdtAdapterConfig) {
      * @param options - Request options (method, headers, body)
      * @returns Raw response as string
      */
-    async fetch(url: string, options?: FetchOptions): Promise<string> {
-      const method = options?.method || 'GET';
-      const headers = options?.headers || {};
-      const body = options?.body;
-
-      const requestOptions: HttpRequestOptions = {
-        method,
-        url,
-        headers,
-        body,
-      };
-
-      // Make request through adapter and return as string
-      const response = await adapter.request<string>(requestOptions);
-      return response;
-    },
+    fetch: fetchFn,
   };
 }
 
