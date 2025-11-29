@@ -96,10 +96,48 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
         url.searchParams.append('sap-language', language);
       }
 
-      // Prepare headers
+      // For write operations, ensure CSRF token is initialized
+      const needsCsrf = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(
+        options.method.toUpperCase()
+      );
+      if (needsCsrf && !sessionManager.hasCsrfToken()) {
+        logger?.debug('Adapter: Initializing CSRF token before write operation');
+        const authForCsrf = authHeader || (cookieHeader ? undefined : undefined);
+        if (authForCsrf) {
+          await sessionManager.initializeCsrf(baseUrl, authForCsrf, client, language);
+        } else if (cookieHeader) {
+          // For cookie auth, make a GET request to sessions endpoint to get CSRF
+          const sessionsUrl = new URL('/sap/bc/adt/core/http/sessions', baseUrl);
+          if (client) sessionsUrl.searchParams.append('sap-client', client);
+          if (language) sessionsUrl.searchParams.append('sap-language', language);
+          
+          const csrfHeaders: Record<string, string> = {
+            'x-csrf-token': 'Fetch',
+            Accept: 'application/vnd.sap.adt.core.http.session.v3+xml',
+            'X-sap-adt-sessiontype': 'stateful',
+          };
+          const cookieHeader2 = sessionManager.getCookieHeader();
+          if (cookieHeader2) csrfHeaders.Cookie = cookieHeader2;
+          
+          try {
+            const csrfResponse = await fetch(sessionsUrl.toString(), {
+              method: 'GET',
+              headers: csrfHeaders,
+            });
+            if (csrfResponse.ok) {
+              sessionManager.processResponse(csrfResponse);
+              logger?.debug('Adapter: CSRF token initialized from sessions endpoint');
+            }
+          } catch (e) {
+            logger?.warn('Adapter: Failed to initialize CSRF token');
+          }
+        }
+      }
+
+      // Prepare headers (pass URL for ETag lookup on PUT/PATCH)
       const headers: Record<string, string> = {
         'X-sap-adt-sessiontype': sessionManager.getSessionTypeHeader(),
-        ...sessionManager.getRequestHeaders(options.method),
+        ...sessionManager.getRequestHeaders(options.method, url.pathname),
         ...options.headers,
       };
 
@@ -109,15 +147,15 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       }
 
       // Get schemas from speci's standard fields
-      // Check if bodySchema is an ElementSchema (has 'tag' and 'fields' properties)
+      // Check if bodySchema is an ElementSchema (ts-xml) or XsdSchema (ts-xsd)
       let bodySchema: ElementSchema | undefined;
-      if (
-        options.bodySchema &&
-        typeof options.bodySchema === 'object' &&
-        'tag' in options.bodySchema &&
-        'fields' in options.bodySchema
-      ) {
-        bodySchema = options.bodySchema as ElementSchema;
+      let bodyXsdSchema: XsdSchema | undefined;
+      if (options.bodySchema && typeof options.bodySchema === 'object') {
+        if ('tag' in options.bodySchema && 'fields' in options.bodySchema) {
+          bodySchema = options.bodySchema as ElementSchema;
+        } else if ('root' in options.bodySchema && 'elements' in options.bodySchema) {
+          bodyXsdSchema = options.bodySchema as XsdSchema;
+        }
       }
 
       // Extract response schema from responses object (passed by speci)
@@ -167,12 +205,18 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       if (body !== undefined && body !== null) {
         if (typeof body === 'string') {
           requestBody = body;
+          logger?.debug('Body: using raw string');
         } else if (bodySchema) {
-          // Use schema to build XML from object
-          // The schema validates the structure at runtime
+          // Use ts-xml schema to build XML from object
           requestBody = buildXml(bodySchema, body);
+          logger?.debug('Body: serialized using ts-xml ElementSchema');
+        } else if (bodyXsdSchema && 'build' in bodyXsdSchema && typeof bodyXsdSchema.build === 'function') {
+          // Use ts-xsd schema's build method to serialize to XML
+          requestBody = bodyXsdSchema.build(body);
+          logger?.debug('Body: serialized using ts-xsd schema');
         } else {
           requestBody = JSON.stringify(body);
+          logger?.debug('Body: serialized as JSON');
         }
       }
 
@@ -184,13 +228,17 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
         body: requestBody,
       });
 
-      // Process response for session management (cookies, CSRF)
-      sessionManager.processResponse(response);
+      // Process response for session management (cookies, CSRF, ETags)
+      sessionManager.processResponse(response, url.pathname);
 
       // Check for HTTP errors
       if (!response.ok) {
+        const errorBody = await response.text();
         const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
         logger?.error(`Request failed - ${errorMsg} (${options.method} ${url.toString()})`);
+        if (errorBody) {
+          logger?.error(`Response body: ${errorBody}`);
+        }
 
         // On 403, clear session and let caller retry
         if (response.status === 403) {

@@ -1,12 +1,21 @@
 /**
- * adt cts tree config - View search configuration
+ * adt cts tree config - View/Edit search configuration
  *
- * Shows the current search configuration used by the transport tree.
+ * Shows or edits the current search configuration used by the transport tree.
  * Uses fully typed contracts with adt-schemas-xsd.
+ *
+ * Usage:
+ *   adt cts tree config         - View current configuration
+ *   adt cts tree config --edit  - Interactive editor (Ink TUI)
+ *   adt cts tree config --json  - Output as JSON
  */
 
 import { Command } from 'commander';
+import { render } from 'ink';
+import React from 'react';
 import { getAdtClientV2 } from '../../../utils/adt-client-v2';
+import { TreeConfigEditor, type TreeConfigState } from '../../../components/TreeConfigEditor';
+import { treeConfigSetCommand } from './config-set';
 
 // Date filter preset names
 const DATE_FILTER_PRESETS: Record<string, string> = {
@@ -66,9 +75,109 @@ function propertiesToMap(config: unknown): Record<string, string> {
   return result;
 }
 
+/**
+ * Convert API properties to TreeConfigState for the editor
+ */
+function propertiesToConfigState(
+  properties: Record<string, string>,
+  _configDetails: unknown
+): TreeConfigState {
+  return {
+    userName: (properties.User || '*') as string,
+    customizingRequests: properties.CustomizingRequests === 'true',
+    workbenchRequests: properties.WorkbenchRequests === 'true',
+    transportOfCopies: properties.TransportOfCopies === 'true',
+    modifiable: properties.Modifiable === 'true',
+    released: properties.Released === 'true',
+    releasedDateFilter: properties.DateFilter || '5',
+    fromDate: properties.FromDate
+      ? formatDate(properties.FromDate)
+      : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10),
+    toDate: properties.ToDate
+      ? formatDate(properties.ToDate)
+      : new Date().toISOString().slice(0, 10),
+  };
+}
+
+/**
+ * Convert TreeConfigState to Configuration schema format for saving
+ */
+function configStateToConfigurationData(config: TreeConfigState) {
+  // Convert date format YYYY-MM-DD to YYYYMMDD
+  const fromDate = config.fromDate.replace(/-/g, '');
+  const toDate = config.toDate.replace(/-/g, '');
+  
+  // Build properties array matching the schema structure
+  // Each property needs: key, isMandatory (optional attribute), $text (text content)
+  const properties = [
+    { key: 'User', isMandatory: undefined, $text: config.userName },
+    { key: 'WorkbenchRequests', isMandatory: undefined, $text: String(config.workbenchRequests) },
+    { key: 'CustomizingRequests', isMandatory: undefined, $text: String(config.customizingRequests) },
+    { key: 'TransportOfCopies', isMandatory: undefined, $text: String(config.transportOfCopies) },
+    { key: 'Modifiable', isMandatory: undefined, $text: String(config.modifiable) },
+    { key: 'Released', isMandatory: undefined, $text: String(config.released) },
+    { key: 'DateFilter', isMandatory: undefined, $text: config.releasedDateFilter },
+    { key: 'FromDate', isMandatory: undefined, $text: fromDate },
+    { key: 'ToDate', isMandatory: undefined, $text: toDate },
+  ];
+  
+  return {
+    properties: {
+      property: properties,
+    },
+  };
+}
+
+/**
+ * Launch the interactive Ink-based editor
+ */
+async function launchEditor(
+  initialConfig: TreeConfigState,
+  onSave: (config: TreeConfigState) => Promise<void>
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let savedConfig: TreeConfigState | null = null;
+
+    const handleSave = async (config: TreeConfigState) => {
+      savedConfig = config;
+    };
+
+    const handleCancel = () => {
+      console.log('\n❌ Cancelled');
+      resolve();
+    };
+
+    const { waitUntilExit } = render(
+      React.createElement(TreeConfigEditor, {
+        initialConfig,
+        onSave: handleSave,
+        onCancel: handleCancel,
+      })
+    );
+
+    waitUntilExit().then(async () => {
+      if (savedConfig) {
+        try {
+          await onSave(savedConfig);
+          console.log('\n✅ Configuration saved successfully');
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 export const treeConfigCommand = new Command('config')
-  .description('View search configuration')
+  .description('View or edit search configuration')
+  .addCommand(treeConfigSetCommand)
   .option('--json', 'Output as JSON')
+  .option('-e, --edit', 'Open interactive editor')
   .action(async (options) => {
     try {
       const client = await getAdtClientV2();
@@ -104,6 +213,30 @@ export const treeConfigCommand = new Command('config')
 
       // Convert properties to map for easy access
       const properties = propertiesToMap(configDetails);
+
+      // Edit mode - launch interactive editor
+      if (options.edit) {
+        const initialConfig = propertiesToConfigState(properties, configDetails);
+
+        // Save handler - updates the configuration on the server using typed contract
+        const handleSave = async (newConfig: TreeConfigState) => {
+          console.log('\n🔄 Saving configuration...');
+          
+          // Convert config to schema-compatible format
+          const configData = configStateToConfigurationData(newConfig);
+          
+          // PUT the configuration back using the typed contract
+          // Body type is Partial<Configuration> - we only send properties
+          // Note: CSRF token is auto-initialized by the adapter before write operations
+          await client.adt.cts.transportrequests.searchconfiguration.configurations.put(
+            configId,
+            configData
+          );
+        };
+
+        await launchEditor(initialConfig, handleSave);
+        return;
+      }
 
       if (options.json) {
         const jsonOutput = {
