@@ -12,7 +12,7 @@
       "cache": false
     },
     "generate": {
-      "command": "npx ts-xsd codegen",
+      "command": "npx ts-xsd codegen -c tsxsd.config.ts",
       "options": {
         "cwd": "{projectRoot}"
       },
