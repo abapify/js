@@ -5,7 +5,7 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
-import type { XmlElement, CodegenOptions, ParsedSchema, XsdImport } from '../types';
+import type { XmlElement, CodegenOptions, ParsedSchema, XsdImport, XsdRedefine } from '../types';
 import { findChild, extractPrefix } from '../utils';
 
 /**
@@ -33,10 +33,11 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
     }
   }
 
-  // Collect all types, elements, and imports
+  // Collect all types, elements, imports, and redefines
   const complexTypes = new Map<string, XmlElement>();
   const simpleTypes = new Map<string, XmlElement>();
   const imports: XsdImport[] = [];
+  const redefines: XsdRedefine[] = [];
   let rootElement: { name: string; type?: string } | null = null;
 
   const children = schemaEl.childNodes;
@@ -53,6 +54,42 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
       const schemaLocation = child.getAttribute('schemaLocation');
       if (ns && schemaLocation) {
         imports.push({ namespace: ns, schemaLocation });
+      }
+    } else if (localName === 'include') {
+      // xsd:include - same namespace include (no namespace attr needed)
+      const schemaLocation = child.getAttribute('schemaLocation');
+      if (schemaLocation) {
+        // Use target namespace for includes (same namespace)
+        imports.push({ namespace: targetNs || '', schemaLocation });
+      }
+    } else if (localName === 'redefine') {
+      // xsd:redefine - collect schemaLocation and redefined types
+      const schemaLocation = child.getAttribute('schemaLocation');
+      if (schemaLocation) {
+        const redefineComplexTypes = new Map<string, XmlElement>();
+        const redefineSimpleTypes = new Map<string, XmlElement>();
+        
+        // Parse children of redefine element
+        const redefineChildren = child.childNodes;
+        for (let j = 0; j < redefineChildren.length; j++) {
+          const redefChild = redefineChildren[j] as XmlElement;
+          if (redefChild.nodeType !== 1) continue;
+          
+          const redefLocalName = redefChild.localName || redefChild.tagName?.split(':').pop();
+          const redefName = redefChild.getAttribute?.('name');
+          
+          if (redefLocalName === 'complexType' && redefName) {
+            redefineComplexTypes.set(redefName, redefChild);
+          } else if (redefLocalName === 'simpleType' && redefName) {
+            redefineSimpleTypes.set(redefName, redefChild);
+          }
+        }
+        
+        redefines.push({
+          schemaLocation,
+          complexTypes: redefineComplexTypes,
+          simpleTypes: redefineSimpleTypes,
+        });
       }
     } else if (localName === 'complexType' && name) {
       complexTypes.set(name, child);
@@ -80,6 +117,7 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
     simpleTypes,
     rootElement,
     imports,
+    redefines,
     nsMap,
   };
 }

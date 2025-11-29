@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Schema for single transport GET response.
+  
+  GET /sap/bc/adt/cts/transportrequests/{trkorr}
+  
+  Returns tm:root with tm:request directly as child (unlike list response).
+  Extends base SAP schema with additional fields for detailed transport info.
+-->
+<xs:schema 
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:tm="http://www.sap.com/cts/adt/tm"
+  targetNamespace="http://www.sap.com/cts/adt/tm">
+  
+  <!-- Include base schema to get all types (request, task, etc.) -->
+  <xs:include schemaLocation="../sap/transportmanagment.xsd"/>
+  
+  <!-- ========================================================================
+       ROOT EXTENSION - adds request as direct child + object_type attribute
+       ======================================================================== -->
+  
+  <xs:element name="root" type="tm:rootSingle"/>
+  
+  <xs:complexType name="rootSingle">
+    <xs:complexContent>
+      <xs:extension base="tm:root">
+        <xs:sequence>
+          <xs:element name="request" type="tm:requestExt" minOccurs="0" maxOccurs="1"/>
+        </xs:sequence>
+        <xs:attribute name="object_type" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <!-- ========================================================================
+       REQUEST EXTENSION - adds missing attributes and child elements
+       ======================================================================== -->
+  
+  <xs:complexType name="requestExt">
+    <xs:complexContent>
+      <xs:extension base="tm:request">
+        <xs:sequence>
+          <xs:element name="long_desc" type="xs:string" minOccurs="0"/>
+          <xs:element name="review" type="tm:review" minOccurs="0"/>
+          <xs:element name="attributes" type="tm:attributes" minOccurs="0" maxOccurs="unbounded"/>
+          <xs:element name="all_objects" type="tm:all_objects" minOccurs="0"/>
+          <xs:element name="dynamic_attributes" type="tm:dynamic_attributes" minOccurs="0"/>
+        </xs:sequence>
+        <!-- Additional attributes not in base SAP schema -->
+        <xs:attribute name="type" type="xs:string"/>
+        <xs:attribute name="status_text" type="xs:string"/>
+        <xs:attribute name="target" type="xs:string"/>
+        <xs:attribute name="target_desc" type="xs:string"/>
+        <xs:attribute name="source_client" type="xs:string"/>
+        <xs:attribute name="parent" type="xs:string"/>
+        <xs:attribute name="cts_project" type="xs:string"/>
+        <xs:attribute name="cts_project_desc" type="xs:string"/>
+        <xs:attribute name="lastchanged_timestamp" type="xs:string"/>
+        <xs:attribute name="docu" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <!-- ========================================================================
+       TASK EXTENSION - adds missing attributes (tasks inside requestExt)
+       Note: requestExt.task still uses base tm:task, override in code if needed
+       ======================================================================== -->
+  
+  <xs:complexType name="taskExt">
+    <xs:complexContent>
+      <xs:extension base="tm:task">
+        <xs:sequence>
+          <xs:element name="long_desc" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+        <!-- Additional attributes not in base SAP schema -->
+        <xs:attribute name="type" type="xs:string"/>
+        <xs:attribute name="status_text" type="xs:string"/>
+        <xs:attribute name="target" type="xs:string"/>
+        <xs:attribute name="target_desc" type="xs:string"/>
+        <xs:attribute name="source_client" type="xs:string"/>
+        <xs:attribute name="parent" type="xs:string"/>
+        <xs:attribute name="cts_project" type="xs:string"/>
+        <xs:attribute name="cts_project_desc" type="xs:string"/>
+        <xs:attribute name="lastchanged_timestamp" type="xs:string"/>
+        <xs:attribute name="docu" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <!-- ========================================================================
+       ABAP_OBJECT EXTENSION - adds missing attributes
+       ======================================================================== -->
+  
+  <xs:complexType name="abap_objectExt">
+    <xs:complexContent>
+      <xs:extension base="tm:abap_object">
+        <!-- Additional attributes not in base SAP schema -->
+        <xs:attribute name="lock_status" type="xs:string"/>
+        <xs:attribute name="position" type="xs:string"/>
+        <xs:attribute name="img_activity" type="xs:string"/>
+        <xs:attribute name="obj_func" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <!-- ========================================================================
+       NEW TYPES - not in base SAP schema at all
+       ======================================================================== -->
+  
+  <!-- Transport attributes (SAPNOTE, etc.) -->
+  <xs:complexType name="attributes">
+    <xs:attribute name="attribute" type="xs:string"/>
+    <xs:attribute name="description" type="xs:string"/>
+    <xs:attribute name="value" type="xs:string"/>
+    <xs:attribute name="position" type="xs:string"/>
+  </xs:complexType>
+  
+  <!-- All objects container -->
+  <xs:complexType name="all_objects">
+    <xs:sequence>
+      <xs:element name="abap_object" type="tm:abap_objectExt" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Code review integration -->
+  <xs:complexType name="review">
+    <xs:attribute name="repository_id" type="xs:string"/>
+    <xs:attribute name="repository_url" type="xs:string"/>
+    <xs:attribute name="repository_branch" type="xs:string"/>
+    <xs:attribute name="pull_request_url" type="xs:string"/>
+  </xs:complexType>
+  
+  <!-- Dynamic attributes container -->
+  <xs:complexType name="dynamic_attributes">
+    <xs:sequence>
+      <xs:element name="dynamic_attribute" type="tm:dynamic_attribute" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="dynamic_attribute">
+    <xs:sequence>
+      <xs:element name="properties" type="tm:attribute_properties" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="attribute" type="xs:string"/>
+    <xs:attribute name="value" type="xs:string"/>
+    <xs:attribute name="description" type="xs:string"/>
+    <xs:attribute name="domain_name" type="xs:string"/>
+  </xs:complexType>
+  
+  <xs:complexType name="attribute_properties">
+    <xs:sequence>
+      <xs:element name="property" type="tm:attribute_property" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="attribute_property">
+    <xs:attribute name="key" type="xs:string"/>
+    <xs:attribute name="value" type="xs:string"/>
+  </xs:complexType>
+  
+</xs:schema>

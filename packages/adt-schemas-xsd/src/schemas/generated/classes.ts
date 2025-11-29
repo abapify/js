@@ -27,19 +27,19 @@ export default schema({
         },
         {
           name: 'superClassRef',
-          type: 'string',
+          type: 'AdtObjectReference',
           minOccurs: 0,
           maxOccurs: 1,
         },
         {
           name: 'messageClassRef',
-          type: 'string',
+          type: 'AdtObjectReference',
           minOccurs: 0,
           maxOccurs: 1,
         },
         {
           name: 'rootEntityRef',
-          type: 'string',
+          type: 'AdtObjectReference',
           minOccurs: 0,
           maxOccurs: 1,
         },

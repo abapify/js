@@ -30,7 +30,7 @@ export default schema({
         },
         {
           name: 'releasereports',
-          type: 'string',
+          type: 'CheckReportList',
         },
       ],
       attributes: [

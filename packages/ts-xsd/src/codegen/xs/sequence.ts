@@ -12,13 +12,21 @@ import { extractExtension, generateExtendsObj } from './extension';
 
 /**
  * Generate complexType definition as JSON object (for --json output)
+ * 
+ * @param typeEl - The complexType element
+ * @param complexTypes - Map of all complex types
+ * @param simpleTypes - Map of all simple types
+ * @param nsMap - Namespace prefix to URI mapping
+ * @param importedSchemas - Imported schemas for element resolution
+ * @param typeName - Name of this type (used to detect xs:redefine self-reference)
  */
 export function generateElementObj(
   typeEl: XmlElement,
   complexTypes: Map<string, XmlElement>,
   simpleTypes: Map<string, XmlElement>,
   nsMap?: Map<string, string>,
-  importedSchemas?: ImportedSchema[]
+  importedSchemas?: ImportedSchema[],
+  typeName?: string
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
@@ -27,8 +35,9 @@ export function generateElementObj(
   const contentEl: XmlElement = extInfo?.extensionEl ?? typeEl;
   
   // Add extends property if this type extends another
+  // BUT NOT for xs:redefine where base === typeName (self-referential extension)
   const extendsType = generateExtendsObj(typeEl, nsMap);
-  if (extendsType) {
+  if (extendsType && extendsType !== typeName) {
     result.extends = extendsType;
   }
 

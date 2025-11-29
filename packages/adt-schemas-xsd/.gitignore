@@ -1,6 +1,6 @@
 # Downloaded SDK
 .cache/
-.xsd/
+.xsd/sap
 
 # Build output
 dist/

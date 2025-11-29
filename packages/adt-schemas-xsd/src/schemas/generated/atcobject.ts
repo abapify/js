@@ -28,7 +28,7 @@ export default schema({
       sequence: [
         {
           name: 'findings',
-          type: 'string',
+          type: 'AtcFindingList',
         },
       ],
       attributes: [

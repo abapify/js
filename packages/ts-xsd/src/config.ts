@@ -32,6 +32,8 @@ export interface CodegenConfig {
   stubs?: boolean;
   /** Namespace prefix for generated code */
   prefix?: string;
+  /** Clean output directory before generating (default: false) */
+  clean?: boolean;
 }
 
 /**

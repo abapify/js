@@ -49,21 +49,44 @@ function getImportName(schemaLocation: string): string {
  * Parse XSD and return schema data for generators
  */
 export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}): { schemaData: SchemaData; rawSchema: Record<string, unknown> } {
-  const { targetNs, prefix, complexTypes, simpleTypes, rootElement, imports, nsMap } = parseSchema(xsd, options);
+  const { targetNs, prefix, complexTypes, simpleTypes, rootElement, imports, redefines, nsMap } = parseSchema(xsd, options);
   const importedSchemas = options.importedSchemas;
   const resolver = options.resolver || defaultResolver;
 
-  // Build imports array
+  // Build imports array from both imports and redefines
   const schemaImports: SchemaImport[] = imports.map(imp => ({
     name: getImportName(imp.schemaLocation),
     path: resolver(imp.schemaLocation, imp.namespace),
     namespace: imp.namespace,
   }));
+  
+  // Add redefines as imports (they reference base schemas)
+  for (const redef of redefines) {
+    schemaImports.push({
+      name: getImportName(redef.schemaLocation),
+      path: resolver(redef.schemaLocation, ''),
+      namespace: '',
+    });
+  }
+
+  // Merge redefined types into complexTypes
+  // Redefined types use xs:extension internally, so they'll have 'extends' property
+  const mergedComplexTypes = new Map(complexTypes);
+  const mergedSimpleTypes = new Map(simpleTypes);
+  for (const redef of redefines) {
+    for (const [typeName, typeEl] of redef.complexTypes) {
+      mergedComplexTypes.set(typeName, typeEl);
+    }
+    for (const [typeName, typeEl] of redef.simpleTypes) {
+      mergedSimpleTypes.set(typeName, typeEl);
+    }
+  }
 
   // Build elements object
   const elements: Record<string, unknown> = {};
-  for (const [typeName, typeEl] of complexTypes) {
-    elements[typeName] = generateElementObj(typeEl, complexTypes, simpleTypes, nsMap, importedSchemas);
+  for (const [typeName, typeEl] of mergedComplexTypes) {
+    // Pass typeName to detect xs:redefine self-reference (where base === typeName)
+    elements[typeName] = generateElementObj(typeEl, mergedComplexTypes, mergedSimpleTypes, nsMap, importedSchemas, typeName);
   }
 
   // Determine root

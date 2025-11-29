@@ -204,7 +204,7 @@ export default schema({
       sequence: [
         {
           name: 'server',
-          type: 'string',
+          type: 'AdtLogpointServer',
         },
       ],
     },

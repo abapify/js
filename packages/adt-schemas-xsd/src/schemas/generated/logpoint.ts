@@ -261,13 +261,13 @@ export default schema({
       sequence: [
         {
           name: 'includePosition',
-          type: 'string',
+          type: 'AdtObjectReference',
           minOccurs: 0,
           maxOccurs: 1,
         },
         {
           name: 'mainProgram',
-          type: 'string',
+          type: 'AdtObjectReference',
           minOccurs: 0,
           maxOccurs: 1,
         },

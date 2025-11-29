@@ -71,10 +71,12 @@ export function resolveType(
 ): string {
   if (!type) return 'string';
 
-  // Strip namespace prefix
-  const localType = type.includes(':') ? type.split(':').pop()! : type;
+  // Check for namespace prefix
+  const hasPrefix = type.includes(':');
+  const prefix = hasPrefix ? type.split(':')[0] : '';
+  const localType = hasPrefix ? type.split(':').pop()! : type;
 
-  // Check if it's a complex type reference
+  // Check if it's a complex type reference (local)
   if (complexTypes.has(localType)) {
     return localType;
   }
@@ -82,6 +84,12 @@ export function resolveType(
   // Check if it's a simple type (enum)
   if (simpleTypes.has(localType)) {
     return 'string'; // For now, treat enums as strings
+  }
+
+  // If it has a non-xs namespace prefix, treat as complex type from imported schema
+  // This handles cases like tm:request where the type is defined in an imported schema
+  if (hasPrefix && prefix !== 'xs' && prefix !== 'xsd') {
+    return localType;
   }
 
   // Map XSD primitive types

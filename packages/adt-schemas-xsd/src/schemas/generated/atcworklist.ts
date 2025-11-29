@@ -24,7 +24,7 @@ export default schema({
         },
         {
           name: 'objects',
-          type: 'string',
+          type: 'AtcObjectList',
         },
         {
           name: 'descriptionTags',
@@ -32,7 +32,7 @@ export default schema({
         },
         {
           name: 'infos',
-          type: 'string',
+          type: 'AtcInfoList',
         },
       ],
       attributes: [
@@ -68,7 +68,7 @@ export default schema({
         },
         {
           name: 'infos',
-          type: 'string',
+          type: 'AtcInfoList',
         },
       ],
     },

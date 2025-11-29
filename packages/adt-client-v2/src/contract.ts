@@ -22,10 +22,26 @@ import { ctsContract } from 'adt-contracts';
  * Organized to mirror the ADT API structure.
  * CTS namespace imported from adt-contracts package.
  */
-export const adtContract = {
+// Explicit type to avoid TS7056 "exceeds maximum length" error
+export const adtContract: {
+  discovery: typeof discoveryContract;
+  classes: typeof classesContract;
+  cts: typeof ctsContract;
+  core: {
+    http: {
+      sessions: typeof sessionsContract;
+      systeminformation: typeof systeminformationContract;
+    };
+  };
+  repository: {
+    informationsystem: {
+      search: typeof searchContract;
+    };
+  };
+} = {
   discovery: discoveryContract,
   classes: classesContract,
-  cts: ctsContract,  // /sap/bc/adt/cts/*
+  cts: ctsContract,
   core: {
     http: {
       sessions: sessionsContract,
@@ -37,6 +53,6 @@ export const adtContract = {
       search: searchContract,
     },
   },
-} satisfies RestContract;
+};
 
 export type AdtContract = typeof adtContract;
