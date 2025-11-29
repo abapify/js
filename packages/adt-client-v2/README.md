@@ -1,15 +1,43 @@
 # @abapify/adt-client-v2
 
-**Minimalistic speci-inspired ADT client for ABAP classes**
+**Contract-driven SAP ADT REST client** - The new architecture using `speci` + `ts-xsd` for full type safety.
 
-A clean, type-safe client for SAP ABAP Development Tools (ADT) REST API, focusing on class operations with zero dependencies.
+## Why v2?
+
+This package replaces the legacy `adt-client` with a **contract-first design**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-client-v2                               │
+│              (HTTP Client + Request Execution)                   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-contracts                               │
+│         (REST API Contracts using speci + ts-xsd)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     adt-schemas-xsd                              │
+│        (TypeScript schemas from SAP XSD definitions)             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Benefits over v1:**
+- ✅ **Type-safe from XSD** - Types generated from official SAP schemas
+- ✅ **Contract-first** - API contracts define the interface
+- ✅ **Zero manual types** - No hand-written type definitions
+- ✅ **Easy to extend** - Add endpoints by defining contracts
+- ✅ **Testable** - Contracts are pure data, easy to mock
 
 ## Features
 
+- ✅ **Contract-driven** - Uses `speci` + `ts-xsd` contracts
+- ✅ **Full type inference** - Types flow from XSD to response
 - ✅ **Zero dependencies** - Only uses native fetch API
-- ✅ **Type-safe** - Full TypeScript support
-- ✅ **Minimalistic** - Focused on ABAP classes only
-- ✅ **Clean API** - Inspired by speci's design principles
+- ✅ **Clean API** - Arrow-function contracts
 - ✅ **Promise-based** - Modern async/await API
 
 ## Installation
@@ -211,24 +239,43 @@ try {
 }
 ```
 
-## Design Philosophy
+## Architecture
 
-This client is inspired by [speci](../speci)'s design principles:
+### Two-Layer Design
 
-- **Arrow functions as contracts** - Clean, type-safe API definitions
-- **Zero decorators** - No magic, just TypeScript
-- **Minimal dependencies** - Only what's absolutely necessary
-- **Protocol-specific** - Focused on ADT REST API for classes
+```typescript
+const client = createAdtClient({...});
+
+// Layer 1: Low-level contracts (direct ADT REST access)
+client.adt.core.http.sessions.getSession()
+client.adt.cts.transportrequests.getTransport(id)
+
+// Layer 2: High-level services (business logic)
+client.services.transports.importAndActivate(transportId)  // Future
+
+// Utility: Raw HTTP for debugging
+client.fetch('/arbitrary/endpoint', { method: 'GET' })
+```
+
+**Contracts** - Thin, declarative HTTP definitions with 1:1 mapping to SAP ADT endpoints
+**Services** - Business logic orchestration combining multiple contract calls
 
 ## Comparison with adt-client v1
 
-| Feature          | v1            | v2             |
-| ---------------- | ------------- | -------------- |
-| **Dependencies** | Many          | Zero           |
-| **Object Types** | All           | Classes only   |
-| **API Style**    | Service-based | Direct methods |
-| **Size**         | Large         | Minimal        |
-| **Complexity**   | High          | Low            |
+| Feature | v1 (Legacy) | v2 (New) |
+|---------|-------------|----------|
+| **Type Safety** | Manual types | Generated from XSD |
+| **Architecture** | Service-based | Contract-first |
+| **Dependencies** | Many | Zero |
+| **Extensibility** | Complex | Add contracts |
+| **Testing** | Difficult | Easy (pure data) |
+
+## Related Packages
+
+- **[adt-contracts](../adt-contracts)** - REST API contracts (speci + ts-xsd)
+- **[adt-schemas-xsd](../adt-schemas-xsd)** - TypeScript schemas from SAP XSD
+- **[speci](../speci)** - Contract specification system
+- **[ts-xsd](../ts-xsd)** - XSD → TypeScript generation
 
 ## License
 

@@ -2,6 +2,8 @@
 
 **Type-safe XSD schemas for TypeScript** - Parse and build XML with full type inference.
 
+Part of the **ADT Toolkit** foundation - see [main README](../../README.md) for architecture overview.
+
 ## What is it?
 
 `ts-xsd` lets you define XSD-like schemas as plain TypeScript objects. TypeScript automatically infers the types, and you get type-safe `parse()` and `build()` functions.
