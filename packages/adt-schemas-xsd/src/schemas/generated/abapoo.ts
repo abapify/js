@@ -19,7 +19,7 @@ export default schema({
       sequence: [
         {
           name: 'interfaceRef',
-          type: 'string',
+          type: 'AdtObjectReference',
           minOccurs: 0,
           maxOccurs: 'unbounded',
         },

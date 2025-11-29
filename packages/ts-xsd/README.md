@@ -439,12 +439,55 @@ interface XsdSchema {
 
 ```typescript
 interface XsdElement {
+  extends?: string;         // Base type name (type inheritance)
   sequence?: XsdField[];    // Ordered child elements
   choice?: XsdField[];      // Choice of child elements
   attributes?: XsdAttribute[];
   text?: boolean;           // Has text content
 }
 ```
+
+### Type Inheritance (extends)
+
+ts-xsd supports XSD type inheritance via the `extends` property. When a type extends another, it inherits all sequence fields, choice fields, and attributes from the base type.
+
+```typescript
+// Base type
+const BaseSchema = {
+  root: 'Base',
+  elements: {
+    Base: {
+      sequence: [{ name: 'baseName', type: 'string' }],
+      attributes: [{ name: 'baseId', type: 'string', required: true }],
+    },
+  },
+} as const satisfies XsdSchema;
+
+// Derived type extends Base
+const DerivedSchema = {
+  root: 'Derived',
+  include: [BaseSchema],
+  elements: {
+    Derived: {
+      extends: 'Base',  // Inherits baseName and baseId
+      sequence: [{ name: 'derivedName', type: 'string' }],
+    },
+  },
+} as const satisfies XsdSchema;
+
+type Derived = InferXsd<typeof DerivedSchema>;
+// {
+//   baseId: string;      // Inherited from Base
+//   baseName: string;    // Inherited from Base
+//   derivedName: string; // Own field
+// }
+```
+
+**Key features:**
+- **Type inference** - TypeScript correctly infers inherited fields
+- **Multi-level inheritance** - Supports chains like GrandChild → Child → Base
+- **Runtime merging** - `parse()` and `build()` automatically include inherited fields
+- **XSD codegen** - Generator extracts `extends` from `complexContent > extension`
 
 ### XsdField
 

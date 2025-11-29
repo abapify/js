@@ -106,7 +106,7 @@ export default schema({
         },
         {
           name: 'selection',
-          type: 'string',
+          type: 'AdtObjectReference',
           minOccurs: 0,
           maxOccurs: 1,
         },

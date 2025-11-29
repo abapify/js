@@ -5,7 +5,7 @@
  * Includes dependency resolution and element type extraction.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { parse as parsePath, join, basename } from 'node:path';
 import { generateFromXsd } from './index';
 import type { CodegenOptions, ImportResolver, ImportedSchema } from './types';
@@ -134,6 +134,8 @@ export interface BatchOptions {
   stubs?: boolean;
   /** Pre-extracted imported schemas for element resolution */
   importedSchemas?: ImportedSchema[];
+  /** Clean output directory before generating (default: false) */
+  clean?: boolean;
 }
 
 export interface BatchResult {
@@ -155,7 +157,18 @@ export async function generateBatch(
   options: BatchOptions,
   onProgress?: (schemaName: string, success: boolean, error?: string) => void
 ): Promise<BatchResult> {
-  const { output, generator, resolver, prefix, stubs = true, importedSchemas } = options;
+  const { output, generator, resolver, prefix, stubs = true, importedSchemas, clean = false } = options;
+
+  // Clean output directory if requested
+  if (clean && existsSync(output)) {
+    // Remove all .ts files in output directory
+    const existingFiles = readdirSync(output);
+    for (const file of existingFiles) {
+      if (file.endsWith('.ts')) {
+        rmSync(join(output, file));
+      }
+    }
+  }
 
   // Ensure output directory exists
   if (!existsSync(output)) {

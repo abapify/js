@@ -47,6 +47,15 @@ export interface XsdImport {
   schemaLocation: string;
 }
 
+/** XSD redefine declaration */
+export interface XsdRedefine {
+  schemaLocation: string;
+  /** Redefined complex types: type name -> XmlElement */
+  complexTypes: Map<string, XmlElement>;
+  /** Redefined simple types: type name -> XmlElement */
+  simpleTypes: Map<string, XmlElement>;
+}
+
 /** Collected types from XSD parsing */
 export interface ParsedSchema {
   targetNs?: string;
@@ -55,6 +64,8 @@ export interface ParsedSchema {
   simpleTypes: Map<string, XmlElement>;
   rootElement: { name: string; type?: string } | null;
   imports: XsdImport[];
+  /** xs:redefine declarations */
+  redefines: XsdRedefine[];
   /** Namespace prefix to URI mapping from xmlns:* attributes */
   nsMap: Map<string, string>;
 }
