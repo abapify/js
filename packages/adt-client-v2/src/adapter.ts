@@ -78,6 +78,12 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
     async request<TResponse = unknown>(
       options: HttpRequestOptions
     ): Promise<TResponse> {
+      logger?.debug('=== ADAPTER REQUEST START ===');
+      logger?.debug('options.url:', options.url);
+      logger?.debug('options.method:', options.method);
+      logger?.debug('options.body:', options.body ? 'present' : 'undefined');
+      logger?.debug('options.bodySchema:', options.bodySchema ? 'present' : 'undefined');
+      
       // Build full URL
       const url = new URL(options.url, baseUrl);
 
@@ -147,13 +153,21 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       }
 
       // Get schemas from speci's standard fields
-      // Check if bodySchema is an ElementSchema (ts-xml) or XsdSchema (ts-xsd)
+      // Check if bodySchema is an ElementSchema (ts-xml), XsdSchema (ts-xsd), or Serializable
       let bodySchema: ElementSchema | undefined;
       let bodyXsdSchema: XsdSchema | undefined;
+      let bodySerializableSchema: { build: (data: unknown) => string } | undefined;
       if (options.bodySchema && typeof options.bodySchema === 'object') {
-        if ('tag' in options.bodySchema && 'fields' in options.bodySchema) {
+        // First check for Serializable with build method (speci-wrapped schemas)
+        if ('build' in options.bodySchema && typeof options.bodySchema.build === 'function') {
+          bodySerializableSchema = options.bodySchema as { build: (data: unknown) => string };
+        }
+        // Then check for ElementSchema (ts-xml)
+        else if ('tag' in options.bodySchema && 'fields' in options.bodySchema) {
           bodySchema = options.bodySchema as ElementSchema;
-        } else if ('root' in options.bodySchema && 'elements' in options.bodySchema) {
+        }
+        // Then check for XsdSchema (ts-xsd without speci wrapper)
+        else if ('root' in options.bodySchema && 'elements' in options.bodySchema) {
           bodyXsdSchema = options.bodySchema as XsdSchema;
         }
       }
@@ -202,18 +216,32 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       let requestBody: string | undefined;
       const body = options.body;
 
+      logger?.debug('Request URL:', options.url);
+      logger?.debug('Request method:', options.method);
+      logger?.debug('options.body:', options.body);
+      logger?.debug('options.bodySchema:', options.bodySchema ? 'present' : 'undefined');
+      logger?.debug('Body type:', typeof body);
       if (body !== undefined && body !== null) {
         if (typeof body === 'string') {
           requestBody = body;
           logger?.debug('Body: using raw string');
+          logger?.debug('Body content (first 200 chars):', requestBody.substring(0, 200));
+        } else if (bodySerializableSchema) {
+          // Use Serializable schema's build method (speci-wrapped schemas)
+          requestBody = bodySerializableSchema.build(body);
+          logger?.debug('Body: serialized using Serializable.build()');
+          logger?.debug('Body output type:', typeof requestBody);
+          logger?.debug('Body output length:', requestBody?.length);
+          logger?.debug('Body content (first 500 chars):', requestBody?.substring(0, 500));
         } else if (bodySchema) {
           // Use ts-xml schema to build XML from object
           requestBody = buildXml(bodySchema, body);
           logger?.debug('Body: serialized using ts-xml ElementSchema');
         } else if (bodyXsdSchema && 'build' in bodyXsdSchema && typeof bodyXsdSchema.build === 'function') {
-          // Use ts-xsd schema's build method to serialize to XML
+          // Use ts-xsd schema's build method to serialize to XML (unwrapped)
           requestBody = bodyXsdSchema.build(body);
           logger?.debug('Body: serialized using ts-xsd schema');
+          logger?.debug('Body content (first 500 chars):', requestBody?.substring(0, 500));
         } else {
           requestBody = JSON.stringify(body);
           logger?.debug('Body: serialized as JSON');

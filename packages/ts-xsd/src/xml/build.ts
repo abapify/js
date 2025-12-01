@@ -132,12 +132,16 @@ function buildElement(
   // Get merged definition including inherited fields
   const mergedDef = getMergedElementDef(elementDef, allElements);
 
-  // Build attributes (including inherited, attributes don't get namespace prefix in XML)
+  // Build attributes (including inherited)
+  // Note: Standard XML doesn't prefix attributes, but SAP ADT requires it (prefixedAttributes option)
   if (mergedDef.attributes) {
     for (const attrDef of mergedDef.attributes) {
       const value = data[attrDef.name];
       if (value !== undefined && value !== null) {
-        node.setAttribute(attrDef.name, formatValue(value, attrDef.type));
+        const attrName = schema.prefixedAttributes && schema.prefix 
+          ? `${schema.prefix}:${attrDef.name}` 
+          : attrDef.name;
+        node.setAttribute(attrName, formatValue(value, attrDef.type));
       }
     }
   }

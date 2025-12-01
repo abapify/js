@@ -40,6 +40,8 @@ export interface XsdSchema {
   readonly root?: string;
   readonly include?: readonly XsdSchema[];
   readonly elements: { readonly [key: string]: XsdElement };
+  /** If true, attributes are prefixed with namespace (non-standard, used by SAP ADT) */
+  readonly prefixedAttributes?: boolean;
 }
 
 // =============================================================================
