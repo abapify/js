@@ -185,7 +185,12 @@ export class AuthManager {
    *
    * @returns Updated session with new credentials, or null if refresh not supported/failed
    */
-  async refreshCredentials(session: AuthSession): Promise<AuthSession | null> {
+  async refreshCredentials(
+    session: AuthSession,
+    options?: { log?: (message: string) => void }
+  ): Promise<AuthSession | null> {
+    const log = options?.log ?? console.log;
+
     if (!session.auth.plugin) {
       return null; // No plugin = can't refresh
     }
@@ -201,7 +206,17 @@ export class AuthManager {
 
     // Try plugin's refresh method first (preferred for session-based auth)
     if (plugin.refresh) {
-      const result = await plugin.refresh(session);
+      const sessionWithLog: AuthSession = {
+        ...session,
+        auth: {
+          ...session.auth,
+          pluginOptions: {
+            ...session.auth.pluginOptions,
+            log,
+          },
+        },
+      };
+      const result = await plugin.refresh(sessionWithLog);
 
       if (result) {
         // Refresh succeeded - build and save updated session
@@ -218,22 +233,23 @@ export class AuthManager {
       }
 
       // Refresh failed - fall through to interactive authenticate
-      console.log('⚠️  Silent refresh failed - falling back to interactive authentication...');
+      log('⚠️  Silent refresh failed - falling back to interactive authentication...');
     }
 
     // Fallback: Call authenticate (full re-auth with browser interaction)
     // Use stored plugin options to preserve settings like userDataDir
-    const options: AuthPluginOptions = session.auth.pluginOptions || {
+    const baseOptions: AuthPluginOptions = session.auth.pluginOptions || {
       url: session.host,
       client: session.client,
     };
+    const runtimeOptions = { ...baseOptions, log };
 
-    const result = await plugin.authenticate(options);
+    const result = await plugin.authenticate(runtimeOptions);
 
     // Build destination for buildSession
     const destination: Destination = {
       type: session.auth.plugin,
-      options,
+      options: baseOptions,
     };
 
     // Build and save updated session

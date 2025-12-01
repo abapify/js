@@ -89,10 +89,20 @@ export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}):
     elements[typeName] = generateElementObj(typeEl, mergedComplexTypes, mergedSimpleTypes, nsMap, importedSchemas, typeName);
   }
 
-  // Determine root
-  const root = rootElement 
-    ? rootElement.type?.split(':').pop() || rootElement.name
-    : undefined;
+  // Determine root - use the TYPE name if it differs from element name
+  // For <xs:element name="root" type="tm:rootSingle"/>, root should be "rootSingle"
+  // because that's the element definition name in the schema
+  let root = rootElement?.name;
+  if (rootElement?.type && rootElement.type !== rootElement.name) {
+    // Strip namespace prefix from type (e.g., "tm:rootSingle" -> "rootSingle")
+    const typeName = rootElement.type.includes(':') 
+      ? rootElement.type.split(':')[1] 
+      : rootElement.type;
+    // Use type name if it exists in elements
+    if (elements[typeName]) {
+      root = typeName;
+    }
+  }
 
   const schemaData: SchemaData = {
     namespace: targetNs,

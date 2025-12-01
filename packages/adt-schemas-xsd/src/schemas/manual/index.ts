@@ -9,3 +9,4 @@
  */
 
 export { default as transportfind } from './transportfind';
+export { default as transportmanagmentCreate } from './transportmanagment-create';

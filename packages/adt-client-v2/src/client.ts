@@ -95,7 +95,7 @@ export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
      */
     services: {
       /** CTS Transport management */
-      transports: createTransportService(adtClient, config.logger),
+      transports: createTransportService(adtClient, fetchFn, config.logger),
     },
 
     /**

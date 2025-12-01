@@ -21,6 +21,7 @@ import {
   createTestAdtCommand,
   createResearchSessionsCommand,
   createCtsCommand,
+  createReplCommand,
 } from './commands';
 import { refreshCommand } from './commands/auth/refresh';
 import { deployCommand } from './commands/deploy/index';
@@ -194,6 +195,8 @@ export async function createCLI(): Promise<Command> {
   // Research command
   program.addCommand(createResearchSessionsCommand());
 
+  // REPL - Interactive hypermedia navigator
+  program.addCommand(createReplCommand());
 
   // Test commands for debugging
   program.addCommand(createTestLogCommand());
@@ -240,6 +243,7 @@ export async function main(): Promise<void> {
       logLevel: loggingConfig.logLevel,
       logOutput: loggingConfig.logOutput,
       logResponseFiles: loggingConfig.logResponseFiles,
+      verbose: globalOptions.verbose,
     });
   });
 

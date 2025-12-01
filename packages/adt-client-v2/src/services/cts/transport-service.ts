@@ -18,6 +18,7 @@ import type { Logger } from '../../types';
 import type { TransportRequest, TransportTask, TransportObject } from './types';
 
 
+
 // Raw types from the schema (internal use)
 interface RawAbapObject {
   pgmid?: string;
@@ -159,13 +160,21 @@ function collectAllRequests(result: unknown): RawRequest[] {
 }
 
 /**
+ * Fetch function type for raw HTTP requests
+ * Returns string directly (already resolved)
+ */
+type FetchFn = (url: string, options?: { headers?: Record<string, string> }) => Promise<string>;
+
+/**
  * Create CTS Transport Service
  * 
  * @param adtClient - The speci-generated ADT client (client.adt from createAdtClient)
+ * @param fetchFn - Raw fetch function for endpoints without schema
  * @param logger - Optional logger for debug output
  */
 export function createTransportService(
   adtClient: AdtClientType,
+  fetchFn: FetchFn,
   logger?: Logger
 ) {
   // Cache config URI to avoid repeated lookups
@@ -261,7 +270,15 @@ export function createTransportService(
     }) {
       logger?.debug('Creating transport...', options);
       
-      // Build request body using schema type
+      // Get owner - use provided or auto-detect from system
+      let owner = options.owner;
+      if (!owner) {
+        owner = await this.getCurrentUser();
+        logger?.debug(`Auto-detected owner: ${owner}`);
+      }
+      
+      // Build body object matching transportmanagmentCreate schema structure
+      // speci will serialize this to XML using the schema
       const body = {
         useraction: 'newrequest',
         request: [{
@@ -269,17 +286,39 @@ export function createTransportService(
           type: options.type || 'K',
           target: options.target || 'LOCAL',
           cts_project: options.project || '',
-          task: [{
-            owner: options.owner || '',
-          }],
+          task: [{ owner }],
         }],
       };
       
-      // Use contract post() without trkorr = POST to base URL
-      const response = await adtClient.cts.transportrequests.post(undefined, body);
+      // Use contract create() - speci handles XML serialization
+      const response = await adtClient.cts.transportrequests.create(body);
       
       logger?.debug('Transport created');
       return response;
+    },
+    
+    /**
+     * Get current user from the system metadata
+     */
+    async getCurrentUser(): Promise<string> {
+      logger?.debug('Detecting current user from metadata endpoint...');
+      
+      // Fetch metadata as raw XML and extract user
+      // Using fetchFn because the schema parsing has issues with this endpoint
+      const xmlContent = await fetchFn('/sap/bc/adt/cts/transportrequests/searchconfiguration/metadata', {
+        headers: { Accept: 'application/vnd.sap.adt.configuration.metadata.v1+xml' },
+      });
+      
+      // Parse the response to extract the actual user
+      // Format: <configuration:property key="User" ...>USERNAME</configuration:property>
+      const userMatch = xmlContent.match(/<configuration:property key="User"[^>]*>([^<]+)</);
+      if (userMatch && userMatch[1]) {
+        const detectedUser = userMatch[1].trim();
+        logger?.debug(`Current user detected: ${detectedUser}`);
+        return detectedUser;
+      }
+      
+      throw new Error('Could not detect current user from metadata response');
     },
 
     /**
@@ -290,7 +329,8 @@ export function createTransportService(
      */
     async update(trkorr: string, data: unknown) {
       logger?.debug(`Updating transport ${trkorr}...`);
-      const response = await adtClient.cts.transportrequests.put(trkorr, data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await adtClient.cts.transportrequests.put(trkorr, data as any);
       logger?.debug(`Transport ${trkorr} updated`);
       return response;
     },
@@ -318,7 +358,8 @@ export function createTransportService(
         useraction: 'release',
       };
       
-      const response = await adtClient.cts.transportrequests.post(trkorr, body);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await adtClient.cts.transportrequests.post(trkorr, body as any);
       
       logger?.debug(`Transport ${trkorr} released`);
       return response;

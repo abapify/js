@@ -1,0 +1,28 @@
+{
+  "name": "@abapify/adt-tui",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Terminal UI components for ADT - page-based navigation with Ink",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "adt-schemas-xsd": "workspace:*",
+    "fast-xml-parser": "^5.3.1",
+    "ink": "5.1.0",
+    "ink-select-input": "^6.0.0",
+    "ink-spinner": "^5.0.0",
+    "ink-text-input": "^6.0.0",
+    "react": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.0"
+  },
+  "peerDependencies": {
+    "@abapify/adt-client-v2": "*"
+  }
+}

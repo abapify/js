@@ -12,6 +12,7 @@
 import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type ResponseContext, type AdtClient } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
 import { loadAuthSession, isExpired, refreshCredentials, type CookieCredentials, type BasicCredentials, type AuthSession } from './auth';
+import { createProgressReporter, type ProgressReporter } from './progress-reporter';
 
 // =============================================================================
 // Global CLI Context (set by CLI preAction hook)
@@ -23,6 +24,7 @@ export interface CliContext {
   logLevel?: string;
   logOutput?: string;
   logResponseFiles?: boolean;
+  verbose?: boolean | string;
 }
 
 let globalCliContext: CliContext = {};
@@ -125,6 +127,8 @@ export interface AdtClientV2Options {
   capture?: boolean;
   /** Enable automatic SAML re-authentication when session expires (default: true for cookie auth) */
   autoReauth?: boolean;
+  /** Pass through verbose flag (used to disable compact progress output) */
+  verbose?: boolean | string;
 }
 
 /**
@@ -134,7 +138,11 @@ export interface AdtClientV2Options {
  * @param sid - Optional SID for error messages
  * @returns Updated session with fresh credentials
  */
-async function tryAutoRefresh(session: AuthSession, sid?: string): Promise<AuthSession> {
+async function tryAutoRefresh(
+  session: AuthSession,
+  sid: string | undefined,
+  progress: ProgressReporter
+): Promise<AuthSession> {
   // Check if plugin is available for refresh
   if (!session.auth.plugin) {
     console.error('❌ Session expired');
@@ -142,13 +150,14 @@ async function tryAutoRefresh(session: AuthSession, sid?: string): Promise<AuthS
     process.exit(1);
   }
 
-  console.log(`🔄 Session expired for ${session.sid}, refreshing...`);
+  progress.step(`🔄 Session expired for ${session.sid}, refreshing...`);
   
   try {
-    const refreshedSession = await refreshCredentials(session);
-    console.log(`✅ Session refreshed for ${session.sid}`);
+    const refreshedSession = await refreshCredentials(session, { log: progress.step });
+    progress.done(`✅ Session refreshed for ${session.sid}`);
     return refreshedSession;
   } catch (error) {
+    progress.done('❌ Auto-refresh failed');
     console.error('❌ Auto-refresh failed:', error instanceof Error ? error.message : String(error));
     const sidArg = sid ? ` --sid=${sid}` : '';
     console.error(`💡 Run "npx adt auth login${sidArg}" to re-authenticate manually`);
@@ -196,10 +205,12 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
     capture: options?.capture ?? false,
     plugins: options?.plugins ?? [],
     autoReauth: options?.autoReauth ?? true, // Enable auto-reauth by default
+    verbose: options?.verbose ?? ctx.verbose,
   };
 
   // Priority: 1) user-provided logger, 2) global CLI logger, 3) console if enableLogging, 4) silent
   const logger = effectiveOptions.logger ?? (effectiveOptions.enableLogging ? consoleLogger : silentLogger);
+  const progress = createProgressReporter({ compact: !effectiveOptions.verbose, logger });
   let session = loadAuthSession(effectiveOptions.sid);
 
   if (!session) {
@@ -223,7 +234,7 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
   } else if (session.auth.method === 'cookie') {
     // Check if session is expired - try auto-refresh first
     if (isExpired(session)) {
-      session = await tryAutoRefresh(session, effectiveOptions.sid);
+      session = await tryAutoRefresh(session, effectiveOptions.sid, progress);
     }
 
     const creds = session.auth.credentials as CookieCredentials;
@@ -292,21 +303,22 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
         throw error;
       }
 
-      console.log(`🔄 Session expired, refreshing credentials for ${currentSession.sid}... (attempt ${refreshAttempts}/${MAX_REFRESH_ATTEMPTS})`);
+      progress.step(`🔄 Session expired, refreshing credentials for ${currentSession.sid}... (attempt ${refreshAttempts}/${MAX_REFRESH_ATTEMPTS})`);
 
       try {
         // Refresh credentials using the auth plugin (opens browser for SAML)
-        const refreshedSession = await refreshCredentials(currentSession);
+        const refreshedSession = await refreshCredentials(currentSession, { log: progress.step });
         currentSession = refreshedSession;
 
         // Extract new cookie from refreshed session
         const creds = refreshedSession.auth.credentials as CookieCredentials;
         const newCookie = decodeURIComponent(creds.cookies);
 
-        console.log(`✅ Session refreshed for ${currentSession.sid}`);
+        progress.done(`✅ Session refreshed for ${currentSession.sid}`);
         // DON'T reset counter - if cookies don't work, we'll hit the limit
         return newCookie;
       } catch (error) {
+        progress.done('❌ Auto-refresh failed');
         console.error('❌ Auto-refresh failed:', error instanceof Error ? error.message : String(error));
         const sidArg = effectiveOptions.sid ? ` --sid=${effectiveOptions.sid}` : '';
         console.error(`💡 Run "npx adt auth login${sidArg}" to re-authenticate manually`);

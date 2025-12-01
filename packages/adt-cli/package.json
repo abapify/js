@@ -16,6 +16,7 @@
     "@abapify/adt-client": "*",
     "@abapify/adt-client-v2": "*",
     "@abapify/adt-config": "*",
+    "@abapify/adt-tui": "*",
     "@abapify/logger": "*",
     "@inquirer/prompts": "^7.9.0",
     "adt-contracts": "*",
