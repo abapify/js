@@ -80,11 +80,15 @@ function createMethod(
     let bodyData = descriptor.body;
     let bodySchema = undefined;
 
+    // Use operationFn.length to determine how many path params the function declared
+    // This works because template strings consume the params before we see them
+    const declaredParamCount = operationFn.length;
+
     if (isInferrableSchema(descriptor.body)) {
-      // Body is a schema - body data comes after all path parameters
+      // Body is a schema - body data comes after all declared parameters
       bodySchema = descriptor.body;
-      // Body is at position: number of path params (or 0 if no path params)
-      bodyData = args[pathParamNames.length];
+      // Body is at position: number of declared params (path params consumed by template)
+      bodyData = args[declaredParamCount];
     }
 
     // Replace path parameters if path exists

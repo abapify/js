@@ -14,11 +14,8 @@ export { logoutCommand } from './auth/logout';
 export { statusCommand } from './auth/status';
 export { listCommand as authListCommand } from './auth/list';
 export { setDefaultCommand } from './auth/set-default';
-// DEPRECATED: Old transport commands removed in favor of 'cts' command
-// export { transportListCommand } from './transport/list';
-// export { transportGetCommand } from './transport/get';
-// export { transportCreateCommand } from './transport/create';
 export { createTestLogCommand } from './test-log';
 export { createTestAdtCommand } from './test-adt';
 export { createResearchSessionsCommand } from './research-sessions-cmd';
 export { createCtsCommand } from './cts';
+export { createReplCommand } from './repl';

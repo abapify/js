@@ -10,25 +10,33 @@
  */
 
 import { Command } from 'commander';
-import { getAdtClientV2 } from '../../../utils/adt-client-v2';
+import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
+import { createProgressReporter } from '../../../utils/progress-reporter';
+import { createCliLogger } from '../../../utils/logger-config';
 
 export const ctsGetCommand = new Command('get')
   .description('Get transport request details')
   .argument('<transport>', 'Transport number (e.g., D01K900123)')
   .option('--json', 'Output as JSON')
-  .option('--attributes', 'Show transport attributes')
+  .option('--attributes, --attrs', 'Show transport attributes')
   .option('--objects', 'Show list of objects')
-  .action(async (transport: string, options) => {
+  .action(async function(this: Command, transport: string, options) {
+    const globalOpts = this.optsWithGlobals?.() ?? {};
+    const ctx = getCliContext();
+    const verboseFlag = globalOpts.verbose ?? ctx.verbose ?? false;
+    const compact = !verboseFlag;
+    const logger = (this as any).logger ?? ctx.logger ?? createCliLogger({ verbose: verboseFlag });
+    const progress = createProgressReporter({ compact, logger });
+
     try {
       const client = await getAdtClientV2();
 
-      process.stdout.write(`🔍 Getting transport ${transport}...`);
+      progress.step(`🔍 Getting transport ${transport}...`);
 
       // Use the transport service to get specific transport (direct API call)
       const response = await client.services.transports.get(transport);
 
-      // Clear the "Getting..." line
-      process.stdout.write('\r\x1b[K');
+      progress.done();
 
       if (options.json) {
         console.log(JSON.stringify(response, null, 2));
@@ -86,7 +94,9 @@ export const ctsGetCommand = new Command('get')
       }
 
     } catch (error) {
-      console.error('❌ Get failed:', error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      progress.done(`❌ Get failed: ${message}`);
+      console.error('❌ Get failed:', message);
       process.exit(1);
     }
   });

@@ -15,7 +15,7 @@ export const ctsListCommand = new Command('list')
     try {
       const client = await getAdtClientV2();
 
-      console.log('🔍 Listing transports...');
+      process.stdout.write('🔍 Listing transports...');
 
       // Use the transport service to list transports
       const transports = await client.services.transports.list();
@@ -26,10 +26,13 @@ export const ctsListCommand = new Command('list')
       if (options.json) {
         console.log(JSON.stringify(displayTransports, null, 2));
       } else {
+        // Clear the loading line
+        process.stdout.write('\r\x1b[K');
+
         if (transports.length === 0) {
-          console.log('\n📭 No transports found');
+          console.log('📭 No transports found');
         } else {
-          console.log(`\n📋 Found ${transports.length} transports`);
+          console.log(`📋 Found ${transports.length} transports`);
           
           for (const tr of displayTransports) {
             const status = tr.status === 'D' ? '📂' : '📁';
@@ -42,8 +45,6 @@ export const ctsListCommand = new Command('list')
           }
         }
       }
-
-      console.log('\n✅ Done');
     } catch (error) {
       console.error('❌ List failed:', error instanceof Error ? error.message : String(error));
       process.exit(1);
