@@ -5,7 +5,7 @@
  */
 
 import { DOMImplementation, XMLSerializer } from '@xmldom/xmldom';
-import type { XsdSchema, XsdElement, XsdField, InferXsd } from '../types';
+import type { XsdSchema, XsdComplexType, XsdField, XsdElementDecl } from '../types';
 
 // Use 'any' for xmldom types since they don't match browser DOM types
 type XmlDocument = any;
@@ -18,22 +18,37 @@ export interface BuildOptions {
   encoding?: string;
   /** Pretty print with indentation (default: false) */
   pretty?: boolean;
+  /** Element name to build (if schema has multiple elements) */
+  elementName?: string;
 }
 
 /**
- * Merge all elements from schema and its includes
+ * Merge all complexTypes from schema and its includes
  */
-function getAllElements(schema: XsdSchema): { readonly [key: string]: XsdElement } {
+function getAllComplexTypes(schema: XsdSchema): { readonly [key: string]: XsdComplexType } {
   if (!schema.include || schema.include.length === 0) {
-    return schema.elements;
+    return schema.complexType;
   }
   
-  // Merge elements from all includes
-  const merged: Record<string, XsdElement> = { ...schema.elements };
+  // Merge complexTypes from all includes
+  const merged: Record<string, XsdComplexType> = { ...schema.complexType };
   for (const included of schema.include) {
-    Object.assign(merged, getAllElements(included));
+    Object.assign(merged, getAllComplexTypes(included));
   }
   return merged;
+}
+
+/**
+ * Get all element declarations from schema and includes
+ */
+function getAllElements(schema: XsdSchema): XsdElementDecl[] {
+  const elements: XsdElementDecl[] = [...(schema.element || [])];
+  if (schema.include) {
+    for (const included of schema.include) {
+      elements.push(...getAllElements(included));
+    }
+  }
+  return elements;
 }
 
 /**
@@ -41,26 +56,54 @@ function getAllElements(schema: XsdSchema): { readonly [key: string]: XsdElement
  */
 export function build<T extends XsdSchema>(
   schema: T,
-  data: InferXsd<T>,
+  data: unknown,
   options: BuildOptions = {}
 ): string {
-  const { xmlDecl = true, encoding = 'utf-8', pretty = false } = options;
-
-  if (!schema.root) {
-    throw new Error('Schema has no root element defined');
-  }
+  const { xmlDecl = true, encoding = 'utf-8', pretty = false, elementName } = options;
 
   const impl = new DOMImplementation();
   const doc = impl.createDocument(schema.ns || null, '', null);
 
+  const allComplexTypes = getAllComplexTypes(schema);
   const allElements = getAllElements(schema);
-  const rootElement = allElements[schema.root];
-  if (!rootElement) {
-    throw new Error(`Schema missing root element: ${schema.root}`);
+  
+  // Determine which element to build
+  let rootName: string;
+  let rootType: XsdComplexType;
+  
+  if (elementName) {
+    // Use specified element name
+    const targetElement = allElements.find(el => el.name === elementName);
+    if (targetElement) {
+      rootName = targetElement.name;
+      rootType = allComplexTypes[targetElement.type];
+    } else if (allComplexTypes[elementName]) {
+      // Fallback: use elementName as complexType name directly
+      rootName = elementName;
+      rootType = allComplexTypes[elementName];
+    } else {
+      throw new Error(`Schema missing element or type: ${elementName}`);
+    }
+  } else if (allElements.length > 0) {
+    // Use first element declaration
+    const targetElement = allElements[0];
+    rootName = targetElement.name;
+    rootType = allComplexTypes[targetElement.type];
+  } else {
+    // Fallback: use first complexType key as element name
+    const firstTypeName = Object.keys(allComplexTypes)[0];
+    if (!firstTypeName) {
+      throw new Error('Schema has no element declarations or complexTypes');
+    }
+    rootName = firstTypeName;
+    rootType = allComplexTypes[firstTypeName];
+  }
+  
+  if (!rootType) {
+    throw new Error(`Schema missing type for element: ${rootName}`);
   }
 
-  // Convert root element name to lowercase (XSD uses PascalCase types, XML uses lowercase elements)
-  const rootName = schema.root.charAt(0).toLowerCase() + schema.root.slice(1);
+  // Use element name as-is from declaration
   const rootTag = schema.prefix ? `${schema.prefix}:${rootName}` : rootName;
   const root = doc.createElement(rootTag);
 
@@ -73,7 +116,7 @@ export function build<T extends XsdSchema>(
     }
   }
 
-  buildElement(doc, root, data as Record<string, unknown>, rootElement, schema, allElements);
+  buildElement(doc, root, data as Record<string, unknown>, rootType, schema, allComplexTypes, options);
   doc.appendChild(root);
 
   let xml = new XMLSerializer().serializeToString(doc);
@@ -90,55 +133,59 @@ export function build<T extends XsdSchema>(
 }
 
 /**
- * Get merged element definition including inherited fields from base type
+ * Get merged complexType definition including inherited fields from base type
  */
-function getMergedElementDef(
-  elementDef: XsdElement,
-  elements: { readonly [key: string]: XsdElement }
-): XsdElement {
-  if (!elementDef.extends) {
-    return elementDef;
+function getMergedComplexTypeDef(
+  typeDef: XsdComplexType,
+  complexTypes: { readonly [key: string]: XsdComplexType }
+): XsdComplexType {
+  if (!typeDef.extends) {
+    return typeDef;
   }
 
-  const baseElement = elements[elementDef.extends];
-  if (!baseElement) {
-    return elementDef;
+  const baseType = complexTypes[typeDef.extends];
+  if (!baseType) {
+    return typeDef;
   }
 
   // Recursively get merged base (handles multi-level inheritance)
-  const mergedBase = getMergedElementDef(baseElement, elements);
+  const mergedBase = getMergedComplexTypeDef(baseType, complexTypes);
 
   // Merge: base fields first, then derived fields (derived can override)
   return {
-    extends: elementDef.extends,
-    sequence: [...(mergedBase.sequence || []), ...(elementDef.sequence || [])],
-    choice: [...(mergedBase.choice || []), ...(elementDef.choice || [])],
-    attributes: [...(mergedBase.attributes || []), ...(elementDef.attributes || [])],
-    text: elementDef.text ?? mergedBase.text,
+    extends: typeDef.extends,
+    sequence: [...(mergedBase.sequence || []), ...(typeDef.sequence || [])],
+    choice: [...(mergedBase.choice || []), ...(typeDef.choice || [])],
+    attributes: [...(mergedBase.attributes || []), ...(typeDef.attributes || [])],
+    text: typeDef.text ?? mergedBase.text,
   };
 }
 
 /**
- * Build element content
+ * Build element content using its complexType definition
  */
 function buildElement(
   doc: XmlDocument,
   node: XmlElement,
   data: Record<string, unknown>,
-  elementDef: XsdElement,
+  typeDef: XsdComplexType,
   schema: XsdSchema,
-  allElements: { readonly [key: string]: XsdElement }
+  complexTypes: { readonly [key: string]: XsdComplexType },
+  options: BuildOptions
 ): void {
   // Get merged definition including inherited fields
-  const mergedDef = getMergedElementDef(elementDef, allElements);
+  const mergedDef = getMergedComplexTypeDef(typeDef, complexTypes);
 
   // Build attributes (including inherited)
-  // Note: Standard XML doesn't prefix attributes, but SAP ADT requires it (prefixedAttributes option)
+  // Per W3C XML Namespaces: unprefixed attributes have no namespace,
+  // prefixed attributes are namespace-qualified.
+  // XSD attributeFormDefault controls this.
   if (mergedDef.attributes) {
+    const qualifyAttrs = schema.attributeFormDefault === 'qualified';
     for (const attrDef of mergedDef.attributes) {
       const value = data[attrDef.name];
       if (value !== undefined && value !== null) {
-        const attrName = schema.prefixedAttributes && schema.prefix 
+        const attrName = qualifyAttrs && schema.prefix 
           ? `${schema.prefix}:${attrDef.name}` 
           : attrDef.name;
         node.setAttribute(attrName, formatValue(value, attrDef.type));
@@ -154,7 +201,7 @@ function buildElement(
   // Build sequence fields (including inherited)
   if (mergedDef.sequence) {
     for (const field of mergedDef.sequence) {
-      buildField(doc, node, data[field.name], field, schema, allElements);
+      buildField(doc, node, data[field.name], field, schema, complexTypes, options);
     }
   }
 
@@ -162,7 +209,7 @@ function buildElement(
   if (mergedDef.choice) {
     for (const field of mergedDef.choice) {
       if (data[field.name] !== undefined) {
-        buildField(doc, node, data[field.name], field, schema, allElements);
+        buildField(doc, node, data[field.name], field, schema, complexTypes, options);
       }
     }
   }
@@ -177,20 +224,21 @@ function buildField(
   value: unknown,
   field: XsdField,
   schema: XsdSchema,
-  allElements: { readonly [key: string]: XsdElement }
+  complexTypes: { readonly [key: string]: XsdComplexType },
+  options: BuildOptions
 ): void {
   if (value === undefined || value === null) {
     return;
   }
 
-  const nestedElement = allElements[field.type];
+  const nestedType = complexTypes[field.type];
   const tagName = schema.prefix ? `${schema.prefix}:${field.name}` : field.name;
 
   if (Array.isArray(value)) {
     for (const item of value) {
       const child = doc.createElement(tagName);
-      if (nestedElement) {
-        buildElement(doc, child, item as Record<string, unknown>, nestedElement, schema, allElements);
+      if (nestedType) {
+        buildElement(doc, child, item as Record<string, unknown>, nestedType, schema, complexTypes, options);
       } else {
         child.appendChild(doc.createTextNode(formatValue(item, field.type)));
       }
@@ -198,8 +246,8 @@ function buildField(
     }
   } else {
     const child = doc.createElement(tagName);
-    if (nestedElement) {
-      buildElement(doc, child, value as Record<string, unknown>, nestedElement, schema, allElements);
+    if (nestedType) {
+      buildElement(doc, child, value as Record<string, unknown>, nestedType, schema, complexTypes, options);
     } else {
       child.appendChild(doc.createTextNode(formatValue(value, field.type)));
     }

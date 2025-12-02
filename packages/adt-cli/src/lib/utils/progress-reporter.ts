@@ -15,6 +15,8 @@ export interface ProgressReporter {
   persist(message: string): void;
   /** Finish the progress block and ensure the cursor moves to the next line */
   done(finalMessage?: string): void;
+  /** Clear current progress without outputting anything (silent finish) */
+  clear(): void;
 }
 
 export interface ProgressOptions {
@@ -100,5 +102,11 @@ export function createProgressReporter(options: ProgressOptions = {}): ProgressR
     lastMessage = '';
   };
 
-  return { step, persist, done };
+  const clear = () => {
+    clearLine();
+    open = false;
+    lastMessage = '';
+  };
+
+  return { step, persist, done, clear };
 }

@@ -1,32 +1,28 @@
 /**
  * ADT API Contract
  *
- * Main contract that aggregates all ADT API endpoints.
+ * Extends the base adtContract from adt-contracts with additional
+ * client-specific contracts (sessions, etc.)
  */
 
-import { type RestContract } from './base';
 import { classesContract } from './adt/oo/classes';
-import { discoveryContract } from './adt/discovery';
 import {
   sessionsContract,
   systeminformationContract,
 } from './adt/core/http';
 import { searchContract } from './adt/repository/informationsystem';
 
-// Import CTS contracts from adt-contracts package
-import { ctsContract } from 'adt-contracts';
+// Import base contract from adt-contracts package
+import { adtContract as baseAdtContract, type AdtContract as BaseAdtContract } from 'adt-contracts';
 
 /**
- * Complete ADT API Contract
+ * Extended ADT API Contract
  *
+ * Combines base contracts from adt-contracts with client-specific contracts.
  * Organized to mirror the ADT API structure.
- * CTS namespace imported from adt-contracts package.
  */
-// Explicit type to avoid TS7056 "exceeds maximum length" error
-export const adtContract: {
-  discovery: typeof discoveryContract;
+export interface AdtContract extends BaseAdtContract {
   classes: typeof classesContract;
-  cts: typeof ctsContract;
   core: {
     http: {
       sessions: typeof sessionsContract;
@@ -38,10 +34,11 @@ export const adtContract: {
       search: typeof searchContract;
     };
   };
-} = {
-  discovery: discoveryContract,
+}
+
+export const adtContract: AdtContract = {
+  ...baseAdtContract,
   classes: classesContract,
-  cts: ctsContract,
   core: {
     http: {
       sessions: sessionsContract,
@@ -54,5 +51,3 @@ export const adtContract: {
     },
   },
 };
-
-export type AdtContract = typeof adtContract;

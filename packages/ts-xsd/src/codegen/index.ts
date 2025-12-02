@@ -24,9 +24,10 @@ export {
 } from './batch';
 
 import type { CodegenOptions, GeneratedSchema, ImportResolver } from './types';
-import type { Generator, SchemaData, SchemaImport } from './generator';
+import type { Generator, SchemaData, SchemaImport, SchemaElementDecl } from './generator';
 import { parseSchema } from './xs/schema';
 import { generateElementObj } from './xs/sequence';
+import { generateSimpleTypeObj } from './xs/types';
 import rawGenerator from '../generators/raw';
 
 /**
@@ -49,7 +50,7 @@ function getImportName(schemaLocation: string): string {
  * Parse XSD and return schema data for generators
  */
 export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}): { schemaData: SchemaData; rawSchema: Record<string, unknown> } {
-  const { targetNs, prefix, complexTypes, simpleTypes, rootElement, imports, redefines, nsMap } = parseSchema(xsd, options);
+  const { targetNs, prefix, complexTypes, simpleTypes, elements: parsedElements, imports, redefines, nsMap } = parseSchema(xsd, options);
   const importedSchemas = options.importedSchemas;
   const resolver = options.resolver || defaultResolver;
 
@@ -82,39 +83,45 @@ export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}):
     }
   }
 
-  // Build elements object
-  const elements: Record<string, unknown> = {};
+  // Build complexType object (new format)
+  const complexTypeObj: Record<string, unknown> = {};
   for (const [typeName, typeEl] of mergedComplexTypes) {
     // Pass typeName to detect xs:redefine self-reference (where base === typeName)
-    elements[typeName] = generateElementObj(typeEl, mergedComplexTypes, mergedSimpleTypes, nsMap, importedSchemas, typeName);
+    complexTypeObj[typeName] = generateElementObj(typeEl, mergedComplexTypes, mergedSimpleTypes, nsMap, importedSchemas, typeName);
   }
 
-  // Determine root - use the TYPE name if it differs from element name
-  // For <xs:element name="root" type="tm:rootSingle"/>, root should be "rootSingle"
-  // because that's the element definition name in the schema
-  let root = rootElement?.name;
-  if (rootElement?.type && rootElement.type !== rootElement.name) {
-    // Strip namespace prefix from type (e.g., "tm:rootSingle" -> "rootSingle")
-    const typeName = rootElement.type.includes(':') 
-      ? rootElement.type.split(':')[1] 
-      : rootElement.type;
-    // Use type name if it exists in elements
-    if (elements[typeName]) {
-      root = typeName;
+  // Build simpleType object (new format)
+  const simpleTypeObj: Record<string, unknown> = {};
+  for (const [typeName, typeEl] of mergedSimpleTypes) {
+    const simpleType = generateSimpleTypeObj(typeEl);
+    if (simpleType) {
+      simpleTypeObj[typeName] = simpleType;
     }
   }
+
+  // Build element declarations array (new format)
+  const elementDecls: SchemaElementDecl[] = parsedElements.map(el => ({
+    name: el.name,
+    type: el.type,
+  }));
 
   const schemaData: SchemaData = {
     namespace: targetNs,
     prefix,
-    root,
-    elements,
+    element: elementDecls,
+    complexType: complexTypeObj,
+    simpleType: Object.keys(simpleTypeObj).length > 0 ? simpleTypeObj : undefined,
     imports: schemaImports,
   };
 
   // Raw schema for JSON output (backward compat)
-  const rawSchema: Record<string, unknown> = { elements };
-  if (root) rawSchema.root = root;
+  const rawSchema: Record<string, unknown> = { 
+    element: elementDecls,
+    complexType: complexTypeObj,
+  };
+  if (Object.keys(simpleTypeObj).length > 0) {
+    rawSchema.simpleType = simpleTypeObj;
+  }
   if (targetNs) {
     rawSchema.ns = targetNs;
     rawSchema.prefix = prefix;
@@ -147,7 +154,7 @@ export function generateFromXsd(
 
   return {
     code,
-    root: schemaData.root || '',
+    root: schemaData.element[0]?.name || '',
     namespace: schemaData.namespace,
     schema: rawSchema,
   };

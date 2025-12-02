@@ -23,17 +23,32 @@ export interface SchemaImport {
 }
 
 /**
+ * Element declaration (top-level xsd:element)
+ */
+export interface SchemaElementDecl {
+  name: string;
+  type: string;
+}
+
+/**
  * Parsed schema data passed to generators
+ * 
+ * New faithful XSD representation:
+ * - element: top-level xsd:element declarations
+ * - complexType: xsd:complexType definitions
+ * - simpleType: xsd:simpleType definitions
  */
 export interface SchemaData {
   /** Target namespace URI */
   namespace?: string;
   /** Namespace prefix */
   prefix: string;
-  /** Root element name */
-  root?: string;
-  /** Element definitions as object */
-  elements: Record<string, unknown>;
+  /** Top-level element declarations */
+  element: SchemaElementDecl[];
+  /** ComplexType definitions */
+  complexType: Record<string, unknown>;
+  /** SimpleType definitions (enums, restrictions) */
+  simpleType?: Record<string, unknown>;
   /** Schema imports/dependencies */
   imports: SchemaImport[];
 }
@@ -114,6 +129,11 @@ function toTsLiteral(value: unknown, indent: string, depth = 0): string {
 
 /**
  * Helper to generate schema object literal (shared by generators)
+ * 
+ * Generates new faithful XSD representation:
+ * - element: array of top-level element declarations
+ * - complexType: object of complexType definitions
+ * - simpleType: object of simpleType definitions (if any)
  */
 export function generateSchemaLiteral(schema: SchemaData, indent = ''): string {
   const lines: string[] = [];
@@ -125,8 +145,13 @@ export function generateSchemaLiteral(schema: SchemaData, indent = ''): string {
     lines.push(`${indent}  prefix: '${schema.prefix}',`);
   }
   
-  if (schema.root) {
-    lines.push(`${indent}  root: '${schema.root}',`);
+  // Generate element declarations array
+  if (schema.element.length > 0) {
+    lines.push(`${indent}  element: [`);
+    for (const el of schema.element) {
+      lines.push(`${indent}    { name: '${el.name}', type: '${el.type}' },`);
+    }
+    lines.push(`${indent}  ],`);
   }
   
   if (schema.imports.length > 0) {
@@ -134,14 +159,24 @@ export function generateSchemaLiteral(schema: SchemaData, indent = ''): string {
     lines.push(`${indent}  include: [${importNames}],`);
   }
   
-  lines.push(`${indent}  elements: {`);
-  
-  for (const [name, def] of Object.entries(schema.elements)) {
+  // Generate complexType definitions
+  lines.push(`${indent}  complexType: {`);
+  for (const [name, def] of Object.entries(schema.complexType)) {
     const defStr = toTsLiteral(def, `${indent}    `, 0);
     lines.push(`${indent}    ${name}: ${defStr},`);
   }
-  
   lines.push(`${indent}  },`);
+  
+  // Generate simpleType definitions (if any)
+  if (schema.simpleType && Object.keys(schema.simpleType).length > 0) {
+    lines.push(`${indent}  simpleType: {`);
+    for (const [name, def] of Object.entries(schema.simpleType)) {
+      const defStr = toTsLiteral(def, `${indent}    `, 0);
+      lines.push(`${indent}    ${name}: ${defStr},`);
+    }
+    lines.push(`${indent}  },`);
+  }
+  
   lines.push(`${indent}}`);
   
   return lines.join('\n');

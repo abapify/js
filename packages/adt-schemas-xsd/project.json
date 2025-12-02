@@ -8,16 +8,16 @@
       },
       "dependsOn": [],
       "inputs": [],
-      "outputs": ["{projectRoot}/.cache", "{projectRoot}/.xsd"],
+      "outputs": ["{projectRoot}/.cache", "{projectRoot}/.xsd/sap"],
       "cache": false
     },
     "generate": {
-      "command": "npx ts-xsd codegen -c tsxsd.config.ts",
+      "command": "npx ts-xsd codegen -c tsxsd.config.ts && npx ts-xsd codegen -c tsxsd.custom.config.ts",
       "options": {
         "cwd": "{projectRoot}"
       },
       "dependsOn": ["download", "ts-xsd:build"],
-      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/tsxsd.config.ts"],
+      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/tsxsd.config.ts", "{projectRoot}/tsxsd.custom.config.ts"],
       "outputs": ["{projectRoot}/src/schemas/generated"]
     }
   }

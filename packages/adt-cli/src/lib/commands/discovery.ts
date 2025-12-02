@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
 import { getAdtClientV2, getCaptured } from '../utils/adt-client-v2';
+import { DiscoveryPage } from '../ui/pages';
 
 export const discoveryCommand = new Command('discovery')
   .description('Discover available ADT services')
@@ -8,15 +9,16 @@ export const discoveryCommand = new Command('discovery')
     '-o, --output <file>',
     'Save discovery data to file (JSON or XML based on extension)'
   )
+  .option('-f, --filter <text>', 'Filter workspaces by title')
   .action(async (options, command) => {
     try {
       // Create v2 client with capture enabled
       const adtClient = await getAdtClientV2({ capture: true });
 
-      // Call discovery endpoint
+      // Fetch discovery data
       const discovery = await adtClient.adt.discovery.getDiscovery();
 
-      // Get captured data
+      // Get captured data (for XML output)
       const captured = getCaptured();
 
       if (options.output) {
@@ -38,42 +40,9 @@ export const discoveryCommand = new Command('discovery')
           console.log(`💾 Discovery JSON saved to: ${options.output}`);
         }
       } else {
-        // Display in console
-        if (!discovery.workspace || !Array.isArray(discovery.workspace)) {
-          console.error('❌ Unexpected response structure');
-          console.error('Response:', discovery);
-          process.exit(1);
-        }
-        console.log(`\n📋 Found ${discovery.workspace.length} workspaces:\n`);
-
-        for (const workspace of discovery.workspace) {
-          console.log(`📁 ${workspace.title}`);
-
-          // Ensure collection is an array
-          const collections = Array.isArray(workspace.collection)
-            ? workspace.collection
-            : [workspace.collection];
-
-          for (const collection of collections) {
-            // Type assertion since schema types are generic
-            const coll = collection as any;
-            console.log(`  └─ ${coll.title} (${coll.href})`);
-
-            if (coll.category) {
-              console.log(`     Category: ${coll.category.term}`);
-            }
-
-            if (coll.templateLinks?.templateLink) {
-              const templates = Array.isArray(coll.templateLinks.templateLink)
-                ? coll.templateLinks.templateLink
-                : [coll.templateLinks.templateLink];
-
-              if (templates.length > 0) {
-                console.log(`     Templates: ${templates.length} available`);
-              }
-            }
-          }
-        }
+        // Direct page instantiation - simple and clear
+        const page = DiscoveryPage(discovery, { filter: options.filter });
+        page.print();
       }
     } catch (error) {
       console.error(

@@ -95,3 +95,72 @@ export function resolveType(
   // Map XSD primitive types
   return mapXsdType(localType);
 }
+
+/**
+ * Generate simpleType object from XSD simpleType element
+ * Extracts restriction base, enumerations, patterns, etc.
+ */
+export function generateSimpleTypeObj(typeEl: XmlElement): Record<string, unknown> | null {
+  const result: Record<string, unknown> = {};
+  
+  // Find restriction element
+  const children = typeEl.childNodes;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i] as XmlElement;
+    if (child.nodeType !== 1) continue;
+    
+    const localName = child.localName || child.tagName?.split(':').pop();
+    
+    if (localName === 'restriction') {
+      const base = child.getAttribute('base');
+      if (base) {
+        result.restriction = mapXsdType(base);
+      }
+      
+      // Collect enumeration values
+      const enumValues: string[] = [];
+      const restrictionChildren = child.childNodes;
+      for (let j = 0; j < restrictionChildren.length; j++) {
+        const rChild = restrictionChildren[j] as XmlElement;
+        if (rChild.nodeType !== 1) continue;
+        
+        const rLocalName = rChild.localName || rChild.tagName?.split(':').pop();
+        
+        if (rLocalName === 'enumeration') {
+          const value = rChild.getAttribute('value');
+          if (value !== null) {
+            enumValues.push(value);
+          }
+        } else if (rLocalName === 'pattern') {
+          const value = rChild.getAttribute('value');
+          if (value) {
+            result.pattern = value;
+          }
+        } else if (rLocalName === 'minLength') {
+          const value = rChild.getAttribute('value');
+          if (value) {
+            result.minLength = parseInt(value, 10);
+          }
+        } else if (rLocalName === 'maxLength') {
+          const value = rChild.getAttribute('value');
+          if (value) {
+            result.maxLength = parseInt(value, 10);
+          }
+        }
+      }
+      
+      if (enumValues.length > 0) {
+        result.enum = enumValues;
+      }
+      
+      break;
+    }
+  }
+  
+  // Return null if no restriction found (not a useful simpleType)
+  if (!result.restriction) {
+    return null;
+  }
+  
+  return result;
+}

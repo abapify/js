@@ -44,10 +44,10 @@ describe('xs:redefine', () => {
       const { schemaData } = parseXsdToSchemaData(xsd);
 
       // Should have the redefined 'root' type
-      assert.ok(schemaData.elements['root'], 'Should have root element');
+      assert.ok(schemaData.complexType?.['root'], 'Should have root element');
       
       // The root element should NOT have extends (self-referential redefine)
-      const rootEl = schemaData.elements['root'] as any;
+      const rootEl = schemaData.complexType?.['root'] as any;
       assert.equal(rootEl.extends, undefined, 'Self-referential redefine should NOT have extends');
       
       // Should have the new 'request' field in sequence
@@ -117,16 +117,16 @@ describe('xs:redefine', () => {
       const { schemaData } = parseXsdToSchemaData(xsd);
 
       // Should have both redefined types
-      assert.ok(schemaData.elements['TypeA'], 'Should have TypeA');
-      assert.ok(schemaData.elements['TypeB'], 'Should have TypeB');
+      assert.ok(schemaData.complexType?.['TypeA'], 'Should have TypeA');
+      assert.ok(schemaData.complexType?.['TypeB'], 'Should have TypeB');
       
       // TypeA should have fieldA
-      const typeA = schemaData.elements['TypeA'] as any;
+      const typeA = schemaData.complexType?.['TypeA'] as any;
       const fieldA = typeA.sequence?.find((f: any) => f.name === 'fieldA');
       assert.ok(fieldA, 'TypeA should have fieldA');
       
       // TypeB should have attrB
-      const typeB = schemaData.elements['TypeB'] as any;
+      const typeB = schemaData.complexType?.['TypeB'] as any;
       const attrB = typeB.attributes?.find((a: any) => a.name === 'attrB');
       assert.ok(attrB, 'TypeB should have attrB');
     });
@@ -139,8 +139,10 @@ describe('xs:redefine', () => {
     // Result should be: Person { name, age, email, phone }
     
     const BasePersonSchema = {
-      root: 'Person',
-      elements: {
+      element: [
+        { name: 'Person', type: 'Person' },
+      ],
+      complexType: {
         Person: {
           sequence: [
             { name: 'name', type: 'string' },
@@ -156,8 +158,10 @@ describe('xs:redefine', () => {
     // This is what xs:redefine SHOULD produce - a merged type
     // NOT a type that "extends" Person, but Person itself with extra fields
     const RedefinedPersonSchema = {
-      root: 'Person',
-      elements: {
+      element: [
+        { name: 'Person', type: 'Person' },
+      ],
+      complexType: {
         Person: {
           sequence: [
             // Original fields from base
@@ -249,8 +253,10 @@ describe('xs:redefine', () => {
     // Redefine Item to add: price, quantity
     
     const RedefinedOrderSchema = {
-      root: 'Order',
-      elements: {
+      element: [
+        { name: 'Order', type: 'Order' },
+      ],
+      complexType: {
         Order: {
           sequence: [
             { name: 'item', type: 'Item', maxOccurs: 'unbounded' },
@@ -386,7 +392,7 @@ describe('xs:redefine', () => {
         </xs:schema>`;
 
       const { schemaData } = parseXsdToSchemaData(xsd);
-      const person = schemaData.elements['Person'] as any;
+      const person = schemaData.complexType?.['Person'] as any;
 
       // Verify the type exists and has the new field
       assert.ok(person, 'Should have Person type');
@@ -424,10 +430,10 @@ describe('xs:redefine', () => {
         </xs:schema>`;
 
       const { schemaData } = parseXsdToSchemaData(xsd);
-      const derived = schemaData.elements['Derived'] as any;
+      const derived = schemaData.complexType?.['Derived'] as any;
 
       // Regular extension SHOULD have extends
-      assert.equal(derived.extends, 'Base', 'Regular extension should have extends');
+      assert.equal(derived?.extends, 'Base', 'Regular extension should have extends');
       
       // And should have its own field
       const extraField = derived.sequence?.find((f: any) => f.name === 'extra');

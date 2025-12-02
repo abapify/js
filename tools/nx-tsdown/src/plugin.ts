@@ -61,7 +61,6 @@ export const createNodesV2: CreateNodesV2 = [
           `{projectRoot}/tsconfig.lib.json`,
           `{projectRoot}/tsdown.config.ts`,
           `{projectRoot}/package.json`,
-          { externalDependencies: ['tsdown'] },
         ],
         dependsOn: ['^build'],
       };

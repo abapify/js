@@ -56,12 +56,21 @@ export interface XsdRedefine {
   simpleTypes: Map<string, XmlElement>;
 }
 
+/** XSD element declaration (top-level xsd:element) */
+export interface XsdElementDecl {
+  name: string;
+  type: string;
+}
+
 /** Collected types from XSD parsing */
 export interface ParsedSchema {
   targetNs?: string;
   prefix: string;
   complexTypes: Map<string, XmlElement>;
   simpleTypes: Map<string, XmlElement>;
+  /** All top-level xsd:element declarations */
+  elements: XsdElementDecl[];
+  /** @deprecated Use elements array instead */
   rootElement: { name: string; type?: string } | null;
   imports: XsdImport[];
   /** xs:redefine declarations */
