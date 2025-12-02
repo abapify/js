@@ -15,4 +15,7 @@ export const registry = {
     worklist: 'atc/worklist.xml',
     result: 'atc/result.xml',
   },
+  packages: {
+    tmp: 'packages/tmp.xml',
+  },
 } as const;

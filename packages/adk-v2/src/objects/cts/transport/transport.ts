@@ -10,6 +10,7 @@
  */
 
 import type { AdkContext } from '../../../base/context';
+import { getGlobalContext } from '../../../base/global-context';
 import { AdkObject } from '../../../base/model';
 import { TransportRequest as TransportRequestKind } from '../../../base/kinds';
 import { requiresLock, parseSapTimestamp } from '../../../decorators';
@@ -222,8 +223,15 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
   // Static Factory
   // ===========================================================================
 
-  static async create(ctx: AdkContext, options: TransportCreateOptions): Promise<AdkTransportRequest> {
-    const response = await getService(ctx).create({
+  /**
+   * Create a new transport request
+   * 
+   * @param options - Transport creation options
+   * @param ctx - Optional ADK context (uses global context if not provided)
+   */
+  static async create(options: TransportCreateOptions, ctx?: AdkContext): Promise<AdkTransportRequest> {
+    const context = ctx ?? getGlobalContext();
+    const response = await getService(context).create({
       description: options.description,
       type: options.type as 'K' | 'W' | undefined,
       target: options.target,
@@ -234,16 +242,23 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
     const number = (response as { request?: { number?: string } })?.request?.number;
     if (!number) throw new Error('Failed to create transport - no number returned');
     
-    return AdkTransportRequest.get(ctx, number);
+    return AdkTransportRequest.get(number, context);
   }
 
-  static async get(ctx: AdkContext, number: string): Promise<AdkTransportRequest> {
-    const response = await getService(ctx).get(number);
+  /**
+   * Get a transport request by number
+   * 
+   * @param number - Transport number (e.g., 'S0DK900001')
+   * @param ctx - Optional ADK context (uses global context if not provided)
+   */
+  static async get(number: string, ctx?: AdkContext): Promise<AdkTransportRequest> {
+    const context = ctx ?? getGlobalContext();
+    const response = await getService(context).get(number);
     // Return task or request based on object_type
     if (response.object_type === 'T') {
-      return new AdkTransportTask(ctx, response);
+      return new AdkTransportTask(context, response);
     }
-    return new AdkTransportRequest(ctx, response);
+    return new AdkTransportRequest(context, response);
   }
 }
 
@@ -327,8 +342,15 @@ export class AdkTransportTask extends AdkTransportRequest {
   // Static Factory
   // ===========================================================================
 
-  static override async get(ctx: AdkContext, number: string): Promise<AdkTransportTask> {
-    const response = await getService(ctx).get(number);
-    return new AdkTransportTask(ctx, response);
+  /**
+   * Get a transport task by number
+   * 
+   * @param number - Task number (e.g., 'S0DK900001')
+   * @param ctx - Optional ADK context (uses global context if not provided)
+   */
+  static override async get(number: string, ctx?: AdkContext): Promise<AdkTransportTask> {
+    const context = ctx ?? getGlobalContext();
+    const response = await getService(context).get(number);
+    return new AdkTransportTask(context, response);
   }
 }

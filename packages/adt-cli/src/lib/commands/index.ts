@@ -19,3 +19,4 @@ export { createTestAdtCommand } from './test-adt';
 export { createResearchSessionsCommand } from './research-sessions-cmd';
 export { createCtsCommand } from './cts';
 export { createReplCommand } from './repl';
+export { packageGetCommand } from './package';
