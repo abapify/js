@@ -3,6 +3,7 @@
  */
 
 import { packagesV1 } from '@abapify/adt-schemas-xsd';
+import { fixtures } from 'adt-fixtures';
 import { ContractScenario, type ContractOperation } from './base';
 import { packagesContract } from '../../src/adt/packages';
 
@@ -12,14 +13,14 @@ export class PackagesScenario extends ContractScenario {
   readonly operations: ContractOperation[] = [
     {
       name: 'get package by name',
-      contract: () => packagesContract.get('$TEST'),
+      contract: () => packagesContract.get('$TMP'),
       method: 'GET',
-      path: '/sap/bc/adt/packages/%24TEST',  // $ is URL-encoded
+      path: '/sap/bc/adt/packages/%24TMP',  // $ is URL-encoded
       headers: { Accept: 'application/vnd.sap.adt.packages.v1+xml' },
       response: {
         status: 200,
         schema: packagesV1,
-        // No fixture yet
+        fixture: fixtures.packages.tmp,
       },
     },
     {

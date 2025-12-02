@@ -11,6 +11,7 @@
  */
 import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type ResponseContext, type AdtClient } from '@abapify/adt-client-v2';
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
+import { initializeAdk, isAdkInitialized } from '@abapify/adk-v2';
 import { loadAuthSession, isExpired, refreshCredentials, type CookieCredentials, type BasicCredentials, type AuthSession } from './auth';
 import { createProgressReporter, type ProgressReporter } from './progress-reporter';
 import { setAdtSystem } from '../ui/components/link';
@@ -337,7 +338,7 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
     };
   }
 
-  return createAdtClient({
+  const adtClient = createAdtClient({
     baseUrl,
     username,
     password,
@@ -347,4 +348,12 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
     plugins,
     onSessionExpired,
   });
+
+  // Initialize ADK global context if not already done
+  // This allows ADK objects to be used without passing context explicitly
+  if (!isAdkInitialized()) {
+    initializeAdk(adtClient);
+  }
+
+  return adtClient;
 }

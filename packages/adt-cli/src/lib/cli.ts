@@ -22,6 +22,7 @@ import {
   createResearchSessionsCommand,
   createCtsCommand,
   createReplCommand,
+  packageGetCommand,
 } from './commands';
 import { refreshCommand } from './commands/auth/refresh';
 import { deployCommand } from './commands/deploy/index';
@@ -153,6 +154,9 @@ export async function createCLI(): Promise<Command> {
 
   // Object inspector command
   program.addCommand(getCommand);
+  
+  // Get subcommands for specific object types
+  getCommand.addCommand(packageGetCommand);
 
   // Object outline command
   program.addCommand(outlineCommand);

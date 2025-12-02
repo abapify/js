@@ -2,73 +2,149 @@
  * Package Page
  *
  * Self-registering page for DEVC (package) objects.
+ * Uses PackageXml type from adk-v2 (inferred from packagesV1 schema).
  */
 
-import { Section, Field, Box, adtLink, PackageLink } from '../components';
+import type { PackageXml } from '@abapify/adk-v2';
+import type { Page, Component } from '../types';
+import type { NavParams } from '../router';
+import { Section, Field, Box, adtLink } from '../components';
 import { definePage } from '../router';
-import AdtCorePage from './adt-core';
+import { createPrintFn } from '../render';
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
 
 /**
- * Package type - matches packagesV1 schema response
- * TODO: Export proper type from adt-schemas-xsd when speci type inference is fixed
+ * Format a date for display
  */
-export interface Package {
-  name: string;
-  type: string;
-  description?: string;
-  responsible?: string;
-  attributes?: {
-    packageType?: string;
-    softwareComponent?: string;
-    applicationComponent?: string;
-    transportLayer?: string;
-    isEncapsulated?: boolean;
-  };
-  superPackage?: { name?: string };
-  transport?: {
-    softwareComponent?: { name?: string };
-    transportLayer?: { name?: string };
-  };
-  subPackages?: { packageRef?: Array<{ name?: string }> };
+function formatDate(date: Date | undefined): string {
+  if (!date) return '-';
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
+
+// =============================================================================
+// Render Functions
+// =============================================================================
+
+/**
+ * Render package page
+ */
+function renderPackagePage(pkg: PackageXml, _params: NavParams): Page {
+  const sections: Component[] = [];
+  
+  // Extract values with defaults for optional fields
+  const name = pkg?.name ?? '';
+  const type = pkg?.type ?? 'DEVC/K';
+  const description = pkg?.description ?? '-';
+  const attrs = pkg?.attributes;
+  const transport = pkg?.transport;
+  const appComponent = pkg?.applicationComponent;
+  const superPkg = pkg?.superPackage;
+  
+  // Header section with core info
+  const headerFields: Component[] = [
+    Field('Name', adtLink({ name, type })),
+    Field('Type', type),
+    Field('Description', description),
+  ];
+  sections.push(Section('▼ Package', ...headerFields));
+  
+  // Package attributes section
+  const attrFields: Component[] = [
+    Field('Package Type', attrs?.packageType ?? '-'),
+    Field('Software Component', transport?.softwareComponent?.name ?? '-'),
+    Field('Application Component', appComponent?.name ?? '-'),
+    Field('Transport Layer', transport?.transportLayer?.name ?? '-'),
+    Field('Encapsulated', attrs?.isEncapsulated ?? false),
+    Field('Adding Objects Allowed', attrs?.isAddingObjectsAllowed ?? false),
+    Field('Record Changes', attrs?.recordChanges ?? false),
+    Field('Language Version', attrs?.languageVersion ?? '-'),
+  ];
+  
+  // Super package link
+  if (superPkg?.name) {
+    attrFields.push(Field('Super Package', adtLink(superPkg)));
+  }
+  
+  sections.push(Section('▼ Attributes', ...attrFields));
+  
+  // Metadata section
+  const responsible = pkg?.responsible ?? '-';
+  const masterLanguage = pkg?.masterLanguage ?? '-';
+  const language = pkg?.language ?? '-';
+  const version = pkg?.version ?? '-';
+  const createdBy = pkg?.createdBy ?? '-';
+  const changedBy = pkg?.changedBy ?? '-';
+  const createdAt = pkg?.createdAt;
+  const changedAt = pkg?.changedAt;
+  
+  const metaFields: Component[] = [
+    Field('Responsible', responsible),
+    Field('Master Language', masterLanguage),
+    Field('Language', language),
+    Field('Version', version),
+    Field('Created By', createdBy),
+    Field('Created At', formatDate(createdAt instanceof Date ? createdAt : createdAt ? new Date(createdAt) : undefined)),
+    Field('Changed By', changedBy),
+    Field('Changed At', formatDate(changedAt instanceof Date ? changedAt : changedAt ? new Date(changedAt) : undefined)),
+  ];
+  sections.push(Section('▼ Metadata', ...metaFields));
+  
+  // Subpackages section
+  // Note: Subpackages are included in the package data if present
+  const subPkgs = pkg?.subPackages?.packageRef ?? [];
+  if (subPkgs.length > 0) {
+    const subPkgFields = subPkgs.map(ref => 
+      Field(adtLink(ref), ref.description ?? '')
+    );
+    sections.push(Section(`▼ Subpackages (${subPkgs.length})`, ...subPkgFields));
+  }
+  
+  const content = Box(...sections);
+  
+  const page: Page = {
+    title: `Package: ${name}`,
+    icon: '📦',
+    render: () => content.render(),
+    print: () => {},
+  };
+  
+  page.print = createPrintFn(page);
+  return page;
+}
+
+// =============================================================================
+// Page Definition
+// =============================================================================
 
 /**
  * Package Page Definition
  *
  * Self-registers with the router on import.
+ * Type: DEVC (Development Class / Package)
+ * 
+ * Usage:
+ * ```ts
+ * const page = await router.navTo(client, 'DEVC', { name: '$TMP' });
+ * page.print();
+ * ```
  */
-
-
-export default definePage<Package>({
+export default definePage<PackageXml>({
   type: 'DEVC',
   name: 'Package',
   icon: '📦',
 
+  // Use client's packages contract to fetch data
   fetch: async (client, params) => {
     if (!params.name) throw new Error('Package name is required');
-    const pkg = await client.adt.packages.get(params.name);
-    return pkg as unknown as Package;
+    return await client.adt.packages.get(params.name) as PackageXml;
   },
 
-  render: (pkg) => AdtCorePage(pkg, {
-    icon: '📦',
-    extra: Box(
-      Section(
-        'Package Attributes',
-        Field('Package Type', pkg.attributes?.packageType),
-        Field('Software Component', pkg.attributes?.softwareComponent || pkg.transport?.softwareComponent?.name),
-        Field('Application Component', pkg.attributes?.applicationComponent),
-        Field('Transport Layer', pkg.attributes?.transportLayer || pkg.transport?.transportLayer?.name),
-        Field('Encapsulated', pkg.attributes?.isEncapsulated),
-        Field('Super Package', adtLink(pkg.superPackage))
-      ),
-      Section(
-        'Subpackages',
-        ...((pkg.subPackages?.packageRef || [])
-          .map(ref => ref.name)
-          .filter((name): name is string => !!name)
-          .map(name => PackageLink(name)))
-      )
-    ),
-  }),
+  render: renderPackagePage,
 });

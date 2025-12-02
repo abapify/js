@@ -64,7 +64,7 @@ export const getCommand = new Command('get')
       if (route) {
         try {
           // Fetch full object data using route's fetch function
-          const data = await route.fetch(client, String(exactMatch.name || objectName));
+          const data = await route.fetch(client, { name: String(exactMatch.name || objectName) });
 
           // JSON output
           if (options.json) {
@@ -73,7 +73,8 @@ export const getCommand = new Command('get')
           }
 
           // Render page
-          const page = route.page(data);
+          const params = { name: String(exactMatch.name || objectName) };
+          const page = route.page(data, params);
           render(page);
           return;
         } catch (fetchError) {

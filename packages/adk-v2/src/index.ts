@@ -16,7 +16,16 @@ export type { AbapObject } from './base/types';
 export type { AdkContext } from './base/context';
 export { AdkObject, type LockHandle } from './base/model';
 
-// Object types (interfaces only - implementations are internal)
+// Global context management
+export { 
+  initializeAdk, 
+  getGlobalContext, 
+  isAdkInitialized, 
+  resetAdk,
+  tryGetGlobalContext,
+} from './base/global-context';
+
+// Package types and class
 export type { 
   AbapPackage, 
   PackageType,
@@ -26,7 +35,9 @@ export type {
   SoftwareComponent,
   TransportLayer,
   TransportConfig,
+  PackageXml,  // Raw API response type (inferred from schema)
 } from './objects/repository/devc';
+export { AdkPackage } from './objects/repository/devc';
 
 // CTS types
 export type {

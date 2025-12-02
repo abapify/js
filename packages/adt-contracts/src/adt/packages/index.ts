@@ -17,6 +17,12 @@ import { packagesV1 } from 'adt-schemas-xsd';
 // ============================================================================
 
 
+/**
+ * Package response type - inferred from packagesV1 schema
+ * Use this type for package data throughout the codebase
+ */
+export type Package = typeof packagesV1['_infer'];
+
 export const packagesContract = {
   /**
    * Get package by name
