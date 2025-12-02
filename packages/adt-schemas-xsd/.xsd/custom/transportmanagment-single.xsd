@@ -14,30 +14,35 @@
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
   xmlns:tm="http://www.sap.com/cts/adt/tm"
   xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:adtcore="http://www.sap.com/adt/core"
   targetNamespace="http://www.sap.com/cts/adt/tm"
   elementFormDefault="qualified"
   attributeFormDefault="qualified">
   
   <xs:import namespace="http://www.w3.org/2005/Atom" schemaLocation="../sap/atom.xsd"/>
+  <xs:import namespace="http://www.sap.com/adt/core" schemaLocation="../sap/adtcore.xsd"/>
 
   <!-- ========================================================================
        ROOT - single transport response root element
+       Extends adtcore:AdtObject to inherit name, type, changedAt, etc.
        ======================================================================== -->
   
   <xs:element name="root" type="tm:Root"/>
   
   <xs:complexType name="Root">
-    <xs:sequence>
-      <xs:element ref="atom:link" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:element name="request" type="tm:Request" minOccurs="0" maxOccurs="1"/>
-    </xs:sequence>
-    <xs:attribute name="object_type" type="xs:string"/>
-    <!-- adtcore attributes - defined locally since adtcore doesn't export global attrs -->
-    <xs:attribute name="name" type="xs:string"/>
-    <xs:attribute name="type" type="xs:string"/>
-    <xs:attribute name="changedAt" type="xs:string"/>
-    <xs:attribute name="changedBy" type="xs:string"/>
-    <xs:attribute name="createdBy" type="xs:string"/>
+    <xs:complexContent>
+      <xs:extension base="adtcore:AdtObject">
+        <xs:sequence>
+          <!-- For REQUEST fetch: contains request with nested tasks -->
+          <!-- For TASK fetch: contains parent request (no tasks) + task at root -->
+          <xs:element name="request" type="tm:Request" minOccurs="0" maxOccurs="1"/>
+          <!-- Task at root level - only present when fetching a TASK directly -->
+          <xs:element name="task" type="tm:Task" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <!-- 'K'/'R' = Request, 'T' = Task -->
+        <xs:attribute name="object_type" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
   
   <!-- ========================================================================
@@ -49,8 +54,10 @@
       <xs:element name="long_desc" type="xs:string" minOccurs="0"/>
       <xs:element ref="atom:link" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="attributes" type="tm:Attributes" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:element name="task" type="tm:Task" minOccurs="0" maxOccurs="unbounded"/>
+      <!-- Objects directly in request (before tasks) -->
+      <xs:element name="abap_object" type="tm:AbapObject" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="all_objects" type="tm:AllObjects" minOccurs="0"/>
+      <xs:element name="task" type="tm:Task" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="review" type="tm:Review" minOccurs="0"/>
       <xs:element name="dynamic_attributes" type="tm:DynamicAttributes" minOccurs="0"/>
     </xs:sequence>

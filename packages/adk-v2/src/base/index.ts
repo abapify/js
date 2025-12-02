@@ -4,4 +4,5 @@
 
 export * from './types';
 export * from './context';
-export { BaseModel } from './model';
+export * from './kinds';
+export { AdkObject, BaseModel, type LockHandle } from './model';

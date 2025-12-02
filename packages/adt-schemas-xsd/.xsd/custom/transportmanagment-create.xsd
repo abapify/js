@@ -16,7 +16,8 @@
 <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
     xmlns:tm="http://www.sap.com/cts/adt/tm"
     targetNamespace="http://www.sap.com/cts/adt/tm"
-    elementFormDefault="qualified">
+    elementFormDefault="qualified"
+    attributeFormDefault="qualified">
 
   <!-- Root element -->
   <xsd:element name="root" type="tm:rootType"/>

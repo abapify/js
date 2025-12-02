@@ -9,6 +9,7 @@ import schema from '../../../speci';
 export default schema({
   ns: 'http://www.sap.com/adt/atc/info',
   prefix: 'info',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'info', type: 'AtcInfo' },
   ],

@@ -13,6 +13,7 @@ import Atctagdescription from './atctagdescription';
 export default schema({
   ns: 'http://www.sap.com/adt/atc/worklist',
   prefix: 'worklist',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'worklist', type: 'AtcWorklist' },
     { name: 'worklistRun', type: 'AtcWorklistRun' },

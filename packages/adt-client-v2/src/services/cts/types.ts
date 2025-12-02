@@ -5,13 +5,8 @@
  * Additional types for service layer operations.
  */
 
-// Re-export schema type for convenience
-export type { InferXsd } from 'ts-xsd';
-import type { transportmanagment } from 'adt-schemas-xsd';
-import type { InferXsd } from 'ts-xsd';
-
-/** Parsed transport response from /sap/bc/adt/cts/transportrequests */
-export type TransportResponse = InferXsd<typeof transportmanagment>;
+// Note: Response types are inferred from the service methods via TransportService type
+// This ensures consumers always get the correct type even if the contract changes
 
 /**
  * ABAP Object in a transport
@@ -67,4 +62,16 @@ export interface TransportRequest {
   tasks: TransportTask[];
   /** All objects (from request and tasks combined) */
   objects: TransportObject[];
+}
+
+/**
+ * Lock handle returned by lock operations
+ */
+export interface LockHandle {
+  /** Lock handle string for subsequent operations */
+  handle: string;
+  /** Correlation number (optional) */
+  correlationNumber?: string;
+  /** Correlation user (optional) */
+  correlationUser?: string;
 }

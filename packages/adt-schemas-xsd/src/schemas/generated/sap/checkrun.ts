@@ -12,6 +12,7 @@ import Adtcore from './adtcore';
 export default schema({
   ns: 'http://www.sap.com/adt/checkrun',
   prefix: 'checkrun',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'checkObjectList', type: 'CheckObjectList' },
     { name: 'checkRunReports', type: 'CheckReportList' },

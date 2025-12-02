@@ -12,6 +12,7 @@ import Atcfinding from './atcfinding';
 export default schema({
   ns: 'http://www.sap.com/adt/atc/object',
   prefix: 'object',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'object', type: 'AtcObject' },
   ],
