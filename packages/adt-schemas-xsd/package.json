@@ -1,5 +1,5 @@
 {
-  "name": "adt-schemas-xsd",
+  "name": "@abapify/adt-schemas-xsd",
   "version": "0.1.0",
   "description": "ADT XML schemas generated from SAP XSD definitions",
   "type": "module",
@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "ts-xsd": "*"
+  },
+  "devDependencies": {
+    "adt-fixtures": "*"
   },
   "files": [
     "dist"

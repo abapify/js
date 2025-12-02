@@ -12,6 +12,7 @@ import Abapoo from './abapoo';
 export default schema({
   ns: 'http://www.sap.com/adt/oo/interfaces',
   prefix: 'interfaces',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'abapInterface', type: 'AbapInterface' },
   ],

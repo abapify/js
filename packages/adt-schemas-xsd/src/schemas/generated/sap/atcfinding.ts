@@ -12,6 +12,7 @@ import Atom from './atom';
 export default schema({
   ns: 'http://www.sap.com/adt/atc/finding',
   prefix: 'finding',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'finding', type: 'AtcFinding' },
     { name: 'findingReferences', type: 'AtcFindingReferences' },

@@ -14,6 +14,7 @@
 // Base types
 export type { AbapObject } from './base/types';
 export type { AdkContext } from './base/context';
+export { AdkObject, type LockHandle } from './base/model';
 
 // Object types (interfaces only - implementations are internal)
 export type { 
@@ -26,6 +27,22 @@ export type {
   TransportLayer,
   TransportConfig,
 } from './objects/repository/devc';
+
+// CTS types
+export type {
+  TransportData,
+  TransportRequestData,
+  TransportTaskData,
+  TransportObjectData,
+  TransportTask,
+  TransportObject,
+  TransportStatus,
+  TransportType,
+  TransportCreateOptions,
+  TransportUpdateOptions,
+  ReleaseResult,
+} from './objects/cts';
+export { AdkTransportItem, AdkTransportRequest, AdkTransportTask, AdkTransportObject } from './objects/cts';
 
 // Factory
 export type { AdkFactory } from './factory';

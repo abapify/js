@@ -11,6 +11,7 @@ import Atom from './atom';
 export default schema({
   ns: 'http://www.sap.com/adt/core',
   prefix: 'core',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'mainObject', type: 'AdtMainObject' },
     { name: 'objectReferences', type: 'AdtObjectReferenceList' },
