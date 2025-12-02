@@ -16,3 +16,6 @@ export type {
 
 // ADK object (internal implementation)
 export { AdkPackage, AbapPackageModel } from './devc.model';
+
+// Schema-inferred type for raw API response
+export type { PackageXml } from './devc.model';

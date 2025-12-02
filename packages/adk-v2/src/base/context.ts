@@ -10,10 +10,19 @@
  */
 
 import type { TransportService } from '@abapify/adt-client-v2';
+import type { Package } from '@abapify/adt-contracts';
 import type { LockHandle } from './model';
 
 // Re-export for convenience
 export type { TransportService };
+
+/**
+ * Packages service for ADK
+ * Wraps the packagesContract from adt-client-v2
+ */
+export interface PackagesService {
+  get(name: string): Promise<Package>;
+}
 
 /**
  * Generic lock service for ADT objects
@@ -29,6 +38,8 @@ export interface LockService {
  */
 export interface AdkServices {
   transports: TransportService;
+  /** Packages service for DEVC objects */
+  packages?: PackagesService;
   /** Generic lock service for any ADT object */
   locks?: LockService;
 }

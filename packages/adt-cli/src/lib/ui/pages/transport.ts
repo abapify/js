@@ -7,12 +7,14 @@
 
 import type { Page, Component } from '../types';
 import type { NavParams } from '../router';
-import type { AdkContext } from '@abapify/adk-v2';
 import { AdkTransportRequest, AdkTransportTask, type AdkTransportObject } from '@abapify/adk-v2';
 import { Box, Field, Section, Text, adtLink } from '../components';
 import { IconRegistry } from '../../utils/icon-registry';
 import { createPrintFn } from '../render';
 import { definePage } from '../router';
+
+// Note: ADK global context is automatically initialized by getAdtClientV2()
+// No need to create context manually - just use ADK objects directly.
 
 // =============================================================================
 // Types
@@ -61,16 +63,6 @@ function getObjectIcon(type: string): string {
   return IconRegistry.getIcon(type);
 }
 
-/**
- * Create ADK context from v2 client
- */
-export function createAdkContext(client: { services: { transports: unknown } }): AdkContext {
-  return {
-    services: {
-      transports: client.services.transports as AdkContext['services']['transports'],
-    },
-  };
-}
 
 // =============================================================================
 // Render Functions
@@ -236,17 +228,13 @@ export const transportPageDef = definePage<TransportData>({
   name: 'Transport',
   icon: '📋',
 
-  fetch: async (client, params) => {
+  // ADK global context is auto-initialized by getAdtClientV2()
+  // Just use ADK objects directly - no context needed!
+  fetch: async (_client, params) => {
     if (!params.name) throw new Error('Transport number is required');
-    const ctx = createAdkContext(client);
-    // Fetch the transport - API returns same structure for both requests and tasks
-    // but object_type indicates what it is: 'K' = request, 'Q' = task
-    const response = await ctx.services.transports.get(params.name);
-    // Check if this is a task (object_type 'Q') or request (object_type 'K')
-    if (response.object_type === 'Q') {
-      return AdkTransportTask.get(ctx, params.name);
-    }
-    return AdkTransportRequest.get(ctx, params.name);
+    // AdkTransportRequest.get() auto-detects if it's a task or request
+    // and returns the appropriate type
+    return AdkTransportRequest.get(params.name);
   },
 
   render: renderTransportPage,
