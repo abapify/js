@@ -13,6 +13,7 @@ import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type Re
 import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
 import { loadAuthSession, isExpired, refreshCredentials, type CookieCredentials, type BasicCredentials, type AuthSession } from './auth';
 import { createProgressReporter, type ProgressReporter } from './progress-reporter';
+import { setAdtSystem } from '../ui/components/link';
 
 // =============================================================================
 // Global CLI Context (set by CLI preAction hook)
@@ -154,7 +155,10 @@ async function tryAutoRefresh(
   
   try {
     const refreshedSession = await refreshCredentials(session, { log: progress.step });
-    progress.done(`✅ Session refreshed for ${session.sid}`);
+    if (!refreshedSession) {
+      throw new Error('Refresh returned null');
+    }
+    progress.clear(); // Silent on success - don't clutter output
     return refreshedSession;
   } catch (error) {
     progress.done('❌ Auto-refresh failed');
@@ -219,6 +223,9 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
     console.error(`💡 Run "npx adt auth login${effectiveOptions.sid ? ` --sid=${effectiveOptions.sid}` : ''}" to authenticate first`);
     process.exit(1);
   }
+
+  // Set system name for ADT hyperlinks (e.g., adt://S0D/sap/bc/adt/...)
+  setAdtSystem(session.sid);
 
   // Extract credentials based on auth method
   const baseUrl = session.host;
@@ -308,13 +315,16 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
       try {
         // Refresh credentials using the auth plugin (opens browser for SAML)
         const refreshedSession = await refreshCredentials(currentSession, { log: progress.step });
+        if (!refreshedSession) {
+          throw new Error('Refresh returned null');
+        }
         currentSession = refreshedSession;
 
         // Extract new cookie from refreshed session
-        const creds = refreshedSession.auth.credentials as CookieCredentials;
+        const creds = currentSession.auth.credentials as CookieCredentials;
         const newCookie = decodeURIComponent(creds.cookies);
 
-        progress.done(`✅ Session refreshed for ${currentSession.sid}`);
+        progress.clear(); // Silent on success - don't clutter output
         // DON'T reset counter - if cookies don't work, we'll hit the limit
         return newCookie;
       } catch (error) {

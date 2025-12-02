@@ -26,9 +26,9 @@ describe('generateFromXsd', () => {
 
     const result = generateFromXsd(xsd);
 
-    assert.equal(result.root, 'Person');
     assert.equal(result.namespace, 'http://example.com/person');
-    assert.ok(result.code.includes("root: 'Person'"));
+    assert.ok(result.code.includes("element:"));
+    assert.ok(result.code.includes("name: 'Person'"));
     assert.ok(result.code.includes("ns: 'http://example.com/person'"));
     assert.ok(result.code.includes("name: 'FirstName'"));
     assert.ok(result.code.includes("name: 'LastName'"));
@@ -134,9 +134,10 @@ describe('generateFromXsd', () => {
 
     const result = generateFromXsd(xsd);
 
-    // Now uses export default, no separate type export needed
+    // Uses export default with new format
     assert.ok(result.code.includes('export default {'));
     assert.ok(result.code.includes('as const satisfies XsdSchema'));
+    assert.ok(result.code.includes('complexType:'));
   });
 
   it('should handle named complex types', () => {
@@ -163,6 +164,27 @@ describe('generateFromXsd', () => {
 
     assert.ok(result.code.includes('AddressType:'));
     assert.ok(result.code.includes("type: 'AddressType'"));
+  });
+
+  it('should handle ref attributes', () => {
+    const xsd = `
+      <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                 xmlns:xml="http://www.w3.org/XML/1998/namespace">
+        <xs:element name="Link">
+          <xs:complexType>
+            <xs:attribute ref="xml:base"/>
+            <xs:attribute name="href" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:schema>
+    `;
+
+    const result = generateFromXsd(xsd);
+
+    // Should extract local name from ref
+    assert.ok(result.code.includes("name: 'base'"));
+    assert.ok(result.code.includes("name: 'href'"));
+    assert.ok(result.code.includes("required: true"));
   });
 
   it('should handle xsd:import', () => {

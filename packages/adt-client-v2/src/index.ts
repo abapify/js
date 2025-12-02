@@ -21,12 +21,7 @@ export type {
   Logger,
 } from './types';
 
-// Export discovery types
-export type {
-  DiscoveryXml,
-  WorkspaceXml,
-  CollectionXml,
-} from './adt/discovery';
+// Discovery types are now inferred from adt-contracts/adt-schemas-xsd
 
 // Export core HTTP types
 export type { SessionXml } from './adt/core/http/sessions-schema';

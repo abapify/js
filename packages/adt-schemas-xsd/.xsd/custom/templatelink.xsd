@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Template Link Extension Schema
+  Extends SAP's templatelink.xsd with templateLinks container element
+  
+  SAP's templatelink.xsd only defines: templateLink
+  This adds: templateLinks (container)
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:adtcomp="http://www.sap.com/adt/compatibility"
+    targetNamespace="http://www.sap.com/adt/compatibility"
+    elementFormDefault="qualified">
+
+  <xsd:include schemaLocation="../sap/templatelink.xsd"/>
+
+  <!-- Container for template links (missing from SAP's templatelink.xsd) -->
+  <xsd:element name="templateLinks" type="adtcomp:templateLinksType"/>
+
+  <xsd:complexType name="templateLinksType">
+    <xsd:sequence>
+      <xsd:element ref="adtcomp:templateLink" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+</xsd:schema>

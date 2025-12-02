@@ -5,7 +5,7 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
-import type { XmlElement, CodegenOptions, ParsedSchema, XsdImport, XsdRedefine } from '../types';
+import type { XmlElement, CodegenOptions, ParsedSchema, XsdImport, XsdRedefine, XsdElementDecl } from '../types';
 import { findChild, extractPrefix } from '../utils';
 
 /**
@@ -38,6 +38,7 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
   const simpleTypes = new Map<string, XmlElement>();
   const imports: XsdImport[] = [];
   const redefines: XsdRedefine[] = [];
+  const elements: XsdElementDecl[] = [];
   let rootElement: { name: string; type?: string } | null = null;
 
   const children = schemaEl.childNodes;
@@ -96,16 +97,30 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
     } else if (localName === 'simpleType' && name) {
       simpleTypes.set(name, child);
     } else if (localName === 'element' && name) {
-      // Root element
-      rootElement = {
-        name,
-        type: child.getAttribute('type') || undefined,
-      };
+      // Collect ALL top-level element declarations
+      let typeName = child.getAttribute('type') || undefined;
+      
       // Check for inline complexType
       const inlineType = findChild(child, 'complexType');
       if (inlineType) {
+        // Use element name as type name for inline types
         complexTypes.set(name, inlineType);
-        rootElement.type = name;
+        typeName = name;
+      }
+      
+      // Strip namespace prefix from type (e.g., "pak:Package" -> "Package")
+      if (typeName && typeName.includes(':')) {
+        typeName = typeName.split(':')[1];
+      }
+      
+      // Add to elements array
+      if (typeName) {
+        elements.push({ name, type: typeName });
+      }
+      
+      // Keep rootElement for backward compatibility (first element)
+      if (!rootElement) {
+        rootElement = { name, type: typeName };
       }
     }
   }
@@ -115,6 +130,7 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
     prefix,
     complexTypes,
     simpleTypes,
+    elements,
     rootElement,
     imports,
     redefines,

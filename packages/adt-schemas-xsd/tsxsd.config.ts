@@ -1,10 +1,11 @@
 /**
- * ts-xsd Configuration for ADT Schemas
+ * ts-xsd Configuration for SAP ADT Schemas
  * 
- * Generates TypeScript schemas from SAP ADT XSD files.
+ * Generates TypeScript schemas from SAP's XSD files.
+ * Output: src/schemas/generated/sap/
  * 
  * Usage:
- *   npx nx generate adt-schemas-xsd
+ *   npx ts-xsd codegen -c tsxsd.config.ts
  */
 
 import { defineConfig, factory } from 'ts-xsd';
@@ -21,6 +22,9 @@ const schemas = [
   'abapoo',
   'classes',
   'interfaces',
+  
+  // Packages
+  'packagesV1',
   
   // ATC (ABAP Test Cockpit)
   'atc',
@@ -49,47 +53,31 @@ const schemas = [
   
   // Other
   'log',
+  
+  // Base schemas needed by custom extensions
+  'templatelink',  // Used by custom/templatelink
 ];
 
 /**
- * Manual schemas (extensions of SAP schemas)
- * These use xs:redefine to extend SAP schemas
- */
-const manualSchemas = [
-  'transportmanagment-single',  // Single transport GET response
-];
-
-/**
- * Resolver for XSD imports
- * 
- * After normalize-xsd.ts runs, all schemaLocation values are simple filenames:
- * - adtcore.xsd → ./adtcore
- * - ../sap/foo.xsd → ./foo (for manual schemas referencing sap/)
- * - Ecore.xsd → ../manual/Ecore (Eclipse EMF stub in manual folder)
+ * Resolver for XSD imports (SAP schemas)
+ * Output is in generated/sap/, so paths are relative to that
  */
 function resolveImport(schemaLocation: string): string {
-  // Ecore.xsd → ../manual/Ecore (Eclipse EMF stub)
+  // Ecore.xsd → ../custom/Ecore (Eclipse EMF stub in custom folder)
   if (schemaLocation === 'Ecore.xsd') {
-    return '../manual/Ecore';
+    return '../custom/Ecore';
   }
   
-  // ../sap/foo.xsd → ./foo (manual schemas referencing sap/)
-  const sapMatch = schemaLocation.match(/\.\.\/sap\/([^/]+)\.xsd$/);
-  if (sapMatch) return `./${sapMatch[1]}`;
-  
-  // foo.xsd → ./foo
+  // foo.xsd → ./foo (same folder)
   return `./${schemaLocation.replace(/\.xsd$/, '')}`;
 }
 
 export default defineConfig({
-  // Process both SAP and manual XSD files
   input: ['.xsd/sap/*.xsd', '.xsd/manual/*.xsd'],
-  output: 'src/schemas/generated',
-  generator: factory({ path: '../../speci' }),
+  output: 'src/schemas/generated/sap',
+  generator: factory({ path: '../../../speci' }),
   resolver: resolveImport,
-  // Generate all SAP schemas + manual schemas
-  schemas: [...schemas, ...manualSchemas],
+  schemas,
   stubs: true,
-  // Clean output directory before generating (removes stale schemas)
   clean: true,
 });
