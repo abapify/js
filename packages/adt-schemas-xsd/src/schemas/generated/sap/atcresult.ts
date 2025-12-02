@@ -15,6 +15,7 @@ import Atcinfo from './atcinfo';
 export default schema({
   ns: 'http://www.sap.com/adt/atc/result',
   prefix: 'result',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'resultList', type: 'AtcResultList' },
     { name: 'queryChoice', type: 'AtcResultQueryChoice' },

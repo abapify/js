@@ -12,6 +12,7 @@ import Atom from './atom';
 export default schema({
   ns: 'http://www.sap.com/adt/abapsource',
   prefix: 'abapsource',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'syntaxConfigurations', type: 'AbapSyntaxConfigurations' },
     { name: 'syntaxConfiguration', type: 'AbapSyntaxConfiguration' },

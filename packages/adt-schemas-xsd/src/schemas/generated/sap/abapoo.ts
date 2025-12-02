@@ -12,6 +12,7 @@ import Abapsource from './abapsource';
 export default schema({
   ns: 'http://www.sap.com/adt/oo',
   prefix: 'oo',
+  attributeFormDefault: 'qualified',
   include: [Adtcore, Abapsource],
   complexType: {
     AbapOoObject: {

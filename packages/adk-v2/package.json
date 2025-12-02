@@ -9,5 +9,9 @@
     ".": "./dist/index.mjs",
     "./package.json": "./package.json"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@abapify/adt-schemas-xsd": "*",
+    "@abapify/adt-contracts": "*",
+    "@abapify/adt-client-v2": "*"
+  }
 }

@@ -1,25 +1,23 @@
 /**
- * adt cts get <TR> - Get transport details
+ * adt cts tr get <TR> - Get transport details
  * 
- * Uses v2 client service layer for transport operations.
- * All business logic is in the service - CLI is just presentation.
- * 
- * Response type is inferred from transportmanagmentSingle schema:
- * - root: rootSingle (extends root)
- * - request: requestExt (extends request with status_text, target_desc, etc.)
+ * Uses ADK (AdkTransportRequest) for transport operations.
+ * Renders via the Transport Page using the router.
  */
 
 import { Command } from 'commander';
 import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
+import { router } from '../../../ui/router';
+// Import to trigger page registration
+import '../../../ui/pages/transport';
 
 export const ctsGetCommand = new Command('get')
   .description('Get transport request details')
-  .argument('<transport>', 'Transport number (e.g., BHFK900123)')
+  .argument('<transport>', 'Transport number (e.g., S0DK942971)')
   .option('--json', 'Output as JSON')
-  .option('--attributes, --attrs', 'Show transport attributes')
-  .option('--objects', 'Show list of objects')
+  .option('--objects', 'Show list of objects in transport')
   .action(async function(this: Command, transport: string, options) {
     const globalOpts = this.optsWithGlobals?.() ?? {};
     const ctx = getCliContext();
@@ -33,64 +31,22 @@ export const ctsGetCommand = new Command('get')
 
       progress.step(`🔍 Getting transport ${transport}...`);
 
-      // Use the transport service to get specific transport (direct API call)
-      const response = await client.services.transports.get(transport);
+      // Use the router to navigate to the transport page
+      // This uses ADK (AdkTransportRequest) under the hood
+      const page = await router.navTo(client, 'RQRQ', { 
+        name: transport,
+        showObjects: options.objects ?? false,
+      });
 
-      progress.done();
+      progress.clear(); // Clear progress line before printing page
 
       if (options.json) {
+        // For JSON output, get the raw transport data
+        const response = await client.services.transports.get(transport);
         console.log(JSON.stringify(response, null, 2));
       } else {
-        // Human-readable tree format
-        // Response type is inferred from transportmanagmentSingle schema
-        const r = response.request;
-        if (r) {
-          console.log(`📋 Transport: ${r.number}`);
-          console.log(`   Description: ${r.desc || '-'}`);
-          console.log(`   Owner: ${r.owner || '-'}`);
-          console.log(`   Status: ${r.status_text || r.status || '-'}`);
-          if (r.target_desc || r.target) {
-            console.log(`   Target: ${r.target_desc || r.target}`);
-          }
-          if (r.source_client) {
-            console.log(`   Client: ${r.source_client}`);
-          }
-          
-          // Attributes (optional)
-          if (options.attributes && r.attributes && r.attributes.length > 0) {
-            console.log(`\n   🏷️  Attributes:`);
-            for (const attr of r.attributes) {
-              console.log(`      ${attr.attribute}: ${attr.value} (${attr.description})`);
-            }
-          }
-          
-          // Tasks
-          if (r.task && r.task.length > 0) {
-            console.log(`\n   📁 Tasks (${r.task.length}):`);
-            for (const task of r.task) {
-              // Note: task uses base type but API returns extended fields
-              const t = task as typeof task & { status_text?: string };
-              console.log(`      └─ ${t.number}: ${t.desc || '-'} [${t.owner}] (${t.status_text || t.status})`);
-              
-              // Objects in task (optional)
-              if (options.objects && task.abap_object && task.abap_object.length > 0) {
-                for (const obj of task.abap_object) {
-                  console.log(`         📦 ${obj.pgmid}/${obj.type} ${obj.name}`);
-                }
-              }
-            }
-          }
-          
-          // All objects (optional, shown if --objects and no tasks shown objects)
-          if (options.objects && r.all_objects?.abap_object && r.all_objects.abap_object.length > 0 && !r.task?.length) {
-            console.log(`\n   📦 Objects (${r.all_objects.abap_object.length}):`);
-            for (const obj of r.all_objects.abap_object) {
-              console.log(`      ${obj.pgmid}/${obj.type} ${obj.name}`);
-            }
-          }
-        } else {
-          console.log('📋 Transport response received (empty)');
-        }
+        // Use the page's print function for formatted output
+        page.print();
       }
 
     } catch (error) {

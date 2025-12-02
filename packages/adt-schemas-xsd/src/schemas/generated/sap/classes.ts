@@ -13,6 +13,7 @@ import Abapsource from './abapsource';
 export default schema({
   ns: 'http://www.sap.com/adt/oo/classes',
   prefix: 'classes',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'abapClass', type: 'AbapClass' },
     { name: 'abapClassInclude', type: 'AbapClassInclude' },

@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@abapify/logger": "*",
-    "adt-contracts": "*",
+    "@abapify/adt-contracts": "*",
     "speci": "*",
     "ts-xml": "*",
     "ts-xsd": "*"

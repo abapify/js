@@ -13,6 +13,7 @@ import Checkrun from './checkrun';
 export default schema({
   ns: 'http://www.sap.com/cts/adt/tm',
   prefix: 'tm',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'root', type: 'root' },
   ],
