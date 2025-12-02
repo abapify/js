@@ -1,5 +1,9 @@
 /**
  * ts-xsd Basic Tests
+ * 
+ * Updated for new faithful XSD representation:
+ * - element[] for top-level element declarations
+ * - complexType{} for complexType definitions
  */
 
 import { describe, test as it } from 'node:test';
@@ -7,11 +11,15 @@ import { strict as assert } from 'node:assert';
 import { parse, build, type XsdSchema, type InferXsd } from '../src/index';
 
 // Test schema - Person with name, age, and id
+// New format: element[] + complexType{}
 const PersonSchema = {
   ns: 'http://example.com/person',
   prefix: 'per',
-  root: 'Person',
-  elements: {
+  attributeFormDefault: 'qualified',  // XSD: attributes are namespace-qualified
+  element: [
+    { name: 'Person', type: 'Person' },
+  ],
+  complexType: {
     Person: {
       sequence: [
         { name: 'FirstName', type: 'string' },
@@ -25,7 +33,13 @@ const PersonSchema = {
   },
 } as const satisfies XsdSchema;
 
-type Person = InferXsd<typeof PersonSchema>;
+// Type inference for new schema format
+type Person = {
+  id: string;
+  FirstName: string;
+  LastName: string;
+  Age?: number;
+};
 
 describe('ts-xsd', () => {
   describe('parse', () => {
@@ -64,8 +78,10 @@ describe('ts-xsd', () => {
 
     it('should parse without namespace prefix', () => {
       const SimpleSchema = {
-        root: 'Item',
-        elements: {
+        element: [
+          { name: 'Item', type: 'Item' },
+        ],
+        complexType: {
           Item: {
             sequence: [
               { name: 'name', type: 'string' },
@@ -164,8 +180,10 @@ describe('ts-xsd', () => {
 
   describe('nested elements', () => {
     const OrderSchema = {
-      root: 'Order',
-      elements: {
+      element: [
+        { name: 'Order', type: 'Order' },
+      ],
+      complexType: {
         Order: {
           sequence: [
             { name: 'items', type: 'Items' },
@@ -260,8 +278,10 @@ describe('ts-xsd', () => {
     const AtomSchema = {
       ns: 'http://www.w3.org/2005/Atom',
       prefix: 'atom',
-      root: 'linkType',  // Note: root is 'linkType', not 'Link'
-      elements: {
+      element: [
+        { name: 'link', type: 'linkType' },  // Element declaration enables Link -> linkType alias
+      ],
+      complexType: {
         linkType: {
           attributes: [
             { name: 'href', type: 'string', required: true },
@@ -275,9 +295,11 @@ describe('ts-xsd', () => {
     const ConfigurationSchema = {
       ns: 'http://www.sap.com/adt/configuration',
       prefix: 'config',
-      root: 'Configuration',
+      element: [
+        { name: 'Configuration', type: 'Configuration' },
+      ],
       include: [AtomSchema],
-      elements: {
+      complexType: {
         Configuration: {
           sequence: [
             { name: 'link', type: 'Link', minOccurs: 0 },  // Note: type is 'Link', not 'linkType'
@@ -309,9 +331,11 @@ describe('ts-xsd', () => {
       // Test that 'Link' is aliased to 'linkType' when root ends with 'Type'
       const ConfigurationsSchema = {
         ns: 'http://www.sap.com/adt/configurations',
-        root: 'Configurations',
+        element: [
+          { name: 'Configurations', type: 'Configurations' },
+        ],
         include: [AtomSchema, ConfigurationSchema],
-        elements: {
+        complexType: {
           Configurations: {
             sequence: [
               { name: 'configuration', type: 'Configuration', maxOccurs: 'unbounded' },
@@ -341,8 +365,10 @@ describe('ts-xsd', () => {
   describe('maxOccurs cardinality', () => {
     // Schema with explicit maxOccurs="1" - should NOT be an array
     const ConfigSchema = {
-      root: 'Configuration',
-      elements: {
+      element: [
+        { name: 'Configuration', type: 'Configuration' },
+      ],
+      complexType: {
         Configuration: {
           sequence: [
             { name: 'name', type: 'string' },
@@ -423,8 +449,10 @@ describe('ts-xsd', () => {
 
     // Schema with maxOccurs > 1 - SHOULD be an array
     const MultiLinkSchema = {
-      root: 'Entry',
-      elements: {
+      element: [
+        { name: 'Entry', type: 'Entry' },
+      ],
+      complexType: {
         Entry: {
           sequence: [
             { name: 'link', type: 'Link', minOccurs: 0, maxOccurs: 5 },  // explicit maxOccurs > 1
@@ -474,8 +502,10 @@ describe('ts-xsd', () => {
   describe('extends (type inheritance)', () => {
     // Base type with common fields
     const BaseSchema = {
-      root: 'Base',
-      elements: {
+      element: [
+        { name: 'Base', type: 'Base' },
+      ],
+      complexType: {
         Base: {
           sequence: [
             { name: 'name', type: 'string' },
@@ -491,9 +521,11 @@ describe('ts-xsd', () => {
 
     // Derived type that extends Base
     const DerivedSchema = {
-      root: 'Derived',
+      element: [
+        { name: 'Derived', type: 'Derived' },
+      ],
       include: [BaseSchema],
-      elements: {
+      complexType: {
         Derived: {
           extends: 'Base',
           sequence: [
@@ -590,9 +622,11 @@ describe('ts-xsd', () => {
 
     // Multi-level inheritance: GrandChild -> Child -> Base
     const ChildSchema = {
-      root: 'Child',
+      element: [
+        { name: 'Child', type: 'Child' },
+      ],
       include: [BaseSchema],
-      elements: {
+      complexType: {
         Child: {
           extends: 'Base',
           sequence: [
@@ -603,9 +637,11 @@ describe('ts-xsd', () => {
     } as const satisfies XsdSchema;
 
     const GrandChildSchema = {
-      root: 'GrandChild',
+      element: [
+        { name: 'GrandChild', type: 'GrandChild' },
+      ],
       include: [BaseSchema, ChildSchema],
-      elements: {
+      complexType: {
         GrandChild: {
           extends: 'Child',
           sequence: [

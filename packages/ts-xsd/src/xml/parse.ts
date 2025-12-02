@@ -5,42 +5,45 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
-import type { XsdSchema, XsdElement, XsdField, InferXsd } from '../types';
+import type { XsdSchema, XsdComplexType, XsdField, XsdElementDecl, InferXsd } from '../types';
 
 // Use 'any' for xmldom types since they don't match browser DOM types
 type XmlElement = any;
 
 /**
- * Merge all elements from schema and its includes
- * Also creates aliases for root elements (e.g., 'Link' -> 'linkType' if root is 'linkType')
+ * Merge all complexTypes from schema and its includes
+ * Also creates aliases for element types (e.g., 'Link' -> 'linkType')
  */
-function getAllElements(schema: XsdSchema): { readonly [key: string]: XsdElement } {
+function getAllComplexTypes(schema: XsdSchema): { readonly [key: string]: XsdComplexType } {
   if (!schema.include || schema.include.length === 0) {
-    return schema.elements;
+    return schema.complexType;
   }
   
-  // Merge elements from all includes
-  const merged: Record<string, XsdElement> = { ...schema.elements };
+  // Merge complexTypes from all includes
+  const merged: Record<string, XsdComplexType> = { ...schema.complexType };
   for (const included of schema.include) {
-    const includedElements = getAllElements(included);
-    Object.assign(merged, includedElements);
+    const includedTypes = getAllComplexTypes(included);
+    Object.assign(merged, includedTypes);
     
-    // Create alias for root element with capitalized name
+    // Create aliases for element types
     // This handles cases like ref="atom:link" which generates type: 'Link'
     // but the actual type in atom.xsd is 'linkType'
-    if (included.root && includedElements[included.root]) {
-      // Create alias: 'Link' -> linkType element definition
-      const capitalizedName = included.root.charAt(0).toUpperCase() + included.root.slice(1);
-      if (!merged[capitalizedName] && capitalizedName !== included.root) {
-        merged[capitalizedName] = includedElements[included.root];
-      }
-      // Also create alias without 'Type' suffix if root ends with 'Type'
-      // e.g., 'linkType' -> also accessible as 'Link'
-      if (included.root.endsWith('Type')) {
-        const baseName = included.root.slice(0, -4); // Remove 'Type'
-        const capitalizedBase = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-        if (!merged[capitalizedBase]) {
-          merged[capitalizedBase] = includedElements[included.root];
+    if (included.element) {
+      for (const el of included.element) {
+        if (includedTypes[el.type]) {
+          // Create alias: element name -> type definition
+          const capitalizedName = el.name.charAt(0).toUpperCase() + el.name.slice(1);
+          if (!merged[capitalizedName] && capitalizedName !== el.type) {
+            merged[capitalizedName] = includedTypes[el.type];
+          }
+          // Also create alias without 'Type' suffix if type ends with 'Type'
+          if (el.type.endsWith('Type')) {
+            const baseName = el.type.slice(0, -4);
+            const capitalizedBase = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+            if (!merged[capitalizedBase]) {
+              merged[capitalizedBase] = includedTypes[el.type];
+            }
+          }
         }
       }
     }
@@ -49,7 +52,34 @@ function getAllElements(schema: XsdSchema): { readonly [key: string]: XsdElement
 }
 
 /**
+ * Get all element declarations from schema and includes
+ */
+function getAllElements(schema: XsdSchema): XsdElementDecl[] {
+  const elements: XsdElementDecl[] = [...(schema.element || [])];
+  if (schema.include) {
+    for (const included of schema.include) {
+      elements.push(...getAllElements(included));
+    }
+  }
+  return elements;
+}
+
+/**
+ * Find element declaration by name (case-insensitive for XML element matching)
+ */
+function findElementByName(elements: XsdElementDecl[], name: string): XsdElementDecl | undefined {
+  // Try exact match first
+  let found = elements.find(el => el.name === name);
+  if (found) return found;
+  
+  // Try case-insensitive match
+  const lowerName = name.toLowerCase();
+  return elements.find(el => el.name.toLowerCase() === lowerName);
+}
+
+/**
  * Parse XML string to typed object
+ * Auto-detects root element from XML and looks up type in schema
  */
 export function parse<T extends XsdSchema>(
   schema: T,
@@ -62,58 +92,73 @@ export function parse<T extends XsdSchema>(
     throw new Error('Invalid XML: no root element');
   }
 
-  if (!schema.root) {
-    throw new Error('Schema has no root element defined');
-  }
-
+  const allComplexTypes = getAllComplexTypes(schema);
   const allElements = getAllElements(schema);
-  const rootElement = allElements[schema.root];
-  if (!rootElement) {
-    throw new Error(`Schema missing root element: ${schema.root}`);
+  
+  // Get root element name from XML (strip namespace prefix)
+  const rootLocalName = root.localName || root.tagName.split(':').pop() || root.tagName;
+  
+  // Find element declaration for this root
+  const elementDecl = findElementByName(allElements, rootLocalName);
+  
+  let rootType: XsdComplexType | undefined;
+  
+  if (elementDecl) {
+    // Found element declaration, get its type
+    rootType = allComplexTypes[elementDecl.type];
+  } else {
+    // No element declaration, try to find complexType directly by name
+    // (handles legacy schemas or inline types)
+    rootType = allComplexTypes[rootLocalName] || 
+               allComplexTypes[rootLocalName.charAt(0).toUpperCase() + rootLocalName.slice(1)];
+  }
+  
+  if (!rootType) {
+    throw new Error(`Schema missing type for root element: ${rootLocalName}`);
   }
 
-  return parseElement(root, rootElement, allElements) as InferXsd<T>;
+  return parseElement(root, rootType, allComplexTypes) as InferXsd<T>;
 }
 
 /**
- * Get merged element definition including inherited fields from base type
+ * Get merged complexType definition including inherited fields from base type
  */
-function getMergedElementDef(
-  elementDef: XsdElement,
-  elements: { readonly [key: string]: XsdElement }
-): XsdElement {
-  if (!elementDef.extends) {
-    return elementDef;
+function getMergedComplexTypeDef(
+  typeDef: XsdComplexType,
+  complexTypes: { readonly [key: string]: XsdComplexType }
+): XsdComplexType {
+  if (!typeDef.extends) {
+    return typeDef;
   }
 
-  const baseElement = elements[elementDef.extends];
-  if (!baseElement) {
-    return elementDef;
+  const baseType = complexTypes[typeDef.extends];
+  if (!baseType) {
+    return typeDef;
   }
 
   // Recursively get merged base (handles multi-level inheritance)
-  const mergedBase = getMergedElementDef(baseElement, elements);
+  const mergedBase = getMergedComplexTypeDef(baseType, complexTypes);
 
   // Merge: base fields first, then derived fields (derived can override)
   return {
-    extends: elementDef.extends,
-    sequence: [...(mergedBase.sequence || []), ...(elementDef.sequence || [])],
-    choice: [...(mergedBase.choice || []), ...(elementDef.choice || [])],
-    attributes: [...(mergedBase.attributes || []), ...(elementDef.attributes || [])],
-    text: elementDef.text ?? mergedBase.text,
+    extends: typeDef.extends,
+    sequence: [...(mergedBase.sequence || []), ...(typeDef.sequence || [])],
+    choice: [...(mergedBase.choice || []), ...(typeDef.choice || [])],
+    attributes: [...(mergedBase.attributes || []), ...(typeDef.attributes || [])],
+    text: typeDef.text ?? mergedBase.text,
   };
 }
 
 /**
- * Parse a single element
+ * Parse a single element using its complexType definition
  */
 function parseElement(
   node: XmlElement,
-  elementDef: XsdElement,
-  elements: { readonly [key: string]: XsdElement }
+  typeDef: XsdComplexType,
+  complexTypes: { readonly [key: string]: XsdComplexType }
 ): Record<string, unknown> {
   // Get merged definition including inherited fields
-  const mergedDef = getMergedElementDef(elementDef, elements);
+  const mergedDef = getMergedComplexTypeDef(typeDef, complexTypes);
   const result: Record<string, unknown> = {};
 
   // Parse attributes (including inherited)
@@ -139,7 +184,7 @@ function parseElement(
   // Parse sequence fields (including inherited)
   if (mergedDef.sequence) {
     for (const field of mergedDef.sequence) {
-      const value = parseField(node, field, elements);
+      const value = parseField(node, field, complexTypes);
       if (value !== undefined) {
         result[field.name] = value;
       }
@@ -149,7 +194,7 @@ function parseElement(
   // Parse choice fields (including inherited)
   if (mergedDef.choice) {
     for (const field of mergedDef.choice) {
-      const value = parseField(node, field, elements);
+      const value = parseField(node, field, complexTypes);
       if (value !== undefined) {
         result[field.name] = value;
       }
@@ -165,16 +210,16 @@ function parseElement(
 function parseField(
   parent: Element,
   field: XsdField,
-  elements: { readonly [key: string]: XsdElement }
+  complexTypes: { readonly [key: string]: XsdComplexType }
 ): unknown {
   const children = getChildElements(parent, field.name);
   const isArray = field.maxOccurs === 'unbounded' || (typeof field.maxOccurs === 'number' && field.maxOccurs > 1);
-  const nestedElement = elements[field.type];
+  const nestedType = complexTypes[field.type];
 
   if (isArray) {
     return children.map(child =>
-      nestedElement
-        ? parseElement(child, nestedElement, elements)
+      nestedType
+        ? parseElement(child, nestedType, complexTypes)
         : convertValue(getTextContent(child) || '', field.type)
     );
   }
@@ -184,8 +229,8 @@ function parseField(
   }
 
   const child = children[0];
-  return nestedElement
-    ? parseElement(child, nestedElement, elements)
+  return nestedType
+    ? parseElement(child, nestedType, complexTypes)
     : convertValue(getTextContent(child) || '', field.type);
 }
 

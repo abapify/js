@@ -15,8 +15,10 @@ import { parse, build, type XsdSchema, type InferXsd } from 'ts-xsd';
 const PersonSchema = {
   ns: 'http://example.com/person',
   prefix: 'per',
-  root: 'Person',
-  elements: {
+  element: [
+    { name: 'Person', type: 'Person' },
+  ],
+  complexType: {
     Person: {
       sequence: [
         { name: 'FirstName', type: 'string' },
@@ -77,8 +79,10 @@ bun add ts-xsd
 
 ```typescript
 const OrderSchema = {
-  root: 'Order',
-  elements: {
+  element: [
+    { name: 'Order', type: 'Order' },
+  ],
+  complexType: {
     Order: {
       sequence: [
         { name: 'items', type: 'Items' },
@@ -181,8 +185,8 @@ import type { XsdSchema } from 'ts-xsd';
 
 export default {
   ns: 'http://example.com/person',
-  root: 'Person',
-  elements: { ... },
+  element: [{ name: 'Person', type: 'Person' }],
+  complexType: { ... },
 } as const satisfies XsdSchema;
 ```
 
@@ -196,8 +200,8 @@ import schema from '../../my-factory';
 
 export default schema({
   ns: 'http://example.com/person',
-  root: 'Person',
-  elements: { ... },
+  element: [{ name: 'Person', type: 'Person' }],
+  complexType: { ... },
 });
 ```
 
@@ -231,7 +235,7 @@ const myGenerator: Generator = {
     return `
 import myWrapper from '${args.wrapper || './wrapper'}';
 
-export default myWrapper(${JSON.stringify(schema.elements)});
+export default myWrapper(${JSON.stringify(schema.complexType)});
 `;
   },
   
@@ -251,8 +255,9 @@ interface GeneratorContext {
   schema: {
     namespace?: string;    // Target namespace URI
     prefix: string;        // Namespace prefix
-    root?: string;         // Root element name
-    elements: Record<string, unknown>;  // Element definitions
+    element: SchemaElementDecl[];  // Top-level element declarations
+    complexType: Record<string, unknown>;  // ComplexType definitions
+    simpleType?: Record<string, unknown>;  // SimpleType definitions
     imports: SchemaImport[];  // Dependencies
   };
   args: Record<string, string>;  // CLI arguments (--key=value)
@@ -286,8 +291,10 @@ import type { XsdSchema } from 'ts-xsd';
 export default {
   ns: 'http://example.com/person',
   prefix: 'person',
-  root: 'Person',
-  elements: {
+  element: [
+    { name: 'Person', type: 'Person' },
+  ],
+  complexType: {
     Person: {
       sequence: [
         { name: 'FirstName', type: 'string' },
@@ -330,8 +337,10 @@ export default {
   ns: 'http://example.com/customer',
   prefix: 'customer',
   include: [Common],  // Imported schemas
-  root: 'Customer',
-  elements: {
+  element: [
+    { name: 'Customer', type: 'Customer' },
+  ],
+  complexType: {
     Customer: {
       sequence: [
         { name: 'Name', type: 'string' },
@@ -376,7 +385,10 @@ You can compose schemas by including other schemas. This enables modular schema 
 ```typescript
 // common.ts - Shared types
 const CommonSchema = {
-  elements: {
+  element: [
+    { name: 'Address', type: 'Address' },
+  ],
+  complexType: {
     Address: {
       sequence: [
         { name: 'Street', type: 'string' },
@@ -395,9 +407,11 @@ export default CommonSchema;
 import Common from './common';
 
 const CustomerSchema = {
-  root: 'Customer',
   include: [Common],  // Include common types
-  elements: {
+  element: [
+    { name: 'Customer', type: 'Customer' },
+  ],
+  complexType: {
     Customer: {
       sequence: [
         { name: 'Name', type: 'string' },
@@ -429,16 +443,28 @@ const xml = build(CustomerSchema, customer);
 interface XsdSchema {
   ns?: string;           // Target namespace
   prefix?: string;       // Namespace prefix
-  root?: string;         // Root element name (optional for imported schemas)
+  element?: XsdElementDecl[];  // Top-level element declarations
+  complexType: Record<string, XsdComplexType>;  // ComplexType definitions
+  simpleType?: Record<string, XsdSimpleType>;   // SimpleType definitions
   include?: XsdSchema[]; // Imported schemas (types merged at runtime)
-  elements: Record<string, XsdElement>;
+  attributeFormDefault?: 'qualified' | 'unqualified';  // Attribute namespace qualification
+  elementFormDefault?: 'qualified' | 'unqualified';    // Element namespace qualification
 }
 ```
 
-### XsdElement
+### XsdElementDecl
 
 ```typescript
-interface XsdElement {
+interface XsdElementDecl {
+  name: string;   // Element name
+  type: string;   // Type name (references complexType or simpleType)
+}
+```
+
+### XsdComplexType
+
+```typescript
+interface XsdComplexType {
   extends?: string;         // Base type name (type inheritance)
   sequence?: XsdField[];    // Ordered child elements
   choice?: XsdField[];      // Choice of child elements
@@ -454,8 +480,8 @@ ts-xsd supports XSD type inheritance via the `extends` property. When a type ext
 ```typescript
 // Base type
 const BaseSchema = {
-  root: 'Base',
-  elements: {
+  element: [{ name: 'Base', type: 'Base' }],
+  complexType: {
     Base: {
       sequence: [{ name: 'baseName', type: 'string' }],
       attributes: [{ name: 'baseId', type: 'string', required: true }],
@@ -465,9 +491,9 @@ const BaseSchema = {
 
 // Derived type extends Base
 const DerivedSchema = {
-  root: 'Derived',
   include: [BaseSchema],
-  elements: {
+  element: [{ name: 'Derived', type: 'Derived' }],
+  complexType: {
     Derived: {
       extends: 'Base',  // Inherits baseName and baseId
       sequence: [{ name: 'derivedName', type: 'string' }],

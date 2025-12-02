@@ -1,12 +1,23 @@
 /**
  * ADT Schemas Index
  * 
- * Combines auto-generated schemas from XSD and manual schemas.
- * This file is hand-maintained.
+ * Flat exports for optimal tree-shaking.
+ * 
+ * Structure:
+ *   generated/sap/    - SAP's original schemas (from SDK XSDs)
+ *   generated/custom/ - Our extensions (discovery, transport variants, etc.)
+ * 
+ * Naming:
+ *   - SAP schemas: original names (atom, templatelink, transportmanagment, etc.)
+ *   - Custom schemas that extend SAP: suffixed names (atomExtended, etc.)
+ *   - Custom-only schemas: original names (discovery, transportfind, etc.)
  */
 
-// Auto-generated schemas from XSD (via ts-xsd)
-export * from './generated';
+// SAP schemas (from .xsd/sap/)
+export * from './generated/sap';
 
-// Manual schemas (not from XSD)
-export * from './manual';
+// Custom schemas - non-conflicting names exported directly
+export { default as discovery } from './generated/custom/discovery';
+export { default as transportfind } from './generated/custom/transportfind';
+export { default as transportmanagmentSingle } from './generated/custom/transportmanagment-single';
+export { default as transportmanagmentCreate } from './generated/custom/transportmanagment-create';
