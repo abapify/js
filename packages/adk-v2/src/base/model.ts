@@ -178,10 +178,18 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D extends AdkObject
   // Caching Infrastructure
   // ============================================
   
-  /** Lazy load a segment - fetches only once, then cached */
+  /** Lazy load a segment (async) - fetches only once, then cached */
   protected async lazy<T>(key: string, loader: () => Promise<T>): Promise<T> {
     if (!this.cache.has(key)) {
       this.cache.set(key, await loader());
+    }
+    return this.cache.get(key) as T;
+  }
+  
+  /** Lazy compute a segment (sync) - computes only once, then cached */
+  protected cached<T>(key: string, compute: () => T): T {
+    if (!this.cache.has(key)) {
+      this.cache.set(key, compute());
     }
     return this.cache.get(key) as T;
   }
