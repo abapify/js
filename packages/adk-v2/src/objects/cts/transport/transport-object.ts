@@ -13,10 +13,6 @@ import type { TransportObjectData } from './transport.types';
 export class AdkTransportObject {
   constructor(private readonly data: TransportObjectData) {}
 
-  // ============================================
-  // Properties (direct from schema)
-  // ============================================
-
   get pgmid(): string { return this.data.pgmid || ''; }
   get type(): string { return this.data.type || ''; }
   get name(): string { return this.data.name || ''; }

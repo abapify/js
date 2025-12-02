@@ -6,12 +6,13 @@
  * - AdkTransportTask: extends request with task-specific overrides
  * 
  * Both share the same API response structure, just different data sources.
+ * Kept in one file to avoid circular dependency issues.
  */
 
 import type { AdkContext } from '../../../base/context';
 import { AdkObject } from '../../../base/model';
 import { TransportRequest as TransportRequestKind } from '../../../base/kinds';
-import { requiresLock } from '../../../decorators';
+import { requiresLock, parseSapTimestamp } from '../../../decorators';
 import type { 
   TransportData, 
   TransportRequestData, 
@@ -117,9 +118,7 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
   get parent(): string { return this.itemData.parent || ''; }
 
   get lastChangedAt(): Date | undefined {
-    const ts = this.itemData.lastchanged_timestamp;
-    if (!ts) return undefined;
-    return new Date(`${ts.slice(0,4)}-${ts.slice(4,6)}-${ts.slice(6,8)}T${ts.slice(8,10)}:${ts.slice(10,12)}:${ts.slice(12,14)}Z`);
+    return parseSapTimestamp(this.itemData.lastchanged_timestamp);
   }
 
   // ===========================================================================
@@ -249,7 +248,7 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
 }
 
 // =============================================================================
-// AdkTransportTask - extends Request with task-specific overrides
+// AdkTransportTask
 // =============================================================================
 
 /**

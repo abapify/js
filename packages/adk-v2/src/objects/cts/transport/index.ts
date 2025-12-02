@@ -22,12 +22,9 @@ export type {
   ReleaseResult,
 } from './transport.types';
 
-// ADK classes (simplified - no base class needed)
+// ADK classes
 export { AdkTransportRequest, AdkTransportTask } from './transport';
 export { AdkTransportObject } from './transport-object';
 
 // Backward compatibility alias
 export { AdkTransportRequest as AdkTransportItem } from './transport';
-
-// Factory function
-export { getTransportItem, createTransportItem } from './transport-factory';

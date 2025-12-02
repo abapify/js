@@ -80,8 +80,8 @@ export function createAdkContext(client: { services: { transports: unknown } }):
  * Calculate max name length from objects
  */
 function getMaxNameLength(objects: AdkTransportObject[]): number {
-  if (objects.length === 0) return 30;
-  return Math.max(...objects.map(o => o.name.length));
+  if (!objects || objects.length === 0) return 30;
+  return Math.max(...objects.map(o => (o.name || '').length));
 }
 
 /**
@@ -90,15 +90,18 @@ function getMaxNameLength(objects: AdkTransportObject[]): number {
  * Like Eclipse: R3TR CLAS ZCL_MY_CLASS  Description
  */
 function renderObject(obj: AdkTransportObject, prefix: string = '', nameWidth: number = 30): Component {
-  const icon = getObjectIcon(obj.type);
+  const name = obj.name || '';
+  const type = obj.type || '';
+  const pgmid = obj.pgmid || '';
+  const icon = getObjectIcon(type);
   const lock = obj.lockStatus ? ` 🔒` : '';
   // Create ADT link for the object (original name), then add padding after
-  const nameLink = adtLink({ name: obj.name, type: obj.type, uri: obj.uri });
-  const padding = ' '.repeat(Math.max(0, nameWidth - obj.name.length));
-  const pgmid = obj.pgmid.padEnd(4);
-  const type = obj.type.padEnd(4);
+  const nameLink = adtLink({ name, type, uri: obj.uri });
+  const padding = ' '.repeat(Math.max(0, nameWidth - name.length));
+  const pgmidPad = pgmid.padEnd(4);
+  const typePad = type.padEnd(4);
   const desc = obj.objectDescription || '-';
-  return Text(`${prefix}${icon} ${pgmid} ${type} ${nameLink}${padding} ${desc}${lock}`);
+  return Text(`${prefix}${icon} ${pgmidPad} ${typePad} ${nameLink}${padding} ${desc}${lock}`);
 }
 
 /**
