@@ -21,6 +21,7 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
 
   const targetNs = schemaEl.getAttribute('targetNamespace') || undefined;
   const prefix = options.prefix || extractPrefix(targetNs);
+  const attributeFormDefault = schemaEl.getAttribute('attributeFormDefault') as 'qualified' | 'unqualified' | null;
 
   // Extract namespace prefix mappings from xmlns:* attributes
   const nsMap = new Map<string, string>();
@@ -135,5 +136,6 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
     imports,
     redefines,
     nsMap,
+    attributeFormDefault: attributeFormDefault || undefined,
   };
 }

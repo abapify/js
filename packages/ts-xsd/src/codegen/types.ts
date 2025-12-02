@@ -77,4 +77,6 @@ export interface ParsedSchema {
   redefines: XsdRedefine[];
   /** Namespace prefix to URI mapping from xmlns:* attributes */
   nsMap: Map<string, string>;
+  /** XSD attributeFormDefault - if 'qualified', attributes get namespace prefix */
+  attributeFormDefault?: 'qualified' | 'unqualified';
 }

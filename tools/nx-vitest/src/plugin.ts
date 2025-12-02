@@ -170,12 +170,10 @@ export const createNodesV2: CreateNodesV2 = [
 
         const baseInputs = [
           `{projectRoot}/src/**/*.ts`,
-          `{projectRoot}/src/**/*.test.ts`,
-          `{projectRoot}/src/**/*.spec.ts`,
+          `{projectRoot}/tests/**/*`,
           `{projectRoot}/vitest.config.ts`,
           `{projectRoot}/package.json`,
           `{workspaceRoot}/vitest.config.ts`,
-          { externalDependencies: ['vitest'] },
         ];
 
         const testTarget = {

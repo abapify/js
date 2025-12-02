@@ -50,7 +50,7 @@ function getImportName(schemaLocation: string): string {
  * Parse XSD and return schema data for generators
  */
 export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}): { schemaData: SchemaData; rawSchema: Record<string, unknown> } {
-  const { targetNs, prefix, complexTypes, simpleTypes, elements: parsedElements, imports, redefines, nsMap } = parseSchema(xsd, options);
+  const { targetNs, prefix, complexTypes, simpleTypes, elements: parsedElements, imports, redefines, nsMap, attributeFormDefault } = parseSchema(xsd, options);
   const importedSchemas = options.importedSchemas;
   const resolver = options.resolver || defaultResolver;
 
@@ -112,6 +112,7 @@ export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}):
     complexType: complexTypeObj,
     simpleType: Object.keys(simpleTypeObj).length > 0 ? simpleTypeObj : undefined,
     imports: schemaImports,
+    attributeFormDefault,
   };
 
   // Raw schema for JSON output (backward compat)

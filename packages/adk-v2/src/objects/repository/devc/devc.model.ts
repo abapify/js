@@ -1,111 +1,73 @@
 /**
- * DEVC - ABAP Package Model
- * 
- * Internal implementation of AbapPackage interface.
+ * DEVC - ABAP Package
+ *
+ * ADK object for ABAP packages (DEVC).
  */
 
-import { BaseModel } from '../../../base/model';
+import { AdkObject } from '../../../base/model';
+import { Package as PackageKind } from '../../../base/kinds';
 import type { AbapObject } from '../../../base/types';
-import type { 
-  AbapPackage, 
+import type {
+  AbapPackage,
   PackageAttributes,
   ObjectReference,
   ApplicationComponent,
   TransportConfig,
 } from './devc.types';
+import type { InferXsd } from 'ts-xsd';
+import { packagesV1 } from '@abapify/adt-schemas-xsd';
 
 /**
  * Package data from ADT/schema
- * TODO: Replace with InferXsd<typeof PackageSchema> when contract ready
+ * Uses XSD-generated schema types for type safety
  */
-interface PackageData {
-  // adtcore:* attributes
-  name: string;
-  type: string;
-  description: string;
-  responsible: string;
-  masterLanguage: string;
-  language: string;
-  version: string;
-  createdAt: string;
-  createdBy: string;
-  changedAt: string;
-  changedBy: string;
-  
-  // pak:* elements
-  attributes: {
-    packageType: string;
-    isEncapsulated: boolean;
-    isAddingObjectsAllowed: boolean;
-    recordChanges: boolean;
-    languageVersion: string;
-  };
-  superPackage?: {
-    uri: string;
-    type: string;
-    name: string;
-    description?: string;
-  };
-  applicationComponent?: {
-    name: string;
-    description: string;
-  };
-  transport?: {
-    softwareComponent?: { name: string; description: string };
-    transportLayer?: { name: string; description: string };
-  };
-}
+type PackageData = InferXsd<typeof packagesV1, 'Package'>;
 
 /**
- * Internal implementation of AbapPackage
+ * ADK Package object
  */
-export class AbapPackageModel extends BaseModel implements AbapPackage {
-  readonly kind = 'Package' as const;
+export class AdkPackage extends AdkObject<typeof PackageKind, PackageData> implements AbapPackage {
+  readonly kind = PackageKind;
   
-  constructor(
-    ctx: import('../../../base/context').AdkContext,
-    private readonly data: PackageData
-  ) {
-    super(ctx);
-  }
+  // ADT object URI
+  get objectUri(): string { return `/sap/bc/adt/packages/${encodeURIComponent(this.name)}`; }
   
-  // AbapObject base properties
-  get name(): string { return this.data.name; }
-  get type(): string { return this.data.type; }
-  get description(): string { return this.data.description; }
-  get package(): string { return this.data.superPackage?.name ?? ''; }
+  // Additional properties (name/type from base class)
+  // Note: These use dataSync - require load() first or will throw
+  get description(): string { return this.dataSync.description; }
+  get package(): string { return this.dataSync.superPackage?.name ?? ''; }
   
   // adtcore:* attributes
-  get responsible(): string { return this.data.responsible; }
-  get masterLanguage(): string { return this.data.masterLanguage; }
-  get language(): string { return this.data.language; }
-  get version(): string { return this.data.version; }
-  get createdAt(): Date { return new Date(this.data.createdAt); }
-  get createdBy(): string { return this.data.createdBy; }
-  get changedAt(): Date { return new Date(this.data.changedAt); }
-  get changedBy(): string { return this.data.changedBy; }
+  get responsible(): string { return this.dataSync.responsible; }
+  get masterLanguage(): string { return this.dataSync.masterLanguage; }
+  get language(): string { return this.dataSync.language; }
+  get version(): string { return this.dataSync.version; }
+  get createdAt(): Date { return new Date(this.dataSync.createdAt); }
+  get createdBy(): string { return this.dataSync.createdBy; }
+  get changedAt(): Date { return new Date(this.dataSync.changedAt); }
+  get changedBy(): string { return this.dataSync.changedBy; }
   
   // pak:* elements
   get attributes(): PackageAttributes {
     return {
-      packageType: this.data.attributes.packageType as PackageAttributes['packageType'],
-      isEncapsulated: this.data.attributes.isEncapsulated,
-      isAddingObjectsAllowed: this.data.attributes.isAddingObjectsAllowed,
-      recordChanges: this.data.attributes.recordChanges,
-      languageVersion: this.data.attributes.languageVersion,
+      packageType: this.dataSync.attributes.packageType as PackageAttributes['packageType'],
+      isEncapsulated: this.dataSync.attributes.isEncapsulated,
+      isAddingObjectsAllowed: this.dataSync.attributes.isAddingObjectsAllowed,
+      recordChanges: this.dataSync.attributes.recordChanges,
+      languageVersion: this.dataSync.attributes.languageVersion,
     };
   }
   
   get superPackage(): ObjectReference | undefined {
-    return this.data.superPackage;
+    return this.dataSync.superPackage;
   }
   
   get applicationComponent(): ApplicationComponent | undefined {
-    return this.data.applicationComponent;
+    return this.dataSync.applicationComponent;
   }
   
   get transport(): TransportConfig | undefined {
-    return this.data.transport;
+    return this.dataSync.transport;
   }
   
   // Lazy segments
@@ -136,4 +98,21 @@ export class AbapPackageModel extends BaseModel implements AbapPackage {
       return [...direct, ...nested.flat()];
     });
   }
+  
+  // ============================================
+  // Deferred Loading (implements abstract from AdkObject)
+  // ============================================
+  
+  async load(): Promise<this> {
+    // TODO: Implement via package service when available
+    // const data = await this.ctx.services.packages.get(this.name);
+    // this.setData(data);
+    throw new Error('Package load not yet implemented');
+  }
+  
+  // Lock/unlock inherited from AdkObject using generic lock service
 }
+
+// Backward compatibility alias (deprecated)
+/** @deprecated Use AdkPackage instead */
+export const AbapPackageModel = AdkPackage;

@@ -9,6 +9,7 @@ import schema from '../../../speci';
 export default schema({
   ns: 'http://www.sap.com/adt/atc/tagdescription',
   prefix: 'ns',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'descriptionTags', type: 'AtcTagWithDescrList' },
   ],

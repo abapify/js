@@ -23,7 +23,6 @@ export function createPrintFn(page: {
     const titleDisplay = page.titleLink || page.title;
     console.log();
     console.log(chalk.bold(`${page.icon || '📄'} ${titleDisplay}`));
-    console.log();
 
     // Content (from component tree)
     for (const line of page.render()) {

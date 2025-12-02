@@ -15,7 +15,7 @@
 
 import { AdtClientType } from '../../client';
 import type { Logger } from '../../types';
-import type { TransportRequest, TransportTask, TransportObject } from './types';
+import type { TransportRequest, TransportTask, TransportObject, LockHandle } from './types';
 
 
 
@@ -163,7 +163,11 @@ function collectAllRequests(result: unknown): RawRequest[] {
  * Fetch function type for raw HTTP requests
  * Returns string directly (already resolved)
  */
-type FetchFn = (url: string, options?: { headers?: Record<string, string> }) => Promise<string>;
+type FetchFn = (url: string, options?: { 
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}) => Promise<string>;
 
 /**
  * Create CTS Transport Service
@@ -277,21 +281,36 @@ export function createTransportService(
         logger?.debug(`Auto-detected owner: ${owner}`);
       }
       
-      // Build body object matching transportmanagmentCreate schema structure
-      // speci will serialize this to XML using the schema
-      const body = {
-        useraction: 'newrequest',
-        request: [{
-          desc: options.description,
-          type: options.type || 'K',
-          target: options.target || 'LOCAL',
-          cts_project: options.project || '',
-          task: [{ owner }],
-        }],
-      };
+      // SAP ADT requires namespace-prefixed attributes (non-standard XML)
+      // ts-xsd doesn't support this yet, so we build XML manually
+      const escapeXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:useraction="newrequest"><tm:request tm:desc="${escapeXml(options.description)}" tm:type="${options.type || 'K'}" tm:target="${options.target || 'LOCAL'}" tm:cts_project="${options.project || ''}"><tm:task tm:owner="${owner}"/></tm:request></tm:root>`;
       
-      // Use contract create() - speci handles XML serialization
-      const response = await adtClient.cts.transportrequests.create(body);
+      // Use raw fetch since schema serialization doesn't support prefixed attributes
+      const responseXml = await fetchFn('/sap/bc/adt/cts/transportrequests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/vnd.sap.adt.transportorganizer.v1+xml',
+          Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+        },
+        body: xml,
+      });
+      
+      // Parse response - extract transport number from response XML
+      // Response format: <tm:root ...><tm:request tm:number="S0DK123456" ...>
+      const numberMatch = responseXml.match(/tm:number="([^"]+)"/);
+      const descMatch = responseXml.match(/tm:desc="([^"]+)"/);
+      const typeMatch = responseXml.match(/tm:type="([^"]+)"/);
+      const targetMatch = responseXml.match(/tm:target="([^"]+)"/);
+      
+      const response = {
+        request: {
+          number: numberMatch?.[1] || '',
+          desc: descMatch?.[1] || options.description,
+          type: typeMatch?.[1] || options.type || 'K',
+          target: targetMatch?.[1] || options.target || 'LOCAL',
+        },
+      };
       
       logger?.debug('Transport created');
       return response;
@@ -353,16 +372,72 @@ export function createTransportService(
     async release(trkorr: string) {
       logger?.debug(`Releasing transport ${trkorr}...`);
       
-      // Release action - uses schema body with action attribute
-      const body = {
-        useraction: 'release',
-      };
+      // SAP ADT requires namespace-prefixed attributes (non-standard XML)
+      // Use raw XML for release action
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:useraction="release"/>`;
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await adtClient.cts.transportrequests.post(trkorr, body as any);
+      await fetchFn(`/sap/bc/adt/cts/transportrequests/${trkorr}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/vnd.sap.adt.transportorganizer.v1+xml',
+          Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+        },
+        body: xml,
+      });
       
       logger?.debug(`Transport ${trkorr} released`);
-      return response;
+      return { success: true };
+    },
+
+    /**
+     * Lock a transport request for modification
+     * @param trkorr - Transport number
+     * @returns Lock handle for subsequent operations
+     */
+    async lock(trkorr: string): Promise<LockHandle> {
+      logger?.debug(`Locking transport ${trkorr}...`);
+      
+      const response = await fetchFn(
+        `/sap/bc/adt/cts/transportrequests/${trkorr}?_action=LOCK&accessMode=MODIFY`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/vnd.sap.as+xml',
+            'Content-Type': 'application/xml',
+          },
+        }
+      );
+      
+      // Parse lock handle from response
+      const handleMatch = response.match(/<LOCK_HANDLE>([^<]+)<\/LOCK_HANDLE>/);
+      if (!handleMatch?.[1]) {
+        throw new Error(`Failed to acquire lock for ${trkorr} - no handle returned`);
+      }
+      
+      const lockHandle: LockHandle = { handle: handleMatch[1] };
+      logger?.debug(`Transport ${trkorr} locked`, { handle: lockHandle.handle });
+      return lockHandle;
+    },
+
+    /**
+     * Unlock a transport request
+     * @param trkorr - Transport number
+     * @param lockHandle - Lock handle from lock() operation
+     */
+    async unlock(trkorr: string, lockHandle: LockHandle): Promise<void> {
+      logger?.debug(`Unlocking transport ${trkorr}...`);
+      
+      await fetchFn(
+        `/sap/bc/adt/cts/transportrequests/${trkorr}?_action=UNLOCK&lockHandle=${encodeURIComponent(lockHandle.handle)}`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/vnd.sap.as+xml',
+          },
+        }
+      );
+      
+      logger?.debug(`Transport ${trkorr} unlocked`);
     },
 
     /**

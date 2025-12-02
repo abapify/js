@@ -59,5 +59,10 @@ export {
 export { createTransportService, type TransportService } from './services/cts/transport-service';
 export type { TransportRequest, TransportTask, TransportObject } from './services/cts/types';
 
+// Infer response types from service methods - this ensures types stay in sync with contract
+import type { TransportService } from './services/cts/transport-service';
+/** Response type from TransportService.get() - inferred from contract */
+export type TransportGetResponse = Awaited<ReturnType<TransportService['get']>>;
+
 // Re-export speci types needed for declaration generation
 export type { RestEndpointDescriptor, Serializable, RestContract } from 'speci/rest';

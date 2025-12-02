@@ -80,3 +80,70 @@ For schemas without XSD (ABAP XML format), create manual schemas in `src/schemas
 2. Regenerate: `npx nx run adt-schemas-xsd:generate`
 
 3. Export from `src/schemas/index.ts` if needed
+
+4. **MANDATORY: Add test scenario** (see below)
+
+## 🚨 MANDATORY: Schema Test Coverage
+
+**Every schema MUST have a test scenario.** No exceptions.
+
+When adding or modifying a schema:
+1. Check if scenario exists in `tests/scenarios/`
+2. If not, create one with real SAP XML fixture
+3. Run tests: `npx nx test adt-schemas-xsd`
+
+### Creating a Test Scenario
+
+```typescript
+// tests/scenarios/myschema.ts
+import { expect } from 'vitest';
+import { Scenario, type SchemaType } from './base/scenario';
+import { mySchema } from '../../src/schemas/index';
+
+export class MySchemaScenario extends Scenario<typeof mySchema> {
+  readonly schema = mySchema;
+  readonly fixtures = ['myschema.xml'];  // Real SAP XML in fixtures/
+
+  validateParsed(data: SchemaType<typeof mySchema>): void {
+    // Type-safe assertions - TS validates property access
+    expect(data.someField).toBe('expected');
+    expect(data.nested?.child).toBeDefined();
+  }
+
+  validateBuilt(xml: string): void {
+    expect(xml).toContain('xmlns:ns="http://...');
+  }
+}
+```
+
+Register in `tests/scenarios/index.ts`:
+```typescript
+import { MySchemaScenario } from './myschema';
+export const SCENARIOS = [..., new MySchemaScenario()];
+```
+
+### Test Files
+
+| File | Purpose |
+|------|---------|
+| `tests/scenarios.test.ts` | Generic test runner |
+| `tests/scenarios/base/scenario.ts` | Base class with `SchemaType<S>` |
+| `tests/scenarios/index.ts` | Scenario registry |
+| `tests/scenarios/fixtures/*.xml` | Real SAP XML samples |
+| `tests/scenarios/*.ts` | Scenario implementations |
+
+### What Tests Validate
+
+- **parses**: XML → typed object
+- **validates parsed**: Type-safe property assertions
+- **builds**: Object → XML
+- **validates built**: XML structure verification
+- **round-trips**: Stability check
+
+### Uncovered Schemas (TODO)
+
+Check `src/schemas/index.ts` for exported schemas without scenarios:
+- `adtcore`, `atom` - Base schemas (may not need direct tests)
+- `abapsource`, `abapoo`, `classes`, `interfaces`
+- `transportsearch`, `configurations`, `configuration`
+- `atc`, `atcworklist`, `atcresult`, `checkrun`, `checklist`

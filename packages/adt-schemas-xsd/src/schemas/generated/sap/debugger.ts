@@ -9,6 +9,7 @@ import schema from '../../../speci';
 export default schema({
   ns: 'http://www.sap.com/adt/debugger',
   prefix: 'debugger',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'memorySizes', type: 'MemorySizes' },
   ],

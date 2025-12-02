@@ -9,6 +9,7 @@ import schema from '../../../speci';
 export default schema({
   ns: 'http://www.sap.com/adt/atc/resultquery',
   prefix: 'ns',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'activeResultQuery', type: 'ActiveAtcResultQuery' },
     { name: 'specificResultQuery', type: 'SpecificAtcResultQuery' },

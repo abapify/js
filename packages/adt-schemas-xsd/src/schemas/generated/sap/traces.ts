@@ -11,6 +11,7 @@ import Adtcore from './adtcore';
 export default schema({
   ns: 'http://www.sap.com/adt/crosstrace/traces',
   prefix: 'traces',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'activations', type: 'Activations' },
     { name: 'activation', type: 'Activation' },

@@ -51,6 +51,8 @@ export interface SchemaData {
   simpleType?: Record<string, unknown>;
   /** Schema imports/dependencies */
   imports: SchemaImport[];
+  /** XSD attributeFormDefault - if 'qualified', attributes get namespace prefix */
+  attributeFormDefault?: 'qualified' | 'unqualified';
 }
 
 /**
@@ -143,6 +145,11 @@ export function generateSchemaLiteral(schema: SchemaData, indent = ''): string {
   if (schema.namespace) {
     lines.push(`${indent}  ns: '${schema.namespace}',`);
     lines.push(`${indent}  prefix: '${schema.prefix}',`);
+  }
+  
+  // Add attributeFormDefault if qualified (SAP requires prefixed attributes)
+  if (schema.attributeFormDefault === 'qualified') {
+    lines.push(`${indent}  attributeFormDefault: 'qualified',`);
   }
   
   // Generate element declarations array

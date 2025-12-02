@@ -1,7 +1,7 @@
 /**
  * adt cts create - Create a new transport request (interactive)
  *
- * Uses the v2 client with speci contracts and adt-schemas-xsd.
+ * Uses ADK layer for proper transport creation.
  * Provides interactive prompts for transport creation options.
  *
  * Usage:
@@ -13,6 +13,7 @@
 import { Command } from 'commander';
 import { input, select, confirm } from '@inquirer/prompts';
 import { getAdtClientV2 } from '../../../utils/adt-client-v2';
+import { AdkTransportRequest } from '@abapify/adk-v2';
 
 /**
  * Transport creation input (matches schema structure)
@@ -93,31 +94,21 @@ async function promptForOptions(
 /**
  * Format transport creation result for display
  */
-function displayResult(result: any): void {
-  const request = result?.request;
-  if (!request) {
-    console.log('\n⚠️  Transport created but response format unexpected');
-    console.log(JSON.stringify(result, null, 2));
-    return;
-  }
-
+function displayResult(tr: AdkTransportRequest): void {
   console.log('\n✅ Transport request created successfully!\n');
-  console.log(`🚛 Transport: ${request.number}`);
-  console.log(`   Description: ${request.desc}`);
-  console.log(`   Type: ${TYPE_NAMES[request.type] || request.type}`);
-  console.log(`   Target: ${request.target || 'LOCAL'}`);
-  console.log(`   Owner: ${request.owner || '(current user)'}`);
-  console.log(`   Status: ${request.status || 'Modifiable'}`);
+  console.log(`🚛 Transport: ${tr.number}`);
+  console.log(`   Description: ${tr.description}`);
+  console.log(`   Type: ${TYPE_NAMES[tr.type] || tr.type}`);
+  console.log(`   Target: ${tr.target || 'LOCAL'}`);
+  console.log(`   Owner: ${tr.owner || '(current user)'}`);
+  console.log(`   Status: ${tr.statusText}`);
 
   // Display tasks if present
-  const tasks = request.task;
-  if (tasks) {
-    const taskArray = Array.isArray(tasks) ? tasks : [tasks];
-    if (taskArray.length > 0) {
-      console.log('\n📋 Tasks:');
-      for (const task of taskArray) {
-        console.log(`   └── ${task.number} (${task.owner || 'current user'})`);
-      }
+  const tasks = tr.tasks;
+  if (tasks.length > 0) {
+    console.log('\n📋 Tasks:');
+    for (const task of tasks) {
+      console.log(`   └── ${task.number} (${task.owner || 'current user'})`);
     }
   }
 }
@@ -173,8 +164,10 @@ export const ctsCreateCommand = new Command('create')
         }
       }
 
-      // Create the transport via service layer
-      const result = await client.services.transports.create({
+      // Create the transport via ADK layer
+      // ADK expects { services: { transports } } - client already has client.services
+      const adkCtx = { services: client.services };
+      const tr = await AdkTransportRequest.create(adkCtx, {
         description: createOptions.description,
         type: createOptions.type as 'K' | 'W',
         target: createOptions.target,
@@ -183,9 +176,17 @@ export const ctsCreateCommand = new Command('create')
       });
 
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        console.log(JSON.stringify({
+          transport: tr.number,
+          description: tr.description,
+          type: tr.type,
+          target: tr.target,
+          owner: tr.owner,
+          status: tr.statusText,
+          tasks: tr.tasks.map(t => ({ number: t.number, owner: t.owner })),
+        }, null, 2));
       } else {
-        displayResult(result);
+        displayResult(tr);
       }
     } catch (error) {
       console.error(

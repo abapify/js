@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TODO: Replace with real SAP ATC worklist response -->
+<atc:worklist xmlns:atc="http://www.sap.com/adt/atc">
+  <atc:object uri="/sap/bc/adt/oo/classes/zcl_test" type="CLAS" name="ZCL_TEST">
+    <atc:finding checkId="CL_CI_TEST" messageId="001" priority="1">
+      <atc:location uri="/sap/bc/adt/oo/classes/zcl_test/source/main#start=10,1"/>
+      <atc:message>Test finding message</atc:message>
+    </atc:finding>
+  </atc:object>
+</atc:worklist>

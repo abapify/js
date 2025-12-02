@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TODO: Replace with real SAP ATC result response -->
+<atc:checkresult xmlns:atc="http://www.sap.com/adt/atc">
+  <atc:timestamp>2025-01-01T12:00:00Z</atc:timestamp>
+  <atc:status>completed</atc:status>
+  <atc:findings count="1"/>
+</atc:checkresult>

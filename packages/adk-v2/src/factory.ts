@@ -6,7 +6,7 @@
 
 import type { AdkContext } from './base/context';
 import type { AbapPackage } from './objects/repository/devc';
-import { AbapPackageModel } from './objects/repository/devc';
+import { AdkPackage } from './objects/repository/devc';
 
 /**
  * ADK Factory interface
@@ -58,7 +58,7 @@ export function createAdk(client: unknown): AdkFactory {
         },
       };
       
-      return new AbapPackageModel(ctx, data);
+      return new AdkPackage(ctx, data);
     },
   };
 }

@@ -1,5 +1,5 @@
 {
-  "name": "adt-contracts",
+  "name": "@abapify/adt-contracts",
   "version": "0.1.0",
   "description": "SAP ADT REST API contracts using speci + ts-xsd",
   "type": "module",
@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "speci": "*",
-    "adt-schemas-xsd": "*"
+    "@abapify/adt-schemas-xsd": "*"
+  },
+  "devDependencies": {
+    "adt-fixtures": "*"
   },
   "files": [
     "dist"

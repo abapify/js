@@ -11,6 +11,7 @@ import Adtcore from './adtcore';
 export default schema({
   ns: 'http://www.sap.com/adt/packages',
   prefix: 'packages',
+  attributeFormDefault: 'qualified',
   element: [
     { name: 'package', type: 'Package' },
     { name: 'packageTree', type: 'PackageTree' },

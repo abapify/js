@@ -264,6 +264,109 @@ ts-xsd parses to:
 }
 ```
 
+## Testing
+
+### Scenario-Based Schema Tests
+
+Every schema **MUST** have a test scenario with real SAP XML fixtures. This ensures:
+- Parse/build round-trips work correctly
+- Type inference is accurate
+- Schema changes don't break existing functionality
+
+#### Test Structure
+
+```
+tests/
+├── scenarios.test.ts           # Generic test runner
+└── scenarios/
+    ├── base/
+    │   └── scenario.ts         # Base Scenario class
+    ├── index.ts                # Registers all scenarios
+    ├── fixtures/               # Real SAP XML samples
+    │   ├── tm-create.xml
+    │   └── tm-full.xml
+    └── tm.ts                   # Transport management scenarios
+```
+
+#### Creating a New Scenario
+
+1. **Add fixture** - Save real SAP XML response to `tests/scenarios/fixtures/`:
+   ```xml
+   <!-- tests/scenarios/fixtures/myschema.xml -->
+   <?xml version="1.0" encoding="UTF-8"?>
+   <ns:root xmlns:ns="http://www.sap.com/...">...</ns:root>
+   ```
+
+2. **Create scenario class** - Extend `Scenario` with your schema type:
+   ```typescript
+   // tests/scenarios/myschema.ts
+   import { expect } from 'vitest';
+   import { Scenario, type SchemaType } from './base/scenario';
+   import { mySchema } from '../../src/schemas/index';
+
+   export class MySchemaScenario extends Scenario<typeof mySchema> {
+     readonly schema = mySchema;
+     readonly fixtures = ['myschema.xml'];
+
+     validateParsed(data: SchemaType<typeof mySchema>): void {
+       // Type-safe assertions - TypeScript validates property access
+       expect(data.someField).toBe('expected value');
+       expect(data.nested?.child).toBeDefined();
+     }
+
+     validateBuilt(xml: string): void {
+       // Verify XML structure
+       expect(xml).toContain('xmlns:ns="http://www.sap.com/...');
+       expect(xml).toContain('ns:someField="expected value"');
+     }
+   }
+   ```
+
+3. **Register scenario** - Add to `tests/scenarios/index.ts`:
+   ```typescript
+   import { MySchemaScenario } from './myschema';
+   
+   export const SCENARIOS = [
+     // ... existing
+     new MySchemaScenario(),
+   ];
+   ```
+
+#### What Each Test Validates
+
+| Test | Purpose |
+|------|---------|
+| `parses` | XML → typed object works |
+| `validates parsed` | Parsed data has expected values (type-safe) |
+| `builds` | Typed object → XML works |
+| `validates built` | Built XML has correct structure |
+| `round-trips` | parse(build(parse(xml))) === parse(build(parse(xml))) |
+
+#### Type Safety
+
+The `SchemaType<S>` utility extracts the inferred type from a schema, enabling:
+- **Compile-time validation** of property access in `validateParsed`
+- **Autocomplete** for schema fields
+- **Error detection** if schema changes break tests
+
+```typescript
+// TypeScript catches typos at compile time
+validateParsed(data: SchemaType<typeof mySchema>): void {
+  expect(data.requst).toBe('value');  // ❌ Error: 'requst' doesn't exist
+  expect(data.request).toBe('value'); // ✅ OK
+}
+```
+
+### Running Tests
+
+```bash
+# Run all schema tests
+npx nx test adt-schemas-xsd
+
+# Run with verbose output
+npx vitest run --reporter=verbose
+```
+
 ## Development
 
 ### Regenerate Schemas

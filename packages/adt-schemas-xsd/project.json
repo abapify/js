@@ -11,7 +11,7 @@
       "outputs": ["{projectRoot}/.cache", "{projectRoot}/.xsd/sap"],
       "cache": false
     },
-    "generate": {
+    "codegen": {
       "command": "npx ts-xsd codegen -c tsxsd.config.ts && npx ts-xsd codegen -c tsxsd.custom.config.ts",
       "options": {
         "cwd": "{projectRoot}"
