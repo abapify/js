@@ -7,6 +7,11 @@
  * 
  * Both share the same API response structure, just different data sources.
  * Kept in one file to avoid circular dependency issues.
+ * 
+ * Architecture:
+ * - Uses ADT contracts directly via ctx.client.adt.cts.*
+ * - No intermediate "service" layer - ADK objects ARE the service layer
+ * - Raw fetch for operations not covered by contracts (create, release, lock)
  */
 
 import type { AdkContext } from '../../../base/context';
@@ -20,7 +25,8 @@ import type {
   TransportTaskData,
   TransportCreateOptions, 
   TransportUpdateOptions, 
-  ReleaseResult 
+  ReleaseResult,
+  LockHandle,
 } from './transport.types';
 import { AdkTransportObject } from './transport-object';
 
@@ -35,11 +41,116 @@ function asArray<T>(val: T | T[] | undefined): T[] {
   return Array.isArray(val) ? val : [val];
 }
 
-function getService(ctx: AdkContext) {
-  return ctx.services.transports;
+/** Escape XML special characters */
+function escapeXml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-interface TransportObjectData {
+// =============================================================================
+// Config Cache (module-level for efficiency)
+// =============================================================================
+
+let cachedConfigUri: string | undefined;
+
+async function getConfigUri(ctx: AdkContext): Promise<string> {
+  if (cachedConfigUri) return cachedConfigUri;
+  
+  const response = await ctx.client.adt.cts.transportrequests.searchconfiguration.configurations.get();
+  const configs = response?.configuration;
+  if (!configs) throw new Error('No search configuration found');
+  
+  const configArray = Array.isArray(configs) ? configs : [configs];
+  if (configArray.length === 0) throw new Error('No search configuration found');
+  
+  const uri = configArray[0]?.link?.href;
+  if (!uri) throw new Error('No search configuration URI found');
+  
+  cachedConfigUri = uri;
+  return uri;
+}
+
+/** Clear config cache (for testing) */
+export function clearConfigCache(): void {
+  cachedConfigUri = undefined;
+}
+
+// =============================================================================
+// Response Normalization Helpers
+// =============================================================================
+
+interface RawRequest {
+  number?: string;
+  owner?: string;
+  desc?: string;
+  status?: string;
+  uri?: string;
+  task?: unknown;
+  abap_object?: unknown;
+}
+
+/**
+ * Collect all requests from the transport response structure
+ * The schema has requests in multiple places:
+ * - workbench.modifiable.request[]
+ * - workbench.relstarted.request[]
+ * - workbench.released.request[]
+ * - workbench.target[].modifiable.request[]
+ * - customizing.* (same structure)
+ */
+function collectAllRequests(result: unknown): RawRequest[] {
+  const requests: RawRequest[] = [];
+  
+  if (!result || typeof result !== 'object') return requests;
+  
+  const data = result as Record<string, unknown>;
+  
+  // Helper to extract requests from a container (modifiable, relstarted, released)
+  const extractFromContainer = (container: unknown) => {
+    if (!container || typeof container !== 'object') return;
+    const c = container as Record<string, unknown>;
+    const reqs = c.request;
+    if (reqs) {
+      const reqArray = Array.isArray(reqs) ? reqs : [reqs];
+      requests.push(...(reqArray as RawRequest[]));
+    }
+  };
+  
+  // Helper to process workbench or customizing section
+  const processSection = (section: unknown) => {
+    if (!section || typeof section !== 'object') return;
+    const s = section as Record<string, unknown>;
+    
+    // Direct containers
+    extractFromContainer(s.modifiable);
+    extractFromContainer(s.relstarted);
+    extractFromContainer(s.released);
+    
+    // Target-specific containers
+    const targets = s.target;
+    if (targets) {
+      const targetArray = Array.isArray(targets) ? targets : [targets];
+      for (const target of targetArray) {
+        if (target && typeof target === 'object') {
+          const t = target as Record<string, unknown>;
+          extractFromContainer(t.modifiable);
+          extractFromContainer(t.relstarted);
+          extractFromContainer(t.released);
+        }
+      }
+    }
+  };
+  
+  processSection(data.workbench);
+  processSection(data.customizing);
+  
+  return requests;
+}
+
+// =============================================================================
+// Internal Data Type
+// =============================================================================
+
+interface TransportObjectDataInternal {
   name: string;
   type: string;
   response: TransportData;
@@ -53,8 +164,9 @@ interface TransportObjectData {
  * Transport Request - main transport object
  * 
  * Handles both requests (K) and can be extended for tasks (T).
+ * Uses ADT contracts directly - no intermediate service layer.
  */
-export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, TransportObjectData> {
+export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, TransportObjectDataInternal> {
   readonly kind = TransportRequestKind;
   protected _tasks?: AdkTransportTask[];
   protected _objects?: AdkTransportObject[];
@@ -89,7 +201,7 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
   }
 
   async load(): Promise<this> {
-    const response = await getService(this.ctx).get(this.name);
+    const response = await this.ctx.client.adt.cts.transportrequests.get(this.name);
     this.setData({
       name: this.name,
       type: response.object_type === 'T' ? 'RQTQ' : 'RQRQ',
@@ -108,7 +220,7 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
 
   get number(): string { return this.name; }
   get owner(): string { return this.itemData.owner || ''; }
-  get description(): string { return this.itemData.desc || ''; }
+  override get description(): string { return this.itemData.desc || ''; }
   get status(): string { return this.itemData.status || 'D'; }
   get statusText(): string { 
     return this.itemData.status_text || STATUS_TEXT[this.status] || this.status; 
@@ -175,7 +287,18 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
 
   async release(): Promise<ReleaseResult> {
     try {
-      await getService(this.ctx).release(this.number);
+      // SAP ADT requires namespace-prefixed attributes (non-standard XML)
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:useraction="release"/>`;
+      
+      await this.ctx.client.fetch(`/sap/bc/adt/cts/transportrequests/${this.number}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/vnd.sap.adt.transportorganizer.v1+xml',
+          Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+        },
+        body: xml,
+      });
+      
       (this.itemData as { status?: string; status_text?: string }).status = 'R';
       (this.itemData as { status?: string; status_text?: string }).status_text = 'Released';
       return { success: true };
@@ -202,10 +325,10 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
 
   @requiresLock()
   async update(changes: TransportUpdateOptions): Promise<void> {
-    await getService(this.ctx).update(this.number, {
+    await this.ctx.client.adt.cts.transportrequests.put(this.number, {
       desc: changes.description ?? this.description,
       target: changes.target ?? this.target,
-    });
+    } as Parameters<typeof this.ctx.client.adt.cts.transportrequests.put>[1]);
     
     if (changes.description !== undefined) {
       (this.itemData as { desc?: string }).desc = changes.description;
@@ -216,7 +339,7 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
   }
 
   async delete(): Promise<void> {
-    await getService(this.ctx).delete(this.number);
+    await this.ctx.client.adt.cts.transportrequests.delete(this.number);
   }
 
   // ===========================================================================
@@ -231,15 +354,28 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
    */
   static async create(options: TransportCreateOptions, ctx?: AdkContext): Promise<AdkTransportRequest> {
     const context = ctx ?? getGlobalContext();
-    const response = await getService(context).create({
-      description: options.description,
-      type: options.type as 'K' | 'W' | undefined,
-      target: options.target,
-      project: options.project,
-      owner: options.owner,
+    
+    // Get owner - use provided or auto-detect from system
+    let owner = options.owner;
+    if (!owner) {
+      owner = await AdkTransportRequest.getCurrentUser(context);
+    }
+    
+    // SAP ADT requires namespace-prefixed attributes (non-standard XML)
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:useraction="newrequest"><tm:request tm:desc="${escapeXml(options.description)}" tm:type="${options.type || 'K'}" tm:target="${options.target || 'LOCAL'}" tm:cts_project="${options.project || ''}"><tm:task tm:owner="${owner}"/></tm:request></tm:root>`;
+    
+    const responseXml = await context.client.fetch('/sap/bc/adt/cts/transportrequests', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/vnd.sap.adt.transportorganizer.v1+xml',
+        Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+      },
+      body: xml,
     });
     
-    const number = (response as { request?: { number?: string } })?.request?.number;
+    // Parse response - extract transport number from response XML
+    const numberMatch = String(responseXml).match(/tm:number="([^"]+)"/);
+    const number = numberMatch?.[1];
     if (!number) throw new Error('Failed to create transport - no number returned');
     
     return AdkTransportRequest.get(number, context);
@@ -253,12 +389,101 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
    */
   static async get(number: string, ctx?: AdkContext): Promise<AdkTransportRequest> {
     const context = ctx ?? getGlobalContext();
-    const response = await getService(context).get(number);
+    const response = await context.client.adt.cts.transportrequests.get(number);
     // Return task or request based on object_type
     if (response.object_type === 'T') {
       return new AdkTransportTask(context, response);
     }
     return new AdkTransportRequest(context, response);
+  }
+
+  /**
+   * List all transports for the current user
+   * 
+   * @param ctx - Optional ADK context (uses global context if not provided)
+   */
+  static async list(ctx?: AdkContext): Promise<AdkTransportRequest[]> {
+    const context = ctx ?? getGlobalContext();
+    const configUri = await getConfigUri(context);
+    
+    const response = await context.client.adt.cts.transportrequests.list({
+      targets: 'true',
+      configUri: configUri,
+    });
+    
+    const requests = collectAllRequests(response);
+    return requests.map(r => new AdkTransportRequest(context, r as TransportData));
+  }
+
+  /**
+   * Get current user from the system metadata
+   * 
+   * @param ctx - Optional ADK context (uses global context if not provided)
+   */
+  static async getCurrentUser(ctx?: AdkContext): Promise<string> {
+    const context = ctx ?? getGlobalContext();
+    
+    const xmlContent = await context.client.fetch('/sap/bc/adt/cts/transportrequests/searchconfiguration/metadata', {
+      headers: { Accept: 'application/vnd.sap.adt.configuration.metadata.v1+xml' },
+    });
+    
+    const userMatch = String(xmlContent).match(/<configuration:property key="User"[^>]*>([^<]+)</);
+    if (userMatch && userMatch[1]) {
+      return userMatch[1].trim();
+    }
+    
+    throw new Error('Could not detect current user from metadata response');
+  }
+
+  // ===========================================================================
+  // Lock Operations (override base class)
+  // ===========================================================================
+
+  /**
+   * Lock this transport for modification
+   * Overrides base class to use transport-specific endpoint
+   */
+  override async lock(): Promise<LockHandle> {
+    const response = await this.ctx.client.fetch(
+      `/sap/bc/adt/cts/transportrequests/${this.number}?_action=LOCK&accessMode=MODIFY`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.sap.as+xml',
+          'Content-Type': 'application/xml',
+        },
+      }
+    );
+    
+    const handleMatch = String(response).match(/<LOCK_HANDLE>([^<]+)<\/LOCK_HANDLE>/);
+    if (!handleMatch?.[1]) {
+      throw new Error(`Failed to acquire lock for ${this.number} - no handle returned`);
+    }
+    
+    // Store in base class for @requiresLock decorator
+    this['_lockHandle'] = { handle: handleMatch[1] };
+    return { handle: handleMatch[1] };
+  }
+
+  /**
+   * Unlock this transport
+   * Overrides base class to use transport-specific endpoint
+   */
+  override async unlock(): Promise<void> {
+    const handle = this['_lockHandle'];
+    if (!handle) return;
+    
+    await this.ctx.client.fetch(
+      `/sap/bc/adt/cts/transportrequests/${this.number}?_action=UNLOCK&lockHandle=${encodeURIComponent(handle.handle)}`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/vnd.sap.as+xml',
+        },
+      }
+    );
+    
+    this['_lockHandle'] = undefined;
   }
 }
 
@@ -350,7 +575,7 @@ export class AdkTransportTask extends AdkTransportRequest {
    */
   static override async get(number: string, ctx?: AdkContext): Promise<AdkTransportTask> {
     const context = ctx ?? getGlobalContext();
-    const response = await getService(context).get(number);
+    const response = await context.client.adt.cts.transportrequests.get(number);
     return new AdkTransportTask(context, response);
   }
 }

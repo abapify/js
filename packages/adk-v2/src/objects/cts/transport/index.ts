@@ -23,8 +23,11 @@ export type {
 } from './transport.types';
 
 // ADK classes
-export { AdkTransportRequest, AdkTransportTask } from './transport';
+export { AdkTransportRequest, AdkTransportTask, clearConfigCache } from './transport';
 export { AdkTransportObject } from './transport-object';
 
 // Backward compatibility alias
 export { AdkTransportRequest as AdkTransportItem } from './transport';
+
+// Re-export LockHandle type
+export type { LockHandle } from './transport.types';

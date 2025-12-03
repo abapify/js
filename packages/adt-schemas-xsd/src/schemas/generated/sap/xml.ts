@@ -6,9 +6,15 @@
 
 import schema from '../../../speci';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface XmlData {
+}
+
+const _schema = {
   ns: 'http://www.w3.org/XML/1998/namespace',
   prefix: 'namespace',
   complexType: {
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, XmlData>(_schema);

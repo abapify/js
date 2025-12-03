@@ -5,8 +5,17 @@
  */
 
 import schema from '../../../speci';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface TemplatelinkData {
+  template?: string;
+  rel?: string;
+  type?: string;
+  title?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/compatibility',
   prefix: 'ns',
   element: [
@@ -36,4 +45,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, TemplatelinkData>(_schema);
+
+// Per-element type exports
+export type TemplateLink = InferElement<typeof _schema, 'templateLink'>;

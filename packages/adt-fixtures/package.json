@@ -4,22 +4,13 @@
   "description": "SAP ADT XML fixtures for testing",
   "type": "module",
   "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index-Cnqk_eLC.d.ts"
-    }
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
   },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "dist"
-  ],
-  "scripts": {
-    "build": "tsdown",
-    "generate": "tsx src/generate-types.ts"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "tsdown": "^0.12.5",
-    "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
-  }
+  ]
 }

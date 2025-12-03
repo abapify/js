@@ -52,6 +52,88 @@ function getAllElements(schema: XsdSchema): XsdElementDecl[] {
 }
 
 /**
+ * Get all field names from a complexType, including inherited fields.
+ */
+function getTypeFields(
+  typeDef: XsdComplexType,
+  complexTypes: { readonly [key: string]: XsdComplexType }
+): Set<string> {
+  const fields = new Set<string>();
+  
+  // Get inherited fields first
+  if (typeDef.extends) {
+    const baseType = complexTypes[typeDef.extends];
+    if (baseType) {
+      const baseFields = getTypeFields(baseType, complexTypes);
+      baseFields.forEach(field => fields.add(field));
+    }
+  }
+  
+  // Add own fields
+  if (typeDef.sequence) {
+    for (const field of typeDef.sequence) {
+      fields.add(field.name);
+    }
+  }
+  if (typeDef.choice) {
+    for (const field of typeDef.choice) {
+      fields.add(field.name);
+    }
+  }
+  if (typeDef.attributes) {
+    for (const attr of typeDef.attributes) {
+      fields.add(attr.name);
+    }
+  }
+  
+  return fields;
+}
+
+/**
+ * Find the element declaration that best matches the data structure.
+ * Scores each element type by how many of its fields match the data keys.
+ * Handles inheritance by including inherited fields in the scoring.
+ */
+function findMatchingElement(
+  data: Record<string, unknown>,
+  elements: XsdElementDecl[],
+  complexTypes: { readonly [key: string]: XsdComplexType }
+): XsdElementDecl | undefined {
+  if (elements.length <= 1) {
+    return elements[0];
+  }
+
+  const dataKeys = new Set(Object.keys(data));
+  let bestMatch: XsdElementDecl | undefined;
+  let bestScore = -1;
+
+  for (const element of elements) {
+    const typeDef = complexTypes[element.type];
+    if (!typeDef) continue;
+
+    // Get all field names including inherited
+    const typeFields = getTypeFields(typeDef, complexTypes);
+
+    // Score: count how many data keys match type fields
+    let score = 0;
+    dataKeys.forEach(key => {
+      if (typeFields.has(key)) {
+        score++;
+      }
+    });
+
+    // Prefer types where all data keys are valid fields (no extra keys)
+    // and all required fields are present
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = element;
+    }
+  }
+
+  return bestMatch;
+}
+
+/**
  * Build XML string from typed object
  */
 export function build<T extends XsdSchema>(
@@ -85,10 +167,17 @@ export function build<T extends XsdSchema>(
       throw new Error(`Schema missing element or type: ${elementName}`);
     }
   } else if (allElements.length > 0) {
-    // Use first element declaration
-    const targetElement = allElements[0];
-    rootName = targetElement.name;
-    rootType = allComplexTypes[targetElement.type];
+    // Auto-detect element type based on data structure
+    const matchedElement = findMatchingElement(data as Record<string, unknown>, allElements, allComplexTypes);
+    if (matchedElement) {
+      rootName = matchedElement.name;
+      rootType = allComplexTypes[matchedElement.type];
+    } else {
+      // Fallback to first element if no match found
+      const targetElement = allElements[0];
+      rootName = targetElement.name;
+      rootType = allComplexTypes[targetElement.type];
+    }
   } else {
     // Fallback: use first complexType key as element name
     const firstTypeName = Object.keys(allComplexTypes)[0];

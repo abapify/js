@@ -92,12 +92,14 @@ type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) exten
   ? I
   : never;
 
-/** Get complexTypes from included schemas (one level deep) */
+/** Get complexTypes from included schemas (recursive - follows include chains) */
 type IncludedComplexTypes<T extends XsdSchema> = T['include'] extends readonly XsdSchema[]
-  ? UnionToIntersection<T['include'][number]['complexType']>
+  ? UnionToIntersection<
+      T['include'][number]['complexType'] | IncludedComplexTypes<T['include'][number]>
+    >
   : {};
 
-/** Get all complexTypes from schema including includes */
+/** Get all complexTypes from schema including includes (recursive) */
 type AllComplexTypes<T extends XsdSchema> = T['complexType'] & IncludedComplexTypes<T>;
 
 /** 
@@ -116,35 +118,79 @@ export type InferElement<
   : {};
 
 /**
- * Infer TypeScript type from XSD schema for the first declared element.
- * This is the primary inference type for schemas with a single root element.
+ * Infer TypeScript type for the first declared element in the schema.
+ * This is useful for schemas where the first element is the "main" root element.
  * 
- * For schemas with multiple elements, use:
- * - InferElement<Schema, 'elementName'> for a specific element
- * - InferAnyElement<Schema> for a union of all elements
- */
-export type InferXsd<T extends XsdSchema> = T['element'] extends readonly [{ type: infer TypeName }, ...unknown[]]
-  ? TypeName extends keyof AllComplexTypes<T>
-    ? InferComplexType<AllComplexTypes<T>[TypeName], AllComplexTypes<T>>
-    : {}
-  : {};
-
-/**
- * Infer a union type of all declared elements in the schema.
- * Each element is inferred as its own type in the union.
+ * For multi-element schemas, use InferElement<Schema, 'elementName'> to get a specific element.
  * 
  * @example
- * // Schema with elements: [{ name: 'Person', type: 'Person' }, { name: 'Order', type: 'Order' }]
- * type AnyElement = InferAnyElement<typeof Schema>;
- * // Result: { FirstName: string; LastName: string } | { items: Item[] }
+ * // classes.xsd has elements: [abapClass, abapClassInclude]
+ * type ClassData = InferFirstElement<typeof ClassesSchema>;  // AbapClass type only
  */
-export type InferAnyElement<T extends XsdSchema> = T['element'] extends readonly XsdElementDecl[]
+export type InferFirstElement<T extends XsdSchema> = T['element'] extends readonly [infer First, ...any[]]
+  ? First extends { type: infer TypeName }
+    ? TypeName extends keyof AllComplexTypes<T>
+      ? InferComplexType<AllComplexTypes<T>[TypeName], AllComplexTypes<T>>
+      : {}
+    : {}
+  : T['element'] extends readonly XsdElementDecl[]
+    ? T['element'][0] extends { type: infer TypeName }
+      ? TypeName extends keyof AllComplexTypes<T>
+        ? InferComplexType<AllComplexTypes<T>[TypeName], AllComplexTypes<T>>
+        : {}
+      : {}
+    : {};
+
+/**
+ * Infer TypeScript type from XSD schema.
+ * 
+ * - For single-element schemas: returns that element's type
+ * - For multi-element schemas: returns a union of all element types
+ * 
+ * Use InferElement<Schema, 'elementName'> when you need a specific element's type.
+ * 
+ * @example
+ * // Single element schema
+ * type Person = InferXsd<typeof PersonSchema>;  // { name: string; age: number }
+ * 
+ * // Multi-element schema (like adtcore.xsd)
+ * type AdtCore = InferXsd<typeof AdtCoreSchema>;  // MainObject | ObjectReferences | ...
+ */
+export type InferXsd<T extends XsdSchema> = T['element'] extends readonly XsdElementDecl[]
   ? T['element'][number] extends { type: infer TypeName }
     ? TypeName extends keyof AllComplexTypes<T>
       ? InferComplexType<AllComplexTypes<T>[TypeName], AllComplexTypes<T>>
       : never
     : never
   : never;
+
+/**
+ * Infer TypeScript type from XSD schema with all element types merged.
+ * 
+ * For multi-element schemas, instead of a union (A | B | C), this creates
+ * a single object type with all fields from all elements as optional.
+ * 
+ * This is useful when parsing XML where you know only one root element
+ * will be present, but you want type-safe access to its fields.
+ * 
+ * @example
+ * // Multi-element schema (like adtcore.xsd)
+ * type AdtCore = InferXsdMerged<typeof adtcore>;
+ * // Result: { name?: string; objectReference?: Array<...>; ... }
+ * 
+ * const data = adtcore.parse(xml) as AdtCore;
+ * data.objectReference?.[0]?.uri;  // Type-safe!
+ */
+export type InferXsdMerged<T extends XsdSchema> = T['element'] extends readonly XsdElementDecl[]
+  ? UnionToIntersection<
+      T['element'][number] extends { type: infer TypeName }
+        ? TypeName extends keyof AllComplexTypes<T>
+          ? Partial<InferComplexType<AllComplexTypes<T>[TypeName], AllComplexTypes<T>>>
+          : never
+        : never
+    >
+  : never;
+
 
 /** Infer type for a complexType (including inherited fields from extends) */
 export type InferComplexType<
@@ -166,15 +212,35 @@ type InferExtends<
     : {}
   : {};
 
-/** Infer sequence fields */
+/** Helper: Check if a field is optional (minOccurs: 0) */
+type IsOptionalField<F extends XsdField> = 
+  F['minOccurs'] extends 0
+    ? true   // minOccurs 0 = optional (regardless of maxOccurs)
+    : false; // minOccurs not 0 (or undefined) = required
+
+/** Infer sequence fields - uses Partial for optional fields */
 type InferSequence<
   S,
   ComplexTypes extends { readonly [key: string]: XsdComplexType }
 > = S extends readonly XsdField[]
-  ? {
-      [F in S[number] as F['name']]: InferFieldType<F, ComplexTypes>;
-    }
+  ? InferRequiredSequenceFields<S, ComplexTypes> & InferOptionalSequenceFields<S, ComplexTypes>
   : {};
+
+/** Helper: Infer required sequence fields only */
+type InferRequiredSequenceFields<
+  S extends readonly XsdField[],
+  ComplexTypes extends { readonly [key: string]: XsdComplexType }
+> = {
+  [F in S[number] as IsOptionalField<F> extends false ? F['name'] : never]: InferFieldTypeValue<F, ComplexTypes>;
+};
+
+/** Helper: Infer optional sequence fields only */
+type InferOptionalSequenceFields<
+  S extends readonly XsdField[],
+  ComplexTypes extends { readonly [key: string]: XsdComplexType }
+> = {
+  [F in S[number] as IsOptionalField<F> extends true ? F['name'] : never]?: InferFieldTypeValue<F, ComplexTypes>;
+};
 
 /** Infer choice fields (all optional) */
 type InferChoice<
@@ -182,37 +248,35 @@ type InferChoice<
   ComplexTypes extends { readonly [key: string]: XsdComplexType }
 > = C extends readonly XsdField[]
   ? {
-      [F in C[number] as F['name']]?: InferFieldType<F, ComplexTypes>;
+      [F in C[number] as F['name']]?: InferFieldTypeValue<F, ComplexTypes>;
     }
   : {};
 
-/** Infer attributes */
+/** Infer attributes - splits into required and optional */
 type InferAttributes<A> = A extends readonly XsdAttribute[]
   ? {
-      [Attr in A[number] as Attr['name']]: Attr['required'] extends true
-        ? InferPrimitive<Attr['type']>
-        : InferPrimitive<Attr['type']> | undefined;
+      // Required attributes (required: true)
+      [Attr in A[number] as Attr['required'] extends true ? Attr['name'] : never]: InferPrimitive<Attr['type']>;
+    } & {
+      // Optional attributes (required not true)
+      [Attr in A[number] as Attr['required'] extends true ? never : Attr['name']]?: InferPrimitive<Attr['type']>;
     }
   : {};
 
 /** Infer text content */
 type InferText<T> = T extends true ? { $text?: string } : {};
 
-/** Infer field type (handles arrays and optionals) */
-type InferFieldType<
+/** Infer field type VALUE only (no | undefined - used with optional property syntax) */
+type InferFieldTypeValue<
   F extends XsdField,
   ComplexTypes extends { readonly [key: string]: XsdComplexType }
 > = F['maxOccurs'] extends 'unbounded'
-  ? InferTypeRef<F['type'], ComplexTypes>[]  // unbounded = always array
+  ? InferTypeRef<F['type'], ComplexTypes>[]  // unbounded = array
   : F['maxOccurs'] extends number
     ? F['maxOccurs'] extends 0 | 1
-      ? F['minOccurs'] extends 0
-        ? InferTypeRef<F['type'], ComplexTypes> | undefined  // maxOccurs 0 or 1 = single/optional
-        : InferTypeRef<F['type'], ComplexTypes>              // maxOccurs 1, minOccurs 1 = required single
-      : InferTypeRef<F['type'], ComplexTypes>[]              // maxOccurs > 1 = array
-    : F['minOccurs'] extends 0
-      ? InferTypeRef<F['type'], ComplexTypes> | undefined    // no maxOccurs, optional
-      : InferTypeRef<F['type'], ComplexTypes>;               // no maxOccurs, required
+      ? InferTypeRef<F['type'], ComplexTypes>  // maxOccurs 0 or 1 = single value
+      : InferTypeRef<F['type'], ComplexTypes>[]  // maxOccurs > 1 = array
+    : InferTypeRef<F['type'], ComplexTypes>;  // no maxOccurs = single value
 
 /** Resolve type reference - primitive or complex */
 type InferTypeRef<

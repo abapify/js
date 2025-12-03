@@ -9,8 +9,48 @@ import schema from '../../../speci';
 import Atcinfo from './atcinfo';
 import Atcobject from './atcobject';
 import Atctagdescription from './atctagdescription';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtcworklistData {
+  objectSets?: {
+      objectSet?: ({
+            title?: string;
+            kind?: string;
+          })[];
+    };
+  objects?: {
+      object?: ({
+            findings: string;
+            author?: string;
+            objectTypeId?: string;
+          })[];
+    };
+  descriptionTags?: {
+      tagWithDescription?: ({
+            descriptions: {
+              description?: ({
+                    value?: unknown;
+                    description?: unknown;
+                  })[];
+            };
+          })[];
+    };
+  infos?: {
+      info?: ({
+            type: string;
+            description: string;
+          })[];
+    };
+  id?: string;
+  timestamp?: Date;
+  usedObjectSet?: string;
+  objectSetIsComplete?: boolean;
+  worklistId?: string;
+  worklistTimestamp?: Date;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/atc/worklist',
   prefix: 'worklist',
   attributeFormDefault: 'qualified',
@@ -103,4 +143,10 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtcworklistData>(_schema);
+
+// Per-element type exports
+export type Worklist = InferElement<typeof _schema, 'worklist'>;
+export type WorklistRun = InferElement<typeof _schema, 'worklistRun'>;

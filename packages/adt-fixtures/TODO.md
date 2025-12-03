@@ -21,12 +21,12 @@ Real SAP XML responses needed for complete test coverage. Collect from SAP syste
   - AtomPub service document
   - Large response, may need to trim
 
-### OO Classes (❌ Missing)
-- [ ] `oo/class.xml` - GET oo/classes/{name}
+### OO Classes (✅ Partial)
+- [x] `oo/class.xml` - GET oo/classes/{name}
 - [ ] `oo/class-source.txt` - GET oo/classes/{name}/source/main (plain text)
 
-### OO Interfaces (❌ Missing)
-- [ ] `oo/interface.xml` - GET oo/interfaces/{name}
+### OO Interfaces (✅ Partial)
+- [x] `oo/interface.xml` - GET oo/interfaces/{name}
 - [ ] `oo/interface-source.txt` - GET oo/interfaces/{name}/source/main (plain text)
 
 ### Packages (❌ Missing)

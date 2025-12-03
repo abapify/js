@@ -16,8 +16,8 @@
 // SAP schemas (from .xsd/sap/)
 export * from './generated/sap';
 
-// Custom schemas - non-conflicting names exported directly
-export { default as discovery } from './generated/custom/discovery';
-export { default as transportfind } from './generated/custom/transportfind';
-export { default as transportmanagmentSingle } from './generated/custom/transportmanagment-single';
-export { default as transportmanagmentCreate } from './generated/custom/transportmanagment-create';
+// Custom schemas (from .xsd/custom/)
+export * from './generated/custom';
+
+// JSON schemas (Zod)
+export * from './json';

@@ -11,7 +11,8 @@ import type { Page } from './types';
 
 // Import pages to trigger self-registration
 import './pages/package';
-// import './pages/class';  // TODO: Create ClassPage
+import './pages/class';
+import './pages/interface';
 
 // Export initialized router
 export { router };

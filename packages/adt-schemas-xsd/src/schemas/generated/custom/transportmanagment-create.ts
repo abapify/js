@@ -5,8 +5,23 @@
  */
 
 import schema from '../../../speci';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface TransportmanagmentCreateData {
+  request?: {
+      task?: ({
+            owner?: string;
+          })[];
+      desc?: string;
+      type?: string;
+      target?: string;
+      cts_project?: string;
+    };
+  useraction?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/cts/adt/tm',
   prefix: 'tm',
   attributeFormDefault: 'qualified',
@@ -67,4 +82,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, TransportmanagmentCreateData>(_schema);
+
+// Per-element type exports
+export type Root = InferElement<typeof _schema, 'root'>;

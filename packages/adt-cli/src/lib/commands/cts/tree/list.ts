@@ -11,7 +11,7 @@
 
 import { Command } from 'commander';
 import { getAdtClientV2 } from '../../../utils/adt-client-v2';
-import { createTransportService, type TransportRequest } from '@abapify/adt-client-v2';
+import { initializeAdk, AdkTransportRequest } from '@abapify/adk-v2';
 
 // Status icons
 const STATUS_ICONS: Record<string, string> = {
@@ -34,7 +34,7 @@ const STATUS_NAMES: Record<string, string> = {
 /**
  * Format a single transport for display
  */
-function formatTransport(tr: TransportRequest, index: number, total: number): void {
+function formatTransport(tr: AdkTransportRequest, index: number, total: number): void {
   const isLast = index === total - 1;
   const prefix = isLast ? '└──' : '├──';
   const statusIcon = STATUS_ICONS[tr.status || ''] || '📄';
@@ -42,7 +42,7 @@ function formatTransport(tr: TransportRequest, index: number, total: number): vo
 
   // Main line: transport number and description
   console.log(`${prefix} ${statusIcon} ${tr.number}`);
-  console.log(`    ${tr.desc || '(no description)'}`);
+  console.log(`    ${tr.description || '(no description)'}`);
   console.log(`    ${statusName} • ${tr.owner || 'Unknown'}`);
 
   // Show task count if any
@@ -71,39 +71,50 @@ export const treeListCommand = new Command('list')
 
       console.log('🔍 Fetching transports from search configuration...');
 
-      // Create transport service and fetch transports
-      const transportService = createTransportService(client.adt);
-      const transports = await transportService.list();
+      // Initialize ADK with the client and fetch transports
+      initializeAdk(client);
+      const transports = await AdkTransportRequest.list();
 
       const maxResults = options.max ? parseInt(options.max, 10) : 50;
       const displayTransports = transports.slice(0, maxResults);
 
       if (options.json) {
-        console.log(JSON.stringify(transports, null, 2));
+        // Serialize transport data for JSON output
+        const jsonData = transports.map(t => ({
+          number: t.number,
+          description: t.description,
+          status: t.status,
+          statusText: t.statusText,
+          owner: t.owner,
+          target: t.target,
+          tasks: t.tasks.length,
+          objects: t.objects.length,
+        }));
+        console.log(JSON.stringify(jsonData, null, 2));
       } else {
         if (transports.length === 0) {
           console.log('\n📭 No transports found');
         } else {
           // Group by status for display
-          const modifiable = displayTransports.filter((t) => t.status === 'D');
-          const released = displayTransports.filter((t) => t.status === 'R');
+          const modifiable = displayTransports.filter((t: AdkTransportRequest) => t.status === 'D');
+          const released = displayTransports.filter((t: AdkTransportRequest) => t.status === 'R');
           const other = displayTransports.filter(
-            (t) => t.status !== 'D' && t.status !== 'R'
+            (t: AdkTransportRequest) => t.status !== 'D' && t.status !== 'R'
           );
 
           if (modifiable.length > 0) {
             console.log(`\n📂 Modifiable (${modifiable.length})`);
-            modifiable.forEach((tr, i) => formatTransport(tr, i, modifiable.length));
+            modifiable.forEach((tr: AdkTransportRequest, i: number) => formatTransport(tr, i, modifiable.length));
           }
 
           if (released.length > 0) {
             console.log(`\n📁 Released (${released.length})`);
-            released.forEach((tr, i) => formatTransport(tr, i, released.length));
+            released.forEach((tr: AdkTransportRequest, i: number) => formatTransport(tr, i, released.length));
           }
 
           if (other.length > 0) {
             console.log(`\n📋 Other (${other.length})`);
-            other.forEach((tr, i) => formatTransport(tr, i, other.length));
+            other.forEach((tr: AdkTransportRequest, i: number) => formatTransport(tr, i, other.length));
           }
 
           if (transports.length > maxResults) {

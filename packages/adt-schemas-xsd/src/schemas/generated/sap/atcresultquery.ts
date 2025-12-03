@@ -5,8 +5,21 @@
  */
 
 import schema from '../../../speci';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtcresultqueryData {
+  includeAggregates?: boolean;
+  includeFindings?: boolean;
+  contactPerson?: string;
+  queryEnabled?: boolean;
+  displayId?: string;
+  createdBy?: string;
+  ageMin?: number;
+  ageMax?: number;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/atc/resultquery',
   prefix: 'ns',
   attributeFormDefault: 'qualified',
@@ -76,4 +89,11 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtcresultqueryData>(_schema);
+
+// Per-element type exports
+export type ActiveResultQuery = InferElement<typeof _schema, 'activeResultQuery'>;
+export type SpecificResultQuery = InferElement<typeof _schema, 'specificResultQuery'>;
+export type UserResultQuery = InferElement<typeof _schema, 'userResultQuery'>;
