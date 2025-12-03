@@ -8,8 +8,124 @@
 import schema from '../../../speci';
 import Adtcore from './adtcore';
 import Atom from './atom';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface QuickfixesData {
+  affectedObjects?: {
+      unit?: ({
+            content: string;
+            objectReference: {
+              extension?: {};
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              packageName?: string;
+              description?: string;
+            };
+            link?: ({
+                  href: string;
+                  rel?: string;
+                  type?: string;
+                  hreflang?: string;
+                  title?: string;
+                  etag?: string;
+                })[];
+          })[];
+    };
+  evaluationResult?: ({
+        objectReference: {
+          extension?: {};
+          uri?: string;
+          parentUri?: string;
+          type?: string;
+          packageName?: string;
+          description?: string;
+        };
+        userContent?: string;
+        affectedObjects?: {
+            objectReference?: ({
+                  extension?: {};
+                  uri?: string;
+                  parentUri?: string;
+                  type?: string;
+                  packageName?: string;
+                  description?: string;
+                })[];
+          };
+      })[];
+  input?: {
+      content: string;
+      objectReference: {
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+      };
+      link?: ({
+            href: string;
+            rel?: string;
+            type?: string;
+            hreflang?: string;
+            title?: string;
+            etag?: string;
+          })[];
+    };
+  userContent?: string;
+  deltas?: {
+      unit?: ({
+            content: string;
+            objectReference: {
+              extension?: {};
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              packageName?: string;
+              description?: string;
+            };
+            link?: ({
+                  href: string;
+                  rel?: string;
+                  type?: string;
+                  hreflang?: string;
+                  title?: string;
+                  etag?: string;
+                })[];
+          })[];
+    };
+  selection?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  variableSourceStates?: {
+      objectReferences?: ({
+            objectReference: ({
+                extension?: {};
+                uri?: string;
+                parentUri?: string;
+                type?: string;
+                packageName?: string;
+                description?: string;
+              })[];
+          })[];
+      keepCursor?: boolean;
+    };
+  statusMessages?: {
+      statusMessage?: ({
+            severity: string;
+            message: string;
+            id?: string;
+          })[];
+    };
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/quickfixes',
   prefix: 'quickfixes',
   element: [
@@ -213,4 +329,12 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, QuickfixesData>(_schema);
+
+// Per-element type exports
+export type EvaluationRequest = InferElement<typeof _schema, 'evaluationRequest'>;
+export type EvaluationResults = InferElement<typeof _schema, 'evaluationResults'>;
+export type ProposalRequest = InferElement<typeof _schema, 'proposalRequest'>;
+export type ProposalResult = InferElement<typeof _schema, 'proposalResult'>;

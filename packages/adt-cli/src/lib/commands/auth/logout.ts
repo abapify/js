@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { AuthManager } from '@abapify/adt-client';
+import { AuthManager } from '@abapify/adt-auth';
 import {
   createComponentLogger,
   handleCommandError,

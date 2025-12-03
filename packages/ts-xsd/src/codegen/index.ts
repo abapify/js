@@ -141,17 +141,19 @@ export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}):
  * @param options - Codegen options
  * @param generator - Generator to use (default: raw)
  * @param args - Extra arguments for generator
+ * @param schemaName - Schema name (e.g., 'classes') for type naming
  */
 export function generateFromXsd(
   xsd: string, 
   options: CodegenOptions = {},
   generator: Generator = rawGenerator,
-  args: Record<string, string> = {}
+  args: Record<string, string> = {},
+  schemaName?: string
 ): GeneratedSchema {
   const { schemaData, rawSchema } = parseXsdToSchemaData(xsd, options);
 
   // Generate code using the generator
-  const code = generator.generate({ schema: schemaData, args });
+  const code = generator.generate({ schema: schemaData, schemaName, args });
 
   return {
     code,

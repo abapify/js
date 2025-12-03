@@ -34,6 +34,18 @@ export interface CodegenConfig {
   prefix?: string;
   /** Clean output directory before generating (default: false) */
   clean?: boolean;
+  /** 
+   * Extract expanded types to .d.ts files after generation.
+   * This pre-computes complex InferXsd types to simple interfaces,
+   * solving TS7056 declaration emit issues.
+   */
+  extractTypes?: boolean;
+  /** 
+   * Factory path for type extraction index regeneration.
+   * Should match the path used in factory({ path: '...' }).
+   * @default '../schema'
+   */
+  factoryPath?: string;
 }
 
 /**

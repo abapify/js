@@ -4,59 +4,35 @@
  * Injected into models. Provides typed client access.
  * 
  * Architecture:
- * - ADK objects receive services via context
- * - Services handle HTTP/XML (ADK never does raw HTTP)
- * - ADK focuses on business logic and object model
+ * - ADK objects receive ADT client via context
+ * - Objects access contracts directly: ctx.client.adt.*
+ * - Objects access services directly: ctx.client.services.*
+ * - No intermediate "services" abstraction layer
  */
 
-import type { TransportService } from '@abapify/adt-client-v2';
-import type { Package } from '@abapify/adt-contracts';
-import type { LockHandle } from './model';
-
-// Re-export for convenience
-export type { TransportService };
-
-/**
- * Packages service for ADK
- * Wraps the packagesContract from adt-client-v2
- */
-export interface PackagesService {
-  get(name: string): Promise<Package>;
-}
-
-/**
- * Generic lock service for ADT objects
- * Uses the standard ADT lock API: POST {uri}?_action=LOCK
- */
-export interface LockService {
-  lock(uri: string): Promise<LockHandle>;
-  unlock(uri: string, handle: LockHandle): Promise<void>;
-}
-
-/**
- * Services available through context
- */
-export interface AdkServices {
-  transports: TransportService;
-  /** Packages service for DEVC objects */
-  packages?: PackagesService;
-  /** Generic lock service for any ADT object */
-  locks?: LockService;
-}
+import type { AdtClient } from './adt';
 
 /**
  * Context provided to all ADK objects
+ * 
+ * Provides direct access to ADT client.
+ * Objects use client.adt.* for contracts and client.services.* for services.
+ * 
+ * @example
+ * // In AdkClass.load():
+ * const data = await this.ctx.client.adt.oo.classes.get(this.name);
+ * 
+ * // In AdkTransport:
+ * const transport = await this.ctx.client.services.transports.get(this.id);
  */
 export interface AdkContext {
   /**
-   * High-level service APIs
-   * ADK objects use services for all HTTP operations
+   * ADT client instance
+   * 
+   * Provides:
+   * - client.adt.* - Low-level REST contracts
+   * - client.services.* - High-level service APIs
+   * - client.fetch() - Raw HTTP for edge cases
    */
-  readonly services: AdkServices;
-  
-  /**
-   * Raw fetch for edge cases (debugging, undocumented endpoints)
-   * @deprecated Prefer using services
-   */
-  readonly fetch?: (url: string, options?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<string>;
+  readonly client: AdtClient;
 }

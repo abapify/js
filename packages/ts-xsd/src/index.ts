@@ -27,8 +27,9 @@ export type {
   XsdField,
   XsdAttribute,
   InferXsd,
+  InferXsdMerged,
   InferElement,
-  InferAnyElement,
+  InferFirstElement,
   InferComplexType,
 } from './types';
 

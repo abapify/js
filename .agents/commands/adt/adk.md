@@ -136,15 +136,62 @@ Comprehensive workflow for implementing a new ADK object type with full stack su
 2. `{type}.types.ts` - TypeScript interfaces
 3. `index.ts` - Exports
 
+**⚠️ CRITICAL: Use Response Types from adt-client-v2**
+
+**NEVER** create manual interfaces for API response types. **ALWAYS** import the response type from `@abapify/adt-client-v2`:
+
+```typescript
+// ❌ WRONG - Manual interface duplicates schema definition
+export interface MyObjectXml {
+  name: string;
+  description?: string;
+  // ... manually typed fields that will drift from contract
+}
+
+// ❌ WRONG - Importing directly from schema (bypasses contract)
+import type { InferXsd } from 'ts-xsd';
+import { mySchema } from 'adt-schemas-xsd';
+export type MyObjectData = InferXsd<typeof mySchema>;
+
+// ❌ WRONG - Using speci internals (implementation detail)
+import type { InferSuccessResponse } from 'speci/rest';
+export type MyObjectData = InferSuccessResponse<...>;
+
+// ❌ WRONG - Importing directly from adt-contracts (adds extra dependency)
+import type { MyObjectResponse } from 'adt-contracts';
+export type MyObjectData = MyObjectResponse;
+
+// ✅ CORRECT - Import from adt-client-v2 (re-exports contract types)
+import type { MyObjectResponse } from '@abapify/adt-client-v2';
+export type MyObjectData = MyObjectResponse;
+```
+
+**Why adt-client-v2 is the import source:**
+- **Single dependency:** ADK only depends on `adt-client-v2`, not `adt-contracts` directly
+- **Clean layering:** `adt-client-v2` re-exports contract types for consumers
+- **Contract is still source of truth:** Types originate from contract, but flow through client
+- **Simpler dependency graph:** ADK → client → contracts → schemas
+
+**Dependency Architecture:**
+```
+adt-schemas-xsd (schema definitions)
+       ↓
+adt-contracts (API contracts, exports response types)
+       ↓
+adt-client-v2 (HTTP client, RE-EXPORTS contract types)
+       ↓
+adk-v2 (imports types from client only)
+```
+
 **Pattern:**
 ```typescript
 // {type}.model.ts
 import { AdkObject } from '../../../base/model';
 import { MyObjectKind } from '../../../base/kinds';
-import type { InferXsd } from 'ts-xsd';
-import { mySchema } from '@abapify/adt-schemas-xsd';
+import type { MyObjectResponse } from '@abapify/adt-client-v2';
 
-type MyObjectData = InferXsd<typeof mySchema, 'MyObject'>;
+// Type alias for clarity (optional but recommended)
+export type MyObjectData = MyObjectResponse;
 
 export class AdkMyObject extends AdkObject<typeof MyObjectKind, MyObjectData> {
   readonly kind = MyObjectKind;
@@ -327,13 +374,13 @@ Before marking complete, verify:
 ## Package Dependencies
 
 ```
-adt-schemas-xsd (schema)
+adt-schemas-xsd (schema definitions)
        ↓
-adt-contracts (contract)
+adt-contracts (API contracts, exports response types)
        ↓
-adt-client-v2 (service)
+adt-client-v2 (HTTP client, RE-EXPORTS contract types for consumers)
        ↓
-adk-v2 (model)
+adk-v2 (model - ONLY depends on adt-client-v2)
        ↓
 adt-cli (commands + pages)
        ↓
@@ -341,6 +388,8 @@ adt-tui (editor)
        ↓
 plugins/abapgit (git support)
 ```
+
+**Key insight:** `adt-client-v2` re-exports types from `adt-contracts` so that consumers like `adk-v2` only need a single dependency. This keeps the dependency graph clean and avoids diamond dependency issues.
 
 ## Related Workflows
 

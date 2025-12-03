@@ -7,8 +7,191 @@
 
 import schema from '../../../speci';
 import Adtcore from './adtcore';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface PackagesV1Data {
+  containerRef?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  link?: ({
+        href: string;
+        rel?: string;
+        type?: string;
+        hreflang?: string;
+        title?: string;
+        etag?: string;
+      })[];
+  adtTemplate?: {
+      adtProperty?: ({
+            key?: string;
+            $text?: string;
+          })[];
+    };
+  name?: string;
+  type?: string;
+  changedBy?: string;
+  changedAt?: Date;
+  createdAt?: Date;
+  createdBy?: string;
+  version?: string;
+  description?: string;
+  descriptionTextLimit?: number;
+  language?: string;
+  packageRef?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  masterSystem?: string;
+  masterLanguage?: string;
+  responsible?: string;
+  abapLanguageVersion?: string;
+  attributes?: {
+      packageType: string;
+      isPackageTypeEditable?: boolean;
+      isAddingObjectsAllowed?: boolean;
+      isAddingObjectsAllowedEditable?: boolean;
+      isEncapsulated?: boolean;
+      isEncapsulationEditable?: boolean;
+      isEncapsulationVisible?: boolean;
+      recordChanges?: boolean;
+      isRecordChangesEditable?: boolean;
+      isSwitchVisible?: boolean;
+      languageVersion?: string;
+      isLanguageVersionEditable?: boolean;
+      isLanguageVersionVisible?: boolean;
+    };
+  extensionAlias?: {
+      isVisible?: boolean;
+      isEditable?: boolean;
+    };
+  switch?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+      state?: string;
+    };
+  transport?: {
+      softwareComponent?: {
+          description?: string;
+          type?: string;
+          typeDescription?: string;
+          isVisible?: boolean;
+          isEditable?: boolean;
+        };
+      transportLayer?: {
+          description?: string;
+          isVisible?: boolean;
+          isEditable?: boolean;
+        };
+    };
+  useAccesses?: {
+      useAccess?: ({
+            packageInterfaceRef: {
+              extension?: {};
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              packageName?: string;
+              description?: string;
+            };
+            packageRef: {
+              extension?: {};
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              packageName?: string;
+              description?: string;
+            };
+            severity?: string;
+          })[];
+      isVisible?: boolean;
+    };
+  packageInterfaces?: {
+      packageInterfaceRef?: ({
+            extension?: {};
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            packageName?: string;
+            description?: string;
+          })[];
+      isVisible?: boolean;
+    };
+  subPackages?: {
+      packageRef?: ({
+            extension?: {};
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            packageName?: string;
+            description?: string;
+          })[];
+    };
+  superPackage?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  applicationComponent?: {
+      description?: string;
+      isVisible?: boolean;
+      isEditable?: boolean;
+    };
+  translation?: {
+      relevance?: string;
+      relevanceDescription?: string;
+      isVisible?: boolean;
+    };
+  treeNode?: ({
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+        superPackageRef: {
+          extension?: {};
+          uri?: string;
+          parentUri?: string;
+          type?: string;
+          packageName?: string;
+          description?: string;
+        };
+        packageInterfaces: {
+          packageInterfaceRef?: ({
+                extension?: {};
+                uri?: string;
+                parentUri?: string;
+                type?: string;
+                packageName?: string;
+                description?: string;
+              })[];
+          isVisible?: boolean;
+        };
+        isEncapsulated?: boolean;
+        hasSubpackages?: boolean;
+        hasInterfaces?: boolean;
+      })[];
+  isSuperTree?: boolean;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/packages',
   prefix: 'packages',
   attributeFormDefault: 'qualified',
@@ -376,4 +559,10 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, PackagesV1Data>(_schema);
+
+// Per-element type exports
+export type Package = InferElement<typeof _schema, 'package'>;
+export type PackageTree = InferElement<typeof _schema, 'packageTree'>;

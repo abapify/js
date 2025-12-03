@@ -5,8 +5,30 @@
  */
 
 import schema from '../../../speci';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface TransportfindData {
+  values?: {
+      DATA: {
+        CTS_REQ_HEADER?: ({
+              TRKORR: string;
+              TRFUNCTION: string;
+              TRSTATUS: string;
+              TARSYSTEM: string;
+              AS4USER: string;
+              AS4DATE: string;
+              AS4TIME: string;
+              AS4TEXT: string;
+              CLIENT: string;
+              REPOID: string;
+            })[];
+      };
+    };
+  version?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/abapxml',
   prefix: 'abapxml',
   element: [
@@ -90,4 +112,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, TransportfindData>(_schema);
+
+// Per-element type exports
+export type Abap = InferElement<typeof _schema, 'abap'>;

@@ -19,7 +19,7 @@
  * - Fetching TASK (S0DK942971): objects in response.task[].abap_object
  */
 
-import type { TransportGetResponse } from '@abapify/adt-client-v2';
+import type { TransportGetResponse } from '../../../base/adt';
 
 // ============================================
 // Inferred types from contract schema

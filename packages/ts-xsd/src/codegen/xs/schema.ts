@@ -40,7 +40,6 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
   const imports: XsdImport[] = [];
   const redefines: XsdRedefine[] = [];
   const elements: XsdElementDecl[] = [];
-  let rootElement: { name: string; type?: string } | null = null;
 
   const children = schemaEl.childNodes;
   for (let i = 0; i < children.length; i++) {
@@ -118,11 +117,6 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
       if (typeName) {
         elements.push({ name, type: typeName });
       }
-      
-      // Keep rootElement for backward compatibility (first element)
-      if (!rootElement) {
-        rootElement = { name, type: typeName };
-      }
     }
   }
 
@@ -132,7 +126,6 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
     complexTypes,
     simpleTypes,
     elements,
-    rootElement,
     imports,
     redefines,
     nsMap,

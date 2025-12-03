@@ -8,8 +8,184 @@
 import schema from '../../../speci';
 import Atom from '../sap/atom';
 import Adtcore from '../sap/adtcore';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface TransportmanagmentSingleData {
+  containerRef?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  link?: ({
+        href: string;
+        rel?: string;
+        type?: string;
+        hreflang?: string;
+        title?: string;
+        etag?: string;
+      })[];
+  adtTemplate?: {
+      adtProperty?: ({
+            key?: string;
+            $text?: string;
+          })[];
+    };
+  name?: string;
+  type?: string;
+  changedBy?: string;
+  changedAt?: Date;
+  createdAt?: Date;
+  createdBy?: string;
+  version?: string;
+  description?: string;
+  descriptionTextLimit?: number;
+  language?: string;
+  request?: {
+      long_desc?: string;
+      link?: (string)[];
+      attributes?: ({
+            attribute?: string;
+            description?: string;
+            value?: string;
+            position?: string;
+          })[];
+      abap_object?: ({
+            link?: (string)[];
+            pgmid?: string;
+            type?: string;
+            wbtype?: string;
+            uri?: string;
+            dummy_uri?: string;
+            obj_info?: string;
+            obj_desc?: string;
+            lock_status?: string;
+            position?: string;
+            img_activity?: string;
+            obj_func?: string;
+          })[];
+      all_objects?: {
+          abap_object?: ({
+                link?: (string)[];
+                pgmid?: string;
+                type?: string;
+                wbtype?: string;
+                uri?: string;
+                dummy_uri?: string;
+                obj_info?: string;
+                obj_desc?: string;
+                lock_status?: string;
+                position?: string;
+                img_activity?: string;
+                obj_func?: string;
+              })[];
+        };
+      task?: ({
+            long_desc?: string;
+            link?: (string)[];
+            abap_object?: ({
+                  link?: (unknown)[];
+                  pgmid?: string;
+                  type?: string;
+                  wbtype?: string;
+                  uri?: string;
+                  dummy_uri?: string;
+                  obj_info?: string;
+                  obj_desc?: string;
+                  lock_status?: string;
+                  position?: string;
+                  img_activity?: string;
+                  obj_func?: string;
+                })[];
+            number?: string;
+            owner?: string;
+            desc?: string;
+            status?: string;
+            uri?: string;
+            type?: string;
+            status_text?: string;
+            target?: string;
+            target_desc?: string;
+            source_client?: string;
+            parent?: string;
+            cts_project?: string;
+            cts_project_desc?: string;
+            lastchanged_timestamp?: string;
+            docu?: string;
+          })[];
+      review?: {
+          repository_id?: string;
+          repository_url?: string;
+          repository_branch?: string;
+          pull_request_url?: string;
+        };
+      dynamic_attributes?: {
+          dynamic_attribute?: ({
+                properties?: {
+                    property?: unknown;
+                  };
+                attribute?: string;
+                value?: string;
+                description?: string;
+                domain_name?: string;
+              })[];
+        };
+      number?: string;
+      owner?: string;
+      desc?: string;
+      status?: string;
+      uri?: string;
+      type?: string;
+      status_text?: string;
+      target?: string;
+      target_desc?: string;
+      source_client?: string;
+      parent?: string;
+      cts_project?: string;
+      cts_project_desc?: string;
+      lastchanged_timestamp?: string;
+      docu?: string;
+    };
+  task?: ({
+        long_desc?: string;
+        link?: (string)[];
+        abap_object?: ({
+              link?: (string)[];
+              pgmid?: string;
+              type?: string;
+              wbtype?: string;
+              uri?: string;
+              dummy_uri?: string;
+              obj_info?: string;
+              obj_desc?: string;
+              lock_status?: string;
+              position?: string;
+              img_activity?: string;
+              obj_func?: string;
+            })[];
+        number?: string;
+        owner?: string;
+        desc?: string;
+        status?: string;
+        uri?: string;
+        type?: string;
+        status_text?: string;
+        target?: string;
+        target_desc?: string;
+        source_client?: string;
+        parent?: string;
+        cts_project?: string;
+        cts_project_desc?: string;
+        lastchanged_timestamp?: string;
+        docu?: string;
+      })[];
+  object_type?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/cts/adt/tm',
   prefix: 'tm',
   attributeFormDefault: 'qualified',
@@ -404,4 +580,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, TransportmanagmentSingleData>(_schema);
+
+// Per-element type exports
+export type Root = InferElement<typeof _schema, 'root'>;
