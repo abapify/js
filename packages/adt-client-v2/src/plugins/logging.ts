@@ -17,7 +17,7 @@ export class LoggingPlugin implements ResponsePlugin {
   process(context: ResponseContext): unknown {
     this.logger(`[${context.method}] ${context.url}`, {
       contentType: context.contentType,
-      hasSchema: !!context.schema,
+      hasParsedData: !!context.parsedData,
       rawSize: context.rawText.length,
     });
     return context.parsedData;

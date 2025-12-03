@@ -54,6 +54,27 @@ const xml = build(PersonSchema, {
 });
 ```
 
+## Coming from Zod?
+
+ts-xsd uses the same pattern - define schema, infer type:
+
+```typescript
+// Zod
+const UserSchema = z.object({ name: z.string() });
+type User = z.infer<typeof UserSchema>;
+
+// ts-xsd
+const UserSchema = {
+  element: [{ name: 'User', type: 'User' }],
+  complexType: {
+    User: { sequence: [{ name: 'name', type: 'string' }] },
+  },
+} as const satisfies XsdSchema;
+type User = InferXsd<typeof UserSchema>;
+```
+
+Same DX, but for XML instead of JSON.
+
 ## Why ts-xsd?
 
 | Feature | ts-xsd | fast-xml-parser | Zod | JSONIX |

@@ -14,7 +14,28 @@
 // Base types
 export type { AbapObject } from './base/types';
 export type { AdkContext } from './base/context';
-export { AdkObject, type LockHandle } from './base/model';
+export { 
+  AdkObject, 
+  AdkMainObject,
+  type LockHandle,
+  type AtomLink,
+  type AdtObjectReference,
+  type AdkObjectData,
+  type AdkMainObjectData,
+} from './base/model';
+
+// ADT integration layer - single point for adt-client-v2 types
+export type {
+  AdtClient,
+  AdtContracts,
+  AdkContract,
+  TransportService,
+  ClassResponse,
+  InterfaceResponse,
+  PackageResponse,
+  TransportGetResponse,
+} from './base/adt';
+export { createAdkContract } from './base/adt';
 
 // Global context management
 export { 
@@ -39,6 +60,24 @@ export type {
 } from './objects/repository/devc';
 export { AdkPackage } from './objects/repository/devc';
 
+// Class types and class
+export type {
+  AbapClass,
+  ClassCategory,
+  ClassVisibility,
+  ClassInclude,
+  ClassIncludeType,
+  ClassXml,  // Raw API response type
+} from './objects/repository/clas';
+export { AdkClass } from './objects/repository/clas';
+
+// Interface types and class
+export type {
+  AbapInterface,
+  InterfaceXml,  // Raw API response type
+} from './objects/repository/intf';
+export { AdkInterface } from './objects/repository/intf';
+
 // CTS types
 export type {
   TransportData,
@@ -53,8 +92,23 @@ export type {
   TransportUpdateOptions,
   ReleaseResult,
 } from './objects/cts';
-export { AdkTransportItem, AdkTransportRequest, AdkTransportTask, AdkTransportObject } from './objects/cts';
+export { AdkTransportItem, AdkTransportRequest, AdkTransportTask, AdkTransportObject, clearConfigCache } from './objects/cts';
 
-// Factory
+// Factory and registry
 export type { AdkFactory } from './factory';
-export { createAdk } from './factory';
+export { createAdk, createAdkFactory, AdkGenericObject, parseXmlIdentity } from './factory';
+export { 
+  registerObjectType, 
+  resolveType, 
+  resolveKind,
+  parseAdtType,
+  getMainType,
+  isTypeRegistered,
+  getRegisteredTypes,
+  getRegisteredKinds,
+  ADT_TYPE_MAPPINGS,
+} from './base/registry';
+
+// ADK kinds and type mapping
+export * from './base/kinds';
+export type { AdkObjectForKind } from './base/kinds';

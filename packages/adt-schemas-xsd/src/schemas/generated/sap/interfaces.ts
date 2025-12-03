@@ -8,8 +8,101 @@
 import schema from '../../../speci';
 import Abapsource from './abapsource';
 import Abapoo from './abapoo';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface InterfacesData {
+  containerRef?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  link?: ({
+        href: string;
+        rel?: string;
+        type?: string;
+        hreflang?: string;
+        title?: string;
+        etag?: string;
+      })[];
+  adtTemplate?: {
+      adtProperty?: ({
+            key?: string;
+            $text?: string;
+          })[];
+    };
+  name?: string;
+  type?: string;
+  changedBy?: string;
+  changedAt?: Date;
+  createdAt?: Date;
+  createdBy?: string;
+  version?: string;
+  description?: string;
+  descriptionTextLimit?: number;
+  language?: string;
+  packageRef?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  masterSystem?: string;
+  masterLanguage?: string;
+  responsible?: string;
+  abapLanguageVersion?: string;
+  template?: {
+      property?: ({
+            key?: string;
+            $text?: string;
+          })[];
+    };
+  syntaxConfiguration?: {
+      language?: {
+          version?: string;
+          description?: string;
+          link?: ({
+                href: string;
+                rel?: string;
+                type?: string;
+                hreflang?: string;
+                title?: string;
+                etag?: string;
+              })[];
+        };
+      objectUsage?: {
+          link?: ({
+                href: string;
+                rel?: string;
+                type?: string;
+                hreflang?: string;
+                title?: string;
+                etag?: string;
+              })[];
+          restricted?: boolean;
+        };
+    };
+  sourceUri?: string;
+  sourceObjectStatus?: string;
+  fixPointArithmetic?: boolean;
+  activeUnicodeCheck?: boolean;
+  interfaceRef?: ({
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+      })[];
+  modeled?: boolean;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/oo/interfaces',
   prefix: 'interfaces',
   attributeFormDefault: 'qualified',
@@ -22,4 +115,9 @@ export default schema({
       extends: 'AbapOoObject',
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, InterfacesData>(_schema);
+
+// Per-element type exports
+export type AbapInterface = InferElement<typeof _schema, 'abapInterface'>;

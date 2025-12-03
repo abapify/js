@@ -75,9 +75,11 @@ function resolveImport(schemaLocation: string): string {
 export default defineConfig({
   input: ['.xsd/sap/*.xsd', '.xsd/manual/*.xsd'],
   output: 'src/schemas/generated/sap',
-  generator: factory({ path: '../../../speci' }),
+  generator: factory({ path: '../../../speci', exportMergedType: true, exportElementTypes: true }),
   resolver: resolveImport,
   schemas,
   stubs: true,
   clean: true,
+  extractTypes: true,  // Extract and embed types in .ts files to avoid TS7056
+  factoryPath: '../../../speci',
 });

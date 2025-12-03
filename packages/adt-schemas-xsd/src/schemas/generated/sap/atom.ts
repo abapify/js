@@ -7,8 +7,20 @@
 
 import schema from '../../../speci';
 import Xml from './xml';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtomData {
+  href?: string;
+  rel?: string;
+  type?: string;
+  hreflang?: string;
+  title?: string;
+  length?: number;
+  etag?: string;
+}
+
+const _schema = {
   ns: 'http://www.w3.org/2005/Atom',
   prefix: 'atom',
   element: [
@@ -55,4 +67,9 @@ export default schema({
       restriction: 'string',
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtomData>(_schema);
+
+// Per-element type exports
+export type Link = InferElement<typeof _schema, 'link'>;

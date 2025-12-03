@@ -5,8 +5,15 @@
  */
 
 import schema from '../../../speci';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtcinfoData {
+  type?: string;
+  description?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/atc/info',
   prefix: 'info',
   attributeFormDefault: 'qualified',
@@ -37,4 +44,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtcinfoData>(_schema);
+
+// Per-element type exports
+export type Info = InferElement<typeof _schema, 'info'>;

@@ -27,6 +27,7 @@ interface CliOptions {
   factory?: string;
   config?: string;
   schemas?: string[];
+  extractTypes?: boolean;
   help?: boolean;
   version?: boolean;
 }
@@ -58,6 +59,7 @@ Options:
   -g, --generator <name>  Generator: raw (default) or factory
   --factory <path>        Factory import path (for factory generator)
   --schemas <list>        Comma-separated schema names to generate
+  --extract-types         Extract expanded types to .types.ts files
   --json                  Output JSON schema instead of TypeScript
   -h, --help              Show this help message
   -v, --version           Show version number
@@ -102,6 +104,8 @@ function parseArgs(args: string[]): { command: string; files: string[]; options:
       options.config = args[++i];
     } else if (arg === '--schemas') {
       options.schemas = args[++i].split(',').map(s => s.trim());
+    } else if (arg === '--extract-types') {
+      options.extractTypes = true;
     } else if (!arg.startsWith('-')) {
       if (!command) {
         command = arg;
@@ -306,8 +310,13 @@ async function runCodegen(patterns: string[], options: CliOptions): Promise<void
       prefix: config.prefix,
       schemas: config.schemas,
       stubs: config.stubs,
+      clean: config.clean,
+      extractTypes: config.extractTypes || options.extractTypes,
+      factoryPath: config.factoryPath,
     }, (name: string, success: boolean, error?: string) => {
-      if (success) {
+      if (!name) {
+        console.error(''); // blank line
+      } else if (success) {
         console.error(`✓ ${name}`);
       } else {
         console.error(`✗ ${name}: ${error}`);
@@ -366,8 +375,11 @@ async function runCodegen(patterns: string[], options: CliOptions): Promise<void
     resolver,
     prefix: options.prefix,
     schemas: options.schemas,
+    extractTypes: options.extractTypes,
   }, (name: string, success: boolean, error?: string) => {
-    if (success) {
+    if (!name) {
+      console.error(''); // blank line
+    } else if (success) {
       console.error(`✓ ${name}`);
     } else {
       console.error(`✗ ${name}: ${error}`);

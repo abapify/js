@@ -9,7 +9,11 @@ import schema from '../../../speci';
 import Adtcore from './adtcore';
 import Abapsource from './abapsource';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AbapooData {
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/oo',
   prefix: 'oo',
   attributeFormDefault: 'qualified',
@@ -33,4 +37,6 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AbapooData>(_schema);

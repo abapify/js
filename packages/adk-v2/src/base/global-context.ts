@@ -16,7 +16,8 @@
  *   const transport = await AdkTransportRequest.get('S0DK900001', customCtx);
  */
 
-import type { AdkContext, AdkServices } from './context';
+import type { AdkContext } from './context';
+import type { AdtClient } from './adt';
 
 // =============================================================================
 // Global State
@@ -34,29 +35,27 @@ let globalContext: AdkContext | null = null;
  * Call this once during application bootstrap (e.g., in CLI initialization).
  * After initialization, ADK objects can be used without passing context.
  * 
- * @param client - ADT client v2 instance with services
- * @throws Error if client doesn't have required services
+ * @param client - ADT client v2 instance
+ * @throws Error if client is not provided
  * 
  * @example
  * ```ts
  * import { initializeAdk } from '@abapify/adk-v2';
- * import { getAdtClientV2 } from './utils/adt-client-v2';
+ * import { createAdtClient } from '@abapify/adt-client-v2';
  * 
- * const client = await getAdtClientV2();
+ * const client = createAdtClient({ ... });
  * initializeAdk(client);
  * 
  * // Now ADK objects work without context
  * const transport = await AdkTransportRequest.get('S0DK900001');
  * ```
  */
-export function initializeAdk(client: { services: AdkServices }): void {
-  if (!client?.services) {
-    throw new Error('ADK initialization failed: client must have services property');
+export function initializeAdk(client: AdtClient): void {
+  if (!client) {
+    throw new Error('ADK initialization failed: client is required');
   }
   
-  globalContext = {
-    services: client.services,
-  };
+  globalContext = { client };
 }
 
 /**

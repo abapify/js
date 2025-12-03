@@ -1,17 +1,16 @@
 /**
- * ADT Client V2 - Two-Layer Architecture
+ * ADT Client V2 - Contract-Based Architecture
  *
- * Provides both low-level contract access and high-level service APIs:
- * - client.adt.*       - Raw ADT REST contracts (speci-generated)
- * - client.services.*  - Business logic and orchestration
- * - client.fetch()     - Generic HTTP utility method
+ * Provides typed access to SAP ADT REST APIs:
+ * - client.adt.*   - Typed ADT REST contracts (speci-generated)
+ * - client.fetch() - Generic HTTP utility for raw requests
+ * 
+ * Note: Business logic (transport management, etc.) has moved to @abapify/adk-v2
+ * Use AdkTransportRequest for transport operations.
  */
 
-import { createClient } from './base';
-import { adtContract } from './contract';
 import { createAdtAdapter, type AdtAdapterConfig } from './adapter';
-import { createTransportService } from './services/cts';
-import type { HttpRequestOptions, RestClient } from 'speci/rest';
+import { createAdtClient as createAdtContractClient, type AdtClientType, type HttpRequestOptions } from '@abapify/adt-contracts';
 
 /**
  * Fetch options for generic HTTP requests
@@ -23,7 +22,7 @@ export interface FetchOptions {
 }
 
 /**
- * Create ADT client with two-layer architecture
+ * Create ADT client with contract-based architecture
  *
  * @example
  * // Basic usage
@@ -34,40 +33,40 @@ export interface FetchOptions {
  *   client: '100'
  * });
  *
- * // Low-level contract access
+ * // Contract access
  * const session = await client.adt.core.http.sessions.getSession();
- * const info = await client.adt.core.http.systeminformation.getSystemInformation();
- *
- * // High-level service API (future)
- * // await client.services.classes.get('ZCL_MY_CLASS');
+ * const transport = await client.adt.cts.transportrequests.get('S0DK900001');
  *
  * // Generic fetch utility
  * const response = await client.fetch('/sap/bc/adt/arbitrary/endpoint', {
  *   method: 'GET',
  *   headers: { Accept: 'application/xml' }
  * });
+ * 
+ * // For business logic, use ADK:
+ * // import { initializeAdk, AdkTransportRequest } from '@abapify/adk-v2';
+ * // initializeAdk(client);
+ * // const transport = await AdkTransportRequest.get('S0DK900001');
  */
 
-export type AdtClientType = RestClient<typeof adtContract>
+// Re-export AdtClientType from adt-contracts for consumers
+export type { AdtClientType } from '@abapify/adt-contracts';
 
 // Return type explicitly defined to avoid TS7056 "exceeds maximum length" error
 interface AdtClientReturn {
-  adt: RestClient<typeof adtContract>;
-  services: {
-    transports: ReturnType<typeof createTransportService>;
-  };
-  fetch: (url: string, options?: FetchOptions) => Promise<string>;
+  adt: AdtClientType;
+  fetch: (url: string, options?: FetchOptions) => Promise<unknown>;
 }
 
 export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
   const adapter = createAdtAdapter(config);
-  const adtClient = createClient(adtContract, {
+  const adtClient = createAdtContractClient({
     baseUrl: config.baseUrl,
     adapter,
   });
 
-  // Create fetch function for services that need raw HTTP access
-  const fetchFn = async (url: string, options?: FetchOptions): Promise<string> => {
+  // Create fetch function for raw HTTP access
+  const fetchFn = async (url: string, options?: FetchOptions): Promise<unknown> => {
     const method = options?.method || 'GET';
     const headers = options?.headers || {};
     const body = options?.body;
@@ -79,24 +78,15 @@ export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
       body,
     };
 
-    return adapter.request<string>(requestOptions);
+    return adapter.request<unknown>(requestOptions);
   };
 
   return {
     /**
-     * Low-level ADT REST contracts
+     * Typed ADT REST contracts
      * Direct access to speci-generated client methods
      */
     adt: adtClient,
-
-    /**
-     * High-level service APIs
-     * Business logic, validation, and orchestration
-     */
-    services: {
-      /** CTS Transport management */
-      transports: createTransportService(adtClient, fetchFn, config.logger),
-    },
 
     /**
      * Generic fetch utility for arbitrary ADT endpoints
@@ -104,7 +94,7 @@ export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
      *
      * @param url - The ADT endpoint path (e.g., '/sap/bc/adt/core/http/sessions')
      * @param options - Request options (method, headers, body)
-     * @returns Raw response as string
+     * @returns Raw response
      */
     fetch: fetchFn,
   };

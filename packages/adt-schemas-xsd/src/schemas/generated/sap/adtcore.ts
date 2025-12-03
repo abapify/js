@@ -7,8 +7,71 @@
 
 import schema from '../../../speci';
 import Atom from './atom';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AdtcoreData {
+  containerRef?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  link?: ({
+        href: string;
+        rel?: string;
+        type?: string;
+        hreflang?: string;
+        title?: string;
+        etag?: string;
+      })[];
+  adtTemplate?: {
+      adtProperty?: ({
+            key?: string;
+            $text?: string;
+          })[];
+    };
+  name?: string;
+  type?: string;
+  changedBy?: string;
+  changedAt?: Date;
+  createdAt?: Date;
+  createdBy?: string;
+  version?: string;
+  description?: string;
+  descriptionTextLimit?: number;
+  language?: string;
+  packageRef?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+  masterSystem?: string;
+  masterLanguage?: string;
+  responsible?: string;
+  abapLanguageVersion?: string;
+  objectReference?: ({
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+      })[];
+  extension?: {};
+  uri?: string;
+  parentUri?: string;
+  packageName?: string;
+  encoding?: string;
+  $text?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/core',
   prefix: 'core',
   attributeFormDefault: 'qualified',
@@ -262,4 +325,12 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AdtcoreData>(_schema);
+
+// Per-element type exports
+export type MainObject = InferElement<typeof _schema, 'mainObject'>;
+export type ObjectReferences = InferElement<typeof _schema, 'objectReferences'>;
+export type ObjectReference = InferElement<typeof _schema, 'objectReference'>;
+export type Content = InferElement<typeof _schema, 'content'>;

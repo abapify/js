@@ -5,8 +5,31 @@
  */
 
 import schema from '../../../speci';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface DebuggerData {
+  internal?: {
+      used: number;
+      allocated: number;
+      peakUsed: number;
+    };
+  external?: {
+      used: number;
+      allocated: number;
+      peakUsed: number;
+      numberOfInternalSessions: number;
+    };
+  abap?: {
+      staticVariables: number;
+      stackUsed: number;
+      stackAllocated: number;
+      dynamicMemoryObjectsUsed: number;
+      dynamicMemoryObjectsAllocated: number;
+    };
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/debugger',
   prefix: 'debugger',
   attributeFormDefault: 'qualified',
@@ -107,4 +130,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, DebuggerData>(_schema);
+
+// Per-element type exports
+export type MemorySizes = InferElement<typeof _schema, 'memorySizes'>;

@@ -8,8 +8,15 @@
 import schema from '../../../speci';
 import Atom from './atom';
 import Ecore from '../custom/Ecore';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface TransportsearchData {
+  requests?: string;
+  tasks?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/cts/adt/transports/search',
   prefix: 'search',
   element: [
@@ -129,4 +136,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, TransportsearchData>(_schema);
+
+// Per-element type exports
+export type Searchresults = InferElement<typeof _schema, 'searchresults'>;
