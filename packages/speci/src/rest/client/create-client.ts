@@ -4,7 +4,7 @@
  * Creates a typed client from a contract specification.
  */
 
-import type { Contract, OperationFunction } from '../../core/types';
+import type { OperationFunction } from '../../core/types';
 import type { RestClient, ClientConfig } from './types';
 
 /**
@@ -146,7 +146,7 @@ function createMethod(
 /**
  * Create a typed REST client from a contract
  */
-export function createClient<T extends Contract>(
+export function createClient<T extends Record<string, any>>(
   contract: T,
   config: ClientConfig
 ): RestClient<T> {
@@ -158,7 +158,7 @@ export function createClient<T extends Contract>(
       client[key] = createMethod(config, value as OperationFunction);
     } else if (typeof value === 'object' && value !== null) {
       // It's a nested contract
-      client[key] = createClient(value as Contract, config);
+      client[key] = createClient(value as Record<string, any>, config);
     }
   }
 

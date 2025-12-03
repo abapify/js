@@ -26,6 +26,43 @@ export interface FactoryOptions {
    * @default '../schema'
    */
   path?: string;
+  
+  /**
+   * Export a merged type alias for multi-element schemas.
+   * When true, generates: `export type Data = InferXsdMerged<typeof schema>;`
+   * This gives you an object type with all element fields as optional.
+   * @default false
+   */
+  exportMergedType?: boolean;
+  
+  /**
+   * Name for the exported merged type
+   * @default 'Data'
+   */
+  mergedTypeName?: string;
+  
+  /**
+   * Export per-element type aliases for multi-element schemas.
+   * When true, generates: `export type SchemaElementName = InferElement<typeof schema, 'elementName'>;`
+   * This gives you a specific type for each root element.
+   * @default false
+   */
+  exportElementTypes?: boolean;
+  
+  /**
+   * List of schemas that have extracted .d.ts type files.
+   * When provided, index.ts will re-export types from these files.
+   * This is set automatically by the batch generator when extractTypes is enabled.
+   */
+  extractedTypes?: string[];
+  
+  /**
+   * Map of schema name to extracted type content (interface definition).
+   * When provided, the type will be embedded directly in the .ts file
+   * and used as the second type parameter to schema<T, D>().
+   * This avoids TS7056 errors by providing pre-computed types.
+   */
+  embeddedTypes?: Map<string, string>;
 }
 
 /**
@@ -65,10 +102,30 @@ function generateHeader(schema: SchemaData): string {
  */
 export function factory(options: FactoryOptions = {}): Generator {
   const factoryPath = options.path || '../schema';
+  const exportMergedType = options.exportMergedType ?? false;
+  const mergedTypeName = options.mergedTypeName || 'Data';
+  const exportElementTypes = options.exportElementTypes ?? false;
+  const extractedTypes = new Set(options.extractedTypes || []);
+  const embeddedTypes = options.embeddedTypes || new Map<string, string>();
+  
+  // Convert element name to PascalCase type name
+  const toElementTypeName = (elementName: string) => {
+    return elementName.charAt(0).toUpperCase() + elementName.slice(1);
+  };
+  
+  // Convert schema name to PascalCase type name
+  const toTypeName = (name: string) => {
+    const camel = name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+    return camel.charAt(0).toUpperCase() + camel.slice(1);
+  };
   
   return {
-    generate({ schema }: GeneratorContext): string {
+    generate({ schema, schemaName }: GeneratorContext): string {
       const lines: string[] = [];
+      
+      // Check if we have an embedded type for this schema
+      const embeddedType = schemaName ? embeddedTypes.get(schemaName) : undefined;
+      const typeName = schemaName ? toTypeName(schemaName) + mergedTypeName : undefined;
       
       // Header comment
       lines.push(generateHeader(schema));
@@ -81,19 +138,61 @@ export function factory(options: FactoryOptions = {}): Generator {
       if (schema.imports.length > 0) {
         lines.push(generateImports(schema.imports));
       }
+      
+      // Import InferElement if we need per-element types
+      if (exportElementTypes && schema.element.length > 0) {
+        lines.push(`import type { InferElement } from 'ts-xsd';`);
+      }
       lines.push('');
       
-      // Export wrapped schema (use 'as const' to preserve literal types for InferXsd)
-      lines.push(`export default schema(${generateSchemaLiteral(schema)} as const);`);
+      // Embed pre-computed type if available (avoids TS7056)
+      if (embeddedType && typeName) {
+        lines.push('// Pre-computed type (avoids TS7056)');
+        lines.push(embeddedType);
+        lines.push('');
+      }
+      
+      // Define the schema constant (named for type reference)
+      lines.push(`const _schema = ${generateSchemaLiteral(schema)} as const;`);
       lines.push('');
+      
+      // Export wrapped schema - use pre-computed type if available
+      if (embeddedType && typeName) {
+        lines.push(`export default schema<typeof _schema, ${typeName}>(_schema);`);
+      } else {
+        lines.push(`export default schema(_schema);`);
+      }
+      lines.push('');
+      
+      // Export per-element types if enabled
+      if (exportElementTypes && schema.element.length > 0) {
+        lines.push('// Per-element type exports');
+        for (const el of schema.element) {
+          const elTypeName = toElementTypeName(el.name);
+          lines.push(`export type ${elTypeName} = InferElement<typeof _schema, '${el.name}'>;`);
+        }
+        lines.push('');
+      }
       
       return lines.join('\n');
     },
     
     generateIndex(schemas: string[]): string {
+      // Reserved words that can't be used as identifiers
+      const reserved = new Set(['debugger', 'default', 'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield', 'class', 'const', 'enum', 'let', 'static', 'implements', 'interface', 'package', 'private', 'protected', 'public']);
+      
       // Convert hyphenated names to camelCase for valid JS identifiers
-      const toExportName = (name: string) => 
-        name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      const toExportName = (name: string) => {
+        const camel = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+        // Prefix reserved words with underscore
+        return reserved.has(camel) ? `_${camel}` : camel;
+      };
+      
+      // Convert to PascalCase for type names
+      const toTypeName = (name: string) => {
+        const camel = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+        return camel.charAt(0).toUpperCase() + camel.slice(1);
+      };
       
       const lines = [
         '/**',
@@ -101,10 +200,43 @@ export function factory(options: FactoryOptions = {}): Generator {
         ' * Generated by ts-xsd',
         ' */',
         '',
-        ...schemas.map(name => `export { default as ${toExportName(name)} } from './${name}';`),
-        '',
       ];
       
+      // Add type exports if enabled - need to import schemas first
+      if (exportMergedType) {
+        // Check if any schema needs InferXsdMerged fallback
+        const needsInferImport = schemas.some(name => !extractedTypes.has(name));
+        if (needsInferImport) {
+          lines.push(`import type { InferXsdMerged } from 'ts-xsd';`);
+        }
+        // Import all schemas for type inference
+        for (const name of schemas) {
+          const exportName = toExportName(name);
+          lines.push(`import ${exportName} from './${name}';`);
+        }
+        lines.push('');
+        // Re-export schemas
+        lines.push(...schemas.map(name => `export { ${toExportName(name)} };`));
+        lines.push('');
+        // Named type exports - types are embedded in .ts files, fallback to InferXsdMerged
+        lines.push('// Named type exports for each schema');
+        for (const name of schemas) {
+          const exportName = toExportName(name);
+          const typeName = toTypeName(name) + mergedTypeName;
+          if (extractedTypes.has(name)) {
+            // Re-export from .ts file (types are embedded)
+            lines.push(`export type { ${typeName} } from './${name}';`);
+          } else {
+            // Fallback to InferXsdMerged
+            lines.push(`export type ${typeName} = InferXsdMerged<typeof ${exportName}>;`);
+          }
+        }
+      } else {
+        // Simple re-export without types
+        lines.push(...schemas.map(name => `export { default as ${toExportName(name)} } from './${name}';`));
+      }
+      
+      lines.push('');
       return lines.join('\n');
     },
     

@@ -7,8 +7,34 @@
 
 import schema from '../../../speci';
 import Atom from './atom';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface ConfigurationData {
+  properties?: {
+      property: ({
+          key?: string;
+          isMandatory?: boolean;
+          $text?: string;
+        })[];
+    };
+  link?: {
+      href: string;
+      rel?: string;
+      type?: string;
+      hreflang?: string;
+      title?: string;
+      etag?: string;
+    };
+  client?: string;
+  configName?: string;
+  createdBy?: string;
+  createdAt?: Date;
+  changedBy?: string;
+  changedAt?: Date;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/configuration',
   prefix: 'ns',
   element: [
@@ -91,4 +117,9 @@ export default schema({
       maxLength: 3,
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, ConfigurationData>(_schema);
+
+// Per-element type exports
+export type Configuration = InferElement<typeof _schema, 'configuration'>;

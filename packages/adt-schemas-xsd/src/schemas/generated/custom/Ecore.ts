@@ -6,7 +6,11 @@
 
 import schema from '../../../speci';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface EcoreData {
+}
+
+const _schema = {
   ns: 'http://www.eclipse.org/emf/2002/Ecore',
   prefix: 'ecore',
   complexType: {
@@ -31,4 +35,6 @@ export default schema({
       restriction: 'date',
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, EcoreData>(_schema);

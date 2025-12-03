@@ -5,8 +5,43 @@
  */
 
 import schema from '../../../speci';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtcData {
+  properties?: {
+      property?: ({
+            value?: string;
+          })[];
+    };
+  exemption?: {
+      reasons: {
+        reason?: ({
+              id?: string;
+              justificationMandatory?: boolean;
+              title?: string;
+            })[];
+      };
+      validities: {
+        validity?: ({
+              id?: string;
+              value?: string;
+            })[];
+      };
+    };
+  scaAttributes?: {
+      scaAttribute?: ({
+            attributeName?: string;
+            refAttributeName?: string;
+            label?: boolean;
+            labelS?: string;
+            labelM?: string;
+            labelL?: string;
+          })[];
+    };
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/atc',
   prefix: 'atc',
   element: [
@@ -156,4 +191,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtcData>(_schema);
+
+// Per-element type exports
+export type Customizing = InferElement<typeof _schema, 'customizing'>;

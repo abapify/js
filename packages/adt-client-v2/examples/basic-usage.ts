@@ -29,43 +29,42 @@ async function demo() {
       );
     }
 
-    // Example 2: Get class metadata
+    // Example 2: Get class metadata via adt.oo.classes contract
     console.log('\n=== Example 2: Get Class Metadata ===');
-    const metadata = await client.classes.getMetadata(className);
+    const metadata = await client.adt.oo.classes.get(className);
     console.log('Class name:', metadata.name);
     console.log('Description:', metadata.description);
-    console.log('Package:', metadata.packageName);
     console.log('Category:', metadata.category);
     console.log('Visibility:', metadata.visibility);
     console.log('Final:', metadata.final);
     console.log('Abstract:', metadata.abstract);
 
-    // Example 3: Get class source code
+    // Example 3: Get class source code via adt.oo.classes.source contract
     console.log('\n=== Example 3: Get Class Source ===');
-    const mainSource = await client.classes.getMainSource(className);
+    const mainSource = await client.adt.oo.classes.source.main.get(className);
     console.log('Main source length:', mainSource.length);
     console.log('Preview:', mainSource.substring(0, 100));
 
-    const definitions = await client.classes.getDefinitions(className);
+    const definitions = await client.adt.oo.classes.includes.definitions.get(className);
     console.log('Definitions length:', definitions.length);
 
-    const implementations = await client.classes.getImplementations(className);
+    const implementations = await client.adt.oo.classes.includes.implementations.get(className);
     console.log('Implementations length:', implementations.length);
 
     // Example 4: Update class source
     console.log('\n=== Example 4: Update Class Source ===');
-    const currentSource = await client.classes.getMainSource(className);
+    const currentSource = await client.adt.oo.classes.source.main.get(className);
     const modifiedSource = `* Modified by adt-client-v2\n${currentSource}`;
 
-    await client.classes.updateMainSource(className, modifiedSource);
+    await client.adt.oo.classes.source.main.put(className, modifiedSource);
     console.log('Source updated successfully');
 
     // Restore original
-    await client.classes.updateMainSource(className, currentSource);
+    await client.adt.oo.classes.source.main.put(className, currentSource);
     console.log('Source restored to original');
 
-    // Note: Create/delete operations require full ClassXml structure
-    // See ClassSchema for complete type definition
+    // Note: Create/delete operations use adt.oo.classes.post/delete
+    // Response types are inferred from adt-schemas-xsd
   } catch (error) {
     console.error('Error:', error);
   }

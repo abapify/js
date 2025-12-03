@@ -9,6 +9,7 @@
 
 import { http, contract } from '../../base';
 import { atcworklist } from 'adt-schemas-xsd';
+import type { RestContract } from 'speci/rest';
 
 /**
  * /sap/bc/adt/atc/runs
@@ -80,10 +81,10 @@ const worklists = contract({
     }),
 });
 
-export const atcContract = {
+export const atcContract: RestContract = {
   runs,
   results,
   worklists,
 };
 
-export type AtcContract = typeof atcContract;
+export type AtcContract = RestContract;

@@ -8,8 +8,69 @@
 import schema from '../../../speci';
 import Adtcore from './adtcore';
 import Atcfinding from './atcfinding';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtcobjectData {
+  extension?: {};
+  uri?: string;
+  parentUri?: string;
+  type?: string;
+  name?: string;
+  packageName?: string;
+  description?: string;
+  findings?: {
+      finding?: ({
+            extension?: {};
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            packageName?: string;
+            description?: string;
+            quickfixes: {
+              manual?: boolean;
+              automatic?: boolean;
+              pseudo?: boolean;
+              ai_enabled?: boolean;
+              aiBasedQF?: boolean;
+            };
+            link?: ({
+                  href: string;
+                  rel?: string;
+                  type?: string;
+                  hreflang?: string;
+                  title?: string;
+                  etag?: string;
+                })[];
+            tags?: {
+                tag?: ({
+                      value?: unknown;
+                    })[];
+              };
+            location?: string;
+            effectOnTransports?: string;
+            priority?: string;
+            checkTitle?: string;
+            checkId?: string;
+            messageTitle?: string;
+            messageId?: string;
+            exemptionKind?: string;
+            exemptionApproval?: string;
+            noExemption?: string;
+            quickfixInfo?: string;
+            contactPerson?: string;
+            lastChangedBy?: string;
+            processor?: string;
+            checksum?: number;
+            remarkText?: string;
+            remarkLink?: string;
+          })[];
+    };
+  author?: string;
+  objectTypeId?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/atc/object',
   prefix: 'object',
   attributeFormDefault: 'qualified',
@@ -56,4 +117,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtcobjectData>(_schema);
+
+// Per-element type exports
+export type Object = InferElement<typeof _schema, 'object'>;

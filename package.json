@@ -28,7 +28,8 @@
     "devcontainer": "devcontainer up --workspace-folder=$(pwd)",
     "preversion": "npx nx release version ${npm_new_version}",
     "btp": "npx tsx e2e/btp-cli/cli.ts",
-    "btp:token": "npm run btp -- --file e2e/secrets/service_key.json"
+    "btp:token": "npm run btp -- --file e2e/secrets/service_key.json",
+    "knip": "knip"
   },
   "dependencies": {
     "@cloudfoundry/api": "^0.1.7",
@@ -45,7 +46,8 @@
     "openid-client": "^6.6.4",
     "qs": "^6.13.1",
     "reflect-metadata": "^0.2.2",
-    "yaml": "^2.6.0"
+    "yaml": "^2.6.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@cap-js/cds-types": "^0.7.0",
@@ -66,7 +68,7 @@
     "@swc/jest": "0.2.39",
     "@types/jest": "30.0.0",
     "@types/js-yaml": "^4.0.5",
-    "@types/node": "^22",
+    "@types/node": "^22.19.0",
     "@typescript-eslint/parser": "^8.44.0",
     "@typescript/native-preview": "^7.0.0-dev.20251108.1",
     "@vitest/coverage-v8": "^3.0.5",
@@ -83,6 +85,7 @@
     "jest-util": "30.0.5",
     "jiti": "2.4.2",
     "jsonc-eslint-parser": "^2.1.0",
+    "knip": "^5.71.0",
     "nx": "22.1.1",
     "pino-pretty": "^10.3.1",
     "prettier": "^2.6.2",
@@ -93,7 +96,7 @@
     "tsdown": "^0.16.7",
     "tslib": "^2.3.0",
     "tsx": "^4.19.2",
-    "typescript": "5.9.2",
+    "typescript": "^5.9.3",
     "typescript-eslint": "8.43.0",
     "verdaccio": "6.1.2",
     "vite": "7.1.5",

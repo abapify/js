@@ -70,8 +70,6 @@ export interface ParsedSchema {
   simpleTypes: Map<string, XmlElement>;
   /** All top-level xsd:element declarations */
   elements: XsdElementDecl[];
-  /** @deprecated Use elements array instead */
-  rootElement: { name: string; type?: string } | null;
   imports: XsdImport[];
   /** xs:redefine declarations */
   redefines: XsdRedefine[];

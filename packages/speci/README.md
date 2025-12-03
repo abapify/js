@@ -20,6 +20,27 @@ const updateUser = (id: string, user: UserInput) =>
 
 This is extremely expressive while staying minimal and TypeScript-native. Choose between shortcut syntax for simplicity or full syntax for control.
 
+## Developed with ts-xsd
+
+Speci was developed in tight combination with [ts-xsd](../ts-xsd) to support **XML-based contracts**. While most REST libraries assume JSON, Speci's `Serializable<T>` interface enables seamless integration with XML schemas:
+
+```typescript
+import { parse, build, type XsdSchema, type InferXsd } from 'ts-xsd';
+import { http } from 'speci/rest';
+
+// ts-xsd schema with parse/build
+const TransportSchema = { /* ... */ } as const satisfies XsdSchema;
+type Transport = InferXsd<typeof TransportSchema>;
+
+const transportApi = {
+  // Speci infers types from ts-xsd's Serializable interface
+  create: (transport: Transport) =>
+    http.post<Transport>('/transports', transport),
+};
+```
+
+This makes Speci ideal for enterprise APIs that use XML (SAP ADT, SOAP services, etc.) while remaining fully compatible with JSON-based schemas like Zod.
+
 ## Modular Architecture
 
 Speci is organized into protocol-specific modules:
@@ -377,6 +398,28 @@ From your arrow-function contracts, Speci can generate:
 ✅ **Perfectly readable** - Looks like ordinary domain code  
 ✅ **Fully expressible** - All REST/HATEOAS/gRPC concepts can be wrapped  
 ✅ **Zero framework coupling** - Pure TypeScript
+
+## Coming from ts-rest?
+
+Speci uses the same contract-first philosophy, but with arrow functions:
+
+```typescript
+// ts-rest
+const contract = c.router({
+  getUser: {
+    method: 'GET',
+    path: '/users/:id',
+    responses: { 200: UserSchema },
+  },
+});
+
+// Speci
+const contract = {
+  getUser: (id: string) => http.get<User>(`/users/${id}`),
+};
+```
+
+Same type safety, less boilerplate. Choose ts-rest for maturity, Speci for simplicity and XML support.
 
 ## Comparison with ts-rest
 

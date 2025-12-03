@@ -15,9 +15,10 @@ import { defineConfig, factory } from 'ts-xsd';
  */
 const schemas = [
   'Ecore',                     // Eclipse EMF stub (used by SAP XSDs)
-  'atom',                      // Extends SAP's atom.xsd with title, category
-  'templatelink',              // Extends SAP's templatelink.xsd with templateLinks container
+  'atomExtended',              // Extends SAP's atom.xsd with title, category
+  'templatelinkExtended',      // Extends SAP's templatelink.xsd with templateLinks container
   'discovery',                 // AtomPub Service Document (RFC 5023)
+  'http',                       // HTTP sessions (CSRF token, links)
   'transportmanagment-single', // Single transport GET response
   'transportfind',             // Transport find response (ABAP XML)
   'transportmanagment-create', // Transport create request
@@ -42,9 +43,11 @@ function resolveImport(schemaLocation: string): string {
 export default defineConfig({
   input: ['.xsd/custom/*.xsd'],
   output: 'src/schemas/generated/custom',
-  generator: factory({ path: '../../../speci' }),
+  generator: factory({ path: '../../../speci', exportMergedType: true, exportElementTypes: true }),
   resolver: resolveImport,
   schemas,
   stubs: true,
   clean: true,
+  extractTypes: true,  // Extract and embed types in .ts files to avoid TS7056
+  factoryPath: '../../../speci',
 });

@@ -23,3 +23,6 @@
 
 // Re-export all schemas (already wrapped with parse/build)
 export * from './schemas';
+
+// Export schemaElement helper for multi-root schemas
+export { schemaElement, type SpeciSchemaElement } from './speci';

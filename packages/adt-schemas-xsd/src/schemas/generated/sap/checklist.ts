@@ -7,8 +7,57 @@
 
 import schema from '../../../speci';
 import Atom from './atom';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface ChecklistData {
+  properties?: {
+      checkExecuted?: boolean;
+      activationExecuted?: boolean;
+      generationExecuted?: boolean;
+    };
+  msg?: ({
+        shortText: {
+          txt: (string)[];
+        };
+        longText?: {
+            txt: (string)[];
+          };
+        t100Key?: {
+            msgno?: number;
+            msgid?: string;
+            msgv1?: string;
+            msgv2?: string;
+            msgv3?: string;
+            msgv4?: string;
+          };
+        correctionHint?: ({
+              number?: number;
+              kind?: string;
+              line?: number;
+              column?: number;
+              word?: string;
+            })[];
+        link?: ({
+              href: string;
+              rel?: string;
+              type?: string;
+              hreflang?: string;
+              title?: string;
+              etag?: string;
+            })[];
+        objDescr: string;
+        type: string;
+        line?: number;
+        offset?: number;
+        href?: string;
+        forceSupported?: boolean;
+        code?: string;
+      })[];
+  forceSupported?: boolean;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/abapxml/checklist',
   prefix: 'checklist',
   element: [
@@ -183,4 +232,9 @@ export default schema({
       maxLength: 1,
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, ChecklistData>(_schema);
+
+// Per-element type exports
+export type Messages = InferElement<typeof _schema, 'messages'>;

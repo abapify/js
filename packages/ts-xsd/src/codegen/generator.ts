@@ -61,6 +61,8 @@ export interface SchemaData {
 export interface GeneratorContext {
   /** Parsed schema data */
   schema: SchemaData;
+  /** Schema name (e.g., 'classes', 'adtcore') - used for type naming */
+  schemaName?: string;
   /** Extra CLI arguments (--key=value) */
   args: Record<string, string>;
 }

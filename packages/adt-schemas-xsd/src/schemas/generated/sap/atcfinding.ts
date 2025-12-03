@@ -8,8 +8,87 @@
 import schema from '../../../speci';
 import Adtcore from './adtcore';
 import Atom from './atom';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtcfindingData {
+  extension?: {};
+  uri?: string;
+  parentUri?: string;
+  type?: string;
+  name?: string;
+  packageName?: string;
+  description?: string;
+  quickfixes?: {
+      manual?: boolean;
+      automatic?: boolean;
+      pseudo?: boolean;
+      ai_enabled?: boolean;
+      aiBasedQF?: boolean;
+    };
+  link?: ({
+        href: string;
+        rel?: string;
+        type?: string;
+        hreflang?: string;
+        title?: string;
+        etag?: string;
+      })[];
+  tags?: {
+      tag?: ({
+            value?: string;
+          })[];
+    };
+  location?: string;
+  effectOnTransports?: string;
+  priority?: string;
+  checkTitle?: string;
+  checkId?: string;
+  messageTitle?: string;
+  messageId?: string;
+  exemptionKind?: string;
+  exemptionApproval?: string;
+  noExemption?: string;
+  quickfixInfo?: string;
+  contactPerson?: string;
+  lastChangedBy?: string;
+  processor?: string;
+  checksum?: number;
+  remarkText?: string;
+  remarkLink?: string;
+  findingReference?: ({
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+      })[];
+  item?: ({
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+        processor?: string;
+        status?: number;
+        remarkText?: string;
+        remarkLink?: string;
+      })[];
+  remark?: ({
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+        remarkText?: string;
+        remarkLink?: string;
+      })[];
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/atc/finding',
   prefix: 'finding',
   attributeFormDefault: 'qualified',
@@ -236,4 +315,12 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtcfindingData>(_schema);
+
+// Per-element type exports
+export type Finding = InferElement<typeof _schema, 'finding'>;
+export type FindingReferences = InferElement<typeof _schema, 'findingReferences'>;
+export type Items = InferElement<typeof _schema, 'items'>;
+export type Remarks = InferElement<typeof _schema, 'remarks'>;

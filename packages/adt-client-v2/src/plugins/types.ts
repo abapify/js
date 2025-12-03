@@ -2,8 +2,6 @@
  * Plugin Types - Core interfaces for the response plugin system
  */
 
-import type { ElementSchema } from '../base';
-
 /**
  * Response context passed to plugins
  */
@@ -12,8 +10,6 @@ export interface ResponseContext {
   rawText: string;
   /** Parsed response object (if schema available) */
   parsedData?: unknown;
-  /** Response schema used for parsing */
-  schema?: ElementSchema;
   /** Request URL */
   url: string;
   /** Request method */

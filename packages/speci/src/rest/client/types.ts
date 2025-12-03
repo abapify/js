@@ -5,7 +5,6 @@
  */
 
 import type {
-  Contract,
   OperationFunction,
   ExtractParams,
   ExtractDescriptor,
@@ -152,12 +151,13 @@ export type RestClientMethod<T extends OperationFunction> = {
 };
 
 /**
- * Convert a REST contract to a typed client
+ * Convert a REST contract to a typed client.
+ * Uses Record<string, any> instead of Contract to allow concrete types without index signature.
  */
-export type RestClient<T extends Contract> = {
+export type RestClient<T extends Record<string, any>> = {
   [K in keyof T]: T[K] extends OperationFunction
     ? RestClientMethod<T[K]>
-    : T[K] extends Contract
+    : T[K] extends Record<string, any>
     ? RestClient<T[K]>
     : never;
 };

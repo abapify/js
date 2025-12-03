@@ -8,8 +8,61 @@
 import schema from '../../../speci';
 import Adtcore from './adtcore';
 import Atom from './atom';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AbapsourceData {
+  syntaxConfiguration?: ({
+        language?: {
+            version?: string;
+            description?: string;
+            link?: ({
+                  href: string;
+                  rel?: string;
+                  type?: string;
+                  hreflang?: string;
+                  title?: string;
+                  etag?: string;
+                })[];
+          };
+        objectUsage?: {
+            link?: ({
+                  href: string;
+                  rel?: string;
+                  type?: string;
+                  hreflang?: string;
+                  title?: string;
+                  etag?: string;
+                })[];
+            restricted?: boolean;
+          };
+      })[];
+  language?: {
+      version?: string;
+      description?: string;
+      link?: ({
+            href: string;
+            rel?: string;
+            type?: string;
+            hreflang?: string;
+            title?: string;
+            etag?: string;
+          })[];
+    };
+  objectUsage?: {
+      link?: ({
+            href: string;
+            rel?: string;
+            type?: string;
+            hreflang?: string;
+            title?: string;
+            etag?: string;
+          })[];
+      restricted?: boolean;
+    };
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/abapsource',
   prefix: 'abapsource',
   attributeFormDefault: 'qualified',
@@ -173,4 +226,10 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AbapsourceData>(_schema);
+
+// Per-element type exports
+export type SyntaxConfigurations = InferElement<typeof _schema, 'syntaxConfigurations'>;
+export type SyntaxConfiguration = InferElement<typeof _schema, 'syntaxConfiguration'>;

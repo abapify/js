@@ -11,8 +11,71 @@ import Atcfinding from './atcfinding';
 import Atcobject from './atcobject';
 import Atctagdescription from './atctagdescription';
 import Atcinfo from './atcinfo';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface AtcresultData {
+  result?: ({
+        displayId: string;
+        title: string;
+        checkVariant: string;
+        runSeries: string;
+        createdAt: Date;
+        aggregates: {
+          numPrio1: number;
+          numPrio2: number;
+          numPrio3: number;
+          numPrio4: number;
+          numFailure: number;
+        };
+        objects: {
+          object?: ({
+                findings: {
+                  finding?: (unknown)[];
+                };
+                author?: string;
+                objectTypeId?: string;
+              })[];
+        };
+        descriptionTags: {
+          tagWithDescription?: ({
+                descriptions: {
+                  description?: (unknown)[];
+                };
+              })[];
+        };
+        infos: {
+          info?: ({
+                type: string;
+                description: string;
+              })[];
+        };
+      })[];
+  activeResultQuery?: {
+      includeAggregates: boolean;
+      includeFindings: boolean;
+      contactPerson: string;
+      queryEnabled: boolean;
+    };
+  specificResultQuery?: {
+      includeAggregates: boolean;
+      includeFindings: boolean;
+      contactPerson: string;
+      queryEnabled: boolean;
+      displayId: string;
+    };
+  userResultQuery?: {
+      includeAggregates: boolean;
+      includeFindings: boolean;
+      contactPerson: string;
+      queryEnabled: boolean;
+      createdBy: string;
+      ageMin: number;
+      ageMax: number;
+    };
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/atc/result',
   prefix: 'result',
   attributeFormDefault: 'qualified',
@@ -113,4 +176,10 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, AtcresultData>(_schema);
+
+// Per-element type exports
+export type ResultList = InferElement<typeof _schema, 'resultList'>;
+export type QueryChoice = InferElement<typeof _schema, 'queryChoice'>;

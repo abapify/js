@@ -6,6 +6,7 @@
  */
 
 import type { AbapObject } from '../../../base/types';
+import type { AdtObjectReference } from '../../../base/model';
 
 /**
  * Package type (pak:packageType attribute)
@@ -14,13 +15,9 @@ export type PackageType = 'development' | 'structure' | 'main';
 
 /**
  * Reference to another object (used for superPackage, etc.)
+ * Re-exported for backward compatibility
  */
-export interface ObjectReference {
-  readonly uri: string;
-  readonly type: string;
-  readonly name: string;
-  readonly description?: string;
-}
+export type ObjectReference = AdtObjectReference;
 
 /**
  * Package attributes (pak:attributes element)
@@ -86,7 +83,7 @@ export interface AbapPackage extends AbapObject {
   
   // Package-specific (from pak:*)
   readonly attributes: PackageAttributes;
-  readonly superPackage?: ObjectReference;
+  readonly superPackage?: AdtObjectReference;
   readonly applicationComponent?: ApplicationComponent;
   readonly transport?: TransportConfig;
   

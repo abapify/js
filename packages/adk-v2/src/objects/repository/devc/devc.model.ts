@@ -4,8 +4,8 @@
  * ADK object for ABAP packages (DEVC).
  */
 
-import type { Package as PackageResponse } from '@abapify/adt-contracts';
-import { AdkObject } from '../../../base/model';
+import { AdkMainObject } from '../../../base/model';
+import type { PackageResponse } from '../../../base/adt';
 import { Package as PackageKind } from '../../../base/kinds';
 import { getGlobalContext } from '../../../base/global-context';
 import type { AdkContext } from '../../../base/context';
@@ -27,33 +27,24 @@ export type PackageXml = NonNullable<PackageResponse>;
 
 /**
  * ADK Package object
+ * 
+ * Inherits from AdkMainObject which provides:
+ * - AdkObject: name, type, description, version, language, changedBy/At, createdBy/At, links
+ * - AdkMainObject: packageRef, responsible, masterLanguage, masterSystem, abapLanguageVersion
+ * 
+ * Note: For packages, the parent package is stored in `superPackage` not `packageRef`.
+ * The `package` getter is overridden to return the super package name.
  */
-export class AdkPackage extends AdkObject<typeof PackageKind, PackageXml> implements AbapPackage {
+export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> implements AbapPackage {
   readonly kind = PackageKind;
   
   // ADT object URI
   get objectUri(): string { return `/sap/bc/adt/packages/${encodeURIComponent(this.name)}`; }
   
-  // Additional properties (name/type from base class)
-  // Note: These use dataSync - require load() first or will throw
-  get description(): string { return this.dataSync.description ?? ''; }
-  get package(): string { return this.dataSync.superPackage?.name ?? ''; }
-  
-  // adtcore:* attributes
-  get responsible(): string { return this.dataSync.responsible ?? ''; }
-  get masterLanguage(): string { return this.dataSync.masterLanguage ?? ''; }
-  get language(): string { return this.dataSync.language ?? ''; }
-  get version(): string { return this.dataSync.version ?? ''; }
-  get createdAt(): Date {
-    const val = this.dataSync.createdAt;
-    return val instanceof Date ? val : val ? new Date(val) : new Date(0);
+  // Override package getter to use superPackage (packages use superPackage, not packageRef)
+  override get package(): string { 
+    return (this.dataSync as unknown as { superPackage?: { name?: string } }).superPackage?.name ?? ''; 
   }
-  get createdBy(): string { return this.dataSync.createdBy ?? ''; }
-  get changedAt(): Date {
-    const val = this.dataSync.changedAt;
-    return val instanceof Date ? val : val ? new Date(val) : new Date(0);
-  }
-  get changedBy(): string { return this.dataSync.changedBy ?? ''; }
   
   // pak:* elements
   get attributes(): PackageAttributes {
@@ -136,15 +127,7 @@ export class AdkPackage extends AdkObject<typeof PackageKind, PackageXml> implem
   // ============================================
   
   async load(): Promise<this> {
-    // Use packages service from context
-    if (!this.ctx.services.packages) {
-      throw new Error(
-        'Package load requires packages service in context.\n' +
-        'Ensure the ADT client provides services.packages when initializing ADK.'
-      );
-    }
-    
-    const data = await this.ctx.services.packages.get(this.name);
+    const data = await this.ctx.client.adt.packages.get(this.name);
     if (!data) {
       throw new Error(`Package '${this.name}' not found or returned empty response`);
     }

@@ -18,4 +18,19 @@ export const registry = {
   packages: {
     tmp: 'packages/tmp.xml',
   },
+  oo: {
+    class: 'oo/class.xml',
+    interface: 'oo/interface.xml',
+  },
+  core: {
+    http: {
+      session: 'core/http/session.xml',
+      systeminformation: 'core/http/systeminformation.json',
+    },
+  },
+  repository: {
+    search: {
+      quickSearch: 'repository/search/quickSearch.xml',
+    },
+  },
 } as const;

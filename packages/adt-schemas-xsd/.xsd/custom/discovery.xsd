@@ -33,8 +33,8 @@
     targetNamespace="http://www.w3.org/2007/app"
     elementFormDefault="qualified">
 
-  <xsd:import namespace="http://www.w3.org/2005/Atom" schemaLocation="atom.xsd"/>
-  <xsd:import namespace="http://www.sap.com/adt/compatibility" schemaLocation="templatelink.xsd"/>
+  <xsd:import namespace="http://www.w3.org/2005/Atom" schemaLocation="atomExtended.xsd"/>
+  <xsd:import namespace="http://www.sap.com/adt/compatibility" schemaLocation="templatelinkExtended.xsd"/>
 
   <!-- Root element: service document -->
   <xsd:element name="service" type="app:ServiceType"/>

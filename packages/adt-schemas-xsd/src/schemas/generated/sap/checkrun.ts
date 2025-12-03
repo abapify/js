@@ -8,8 +8,57 @@
 import schema from '../../../speci';
 import Atom from './atom';
 import Adtcore from './adtcore';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface CheckrunData {
+  checkObject?: ({
+        extension?: {};
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        packageName?: string;
+        description?: string;
+        artifacts?: ({
+              artifact?: ({
+                    content?: unknown;
+                    uri?: unknown;
+                    contentType?: unknown;
+                  })[];
+            })[];
+        version?: string;
+      })[];
+  checkReport?: ({
+        checkMessageList?: {
+            checkMessage?: ({
+                  t100Key?: {
+                      msgno?: unknown;
+                      msgid?: unknown;
+                      msgv1?: unknown;
+                      msgv2?: unknown;
+                      msgv3?: unknown;
+                      msgv4?: unknown;
+                    };
+                  correctionHint?: (unknown)[];
+                  link?: (unknown)[];
+                  uri?: string;
+                  type?: string;
+                  shortText?: string;
+                  category?: string;
+                  code?: string;
+                })[];
+          };
+        reporter?: string;
+        triggeringUri?: string;
+        status?: string;
+        statusText?: string;
+      })[];
+  reporter?: ({
+        supportedType?: (string)[];
+      })[];
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/checkrun',
   prefix: 'checkrun',
   attributeFormDefault: 'qualified',
@@ -268,4 +317,11 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, CheckrunData>(_schema);
+
+// Per-element type exports
+export type CheckObjectList = InferElement<typeof _schema, 'checkObjectList'>;
+export type CheckRunReports = InferElement<typeof _schema, 'checkRunReports'>;
+export type CheckReporters = InferElement<typeof _schema, 'checkReporters'>;

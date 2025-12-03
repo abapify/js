@@ -2,8 +2,8 @@
  * Core types for ADT Client V2
  */
 
-import type { RestContract, ElementSchema } from './base';
 import type { Logger } from '@abapify/logger';
+import type { RestContract } from '@abapify/adt-contracts';
 
 // Re-export Logger for convenience
 export type { Logger };
@@ -20,23 +20,14 @@ export interface AdtConnectionConfig {
 }
 
 /**
- * ADT REST Contract - extends REST contract with XML schema metadata
- *
- * Use this type for ADT API contracts that need automatic XML parsing/building
+ * ADT REST Contract
+ * @deprecated Use RestContract from @abapify/adt-contracts directly
  */
-export type AdtRestContract = RestContract & {
-  // Contract methods can include schema metadata
-  [key: string]: (...args: any[]) => {
-    metadata?: {
-      schema?: ElementSchema; // Shorthand for both request and response
-      requestSchema?: ElementSchema; // Schema for building request XML
-      responseSchema?: ElementSchema; // Schema for parsing response XML
-    };
-  };
-};
+export type AdtRestContract = RestContract;
 
-// Re-export schema types from adt module for convenience
-export type { ClassXml } from './adt/oo/classes/classes.schema';
+// Note: Class/Interface types are available from adt-schemas-xsd via InferXsd
+// Example: import { classes, InferXsd } from 'adt-schemas-xsd';
+// type ClassData = InferXsd<typeof classes, 'AbapClass'>;
 
 // Error response from ADT
 export interface AdtError {

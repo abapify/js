@@ -8,24 +8,20 @@
 export { createAdtClient, type AdtClient } from './client';
 
 // Export contract for advanced use cases
-export { adtContract, type AdtContract } from './contract';
+export { adtContract, type AdtContract } from '@abapify/adt-contracts';
 
 // Export types
 export type {
   AdtConnectionConfig,
   AdtRestContract,
-  ClassXml,
   OperationResult,
   LockHandle,
   AdtError,
   Logger,
 } from './types';
 
-// Discovery types are now inferred from adt-contracts/adt-schemas-xsd
-
-// Export core HTTP types
-export type { SessionXml } from './adt/core/http/sessions-schema';
-export type { SystemInformationJson } from './adt/core/http/systeminformation-schema';
+// Response types are re-exported from adt-contracts for consumers
+// Note: Session and SystemInformation types are available via contract response inference
 
 // Export adapter for advanced use cases
 export {
@@ -55,14 +51,18 @@ export {
   CsrfTokenManager,
 } from './utils/session';
 
-// Export CTS transport service
-export { createTransportService, type TransportService } from './services/cts/transport-service';
-export type { TransportRequest, TransportTask, TransportObject } from './services/cts/types';
+// Re-export contract types needed for declaration generation
+export type { RestEndpointDescriptor, Serializable, RestContract } from '@abapify/adt-contracts';
 
-// Infer response types from service methods - this ensures types stay in sync with contract
-import type { TransportService } from './services/cts/transport-service';
-/** Response type from TransportService.get() - inferred from contract */
-export type TransportGetResponse = Awaited<ReturnType<TransportService['get']>>;
+// Re-export contract response types for ADK consumers
+// This allows ADK to depend only on adt-client-v2, not adt-contracts directly
+export type { ClassResponse, InterfaceResponse } from '@abapify/adt-contracts';
+export type { Package as PackageResponse } from '@abapify/adt-contracts';
 
-// Re-export speci types needed for declaration generation
-export type { RestEndpointDescriptor, Serializable, RestContract } from 'speci/rest';
+// Transport response type - inferred from contract
+// Note: Transport business logic has moved to @abapify/adk-v2 (AdkTransportRequest)
+import type { AdtContract } from '@abapify/adt-contracts';
+type CtsContract = AdtContract['cts'];
+type TransportRequestsContract = CtsContract['transportrequests'];
+/** Response type from cts.transportrequests.get() */
+export type TransportGetResponse = Awaited<ReturnType<TransportRequestsContract['get']>>;

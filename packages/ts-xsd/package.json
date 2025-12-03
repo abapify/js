@@ -33,5 +33,8 @@
   "dependencies": {
     "@xmldom/xmldom": "^0.9.8"
   },
-  "module": "./dist/index.mjs"
+  "module": "./dist/index.mjs",
+  "devDependencies": {
+    "ts-morph": "^27.0.2"
+  }
 }

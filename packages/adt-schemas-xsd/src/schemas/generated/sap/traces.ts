@@ -7,8 +7,231 @@
 
 import schema from '../../../speci';
 import Adtcore from './adtcore';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface TracesData {
+  activation?: {
+      pop: {};
+      push: {};
+      concat: {};
+      join: {};
+      reverse: {};
+      shift: {};
+      slice: {};
+      sort: {};
+      splice: {};
+      unshift: {};
+      indexOf: {};
+      lastIndexOf: {};
+      every: {};
+      some: {};
+      forEach: {};
+      map: {};
+      filter: {};
+      reduce: {};
+      reduceRight: {};
+      find: {};
+      findIndex: {};
+      fill: {};
+      copyWithin: {};
+      entries: {};
+      keys: {};
+      values: {};
+      includes: {};
+      flatMap: {};
+      flat: {};
+      at: {};
+      activationId: string;
+      deletionTime: Date;
+      description: string;
+      enabled: boolean;
+      userFilter: string;
+      serverFilter: string;
+      requestTypeFilter: string;
+      requestNameFilter: string;
+      sensitiveDataAllowed: boolean;
+      createUser: string;
+      createTime: Date;
+      changeUser: string;
+      changeTime: Date;
+      components: {
+        component?: ({
+              component: string;
+              traceLevel: number;
+            })[];
+      };
+      numberOfTraces?: number;
+      maxNumberOfTraces?: number;
+      noContent?: boolean;
+    };
+  activationId?: string;
+  deletionTime?: Date;
+  description?: string;
+  enabled?: boolean;
+  userFilter?: string;
+  serverFilter?: string;
+  requestTypeFilter?: string;
+  requestNameFilter?: string;
+  sensitiveDataAllowed?: boolean;
+  createUser?: string;
+  createTime?: Date;
+  changeUser?: string;
+  changeTime?: Date;
+  components?: {
+      component?: ({
+            component: string;
+            traceLevel: number;
+          })[];
+    };
+  numberOfTraces?: number;
+  maxNumberOfTraces?: number;
+  noContent?: boolean;
+  trace?: ({
+        traceId: string;
+        user: string;
+        server: string;
+        creationTime: Date;
+        description: string;
+        deletionTime: Date;
+        requestType: string;
+        requestName: string;
+        eppTransactionId: string;
+        eppRootContextId: string;
+        eppConnectionId: string;
+        eppConnectionCounter: number;
+        properties: {
+          property?: ({
+                component: string;
+                key: string;
+                value: string;
+              })[];
+        };
+        activation?: {
+            activationId: string;
+            deletionTime: Date;
+            description: string;
+            enabled: boolean;
+            userFilter: string;
+            serverFilter: string;
+            requestTypeFilter: string;
+            requestNameFilter: string;
+            sensitiveDataAllowed: boolean;
+            createUser: string;
+            createTime: Date;
+            changeUser: string;
+            changeTime: Date;
+            components: {
+              component?: ({
+                    component: string;
+                    traceLevel: number;
+                  })[];
+            };
+            numberOfTraces?: number;
+            maxNumberOfTraces?: number;
+            noContent?: boolean;
+          };
+        recordsSummary?: {
+            numberOfRecords: number;
+            minRecordsTimestamp: Date;
+            maxRecordsTimestamp: Date;
+            contentSize: number;
+            componentNames?: {
+                componentName?: (string)[];
+              };
+          };
+        originalImportMetadata?: {
+            originalTraceId: string;
+            originalTraceSystem: string;
+            originalTraceClient: string;
+            originalTraceServer: string;
+            originalTraceUser: string;
+            originalChangeUser: string;
+            originalCreateUser: string;
+            originalHeaderUserAttributeDev: string;
+            originalHeaderTimestamp: Date;
+          };
+      })[];
+  traceId?: string;
+  user?: string;
+  server?: string;
+  creationTime?: Date;
+  requestType?: string;
+  requestName?: string;
+  eppTransactionId?: string;
+  eppRootContextId?: string;
+  eppConnectionId?: string;
+  eppConnectionCounter?: number;
+  properties?: {
+      property?: ({
+            component: string;
+            key: string;
+            value: string;
+          })[];
+    };
+  recordsSummary?: {
+      numberOfRecords: number;
+      minRecordsTimestamp: Date;
+      maxRecordsTimestamp: Date;
+      contentSize: number;
+      componentNames?: {
+          componentName?: (string)[];
+        };
+    };
+  originalImportMetadata?: {
+      originalTraceId: string;
+      originalTraceSystem: string;
+      originalTraceClient: string;
+      originalTraceServer: string;
+      originalTraceUser: string;
+      originalChangeUser: string;
+      originalCreateUser: string;
+      originalHeaderUserAttributeDev: string;
+      originalHeaderTimestamp: Date;
+    };
+  record?: ({
+        traceId: string;
+        recordNumber: number;
+        creationTime: Date;
+        traceLevel: number;
+        parentNumber?: number;
+        traceComponent?: string;
+        traceObject?: string;
+        traceProcedure?: string;
+        callStack?: string;
+        message?: string;
+        contentType?: string;
+        hierarchyType?: string;
+        hierarchyNumber?: number;
+        hierarchiesLevel?: number;
+        content?: string;
+        contentLength?: number;
+        properties?: {
+            property?: ({
+                  component: string;
+                  key: string;
+                  value: string;
+                })[];
+          };
+        options?: {
+            noSensitiveData?: boolean;
+            callStackOffset?: number;
+            fullCallStack?: boolean;
+            highlighting?: string;
+          };
+        processedObjects?: string;
+      })[];
+  objectReference?: {
+      extension?: {};
+      uri?: string;
+      parentUri?: string;
+      type?: string;
+      packageName?: string;
+      description?: string;
+    };
+}
+
+const _schema = {
   ns: 'http://www.sap.com/adt/crosstrace/traces',
   prefix: 'traces',
   attributeFormDefault: 'qualified',
@@ -507,4 +730,14 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, TracesData>(_schema);
+
+// Per-element type exports
+export type Activations = InferElement<typeof _schema, 'activations'>;
+export type Activation = InferElement<typeof _schema, 'activation'>;
+export type Traces = InferElement<typeof _schema, 'traces'>;
+export type Trace = InferElement<typeof _schema, 'trace'>;
+export type Records = InferElement<typeof _schema, 'records'>;
+export type UriMapping = InferElement<typeof _schema, 'uriMapping'>;

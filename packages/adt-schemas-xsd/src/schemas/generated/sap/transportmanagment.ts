@@ -9,8 +9,346 @@ import schema from '../../../speci';
 import Atom from './atom';
 import Adtcore from './adtcore';
 import Checkrun from './checkrun';
+import type { InferElement } from 'ts-xsd';
 
-export default schema({
+// Pre-computed type (avoids TS7056)
+export interface TransportmanagmentData {
+  workbench?: {
+      modifiable: {
+        request?: ({
+              task?: ({
+                    abap_object?: unknown;
+                    link?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              link?: ({
+                    href: string;
+                    rel?: unknown;
+                    type?: unknown;
+                    hreflang?: unknown;
+                    title?: unknown;
+                    etag?: unknown;
+                  })[];
+              abap_object?: ({
+                    pgmid?: unknown;
+                    type?: unknown;
+                    wbtype?: unknown;
+                    uri?: unknown;
+                    dummy_uri?: unknown;
+                    obj_info?: unknown;
+                    obj_desc?: unknown;
+                  })[];
+              number?: string;
+              owner?: string;
+              desc?: string;
+              status?: string;
+              uri?: string;
+            })[];
+        status?: string;
+      };
+      relstarted: {
+        request?: ({
+              task?: ({
+                    abap_object?: unknown;
+                    link?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              link?: ({
+                    href: string;
+                    rel?: unknown;
+                    type?: unknown;
+                    hreflang?: unknown;
+                    title?: unknown;
+                    etag?: unknown;
+                  })[];
+              abap_object?: ({
+                    pgmid?: unknown;
+                    type?: unknown;
+                    wbtype?: unknown;
+                    uri?: unknown;
+                    dummy_uri?: unknown;
+                    obj_info?: unknown;
+                    obj_desc?: unknown;
+                  })[];
+              number?: string;
+              owner?: string;
+              desc?: string;
+              status?: string;
+              uri?: string;
+            })[];
+        status?: string;
+      };
+      released: {
+        request?: ({
+              task?: ({
+                    abap_object?: unknown;
+                    link?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              link?: ({
+                    href: string;
+                    rel?: unknown;
+                    type?: unknown;
+                    hreflang?: unknown;
+                    title?: unknown;
+                    etag?: unknown;
+                  })[];
+              abap_object?: ({
+                    pgmid?: unknown;
+                    type?: unknown;
+                    wbtype?: unknown;
+                    uri?: unknown;
+                    dummy_uri?: unknown;
+                    obj_info?: unknown;
+                    obj_desc?: unknown;
+                  })[];
+              number?: string;
+              owner?: string;
+              desc?: string;
+              status?: string;
+              uri?: string;
+            })[];
+        status?: string;
+      };
+      target?: ({
+            modifiable: {
+              request?: ({
+                    task?: unknown;
+                    link?: unknown;
+                    abap_object?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              status?: string;
+            };
+            relstarted: {
+              request?: ({
+                    task?: unknown;
+                    link?: unknown;
+                    abap_object?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              status?: string;
+            };
+            released: {
+              request?: ({
+                    task?: unknown;
+                    link?: unknown;
+                    abap_object?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              status?: string;
+            };
+            desc?: string;
+          })[];
+      category?: string;
+    };
+  customizing?: {
+      modifiable: {
+        request?: ({
+              task?: ({
+                    abap_object?: unknown;
+                    link?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              link?: ({
+                    href: string;
+                    rel?: unknown;
+                    type?: unknown;
+                    hreflang?: unknown;
+                    title?: unknown;
+                    etag?: unknown;
+                  })[];
+              abap_object?: ({
+                    pgmid?: unknown;
+                    type?: unknown;
+                    wbtype?: unknown;
+                    uri?: unknown;
+                    dummy_uri?: unknown;
+                    obj_info?: unknown;
+                    obj_desc?: unknown;
+                  })[];
+              number?: string;
+              owner?: string;
+              desc?: string;
+              status?: string;
+              uri?: string;
+            })[];
+        status?: string;
+      };
+      relstarted: {
+        request?: ({
+              task?: ({
+                    abap_object?: unknown;
+                    link?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              link?: ({
+                    href: string;
+                    rel?: unknown;
+                    type?: unknown;
+                    hreflang?: unknown;
+                    title?: unknown;
+                    etag?: unknown;
+                  })[];
+              abap_object?: ({
+                    pgmid?: unknown;
+                    type?: unknown;
+                    wbtype?: unknown;
+                    uri?: unknown;
+                    dummy_uri?: unknown;
+                    obj_info?: unknown;
+                    obj_desc?: unknown;
+                  })[];
+              number?: string;
+              owner?: string;
+              desc?: string;
+              status?: string;
+              uri?: string;
+            })[];
+        status?: string;
+      };
+      released: {
+        request?: ({
+              task?: ({
+                    abap_object?: unknown;
+                    link?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              link?: ({
+                    href: string;
+                    rel?: unknown;
+                    type?: unknown;
+                    hreflang?: unknown;
+                    title?: unknown;
+                    etag?: unknown;
+                  })[];
+              abap_object?: ({
+                    pgmid?: unknown;
+                    type?: unknown;
+                    wbtype?: unknown;
+                    uri?: unknown;
+                    dummy_uri?: unknown;
+                    obj_info?: unknown;
+                    obj_desc?: unknown;
+                  })[];
+              number?: string;
+              owner?: string;
+              desc?: string;
+              status?: string;
+              uri?: string;
+            })[];
+        status?: string;
+      };
+      target?: ({
+            modifiable: {
+              request?: ({
+                    task?: unknown;
+                    link?: unknown;
+                    abap_object?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              status?: string;
+            };
+            relstarted: {
+              request?: ({
+                    task?: unknown;
+                    link?: unknown;
+                    abap_object?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              status?: string;
+            };
+            released: {
+              request?: ({
+                    task?: unknown;
+                    link?: unknown;
+                    abap_object?: unknown;
+                    number?: unknown;
+                    owner?: unknown;
+                    desc?: unknown;
+                    status?: unknown;
+                    uri?: unknown;
+                  })[];
+              status?: string;
+            };
+            desc?: string;
+          })[];
+      category?: string;
+    };
+  releasereports?: {
+      checkReport?: ({
+            checkMessageList?: {
+                checkMessage?: ({
+                      t100Key?: unknown;
+                      correctionHint?: unknown;
+                      link?: unknown;
+                      uri?: unknown;
+                      type?: unknown;
+                      shortText?: unknown;
+                      category?: unknown;
+                      code?: unknown;
+                    })[];
+              };
+            reporter?: string;
+            triggeringUri?: string;
+            status?: string;
+            statusText?: string;
+          })[];
+    };
+  targetuser?: string;
+  useraction?: string;
+  releasetimestamp?: string;
+  releaseobjlock?: string;
+  number?: string;
+  desc?: string;
+  uri?: string;
+}
+
+const _schema = {
   ns: 'http://www.sap.com/cts/adt/tm',
   prefix: 'tm',
   attributeFormDefault: 'qualified',
@@ -316,4 +654,9 @@ export default schema({
       ],
     },
   },
-} as const);
+} as const;
+
+export default schema<typeof _schema, TransportmanagmentData>(_schema);
+
+// Per-element type exports
+export type Root = InferElement<typeof _schema, 'root'>;

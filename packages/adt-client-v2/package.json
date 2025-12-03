@@ -12,9 +12,6 @@
   },
   "dependencies": {
     "@abapify/logger": "*",
-    "@abapify/adt-contracts": "*",
-    "speci": "*",
-    "ts-xml": "*",
-    "ts-xsd": "*"
+    "@abapify/adt-contracts": "*"
   }
 }
