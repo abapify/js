@@ -143,6 +143,7 @@ function getMergedComplexTypeDef(
   return {
     extends: typeDef.extends,
     sequence: [...(mergedBase.sequence || []), ...(typeDef.sequence || [])],
+    all: [...(mergedBase.all || []), ...(typeDef.all || [])],
     choice: [...(mergedBase.choice || []), ...(typeDef.choice || [])],
     attributes: [...(mergedBase.attributes || []), ...(typeDef.attributes || [])],
     text: typeDef.text ?? mergedBase.text,
@@ -184,6 +185,16 @@ function parseElement(
   // Parse sequence fields (including inherited)
   if (mergedDef.sequence) {
     for (const field of mergedDef.sequence) {
+      const value = parseField(node, field, complexTypes);
+      if (value !== undefined) {
+        result[field.name] = value;
+      }
+    }
+  }
+
+  // Parse all fields (xs:all - same as sequence at runtime)
+  if (mergedDef.all) {
+    for (const field of mergedDef.all) {
       const value = parseField(node, field, complexTypes);
       if (value !== undefined) {
         result[field.name] = value;

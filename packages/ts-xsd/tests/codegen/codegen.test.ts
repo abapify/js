@@ -4,7 +4,7 @@
 
 import { describe, test as it } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { generateFromXsd } from '../src/codegen';
+import { generateFromXsd } from '../../src/codegen';
 
 describe('generateFromXsd', () => {
   it('should generate schema from simple XSD', () => {

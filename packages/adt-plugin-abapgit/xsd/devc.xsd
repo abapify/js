@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  abapGit DEVC (Package) Schema
+  
+  Defines the DEVC structure used in package.devc.xml files.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:asx="http://www.sap.com/abapxml"
+           elementFormDefault="qualified">
+
+  <xs:import namespace="http://www.sap.com/abapxml" schemaLocation="asx.xsd"/>
+  <xs:include schemaLocation="abapgit.xsd"/>
+
+  <!-- DEVC substitutes asx:Schema -->
+  <xs:element name="DEVC" type="DevcType" substitutionGroup="asx:Schema"/>
+
+  <xs:complexType name="DevcType">
+    <xs:all>
+      <xs:element name="CTEXT" type="xs:string" minOccurs="0"/>
+      <xs:element name="PARENTCL" type="xs:string" minOccurs="0"/>
+      <xs:element name="PDEVCLASS" type="xs:string" minOccurs="0"/>
+      <xs:element name="DLVUNIT" type="xs:string" minOccurs="0"/>
+      <xs:element name="COMPONENT" type="xs:string" minOccurs="0"/>
+      <xs:element name="NAMESPACE" type="xs:string" minOccurs="0"/>
+      <xs:element name="TPCLASS" type="xs:string" minOccurs="0"/>
+      <xs:element name="SRV_CHECK" type="xs:string" minOccurs="0"/>
+      <xs:element name="KORRFLAG" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+</xs:schema>
