@@ -75,6 +75,11 @@ function getTypeFields(
       fields.add(field.name);
     }
   }
+  if (typeDef.all) {
+    for (const field of typeDef.all) {
+      fields.add(field.name);
+    }
+  }
   if (typeDef.choice) {
     for (const field of typeDef.choice) {
       fields.add(field.name);
@@ -244,6 +249,7 @@ function getMergedComplexTypeDef(
   return {
     extends: typeDef.extends,
     sequence: [...(mergedBase.sequence || []), ...(typeDef.sequence || [])],
+    all: [...(mergedBase.all || []), ...(typeDef.all || [])],
     choice: [...(mergedBase.choice || []), ...(typeDef.choice || [])],
     attributes: [...(mergedBase.attributes || []), ...(typeDef.attributes || [])],
     text: typeDef.text ?? mergedBase.text,
@@ -290,6 +296,13 @@ function buildElement(
   // Build sequence fields (including inherited)
   if (mergedDef.sequence) {
     for (const field of mergedDef.sequence) {
+      buildField(doc, node, data[field.name], field, schema, complexTypes, options);
+    }
+  }
+
+  // Build all fields (xs:all - same as sequence at runtime)
+  if (mergedDef.all) {
+    for (const field of mergedDef.all) {
       buildField(doc, node, data[field.name], field, schema, complexTypes, options);
     }
   }

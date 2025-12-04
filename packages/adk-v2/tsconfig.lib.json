@@ -12,5 +12,9 @@
     "paths": {}
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../adt-client-v2"
+    }
+  ]
 }

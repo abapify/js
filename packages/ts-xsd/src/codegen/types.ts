@@ -60,6 +60,8 @@ export interface XsdRedefine {
 export interface XsdElementDecl {
   name: string;
   type: string;
+  abstract?: boolean;
+  substitutionGroup?: string;
 }
 
 /** Collected types from XSD parsing */

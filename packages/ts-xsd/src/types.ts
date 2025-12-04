@@ -32,6 +32,7 @@ export interface XsdAttribute {
 /** XSD ComplexType definition */
 export interface XsdComplexType {
   readonly sequence?: readonly XsdField[];
+  readonly all?: readonly XsdField[]; // xs:all - unordered elements (all must appear, order doesn't matter)
   readonly choice?: readonly XsdField[];
   readonly attributes?: readonly XsdAttribute[];
   readonly text?: boolean; // Has text content (simpleContent or mixed)
@@ -51,6 +52,8 @@ export interface XsdSimpleType {
 export interface XsdElementDecl {
   readonly name: string;
   readonly type: string;
+  readonly abstract?: boolean; // xs:element abstract="true"
+  readonly substitutionGroup?: string; // xs:element substitutionGroup="..."
 }
 
 /** XSD Schema - faithful representation of XSD structure */
@@ -198,6 +201,7 @@ export type InferComplexType<
   ComplexTypes extends { readonly [key: string]: XsdComplexType }
 > = InferExtends<CT['extends'], ComplexTypes> &
   InferSequence<CT['sequence'], ComplexTypes> &
+  InferAll<CT['all'], ComplexTypes> &
   InferChoice<CT['choice'], ComplexTypes> &
   InferAttributes<CT['attributes']> &
   InferText<CT['text']>;
@@ -224,6 +228,14 @@ type InferSequence<
   ComplexTypes extends { readonly [key: string]: XsdComplexType }
 > = S extends readonly XsdField[]
   ? InferRequiredSequenceFields<S, ComplexTypes> & InferOptionalSequenceFields<S, ComplexTypes>
+  : {};
+
+/** Infer all fields (xs:all) - same as sequence for TypeScript (objects are unordered) */
+type InferAll<
+  A,
+  ComplexTypes extends { readonly [key: string]: XsdComplexType }
+> = A extends readonly XsdField[]
+  ? InferRequiredSequenceFields<A, ComplexTypes> & InferOptionalSequenceFields<A, ComplexTypes>
   : {};
 
 /** Helper: Infer required sequence fields only */
