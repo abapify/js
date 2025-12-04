@@ -78,3 +78,44 @@ describe('Schema type validation', () => {
     assert.equal(schema.targetNamespace, 'http://www.w3.org/2001/XMLSchema');
   });
 });
+
+describe('xmlns declarations', () => {
+  it('should extract xmlns declarations from schema root', () => {
+    const schema = parseXsd(xsdContent);
+    
+    assert.ok(schema.xmlns, 'xmlns should be present');
+    assert.equal(schema.xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
+  });
+
+  it('should extract multiple xmlns declarations', () => {
+    const xsd = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://example.com/order"
+           xmlns:ext="http://example.com/extensions"
+           targetNamespace="http://example.com/order">
+  <xs:element name="Order" type="tns:OrderType"/>
+</xs:schema>`;
+
+    const schema = parseXsd(xsd);
+    
+    assert.ok(schema.xmlns, 'xmlns should be present');
+    assert.equal(schema.xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
+    assert.equal(schema.xmlns?.tns, 'http://example.com/order');
+    assert.equal(schema.xmlns?.ext, 'http://example.com/extensions');
+  });
+
+  it('should extract default namespace (xmlns without prefix)', () => {
+    const xsd = `<?xml version="1.0"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+        xmlns:tns="http://example.com/order"
+        targetNamespace="http://example.com/order">
+  <element name="Order"/>
+</schema>`;
+
+    const schema = parseXsd(xsd);
+    
+    assert.ok(schema.xmlns, 'xmlns should be present');
+    assert.equal(schema.xmlns?.[''], 'http://www.w3.org/2001/XMLSchema');
+    assert.equal(schema.xmlns?.tns, 'http://example.com/order');
+  });
+});

@@ -1,0 +1,351 @@
+/**
+ * XML Parser for W3C Schema
+ * 
+ * Parse XML string to typed JavaScript object using W3C-compliant Schema definition.
+ */
+
+import { DOMParser } from '@xmldom/xmldom';
+import type { InferSchema, SchemaLike } from '../infer/types';
+
+// Use 'any' for xmldom types since they don't match browser DOM types
+type XmlElement = any;
+
+// Internal types for working with SchemaLike
+type ComplexTypeDef = {
+  name?: string;
+  sequence?: { element?: readonly { name?: string; type?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' }[] };
+  choice?: { element?: readonly { name?: string; type?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' }[] };
+  all?: { element?: readonly { name?: string; type?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' }[] };
+  attribute?: readonly { name?: string; type?: string; use?: string; default?: string }[];
+  complexContent?: { extension?: { base?: string; sequence?: ComplexTypeDef['sequence']; choice?: ComplexTypeDef['choice']; all?: ComplexTypeDef['all']; attribute?: ComplexTypeDef['attribute'] } };
+};
+
+type ElementDef = { name?: string; type?: string };
+
+/**
+ * Parse XML string to typed object using schema definition
+ */
+export function parse<T extends SchemaLike>(
+  schema: T,
+  xml: string
+): InferSchema<T> {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const root = doc.documentElement;
+
+  if (!root) {
+    throw new Error('Invalid XML: no root element');
+  }
+
+  // Get root element name from XML (strip namespace prefix)
+  const rootLocalName = root.localName || root.tagName.split(':').pop() || root.tagName;
+
+  // Find the element declaration for this root
+  const elements = schema.element as readonly ElementDef[] | undefined;
+  const elementDecl = findElementByName(elements || [], rootLocalName);
+  
+  if (!elementDecl) {
+    throw new Error(`Schema missing element declaration for: ${rootLocalName}`);
+  }
+
+  // Get the type name (strip namespace prefix if present)
+  const typeName = stripNsPrefix(elementDecl.type || elementDecl.name || '');
+  
+  // Find the complexType definition
+  const complexTypes = getComplexTypesArray(schema.complexType);
+  const complexType = findComplexTypeByName(complexTypes, typeName);
+  
+  if (!complexType) {
+    throw new Error(`Schema missing complexType for: ${typeName}`);
+  }
+
+  return parseElement(root, complexType, schema) as InferSchema<T>;
+}
+
+/**
+ * Convert complexType (array or object) to array format
+ */
+function getComplexTypesArray(
+  complexType: SchemaLike['complexType']
+): ComplexTypeDef[] {
+  if (!complexType) return [];
+  if (Array.isArray(complexType)) return complexType as ComplexTypeDef[];
+  // Object format: { TypeName: { ... } }
+  return Object.entries(complexType).map(([name, def]) => ({ ...def, name } as ComplexTypeDef));
+}
+
+/**
+ * Strip namespace prefix from type name (e.g., "tns:PersonType" -> "PersonType")
+ */
+function stripNsPrefix(name: string): string {
+  const colonIndex = name.indexOf(':');
+  return colonIndex >= 0 ? name.slice(colonIndex + 1) : name;
+}
+
+/**
+ * Find element declaration by name (case-insensitive)
+ */
+function findElementByName(
+  elements: readonly { name?: string }[],
+  name: string
+): { name?: string; type?: string } | undefined {
+  // Try exact match first
+  let found = elements.find(el => el.name === name);
+  if (found) return found as { name?: string; type?: string };
+  
+  // Try case-insensitive match
+  const lowerName = name.toLowerCase();
+  return elements.find(el => el.name?.toLowerCase() === lowerName) as { name?: string; type?: string } | undefined;
+}
+
+/**
+ * Find complexType by name
+ */
+function findComplexTypeByName(
+  complexTypes: readonly ComplexTypeDef[],
+  name: string
+): ComplexTypeDef | undefined {
+  return complexTypes.find(ct => ct.name === name);
+}
+
+/**
+ * Get merged complexType definition including inherited fields from base type
+ */
+function getMergedComplexType(
+  typeDef: ComplexTypeDef,
+  schema: SchemaLike
+): ComplexTypeDef {
+  // Check for complexContent/extension (inheritance)
+  const extension = typeDef.complexContent?.extension;
+  if (!extension?.base) {
+    return typeDef;
+  }
+
+  const baseName = stripNsPrefix(extension.base);
+  const baseType = findComplexTypeByName(getComplexTypesArray(schema.complexType), baseName);
+  
+  if (!baseType) {
+    return typeDef;
+  }
+
+  // Recursively get merged base (handles multi-level inheritance)
+  const mergedBase = getMergedComplexType(baseType, schema);
+
+  // Merge: base fields first, then derived fields
+  return {
+    name: typeDef.name,
+    sequence: mergeGroups(mergedBase.sequence, typeDef.sequence || extension.sequence),
+    choice: mergeGroups(mergedBase.choice, typeDef.choice || extension.choice),
+    all: mergeGroups(mergedBase.all, typeDef.all || extension.all),
+    attribute: [...(mergedBase.attribute || []), ...(typeDef.attribute || []), ...(extension.attribute || [])],
+  } as ComplexTypeDef;
+}
+
+/**
+ * Merge two ExplicitGroup structures
+ */
+function mergeGroups(
+  base: ComplexTypeDef['sequence'],
+  derived: ComplexTypeDef['sequence']
+): ComplexTypeDef['sequence'] {
+  if (!base && !derived) return undefined;
+  if (!base) return derived;
+  if (!derived) return base;
+  
+  return {
+    element: [...(base.element || []), ...(derived.element || [])],
+  };
+}
+
+/**
+ * Parse a single element using its complexType definition
+ */
+function parseElement(
+  node: XmlElement,
+  typeDef: ComplexTypeDef,
+  schema: SchemaLike
+): Record<string, unknown> {
+  const mergedDef = getMergedComplexType(typeDef, schema);
+  const result: Record<string, unknown> = {};
+
+  // Parse attributes
+  if (mergedDef.attribute) {
+    for (const attrDef of mergedDef.attribute) {
+      if (!attrDef.name) continue;
+      const value = getAttributeValue(node, attrDef.name);
+      if (value !== null) {
+        result[attrDef.name] = convertValue(value, attrDef.type || 'string');
+      } else if (attrDef.default !== undefined) {
+        result[attrDef.name] = convertValue(attrDef.default, attrDef.type || 'string');
+      }
+    }
+  }
+
+  // Parse sequence elements
+  if (mergedDef.sequence?.element) {
+    for (const elemDef of mergedDef.sequence.element) {
+      const value = parseField(node, elemDef, schema);
+      if (value !== undefined) {
+        result[elemDef.name!] = value;
+      }
+    }
+  }
+
+  // Parse all elements (xs:all - same as sequence at runtime)
+  if (mergedDef.all?.element) {
+    for (const elemDef of mergedDef.all.element) {
+      const value = parseField(node, elemDef, schema);
+      if (value !== undefined) {
+        result[elemDef.name!] = value;
+      }
+    }
+  }
+
+  // Parse choice elements
+  if (mergedDef.choice?.element) {
+    for (const elemDef of mergedDef.choice.element) {
+      const value = parseField(node, elemDef, schema);
+      if (value !== undefined) {
+        result[elemDef.name!] = value;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Parse a field (child element)
+ */
+type FieldDef = NonNullable<NonNullable<ComplexTypeDef['sequence']>['element']>[number];
+
+function parseField(
+  parent: XmlElement,
+  field: FieldDef,
+  schema: SchemaLike
+): unknown {
+  if (!field.name) return undefined;
+  
+  const children = getChildElements(parent, field.name);
+  const isArray = field.maxOccurs === 'unbounded' || 
+                  (typeof field.maxOccurs === 'number' && field.maxOccurs > 1) ||
+                  (typeof field.maxOccurs === 'string' && parseInt(field.maxOccurs, 10) > 1);
+
+  // Find nested complexType if this field has a complex type
+  const typeName = field.type ? stripNsPrefix(field.type) : undefined;
+  const nestedType = typeName 
+    ? findComplexTypeByName(getComplexTypesArray(schema.complexType), typeName)
+    : undefined;
+
+  if (isArray) {
+    return children.map(child =>
+      nestedType
+        ? parseElement(child, nestedType, schema)
+        : convertValue(getTextContent(child) || '', field.type || 'string')
+    );
+  }
+
+  if (children.length === 0) {
+    return undefined;
+  }
+
+  const child = children[0];
+  return nestedType
+    ? parseElement(child, nestedType, schema)
+    : convertValue(getTextContent(child) || '', field.type || 'string');
+}
+
+/**
+ * Get attribute value, handling namespaced attributes
+ */
+function getAttributeValue(node: XmlElement, name: string): string | null {
+  // Try direct attribute
+  if (node.hasAttribute(name)) {
+    return node.getAttribute(name);
+  }
+
+  // Try with any namespace prefix
+  const attrs = node.attributes;
+  for (let i = 0; i < attrs.length; i++) {
+    const attr = attrs[i];
+    const localName = attr.localName || attr.name.split(':').pop();
+    if (localName === name) {
+      return attr.value;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get child elements by local name
+ */
+function getChildElements(parent: XmlElement, name: string): XmlElement[] {
+  const result: XmlElement[] = [];
+  const children = parent.childNodes;
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (child.nodeType === 1) { // ELEMENT_NODE
+      const localName = child.localName || child.tagName.split(':').pop();
+      if (localName === name) {
+        result.push(child);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Get text content of an element
+ */
+function getTextContent(node: XmlElement): string {
+  let text = '';
+  const children = node.childNodes;
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (child.nodeType === 3) { // TEXT_NODE
+      text += child.nodeValue || '';
+    }
+  }
+
+  return text.trim();
+}
+
+/**
+ * Convert string value to typed value based on XSD type
+ */
+function convertValue(value: string, type: string): unknown {
+  const localType = stripNsPrefix(type);
+  
+  switch (localType) {
+    case 'int':
+    case 'integer':
+    case 'decimal':
+    case 'float':
+    case 'double':
+    case 'short':
+    case 'long':
+    case 'byte':
+    case 'unsignedInt':
+    case 'unsignedShort':
+    case 'unsignedLong':
+    case 'unsignedByte':
+    case 'positiveInteger':
+    case 'negativeInteger':
+    case 'nonPositiveInteger':
+    case 'nonNegativeInteger':
+      return Number(value);
+
+    case 'boolean':
+      return value === 'true' || value === '1';
+
+    case 'date':
+    case 'dateTime':
+      return value; // Keep as string, let consumer parse if needed
+
+    default:
+      return value;
+  }
+}

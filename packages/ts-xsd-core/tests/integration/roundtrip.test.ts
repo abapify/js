@@ -152,12 +152,29 @@ describe('XSD Roundtrip', () => {
     assert.deepEqual(reparsedNames, originalNames);
   });
 
-  it('should build with custom prefix', () => {
-    const xsd = buildXsd(XMLSchema, { prefix: 'xsd' });
+  it('should not add xmlns when not present in schema', () => {
+    // Create a schema without xmlns - no xmlns should be added
+    const schemaWithoutXmlns: Schema = {
+      targetNamespace: 'http://example.com',
+      simpleType: [{ name: 'test', restriction: { base: 'xs:string' } }]
+    };
+    const xsd = buildXsd(schemaWithoutXmlns);
     
-    assert.ok(xsd.includes('xmlns:xsd='));
-    assert.ok(xsd.includes('xsd:schema'));
-    assert.ok(xsd.includes('xsd:complexType'));
+    // No xmlns should be invented
+    assert.ok(!xsd.includes('xmlns:'));
+    assert.ok(!xsd.includes('xmlns='));
+    // But elements should still use the configured prefix
+    assert.ok(xsd.includes('xs:schema'));
+    assert.ok(xsd.includes('xs:simpleType'));
+  });
+
+  it('should preserve original xmlns when present', () => {
+    // XMLSchema has xmlns:xs from parsing - should be preserved
+    const xsd = buildXsd(XMLSchema);
+    
+    assert.ok(XMLSchema.xmlns?.xs, 'Parsed schema should have xmlns.xs');
+    assert.ok(xsd.includes('xmlns:xs='));
+    assert.ok(xsd.includes('xs:schema'));
   });
 
   it('should build without pretty printing', () => {

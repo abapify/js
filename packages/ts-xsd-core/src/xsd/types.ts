@@ -11,11 +11,39 @@
 // Base Types (from XMLSchema.xsd)
 // =============================================================================
 
+// =============================================================================
+// XML Namespace Declarations
+// =============================================================================
+
+/**
+ * XML namespace declarations (xmlns:prefix -> URI mappings)
+ * 
+ * This is not part of XSD itself, but part of XML Namespaces spec.
+ * XSD documents rely on xmlns declarations to resolve QName prefixes.
+ * 
+ * @example
+ * ```typescript
+ * xmlns: {
+ *   xs: "http://www.w3.org/2001/XMLSchema",
+ *   tns: "http://example.com/myschema",
+ *   "": "http://example.com/default"  // default namespace (no prefix)
+ * }
+ * ```
+ */
+export type XmlnsDeclarations = {
+  readonly [prefix: string]: string;
+};
+
 /**
  * xs:openAttrs - base type extended by almost all schema types
  * Allows attributes from other namespaces
  */
 export interface OpenAttrs {
+  /** 
+   * XML namespace declarations scoped to this element.
+   * Inherited by child elements unless overridden.
+   */
+  readonly xmlns?: XmlnsDeclarations;
   /** Any additional attributes from other namespaces */
   [key: string]: unknown;
 }
