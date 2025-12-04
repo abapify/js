@@ -41,8 +41,10 @@ describe('XSD Roundtrip', () => {
     const xsd = buildXsd(XMLSchema);
     const reparsed = parseXsd(xsd);
     
-    const originalCount = XMLSchema.complexType?.length ?? 0;
-    const reparsedCount = (reparsed.complexType as any[])?.length ?? 0;
+    const original = XMLSchema.complexType;
+    const parsed = reparsed.complexType;
+    const originalCount = Array.isArray(original) ? original.length : 0;
+    const reparsedCount = Array.isArray(parsed) ? parsed.length : 0;
     
     assert.equal(reparsedCount, originalCount, 'complexType count mismatch');
   });
@@ -51,8 +53,10 @@ describe('XSD Roundtrip', () => {
     const xsd = buildXsd(XMLSchema);
     const reparsed = parseXsd(xsd);
     
-    const originalCount = XMLSchema.simpleType?.length ?? 0;
-    const reparsedCount = (reparsed.simpleType as any[])?.length ?? 0;
+    const original = XMLSchema.simpleType;
+    const parsed = reparsed.simpleType;
+    const originalCount = Array.isArray(original) ? original.length : 0;
+    const reparsedCount = Array.isArray(parsed) ? parsed.length : 0;
     
     assert.equal(reparsedCount, originalCount, 'simpleType count mismatch');
   });
@@ -62,7 +66,7 @@ describe('XSD Roundtrip', () => {
     const reparsed = parseXsd(xsd);
     
     const originalCount = XMLSchema.group?.length ?? 0;
-    const reparsedCount = (reparsed.group as any[])?.length ?? 0;
+    const reparsedCount = reparsed.group?.length ?? 0;
     
     assert.equal(reparsedCount, originalCount, 'group count mismatch');
   });
@@ -72,7 +76,7 @@ describe('XSD Roundtrip', () => {
     const reparsed = parseXsd(xsd);
     
     const originalCount = XMLSchema.element?.length ?? 0;
-    const reparsedCount = (reparsed.element as any[])?.length ?? 0;
+    const reparsedCount = reparsed.element?.length ?? 0;
     
     assert.equal(reparsedCount, originalCount, 'element count mismatch');
   });
@@ -82,7 +86,7 @@ describe('XSD Roundtrip', () => {
     const reparsed = parseXsd(xsd);
     
     const originalCount = XMLSchema.attributeGroup?.length ?? 0;
-    const reparsedCount = (reparsed.attributeGroup as any[])?.length ?? 0;
+    const reparsedCount = reparsed.attributeGroup?.length ?? 0;
     
     assert.equal(reparsedCount, originalCount, 'attributeGroup count mismatch');
   });
@@ -92,7 +96,7 @@ describe('XSD Roundtrip', () => {
     const reparsed = parseXsd(xsd);
     
     const originalCount = XMLSchema.annotation?.length ?? 0;
-    const reparsedCount = (reparsed.annotation as any[])?.length ?? 0;
+    const reparsedCount = reparsed.annotation?.length ?? 0;
     
     assert.equal(reparsedCount, originalCount, 'annotation count mismatch');
   });
@@ -102,13 +106,13 @@ describe('XSD Roundtrip', () => {
     const reparsed = parseXsd(xsd);
     
     const originalCount = XMLSchema.import?.length ?? 0;
-    const reparsedCount = (reparsed.import as any[])?.length ?? 0;
+    const reparsedCount = reparsed.import?.length ?? 0;
     
     assert.equal(reparsedCount, originalCount, 'import count mismatch');
     
-    if (originalCount > 0) {
-      const original = XMLSchema.import![0];
-      const parsed = (reparsed.import as any[])[0];
+    if (originalCount > 0 && XMLSchema.import && reparsed.import) {
+      const original = XMLSchema.import[0];
+      const parsed = reparsed.import[0];
       assert.equal(parsed.namespace, original.namespace);
       assert.equal(parsed.schemaLocation, original.schemaLocation);
     }
@@ -118,8 +122,10 @@ describe('XSD Roundtrip', () => {
     const xsd = buildXsd(XMLSchema);
     const reparsed = parseXsd(xsd);
     
-    const originalNames = XMLSchema.complexType?.map(ct => ct.name).sort() ?? [];
-    const reparsedNames = (reparsed.complexType as any[])?.map((ct: any) => ct.name).sort() ?? [];
+    const original = XMLSchema.complexType;
+    const parsed = reparsed.complexType;
+    const originalNames = Array.isArray(original) ? original.map(ct => ct.name).sort() : [];
+    const reparsedNames = Array.isArray(parsed) ? parsed.map(ct => ct.name).sort() : [];
     
     assert.deepEqual(reparsedNames, originalNames);
   });
@@ -128,8 +134,10 @@ describe('XSD Roundtrip', () => {
     const xsd = buildXsd(XMLSchema);
     const reparsed = parseXsd(xsd);
     
-    const originalNames = XMLSchema.simpleType?.map(st => st.name).sort() ?? [];
-    const reparsedNames = (reparsed.simpleType as any[])?.map((st: any) => st.name).sort() ?? [];
+    const original = XMLSchema.simpleType;
+    const parsed = reparsed.simpleType;
+    const originalNames = Array.isArray(original) ? original.map(st => st.name).sort() : [];
+    const reparsedNames = Array.isArray(parsed) ? parsed.map(st => st.name).sort() : [];
     
     assert.deepEqual(reparsedNames, originalNames);
   });
@@ -139,7 +147,7 @@ describe('XSD Roundtrip', () => {
     const reparsed = parseXsd(xsd);
     
     const originalNames = XMLSchema.element?.map(el => el.name).sort() ?? [];
-    const reparsedNames = (reparsed.element as any[])?.map((el: any) => el.name).sort() ?? [];
+    const reparsedNames = reparsed.element?.map(el => el.name).sort() ?? [];
     
     assert.deepEqual(reparsedNames, originalNames);
   });
