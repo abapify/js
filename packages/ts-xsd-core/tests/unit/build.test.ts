@@ -11,15 +11,21 @@ import { buildXsd, parseXsd, type Schema } from '../../src/xsd';
 describe('buildXsd', () => {
   describe('BuildOptions', () => {
     it('should use default options', () => {
-      const schema: Schema = { targetNamespace: 'http://example.com' };
+      const schema: Schema = { 
+        xmlns: { xs: 'http://www.w3.org/2001/XMLSchema' },
+        targetNamespace: 'http://example.com' 
+      };
       const xsd = buildXsd(schema);
       
       assert.ok(xsd.includes('xmlns:xs='));
       assert.ok(xsd.includes('\n')); // pretty print by default
     });
 
-    it('should use custom prefix', () => {
-      const schema: Schema = { targetNamespace: 'http://example.com' };
+    it('should use custom prefix for element names', () => {
+      const schema: Schema = { 
+        xmlns: { xsd: 'http://www.w3.org/2001/XMLSchema' },
+        targetNamespace: 'http://example.com' 
+      };
       const xsd = buildXsd(schema, { prefix: 'xsd' });
       
       assert.ok(xsd.includes('xmlns:xsd='));
@@ -1071,6 +1077,64 @@ describe('buildXsd', () => {
       assert.ok(xsd.includes('&amp;'));
       assert.ok(xsd.includes('&quot;characters&quot;'));
       assert.ok(xsd.includes('&apos;quotes&apos;'));
+    });
+  });
+
+  describe('xmlns declarations', () => {
+    it('should output xmlns from schema.xmlns', () => {
+      const schema: Schema = {
+        xmlns: {
+          xs: 'http://www.w3.org/2001/XMLSchema',
+          tns: 'http://example.com/order',
+        },
+        targetNamespace: 'http://example.com/order',
+      };
+      const xsd = buildXsd(schema);
+      
+      assert.ok(xsd.includes('xmlns:xs="http://www.w3.org/2001/XMLSchema"'));
+      assert.ok(xsd.includes('xmlns:tns="http://example.com/order"'));
+    });
+
+    it('should output default namespace (empty prefix)', () => {
+      const schema: Schema = {
+        xmlns: {
+          '': 'http://www.w3.org/2001/XMLSchema',
+          tns: 'http://example.com/order',
+        },
+        targetNamespace: 'http://example.com/order',
+      };
+      const xsd = buildXsd(schema);
+      
+      assert.ok(xsd.includes('xmlns="http://www.w3.org/2001/XMLSchema"'));
+      assert.ok(xsd.includes('xmlns:tns="http://example.com/order"'));
+    });
+
+    it('should not add xmlns when not present in schema', () => {
+      const schema: Schema = {
+        targetNamespace: 'http://example.com',
+      };
+      const xsd = buildXsd(schema);
+      
+      // No xmlns should be added if not in schema
+      assert.ok(!xsd.includes('xmlns:'));
+      assert.ok(!xsd.includes('xmlns='));
+    });
+
+    it('should preserve xmlns in roundtrip', () => {
+      const original = `<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://example.com/order"
+           targetNamespace="http://example.com/order">
+  <xs:element name="Order" type="tns:OrderType"/>
+</xs:schema>`;
+
+      const parsed = parseXsd(original);
+      const rebuilt = buildXsd(parsed);
+      const reparsed = parseXsd(rebuilt);
+      
+      assert.deepEqual(reparsed.xmlns, parsed.xmlns);
+      assert.equal(reparsed.xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
+      assert.equal(reparsed.xmlns?.tns, 'http://example.com/order');
     });
   });
 });
