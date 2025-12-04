@@ -4,10 +4,94 @@
   "files": [],
   "references": [
     {
-      "path": "packages/adt-client"
+      "path": "./packages/adt-client"
     },
     {
-      "path": "packages/adt-cli"
+      "path": "./packages/adt-cli"
+    },
+    {
+      "path": "./packages/adt-schemas-xsd"
+    },
+    {
+      "path": "./packages/adt-playwright"
+    },
+    {
+      "path": "./packages/adt-schemas-v2"
+    },
+    {
+      "path": "./packages/ts-xml-codegen"
+    },
+    {
+      "path": "./packages/adt-client-v2"
+    },
+    {
+      "path": "./packages/adt-puppeteer"
+    },
+    {
+      "path": "./packages/adt-contracts"
+    },
+    {
+      "path": "./packages/asjson-parser"
+    },
+    {
+      "path": "./packages/browser-auth"
+    },
+    {
+      "path": "./packages/adt-fixtures"
+    },
+    {
+      "path": "./samples/sample-tsdown"
+    },
+    {
+      "path": "./packages/adt-codegen"
+    },
+    {
+      "path": "./packages/adt-schemas"
+    },
+    {
+      "path": "./packages/ts-xsd-core"
+    },
+    {
+      "path": "./packages/adt-config"
+    },
+    {
+      "path": "./packages/ts-xml-xsd"
+    },
+    {
+      "path": "./tools/nx-typecheck"
+    },
+    {
+      "path": "./packages/adt-auth"
+    },
+    {
+      "path": "./packages/logger"
+    },
+    {
+      "path": "./packages/adk-v2"
+    },
+    {
+      "path": "./tools/nx-tsdown"
+    },
+    {
+      "path": "./tools/nx-vitest"
+    },
+    {
+      "path": "./packages/ts-xml"
+    },
+    {
+      "path": "./packages/ts-xsd"
+    },
+    {
+      "path": "./packages/speci"
+    },
+    {
+      "path": "./tools/nx-sync"
+    },
+    {
+      "path": "./packages/xmld"
+    },
+    {
+      "path": "./packages/adk"
     }
   ]
 }

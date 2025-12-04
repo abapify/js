@@ -10,6 +10,9 @@
   "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"],
   "references": [
     {
+      "path": "../browser-auth"
+    },
+    {
       "path": "../adt-config/tsconfig.lib.json"
     },
     {

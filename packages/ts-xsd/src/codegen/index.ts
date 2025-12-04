@@ -100,10 +100,19 @@ export function parseXsdToSchemaData(xsd: string, options: CodegenOptions = {}):
   }
 
   // Build element declarations array (new format)
-  const elementDecls: SchemaElementDecl[] = parsedElements.map(el => ({
-    name: el.name,
-    type: el.type,
-  }));
+  const elementDecls: SchemaElementDecl[] = parsedElements.map(el => {
+    const decl: SchemaElementDecl = {
+      name: el.name,
+      type: el.type,
+    };
+    if (el.abstract) {
+      decl.abstract = true;
+    }
+    if (el.substitutionGroup) {
+      decl.substitutionGroup = el.substitutionGroup;
+    }
+    return decl;
+  });
 
   const schemaData: SchemaData = {
     namespace: targetNs,

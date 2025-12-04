@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  abapGit INTF (Interface) Schema
+  
+  Defines VSEOINTERF structure for *.intf.xml files.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:asx="http://www.sap.com/abapxml"
+           elementFormDefault="qualified">
+
+  <xs:import namespace="http://www.sap.com/abapxml" schemaLocation="asx.xsd"/>
+  <xs:include schemaLocation="abapgit.xsd"/>
+
+  <!-- VSEOINTERF substitutes asx:Schema -->
+  <xs:element name="VSEOINTERF" type="VseoInterfType" substitutionGroup="asx:Schema"/>
+
+  <xs:complexType name="VseoInterfType">
+    <xs:all>
+      <xs:element name="CLSNAME" type="xs:string"/>
+      <xs:element name="LANGU" type="xs:string" minOccurs="0"/>
+      <xs:element name="DESCRIPT" type="xs:string" minOccurs="0"/>
+      <xs:element name="EXPOSURE" type="xs:string" minOccurs="0"/>
+      <xs:element name="STATE" type="xs:string" minOccurs="0"/>
+      <xs:element name="UNICODE" type="xs:string" minOccurs="0"/>
+      <xs:element name="ABAP_LANGUAGE_VERSION" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+</xs:schema>

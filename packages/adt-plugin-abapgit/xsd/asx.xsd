@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SAP ABAP XML (asx) Schema
+  
+  Defines the asx:abap envelope used in abapGit XML files.
+  Object schemas substitute the abstract Payload element.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sap.com/abapxml"
+           xmlns:asx="http://www.sap.com/abapxml"
+           elementFormDefault="qualified">
+
+  <!-- Abstract element - object schemas substitute this -->
+  <xs:element name="Schema" abstract="true"/>
+
+  <xs:complexType name="AbapValuesType">
+    <xs:sequence>
+      <xs:element ref="asx:Schema"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="AbapType">
+    <xs:sequence>
+      <xs:element name="values" type="asx:AbapValuesType"/>
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:string" default="1.0"/>
+  </xs:complexType>
+
+  <xs:element name="abap" type="asx:AbapType"/>
+
+</xs:schema>
