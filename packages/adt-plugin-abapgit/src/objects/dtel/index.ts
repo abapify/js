@@ -1,0 +1,37 @@
+/**
+ * DTEL (Data Element) object serializer for abapGit format
+ * Maps ADK v2 objects to abapGit XML structure
+ */
+
+import type { AdkObject } from '@abapify/adk-v2';
+import { createSerializer } from '../../lib/create-serializer';
+import { AbapGitDtelValuesSchema } from './schema';
+import type { Dd04vTable } from './types';
+
+/**
+ * Map ADK v2 object to abapGit DD04V structure
+ *
+ * Note: DataElement doesn't have full ADK v2 support yet, so we work with
+ *       generic AdkObject and extract what we can from basic properties
+ */
+function mapDataElementToAbapGit(dtel: AdkObject): Dd04vTable {
+  return {
+    ROLLNAME: dtel.name || '',
+    DDLANGUAGE: 'E',
+    DDTEXT: dtel.description || '',
+    HEADLEN: '55',
+    SCRLEN1: '10',
+    SCRLEN2: '20',
+    SCRLEN3: '40',
+    DTELMASTER: 'E',
+  };
+}
+
+/**
+ * Serialize ADK Data Element to abapGit XML
+ */
+export const serializeDataElement = createSerializer({
+  valuesSchema: AbapGitDtelValuesSchema,
+  mapper: mapDataElementToAbapGit,
+  serializerClass: 'LCL_OBJECT_DTEL',
+});
