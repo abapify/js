@@ -1,0 +1,21 @@
+{
+  "name": "@abapify/adt-plugin-abapgit",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "nx": {
+    "name": "adt-plugin-abapgit"
+  },
+  "dependencies": {
+    "@abapify/adk-v2": "*",
+    "speci": "*",
+    "ts-xsd": "*"
+  }
+}
