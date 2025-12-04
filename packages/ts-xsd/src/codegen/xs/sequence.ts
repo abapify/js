@@ -41,8 +41,9 @@ export function generateElementObj(
     result.extends = extendsType;
   }
 
-  // Find sequence/choice (either direct or within extension)
+  // Find sequence/all/choice (either direct or within extension)
   const sequence = findChild(contentEl, 'sequence');
+  const all = findChild(contentEl, 'all');
   const choice = findChild(contentEl, 'choice');
   const simpleContent = findChild(typeEl, 'simpleContent');
 
@@ -50,6 +51,13 @@ export function generateElementObj(
     const fields = generateFieldsObj(sequence, complexTypes, simpleTypes, nsMap, importedSchemas);
     if (fields.length > 0) {
       result.sequence = fields;
+    }
+  }
+
+  if (all) {
+    const fields = generateFieldsObj(all, complexTypes, simpleTypes, nsMap, importedSchemas);
+    if (fields.length > 0) {
+      result.all = fields;
     }
   }
 
@@ -113,8 +121,9 @@ export function generateElementDef(
     parts.push(`${indent}  extends: '${extInfo.base}',`);
   }
 
-  // Find sequence/choice/simpleContent (either direct or within extension)
+  // Find sequence/all/choice/simpleContent (either direct or within extension)
   const sequence = findChild(contentEl, 'sequence');
+  const all = findChild(contentEl, 'all');
   const choice = findChild(contentEl, 'choice');
   const simpleContent = findChild(typeEl, 'simpleContent');
 
@@ -122,6 +131,17 @@ export function generateElementDef(
     const fields = generateFields(sequence, complexTypes, simpleTypes, nsMap, importedSchemas);
     if (fields.length > 0) {
       parts.push(`${indent}  sequence: [`);
+      for (const field of fields) {
+        parts.push(`${indent}    ${field},`);
+      }
+      parts.push(`${indent}  ],`);
+    }
+  }
+
+  if (all) {
+    const fields = generateFields(all, complexTypes, simpleTypes, nsMap, importedSchemas);
+    if (fields.length > 0) {
+      parts.push(`${indent}  all: [`);
       for (const field of fields) {
         parts.push(`${indent}    ${field},`);
       }

@@ -13,10 +13,13 @@
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../adt-puppeteer/tsconfig.lib.json"
+      "path": "../adt-contracts"
     },
     {
       "path": "../logger"
+    },
+    {
+      "path": "../adt-tui/tsconfig.lib.json"
     },
     {
       "path": "../adt-config/tsconfig.lib.json"
@@ -31,7 +34,7 @@
       "path": "../adt-auth"
     },
     {
-      "path": "../adt-contracts"
+      "path": "../adk-v2/tsconfig.lib.json"
     },
     {
       "path": "../adk/tsconfig.lib.json"

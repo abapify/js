@@ -113,9 +113,27 @@ export function parseSchema(xsd: string, options: CodegenOptions = {}): ParsedSc
         typeName = typeName.split(':')[1];
       }
       
+      // Check for abstract attribute
+      const abstractAttr = child.getAttribute('abstract');
+      const isAbstract = abstractAttr === 'true';
+      
+      // Check for substitutionGroup attribute
+      let substitutionGroup = child.getAttribute('substitutionGroup') || undefined;
+      // Strip namespace prefix from substitutionGroup
+      if (substitutionGroup && substitutionGroup.includes(':')) {
+        substitutionGroup = substitutionGroup.split(':')[1];
+      }
+      
       // Add to elements array
       if (typeName) {
-        elements.push({ name, type: typeName });
+        const elementDecl: XsdElementDecl = { name, type: typeName };
+        if (isAbstract) {
+          elementDecl.abstract = true;
+        }
+        if (substitutionGroup) {
+          elementDecl.substitutionGroup = substitutionGroup;
+        }
+        elements.push(elementDecl);
       }
     }
   }

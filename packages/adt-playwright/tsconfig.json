@@ -4,5 +4,16 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../adt-auth"
+    },
+    {
+      "path": "../browser-auth"
+    },
+    {
+      "path": "../adt-config"
+    }
+  ]
 }

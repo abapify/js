@@ -34,3 +34,7 @@ export type {
 } from './types';
 
 export type { Generator, GeneratorContext, SchemaData, SchemaImport } from './codegen/generator';
+
+// XSD self-hosting - parse and build XSD files using ts-xsd
+export { parseXsd, buildXsd, XsdSchemaDefinition } from './xsd';
+export type { XsdDocument } from './xsd';

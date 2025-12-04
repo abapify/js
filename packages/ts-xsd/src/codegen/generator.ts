@@ -28,6 +28,8 @@ export interface SchemaImport {
 export interface SchemaElementDecl {
   name: string;
   type: string;
+  abstract?: boolean;
+  substitutionGroup?: string;
 }
 
 /**
@@ -158,7 +160,14 @@ export function generateSchemaLiteral(schema: SchemaData, indent = ''): string {
   if (schema.element.length > 0) {
     lines.push(`${indent}  element: [`);
     for (const el of schema.element) {
-      lines.push(`${indent}    { name: '${el.name}', type: '${el.type}' },`);
+      const parts = [`name: '${el.name}'`, `type: '${el.type}'`];
+      if (el.abstract) {
+        parts.push('abstract: true');
+      }
+      if (el.substitutionGroup) {
+        parts.push(`substitutionGroup: '${el.substitutionGroup}'`);
+      }
+      lines.push(`${indent}    { ${parts.join(', ')} },`);
     }
     lines.push(`${indent}  ],`);
   }

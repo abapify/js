@@ -11,18 +11,6 @@
   "include": ["src/**/*"],
   "references": [
     {
-      "path": "../adt-schemas-xsd"
-    },
-    {
-      "path": "../ts-xsd"
-    },
-    {
-      "path": "../ts-xml"
-    },
-    {
-      "path": "../speci"
-    },
-    {
       "path": "../adt-contracts"
     },
     {

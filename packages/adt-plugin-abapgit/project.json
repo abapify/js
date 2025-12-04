@@ -1,0 +1,14 @@
+{
+  "name": "adt-plugin-abapgit",
+  "targets": {
+    "codegen": {
+      "command": "npx ts-xsd codegen -c tsxsd.config.ts",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": ["ts-xsd:build"],
+      "inputs": ["{projectRoot}/xsd/*.xsd", "{projectRoot}/tsxsd.config.ts"],
+      "outputs": ["{projectRoot}/src/schemas/generated"]
+    }
+  }
+}

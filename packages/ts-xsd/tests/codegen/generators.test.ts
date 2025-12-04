@@ -6,8 +6,8 @@
 
 import { describe, test as it } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { factory, raw } from '../src/generators';
-import type { GeneratorContext, SchemaData } from '../src/codegen/generator';
+import { factory, raw } from '../../src/generators';
+import type { GeneratorContext, SchemaData } from '../../src/codegen/generator';
 
 describe('generators', () => {
   // Sample schema data for testing (new format)

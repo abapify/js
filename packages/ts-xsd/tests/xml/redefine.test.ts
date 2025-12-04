@@ -15,8 +15,8 @@
 
 import { describe, test as it } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { parseXsdToSchemaData } from '../src/codegen/index';
-import { parse, build, type XsdSchema, type InferXsd } from '../src/index';
+import { parseXsdToSchemaData } from '../../src/codegen/index';
+import { parse, build, type XsdSchema, type InferXsd } from '../../src/index';
 
 describe('xs:redefine', () => {
   describe('codegen', () => {
