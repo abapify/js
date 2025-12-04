@@ -98,8 +98,16 @@ interface BuildContext {
 function buildSchema(schema: Schema, ctx: BuildContext): string {
   const attrs: string[] = [];
   
-  // Standard XSD namespace
-  attrs.push(`xmlns:${ctx.prefix}="http://www.w3.org/2001/XMLSchema"`);
+  // XML namespace declarations (only if present in schema)
+  if (schema.xmlns) {
+    for (const [prefix, uri] of Object.entries(schema.xmlns)) {
+      if (prefix === '') {
+        attrs.push(`xmlns="${uri}"`);
+      } else {
+        attrs.push(`xmlns:${prefix}="${uri}"`);
+      }
+    }
+  }
   
   // Schema attributes
   addAttr(attrs, 'id', schema.id);

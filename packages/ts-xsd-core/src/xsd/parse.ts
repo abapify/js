@@ -80,6 +80,9 @@ export function parseXsd(xml: string): Schema {
 function parseSchema(el: XmlElement): Schema {
   const schema: Schema = {};
 
+  // XML namespace declarations (xmlns:prefix -> URI)
+  copyXmlns(el, schema);
+
   // Attributes
   copyAttr(el, schema, 'id');
   copyAttr(el, schema, 'targetNamespace');
@@ -1136,6 +1139,53 @@ function parseAnnotationChild(el: XmlElement, result: any): void {
       (result as any).annotation = parseAnnotation(child);
       break; // Only one annotation per element
     }
+  }
+}
+
+/**
+ * Extract xmlns declarations from an element's attributes.
+ * Returns undefined if no xmlns declarations found.
+ * 
+ * @example
+ * For <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://example.com">
+ * Returns: { xs: "http://www.w3.org/2001/XMLSchema", tns: "http://example.com" }
+ * 
+ * For <xs:element xmlns="http://default.com">
+ * Returns: { "": "http://default.com" }
+ */
+function extractXmlns(el: XmlElement): Record<string, string> | undefined {
+  const xmlns: Record<string, string> = {};
+  let hasXmlns = false;
+
+  if (el.attributes) {
+    for (let i = 0; i < el.attributes.length; i++) {
+      const attr = el.attributes[i];
+      const name = attr.name || attr.nodeName;
+      const value = attr.value || attr.nodeValue;
+
+      if (name === 'xmlns') {
+        // Default namespace (no prefix)
+        xmlns[''] = value;
+        hasXmlns = true;
+      } else if (name.startsWith('xmlns:')) {
+        // Prefixed namespace
+        const prefix = name.substring(6); // Remove 'xmlns:'
+        xmlns[prefix] = value;
+        hasXmlns = true;
+      }
+    }
+  }
+
+  return hasXmlns ? xmlns : undefined;
+}
+
+/**
+ * Copy xmlns declarations to target if present
+ */
+function copyXmlns(el: XmlElement, target: any): void {
+  const xmlns = extractXmlns(el);
+  if (xmlns) {
+    target.xmlns = xmlns;
   }
 }
 
