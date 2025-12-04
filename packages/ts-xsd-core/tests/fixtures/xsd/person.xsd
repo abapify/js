@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://example.com/person"
+           xmlns:tns="http://example.com/person"
+           elementFormDefault="qualified">
+
+  <!-- Root element -->
+  <xs:element name="Person" type="tns:PersonType"/>
+
+  <!-- Person complex type -->
+  <xs:complexType name="PersonType">
+    <xs:sequence>
+      <xs:element name="firstName" type="xs:string"/>
+      <xs:element name="lastName" type="xs:string"/>
+      <xs:element name="age" type="xs:int" minOccurs="0"/>
+      <xs:element name="email" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="address" type="tns:AddressType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="active" type="xs:boolean" default="true"/>
+  </xs:complexType>
+
+  <!-- Address complex type -->
+  <xs:complexType name="AddressType">
+    <xs:sequence>
+      <xs:element name="street" type="xs:string"/>
+      <xs:element name="city" type="xs:string"/>
+      <xs:element name="state" type="xs:string" minOccurs="0"/>
+      <xs:element name="zip" type="xs:string"/>
+      <xs:element name="country" type="tns:CountryType" default="US"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Country simple type (enum) -->
+  <xs:simpleType name="CountryType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="US"/>
+      <xs:enumeration value="CA"/>
+      <xs:enumeration value="UK"/>
+      <xs:enumeration value="DE"/>
+      <xs:enumeration value="FR"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>
