@@ -3,7 +3,7 @@
  * Maps ADK v2 Interface objects to abapGit XML structure
  */
 
-import type { AdkInterface } from '@abapify/adk-v2';
+import type { AdkInterface } from '@abapify/adk';
 import { createSerializer } from '../../lib/create-serializer';
 import { AbapGitIntfValuesSchema } from './schema';
 import type { VseoInterfTable } from './types';

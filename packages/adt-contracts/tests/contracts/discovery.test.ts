@@ -2,7 +2,7 @@
  * Discovery Contract Scenarios
  */
 
-import { discovery } from '@abapify/adt-schemas-xsd';
+import { discovery } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { discoveryContract } from '../../src/adt/discovery';
 

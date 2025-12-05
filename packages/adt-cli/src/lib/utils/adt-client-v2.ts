@@ -9,9 +9,9 @@
  * - This module extracts credentials and creates v2 client
  * - v2 client remains pure (no CLI/file I/O dependencies)
  */
-import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type ResponseContext, type AdtClient } from '@abapify/adt-client-v2';
-import type { AdtAdapterConfig } from '@abapify/adt-client-v2';
-import { initializeAdk, isAdkInitialized } from '@abapify/adk-v2';
+import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type ResponseContext, type AdtClient } from '@abapify/adt-client';
+import type { AdtAdapterConfig } from '@abapify/adt-client';
+import { initializeAdk, isAdkInitialized } from '@abapify/adk';
 import { loadAuthSession, isExpired, refreshCredentials, type CookieCredentials, type BasicCredentials, type AuthSession } from './auth';
 import { createProgressReporter, type ProgressReporter } from './progress-reporter';
 import { setAdtSystem } from '../ui/components/link';
