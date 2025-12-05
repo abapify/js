@@ -15,3 +15,7 @@
 
 // Re-export everything from generated
 export * from './generated';
+
+// Re-export JSON schemas
+export * from './json';
+export type { SystemInformation as SystemInformationJson } from './json';

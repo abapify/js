@@ -22,39 +22,40 @@ import _abapoo from './schemas/sap/abapoo';
 import _classes from './schemas/sap/classes';
 import _interfaces from './schemas/sap/interfaces';
 import _packagesV1 from './schemas/sap/packagesV1';
-import _atc from './schemas/sap/atc';
-import _atcresult from './schemas/sap/atcresult';
 import _atcworklist from './schemas/sap/atcworklist';
 import _configuration from './schemas/sap/configuration';
 import _configurations from './schemas/sap/configurations';
 import _checklist from './schemas/sap/checklist';
 import _logpoint from './schemas/sap/logpoint';
 import _traces from './schemas/sap/traces';
-import _quickfixes from './schemas/sap/quickfixes';
 import _templatelink from './schemas/sap/templatelink';
 import _templatelinkExtended from './schemas/custom/templatelinkExtended';
+import _http from './schemas/custom/http';
 import _transportfind from './schemas/custom/transportfind';
 import _transportmanagmentCreate from './schemas/custom/transportmanagment-create';
+import _transportmanagmentSingle from './schemas/custom/transportmanagment-single';
 
 // Import generated types
 import type {
-  Abap,
-  AbapClass,
-  AbapInterface,
-  AbapOoObject,
-  AbapSourceObject,
-  AdtLogpoint,
-  AdtObject,
-  AtcQuickfixes,
-  AtcWorklist,
-  CheckMessageList,
-  Configuration,
-  Configurations,
-  LinkType,
-  Package,
-  RootType,
-  TemplateLinksType,
-  Traces
+  AbapooAbapOoObject,
+  AbapsourceAbapSourceObject,
+  AdtcoreAdtObject,
+  AsxAbapType,
+  AtcWorklistAtcWorklist,
+  AtomLinkType,
+  ChecklistMessageList,
+  ClassAbapClass,
+  CompatExtTemplateLinksType,
+  CompatLinkType,
+  ConfigConfigurations,
+  ConfigurationConfiguration,
+  HttpSessionType,
+  IntfAbapInterface,
+  LogpointAdtLogpoint,
+  PakPackage,
+  TmCreateRootType,
+  TmSingleRoot,
+  TracesTraces
 } from './types';
 
 // Re-export all types
@@ -64,62 +65,59 @@ export * from './types';
 // TYPED SCHEMAS
 // ============================================================================
 
-/** atom schema with LinkType type */
-export const atom = typed<LinkType>(_atom);
+/** atom schema with AtomLinkType type */
+export const atom = typed<AtomLinkType>(_atom);
 
-/** adtcore schema with AdtObject type */
-export const adtcore = typed<AdtObject>(_adtcore);
+/** adtcore schema with AdtcoreAdtObject type */
+export const adtcore = typed<AdtcoreAdtObject>(_adtcore);
 
-/** abapsource schema with AbapSourceObject type */
-export const abapsource = typed<AbapSourceObject>(_abapsource);
+/** abapsource schema with AbapsourceAbapSourceObject type */
+export const abapsource = typed<AbapsourceAbapSourceObject>(_abapsource);
 
-/** abapoo schema with AbapOoObject type */
-export const abapoo = typed<AbapOoObject>(_abapoo);
+/** abapoo schema with AbapooAbapOoObject type */
+export const abapoo = typed<AbapooAbapOoObject>(_abapoo);
 
-/** classes schema with AbapClass type */
-export const classes = typed<AbapClass>(_classes);
+/** classes schema with ClassAbapClass type */
+export const classes = typed<ClassAbapClass>(_classes);
 
-/** interfaces schema with AbapInterface type */
-export const interfaces = typed<AbapInterface>(_interfaces);
+/** interfaces schema with IntfAbapInterface type */
+export const interfaces = typed<IntfAbapInterface>(_interfaces);
 
-/** packagesV1 schema with Package type */
-export const packagesV1 = typed<Package>(_packagesV1);
+/** packagesV1 schema with PakPackage type */
+export const packagesV1 = typed<PakPackage>(_packagesV1);
 
-/** atc schema with AtcWorklist type */
-export const atc = typed<AtcWorklist>(_atc);
+/** atcworklist schema with AtcWorklistAtcWorklist type */
+export const atcworklist = typed<AtcWorklistAtcWorklist>(_atcworklist);
 
-/** atcresult schema with AtcWorklist type */
-export const atcresult = typed<AtcWorklist>(_atcresult);
+/** configuration schema with ConfigurationConfiguration type */
+export const configuration = typed<ConfigurationConfiguration>(_configuration);
 
-/** atcworklist schema with AtcWorklist type */
-export const atcworklist = typed<AtcWorklist>(_atcworklist);
+/** configurations schema with ConfigConfigurations type */
+export const configurations = typed<ConfigConfigurations>(_configurations);
 
-/** configuration schema with Configuration type */
-export const configuration = typed<Configuration>(_configuration);
+/** checklist schema with ChecklistMessageList type */
+export const checklist = typed<ChecklistMessageList>(_checklist);
 
-/** configurations schema with Configurations type */
-export const configurations = typed<Configurations>(_configurations);
+/** logpoint schema with LogpointAdtLogpoint type */
+export const logpoint = typed<LogpointAdtLogpoint>(_logpoint);
 
-/** checklist schema with CheckMessageList type */
-export const checklist = typed<CheckMessageList>(_checklist);
+/** traces schema with TracesTraces type */
+export const traces = typed<TracesTraces>(_traces);
 
-/** logpoint schema with AdtLogpoint type */
-export const logpoint = typed<AdtLogpoint>(_logpoint);
+/** templatelink schema with CompatLinkType type */
+export const templatelink = typed<CompatLinkType>(_templatelink);
 
-/** traces schema with Traces type */
-export const traces = typed<Traces>(_traces);
+/** templatelinkExtended schema with CompatExtTemplateLinksType type */
+export const templatelinkExtended = typed<CompatExtTemplateLinksType>(_templatelinkExtended);
 
-/** quickfixes schema with AtcQuickfixes type */
-export const quickfixes = typed<AtcQuickfixes>(_quickfixes);
+/** http schema with HttpSessionType type */
+export const http = typed<HttpSessionType>(_http);
 
-/** templatelink schema with LinkType type */
-export const templatelink = typed<LinkType>(_templatelink);
+/** transportfind schema with AsxAbapType type */
+export const transportfind = typed<AsxAbapType>(_transportfind);
 
-/** templatelinkExtended schema with TemplateLinksType type */
-export const templatelinkExtended = typed<TemplateLinksType>(_templatelinkExtended);
+/** transportmanagment-create schema with TmCreateRootType type */
+export const transportmanagmentCreate = typed<TmCreateRootType>(_transportmanagmentCreate);
 
-/** transportfind schema with Abap type */
-export const transportfind = typed<Abap>(_transportfind);
-
-/** transportmanagment-create schema with RootType type */
-export const transportmanagmentCreate = typed<RootType>(_transportmanagment-create);
+/** transportmanagment-single schema with TmSingleRoot type */
+export const transportmanagmentSingle = typed<TmSingleRoot>(_transportmanagmentSingle);

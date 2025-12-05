@@ -21,7 +21,7 @@ type ComplexTypeDef = {
   complexContent?: { extension?: { base?: string; sequence?: ComplexTypeDef['sequence']; choice?: ComplexTypeDef['choice']; all?: ComplexTypeDef['all']; attribute?: ComplexTypeDef['attribute'] } };
 };
 
-type FieldDef = { name?: string; type?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' };
+type FieldDef = { name?: string; type?: string; ref?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' };
 type ElementDef = { name?: string; type?: string };
 
 export interface BuildOptions {
@@ -61,9 +61,9 @@ export function build<T extends SchemaLike>(
   }
 
   const typeName = stripNsPrefix(elementDecl.type || elementDecl.name || '');
-  const rootType = findComplexTypeByName(complexTypes, typeName);
+  const rootTypeFound = findComplexTypeWithSchema(typeName, schema, complexTypes);
 
-  if (!rootType) {
+  if (!rootTypeFound) {
     throw new Error(`Schema missing complexType for: ${typeName}`);
   }
 
@@ -91,7 +91,7 @@ export function build<T extends SchemaLike>(
     }
   }
 
-  buildElement(doc, root, data as Record<string, unknown>, rootType, schema, complexTypes, prefix);
+  buildElement(doc, root, data as Record<string, unknown>, rootTypeFound.type, rootTypeFound.schema, rootTypeFound.complexTypes, prefix);
   doc.appendChild(root);
 
   let xml = new XMLSerializer().serializeToString(doc);
@@ -141,13 +141,43 @@ function stripNsPrefix(name: string): string {
 }
 
 /**
- * Find complexType by name
+ * Find complexType by name (local search only)
  */
-function findComplexTypeByName(
+function findComplexTypeByNameLocal(
   complexTypes: readonly ComplexTypeDef[],
   name: string
 ): ComplexTypeDef | undefined {
   return complexTypes.find(ct => ct.name === name);
+}
+
+/**
+ * Find complexType by name (searches current schema and $imports)
+ * Returns both the type and the schema it was found in
+ */
+function findComplexTypeWithSchema(
+  name: string,
+  schema: SchemaLike,
+  complexTypes: readonly ComplexTypeDef[]
+): { type: ComplexTypeDef; schema: SchemaLike; complexTypes: readonly ComplexTypeDef[] } | undefined {
+  // First try to find in current schema
+  const localType = findComplexTypeByNameLocal(complexTypes, name);
+  if (localType) {
+    return { type: localType, schema, complexTypes };
+  }
+
+  // Search in $imports
+  const imports = schema.$imports as readonly SchemaLike[] | undefined;
+  if (imports) {
+    for (const importedSchema of imports) {
+      const importedComplexTypes = getComplexTypesArray(importedSchema.complexType);
+      const found = findComplexTypeWithSchema(name, importedSchema, importedComplexTypes);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -168,10 +198,10 @@ function findMatchingElement(
 
   for (const element of elements) {
     if (!element.type) continue;
-    const typeDef = findComplexTypeByName(complexTypes, stripNsPrefix(element.type));
+    const typeDef = findComplexTypeByNameLocal(complexTypes, stripNsPrefix(element.type));
     if (!typeDef) continue;
 
-    const typeFields = getTypeFields(typeDef, complexTypes);
+    const typeFields = getTypeFieldsLocal(typeDef, complexTypes);
     let score = 0;
     dataKeys.forEach(key => {
       if (typeFields.has(key)) score++;
@@ -187,9 +217,10 @@ function findMatchingElement(
 }
 
 /**
- * Get all field names from a complexType, including inherited fields
+ * Get all field names from a complexType, including inherited fields (local search only)
+ * Used for element matching heuristics - doesn't need cross-schema search
  */
-function getTypeFields(
+function getTypeFieldsLocal(
   typeDef: ComplexTypeDef,
   complexTypes: readonly ComplexTypeDef[]
 ): Set<string> {
@@ -198,9 +229,9 @@ function getTypeFields(
   // Get inherited fields
   const extension = typeDef.complexContent?.extension;
   if (extension?.base) {
-    const baseType = findComplexTypeByName(complexTypes, stripNsPrefix(extension.base));
+    const baseType = findComplexTypeByNameLocal(complexTypes, stripNsPrefix(extension.base));
     if (baseType) {
-      const baseFields = getTypeFields(baseType, complexTypes);
+      const baseFields = getTypeFieldsLocal(baseType, complexTypes);
       baseFields.forEach(f => fields.add(f));
     }
   }
@@ -232,9 +263,11 @@ function getTypeFields(
 
 /**
  * Get merged complexType definition including inherited fields
+ * Searches $imports for base types to support cross-schema inheritance
  */
 function getMergedComplexType(
   typeDef: ComplexTypeDef,
+  schema: SchemaLike,
   complexTypes: readonly ComplexTypeDef[]
 ): ComplexTypeDef {
   const extension = typeDef.complexContent?.extension;
@@ -242,12 +275,16 @@ function getMergedComplexType(
     return typeDef;
   }
 
-  const baseType = findComplexTypeByName(complexTypes, stripNsPrefix(extension.base));
-  if (!baseType) {
+  const baseName = stripNsPrefix(extension.base);
+  // Search in current schema AND $imports for base type
+  const found = findComplexTypeWithSchema(baseName, schema, complexTypes);
+  if (!found) {
     return typeDef;
   }
 
-  const mergedBase = getMergedComplexType(baseType, complexTypes);
+  // Recursively get merged base (handles multi-level inheritance)
+  // Use the schema where the base type was found for proper context
+  const mergedBase = getMergedComplexType(found.type, found.schema, found.complexTypes);
 
   return {
     name: typeDef.name,
@@ -283,7 +320,7 @@ function buildElement(
   complexTypes: readonly ComplexTypeDef[],
   prefix: string | undefined
 ): void {
-  const mergedDef = getMergedComplexType(typeDef, complexTypes);
+  const mergedDef = getMergedComplexType(typeDef, schema, complexTypes);
 
   // Build attributes
   if (mergedDef.attribute) {
@@ -299,27 +336,102 @@ function buildElement(
   // Build sequence elements
   if (mergedDef.sequence?.element) {
     for (const field of mergedDef.sequence.element) {
-      if (!field.name) continue;
-      buildField(doc, node, data[field.name], field, schema, complexTypes, prefix);
+      const resolved = resolveFieldRef(field, schema);
+      if (!resolved) continue;
+      const value = data[resolved.elementName];
+      if (value !== undefined) {
+        buildField(doc, node, value, resolved, schema, complexTypes, prefix);
+      }
     }
   }
 
   // Build all elements
   if (mergedDef.all?.element) {
     for (const field of mergedDef.all.element) {
-      if (!field.name) continue;
-      buildField(doc, node, data[field.name], field, schema, complexTypes, prefix);
+      const resolved = resolveFieldRef(field, schema);
+      if (!resolved) continue;
+      const value = data[resolved.elementName];
+      if (value !== undefined) {
+        buildField(doc, node, value, resolved, schema, complexTypes, prefix);
+      }
     }
   }
 
   // Build choice elements
   if (mergedDef.choice?.element) {
     for (const field of mergedDef.choice.element) {
-      if (!field.name || data[field.name] === undefined) continue;
-      buildField(doc, node, data[field.name], field, schema, complexTypes, prefix);
+      const resolved = resolveFieldRef(field, schema);
+      if (!resolved) continue;
+      const value = data[resolved.elementName];
+      if (value !== undefined) {
+        buildField(doc, node, value, resolved, schema, complexTypes, prefix);
+      }
     }
   }
 }
+
+/**
+ * Resolve a field definition to element name and type
+ * Handles both direct name/type and ref references
+ */
+function resolveFieldRef(
+  field: FieldDef,
+  schema: SchemaLike
+): { elementName: string; typeName?: string } | undefined {
+  // Direct element with name
+  if (field.name) {
+    return { elementName: field.name, typeName: field.type ? stripNsPrefix(field.type) : undefined };
+  }
+  
+  // Element reference (e.g., ref: "atom:link")
+  if (field.ref) {
+    const refName = stripNsPrefix(field.ref);
+    // Search for the element declaration in $imports
+    const elementDecl = findElementWithSchema(refName, schema);
+    if (elementDecl) {
+      return {
+        elementName: elementDecl.element.name!,
+        typeName: elementDecl.element.type ? stripNsPrefix(elementDecl.element.type) : undefined,
+      };
+    }
+    // Fallback: use the ref name as element name
+    return { elementName: refName };
+  }
+  
+  return undefined;
+}
+
+/**
+ * Find element declaration by name (searches current schema and $imports)
+ */
+function findElementWithSchema(
+  name: string,
+  schema: SchemaLike
+): { element: ElementDef; schema: SchemaLike } | undefined {
+  // Search in current schema
+  const elements = schema.element as readonly ElementDef[] | undefined;
+  if (elements) {
+    const found = elements.find(el => el.name === name);
+    if (found) {
+      return { element: found, schema };
+    }
+  }
+
+  // Search in $imports
+  const imports = schema.$imports as readonly SchemaLike[] | undefined;
+  if (imports) {
+    for (const importedSchema of imports) {
+      const found = findElementWithSchema(name, importedSchema);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+type ResolvedField = { elementName: string; typeName?: string };
 
 /**
  * Build a field (child element)
@@ -328,33 +440,34 @@ function buildField(
   doc: XmlDocument,
   parent: XmlElement,
   value: unknown,
-  field: FieldDef,
+  resolved: ResolvedField,
   schema: SchemaLike,
   complexTypes: readonly ComplexTypeDef[],
   prefix: string | undefined
 ): void {
   if (value === undefined || value === null) return;
 
-  const typeName = field.type ? stripNsPrefix(field.type) : undefined;
-  const nestedType = typeName ? findComplexTypeByName(complexTypes, typeName) : undefined;
-  const tagName = prefix ? `${prefix}:${field.name}` : field.name!;
+  const { elementName, typeName } = resolved;
+  // Search in current schema AND $imports for nested type
+  const nestedFound = typeName ? findComplexTypeWithSchema(typeName, schema, complexTypes) : undefined;
+  const tagName = prefix ? `${prefix}:${elementName}` : elementName;
 
   if (Array.isArray(value)) {
     for (const item of value) {
       const child = doc.createElement(tagName);
-      if (nestedType) {
-        buildElement(doc, child, item as Record<string, unknown>, nestedType, schema, complexTypes, prefix);
+      if (nestedFound) {
+        buildElement(doc, child, item as Record<string, unknown>, nestedFound.type, nestedFound.schema, nestedFound.complexTypes, prefix);
       } else {
-        child.appendChild(doc.createTextNode(formatValue(item, field.type || 'string')));
+        child.appendChild(doc.createTextNode(formatValue(item, typeName || 'string')));
       }
       parent.appendChild(child);
     }
   } else {
     const child = doc.createElement(tagName);
-    if (nestedType) {
-      buildElement(doc, child, value as Record<string, unknown>, nestedType, schema, complexTypes, prefix);
+    if (nestedFound) {
+      buildElement(doc, child, value as Record<string, unknown>, nestedFound.type, nestedFound.schema, nestedFound.complexTypes, prefix);
     } else {
-      child.appendChild(doc.createTextNode(formatValue(value, field.type || 'string')));
+      child.appendChild(doc.createTextNode(formatValue(value, typeName || 'string')));
     }
     parent.appendChild(child);
   }

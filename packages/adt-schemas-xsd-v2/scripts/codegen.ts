@@ -180,7 +180,8 @@ function main() {
     outputDir: SOURCES.custom.outputDir,
     schemas: SOURCES.custom.schemas,
     importResolver: (schemaLocation: string) => {
-      const importName = schemaLocation.replace(/\.xsd$/, '');
+      // Extract basename without path and extension (e.g., "../sap/adtcore.xsd" -> "adtcore")
+      const importName = schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
       if (SOURCES.custom.schemas.includes(importName)) {
         return `./${importName}`;
       }
