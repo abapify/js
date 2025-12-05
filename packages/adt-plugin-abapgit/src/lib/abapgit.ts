@@ -1,4 +1,4 @@
-import type { AdkObject } from '@abapify/adk-v2';
+import type { AdkObject } from '@abapify/adk';
 import { createFormatPlugin } from './types';
 import type { FormatPlugin, SerializationContext } from './types';
 import { AbapGitSerializer } from './serializer';

@@ -10,8 +10,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "speci": "*",
-    "@abapify/adt-schemas-xsd": "*"
+    "@abapify/adt-schemas": "*"
   },
   "devDependencies": {
     "adt-fixtures": "*"

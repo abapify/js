@@ -13,7 +13,7 @@
 import { Command } from 'commander';
 import { input, select, confirm } from '@inquirer/prompts';
 import { getAdtClientV2 } from '../../../utils/adt-client-v2';
-import { AdkTransportRequest } from '@abapify/adk-v2';
+import { AdkTransportRequest } from '@abapify/adk';
 
 /**
  * Transport creation input (matches schema structure)
