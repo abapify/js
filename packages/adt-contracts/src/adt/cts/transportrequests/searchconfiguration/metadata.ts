@@ -4,7 +4,7 @@
  */
 
 import { http, contract } from '../../../../base';
-import { configuration } from 'adt-schemas-xsd';
+import { configuration } from '../../../../schemas';
 
 export const metadata = contract({
   /** GET default search configuration metadata */

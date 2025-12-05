@@ -7,7 +7,7 @@
 
 import type { Page, Component } from '../types';
 import type { NavParams } from '../router';
-import { AdkTransportRequest, AdkTransportTask, type AdkTransportObject } from '@abapify/adk-v2';
+import { AdkTransportRequest, AdkTransportTask, type AdkTransportObject } from '@abapify/adk';
 import { Box, Field, Section, Text, adtLink } from '../components';
 import { IconRegistry } from '../../utils/icon-registry';
 import { createPrintFn } from '../render';

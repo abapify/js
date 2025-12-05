@@ -9,7 +9,7 @@
  */
 
 import type { ElementSchema } from 'ts-xml';
-import type { AdkObject } from '@abapify/adk-v2';
+import type { AdkObject } from '@abapify/adk';
 import { buildAbapGitXml } from './shared-schema';
 
 /**

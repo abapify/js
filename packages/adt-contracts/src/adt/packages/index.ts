@@ -10,7 +10,7 @@
  */
 
 import { http } from 'speci/rest';
-import { packagesV1 } from 'adt-schemas-xsd';
+import { packagesV1 } from '../../schemas';
 
 // ============================================================================
 // Contract

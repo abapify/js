@@ -13,16 +13,13 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../ts-xml/tsconfig.build.json"
-    },
-    {
       "path": "../ts-xsd"
     },
     {
       "path": "../speci"
     },
     {
-      "path": "../adk-v2/tsconfig.lib.json"
+      "path": "../adk/tsconfig.lib.json"
     }
   ]
 }

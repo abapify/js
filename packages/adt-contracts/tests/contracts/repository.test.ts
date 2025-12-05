@@ -3,7 +3,7 @@
  */
 
 import { fixtures } from 'adt-fixtures';
-import { adtcore } from 'adt-schemas-xsd';
+import { adtcore } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { searchContract } from '../../src/adt/repository/informationsystem/search';
 

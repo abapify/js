@@ -3,7 +3,7 @@
  * Maps ADK v2 Package objects to abapGit XML structure
  */
 
-import type { AdkPackage } from '@abapify/adk-v2';
+import type { AdkPackage } from '@abapify/adk';
 import { createSerializer } from '../../lib/create-serializer';
 import { AbapGitDevcValuesSchema } from './schema';
 import type { DevcTable } from './types';

@@ -10,6 +10,6 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@abapify/adt-schemas": "*"
+    "@abapify/adt-client": "*"
   }
 }

@@ -6,7 +6,7 @@
  */
 
 import { http } from '../../base';
-import { discovery } from 'adt-schemas-xsd';
+import { discovery } from '../../schemas';
 
 /**
  * Discovery response type - inferred from XSD schema

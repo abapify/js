@@ -1,8 +1,0 @@
-{
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "ts-xml-codegen",
-  "sourceRoot": "packages/ts-xml-codegen/src",
-  "projectType": "library",
-  "tags": ["scope:ts-xml"],
-  "targets": {}
-}

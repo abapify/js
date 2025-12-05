@@ -8,8 +8,7 @@
  */
 
 import { http, contract } from '../../base';
-import { atcworklist } from 'adt-schemas-xsd';
-import type { RestContract } from 'speci/rest';
+import { atcworklist } from '../../schemas';
 
 /**
  * /sap/bc/adt/atc/runs
@@ -81,10 +80,11 @@ const worklists = contract({
     }),
 });
 
-export const atcContract: RestContract = {
+export const atcContract = {
   runs,
   results,
   worklists,
 };
 
-export type AtcContract = RestContract;
+/** Type alias for the ATC contract */
+export type AtcContract = typeof atcContract;
