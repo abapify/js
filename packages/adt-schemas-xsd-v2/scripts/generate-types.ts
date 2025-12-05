@@ -70,6 +70,7 @@ const SOURCES = {
     schemas: [
       'atomExtended',
       'discovery',
+      'http',
       'transportfind',
       'transportmanagment-create',
       'transportmanagment-single',
@@ -85,6 +86,7 @@ const NAMESPACE_TO_SCHEMA: Record<string, string> = {
   'http://www.sap.com/adt/oo': 'abapoo',
   'http://www.sap.com/adt/oo/classes': 'classes',
   'http://www.sap.com/adt/oo/interfaces': 'interfaces',
+  'http://www.sap.com/adt/http': 'http',
 };
 
 // Track which schemas have been generated (for import resolution)

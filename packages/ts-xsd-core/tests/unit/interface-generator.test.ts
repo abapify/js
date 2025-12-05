@@ -348,4 +348,207 @@ describe('Interface Generator', () => {
     assert.ok(output.includes('header: string'), 'Should have header');
     assert.ok(output.includes('[key: string]: unknown'), 'Should have index signature for any');
   });
+
+  // BUG: Element reference should use the element's type, not derive type from element name
+  // See: https://www.w3.org/TR/xmlschema11-1/#declare-element
+  // When an element has ref="ns:elementName", the type should come from the referenced element's type attribute
+  describe('Element reference type resolution', () => {
+    // Schema where element has explicit type different from element name
+    // This mimics SAP's templatelink.xsd where:
+    //   <element name="templateLink" type="adtcomp:linkType"/>
+    // The type is "linkType", NOT "TemplateLink" (derived from element name)
+    const baseSchema = {
+      $xmlns: { base: 'http://base.example.com' },
+      targetNamespace: 'http://base.example.com',
+      element: [
+        { name: 'templateLink', type: 'base:LinkType' },  // Element name != type name
+      ],
+      complexType: [
+        {
+          name: 'LinkType',  // This is the actual type
+          attribute: [
+            { name: 'href', type: 'xsd:string', use: 'required' },
+            { name: 'rel', type: 'xsd:string' },
+          ],
+        },
+      ],
+    } as const;
+
+    const containerSchema = {
+      $xmlns: { 
+        base: 'http://base.example.com',
+        container: 'http://container.example.com',
+      },
+      targetNamespace: 'http://container.example.com',
+      $imports: [baseSchema],
+      element: [
+        { name: 'container', type: 'container:ContainerType' },
+      ],
+      complexType: [
+        {
+          name: 'ContainerType',
+          sequence: {
+            element: [
+              // Reference to element, should use LinkType, not "TemplateLink"
+              { ref: 'base:templateLink', minOccurs: '0', maxOccurs: 'unbounded' },
+            ],
+          },
+        },
+      ],
+    } as const;
+
+    it('should use element type (LinkType), not element name (TemplateLink)', () => {
+      const output = generateInterfaces(containerSchema, {
+        rootElement: 'container',
+      });
+      
+      // Should generate LinkType interface
+      assert.ok(output.includes('export interface LinkType'), 'Should have LinkType interface');
+      assert.ok(output.includes('href: string'), 'LinkType should have href');
+      assert.ok(output.includes('rel?: string'), 'LinkType should have rel');
+      
+      // Property should reference LinkType, NOT TemplateLink
+      assert.ok(
+        output.includes('templateLink?: LinkType[]'),
+        'Property should use LinkType (the actual type), not TemplateLink (derived from element name)'
+      );
+      
+      // Should NOT generate a "TemplateLink" type - that would be wrong
+      assert.ok(
+        !output.includes('export interface TemplateLink'),
+        'Should NOT generate TemplateLink interface - type should be LinkType'
+      );
+    });
+
+    // More complex case: nested imports (like discovery -> templatelinkExtended -> templatelink)
+    // This is the actual SAP ADT scenario that fails
+    const templatelinkSchema = {
+      $xmlns: { adtcomp: 'http://www.sap.com/adt/compatibility' },
+      targetNamespace: 'http://www.sap.com/adt/compatibility',
+      element: [
+        { name: 'templateLink', type: 'adtcomp:linkType' },  // Element name != type name
+      ],
+      complexType: [
+        {
+          name: 'linkType',  // lowercase - this is the actual type
+          attribute: [
+            { name: 'href', type: 'xsd:string' },
+            { name: 'rel', type: 'xsd:string' },
+            { name: 'type', type: 'xsd:string' },
+            { name: 'template', type: 'xsd:string' },
+          ],
+        },
+      ],
+    } as const;
+
+    const templatelinkExtendedSchema = {
+      $xmlns: { adtcomp: 'http://www.sap.com/adt/compatibility' },
+      targetNamespace: 'http://www.sap.com/adt/compatibility',
+      $imports: [templatelinkSchema],  // includes templatelink.xsd
+      element: [
+        { name: 'templateLinks', type: 'adtcomp:templateLinksType' },
+      ],
+      complexType: [
+        {
+          name: 'templateLinksType',
+          sequence: {
+            element: [
+              // Reference to templateLink element - should resolve to linkType
+              { ref: 'adtcomp:templateLink', minOccurs: '0', maxOccurs: 'unbounded' },
+            ],
+          },
+        },
+      ],
+    } as const;
+
+    const discoverySchema = {
+      $xmlns: { 
+        app: 'http://www.w3.org/2007/app',
+        adtcomp: 'http://www.sap.com/adt/compatibility',
+      },
+      targetNamespace: 'http://www.w3.org/2007/app',
+      $imports: [templatelinkExtendedSchema],  // imports templatelinkExtended
+      element: [
+        { name: 'collection', type: 'app:CollectionType' },
+      ],
+      complexType: [
+        {
+          name: 'CollectionType',
+          sequence: {
+            element: [
+              { ref: 'adtcomp:templateLinks', minOccurs: '0' },
+            ],
+          },
+          attribute: [
+            { name: 'href', type: 'xsd:string', use: 'required' },
+          ],
+        },
+      ],
+    } as const;
+
+    it('should resolve element type through nested imports (SAP ADT scenario)', () => {
+      const output = generateInterfaces(discoverySchema, {
+        rootElement: 'collection',
+      });
+      
+      // Should generate linkType interface (from templatelink.xsd)
+      assert.ok(
+        output.includes('export interface linkType') || output.includes('export interface LinkType'),
+        'Should have linkType interface from nested import'
+      );
+      
+      // templateLinksType should reference linkType, NOT TemplateLink
+      // The property name is 'templateLink' (from element name), but type should be 'linkType'
+      const hasCorrectType = output.includes('templateLink?: linkType[]') || 
+                             output.includes('templateLink?: LinkType[]');
+      const hasWrongType = output.includes('templateLink?: TemplateLink[]');
+      
+      if (hasWrongType && !hasCorrectType) {
+        // This is the bug - type derived from element name instead of element's type attribute
+        assert.fail(
+          'BUG: templateLink property uses TemplateLink (derived from element name) ' +
+          'instead of linkType (the actual type from the element declaration). ' +
+          'Element ref should resolve to the referenced element\'s type attribute.'
+        );
+      }
+      
+      assert.ok(hasCorrectType, 'templateLink property should use linkType (the actual type)');
+    });
+
+    // Additional test: non-W3C attributes like ecore:name should be ignored
+    const schemaWithEcoreName = {
+      $xmlns: { ns: 'http://example.com', ecore: 'http://www.eclipse.org/emf/2002/Ecore' },
+      targetNamespace: 'http://example.com',
+      element: [
+        { name: 'item', type: 'ns:ItemType' },
+      ],
+      complexType: [
+        {
+          name: 'ItemType',
+          // ecore:name is an Eclipse EMF annotation, NOT part of W3C XSD spec
+          // It should be completely ignored - type name comes from 'name' attribute only
+          'ecore:name': 'EcoreItemType',  // This should be IGNORED
+          attribute: [
+            { name: 'id', type: 'xsd:string' },
+          ],
+        },
+      ],
+    } as const;
+
+    it('should ignore ecore:name and use W3C name attribute only', () => {
+      const output = generateInterfaces(schemaWithEcoreName, {
+        rootElement: 'item',
+      });
+      
+      // Should use 'name' attribute (ItemType), not 'ecore:name' (EcoreItemType)
+      assert.ok(
+        output.includes('export interface ItemType'),
+        'Should use W3C name attribute (ItemType)'
+      );
+      assert.ok(
+        !output.includes('EcoreItemType'),
+        'Should NOT use ecore:name (EcoreItemType) - it is not part of W3C XSD spec'
+      );
+    });
+  });
 });

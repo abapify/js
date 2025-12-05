@@ -99,7 +99,8 @@ export const applyImports: GeneratorFn = (ctx) => {
     if (imp.schemaLocation) {
       const modulePath = importResolver(imp.schemaLocation);
       if (modulePath) {
-        const schemaName = imp.schemaLocation.replace(/\.xsd$/, '');
+        // Extract basename from schemaLocation (e.g., "../sap/adtcore.xsd" → "adtcore")
+        const schemaName = imp.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
         if (useDefaultImports) {
           // Default import: import schemaName from './path'
           tsImports.push(`import ${schemaName} from '${modulePath}';`);

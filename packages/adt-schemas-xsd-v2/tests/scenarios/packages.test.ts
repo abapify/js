@@ -46,22 +46,22 @@ class PackagesScenario extends Scenario<typeof packagesV1> {
   }
 
   validateBuilt(xml: string): void {
-    // Root element with namespace (schema uses 'packages' prefix)
-    expect(xml).toContain('xmlns:packages="http://www.sap.com/adt/packages"');
-    expect(xml).toContain('packages:name="$TMP"');
+    // Root element with namespace (schema uses 'pak' prefix from XSD)
+    expect(xml).toContain('xmlns:pak="http://www.sap.com/adt/packages"');
+    expect(xml).toContain('name="$TMP"');
     
-    // Package attributes
-    expect(xml).toContain('packages:packageType="development"');
-    expect(xml).toContain('packages:isEncapsulated="false"');
+    // Package attributes (attributes are output without namespace prefix)
+    expect(xml).toContain('packageType="development"');
+    expect(xml).toContain('isEncapsulated="false"');
     
     // Transport
-    expect(xml).toContain('<packages:transport');
-    expect(xml).toContain('<packages:softwareComponent');
-    expect(xml).toContain('packages:name="LOCAL"');
+    expect(xml).toContain('<pak:transport');
+    expect(xml).toContain('<pak:softwareComponent');
+    expect(xml).toContain('name="LOCAL"');
     
     // Subpackages
-    expect(xml).toContain('<packages:subPackages');
-    expect(xml).toContain('<packages:packageRef');
+    expect(xml).toContain('<pak:subPackages');
+    expect(xml).toContain('<pak:packageRef');
   }
 }
 

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { fixtures } from 'adt-fixtures';
 import { Scenario, runScenario, type SchemaType } from './base/scenario';
-import { sessions } from '../../src/schemas/index';
+import { http } from '../../src/schemas/index';
 
 /**
  * Test for HTTP Session response - GET /sap/bc/adt/core/http/sessions
@@ -9,11 +9,13 @@ import { sessions } from '../../src/schemas/index';
  * Fixture: Real SAP session response with CSRF tokens and atom links
  * Source: GET /sap/bc/adt/core/http/sessions
  */
-class SessionsScenario extends Scenario<typeof sessions> {
-  readonly schema = sessions;
+class SessionsScenario extends Scenario<typeof http> {
+  readonly schema = http;
   readonly fixtures = [fixtures.core.http.session];
 
-  validateParsed(data: SchemaType<typeof sessions>): void {
+  validateParsed(data: SchemaType<typeof http>): void {
+    console.log('Parsed data:', JSON.stringify(data, null, 2));
+    
     // Validate properties structure
     expect(data.properties).toBeDefined();
     expect(data.properties?.property).toBeDefined();

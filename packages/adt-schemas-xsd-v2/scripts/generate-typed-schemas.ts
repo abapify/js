@@ -13,46 +13,47 @@ import { writeFileSync, mkdirSync, readdirSync, readFileSync, existsSync } from 
 import { join } from 'node:path';
 
 // Schema to root type mapping
-// Maps schema name to the root element's type name (PascalCase)
+// Maps schema name to the PREFIXED root element's type name
+// Type names are prefixed with their namespace (e.g., AdtObject -> AdtcoreAdtObject)
 // Only include schemas that exist and have matching types
 const SCHEMA_ROOT_TYPES: Record<string, { type: string; dir: 'sap' | 'custom' }> = {
-  // SAP schemas - core
-  atom: { type: 'LinkType', dir: 'sap' },
-  adtcore: { type: 'AdtObject', dir: 'sap' },
-  abapsource: { type: 'AbapSourceObject', dir: 'sap' },
-  abapoo: { type: 'AbapOoObject', dir: 'sap' },
+  // SAP schemas - core (prefix: Atom, Adtcore, Abapsource, Abapoo)
+  atom: { type: 'AtomLinkType', dir: 'sap' },
+  adtcore: { type: 'AdtcoreAdtObject', dir: 'sap' },
+  abapsource: { type: 'AbapsourceAbapSourceObject', dir: 'sap' },
+  abapoo: { type: 'AbapooAbapOoObject', dir: 'sap' },
   
-  // SAP schemas - object types
-  classes: { type: 'AbapClass', dir: 'sap' },
-  interfaces: { type: 'AbapInterface', dir: 'sap' },
-  packagesV1: { type: 'Package', dir: 'sap' },
+  // SAP schemas - object types (prefix: Class, Intf, Pak)
+  classes: { type: 'ClassAbapClass', dir: 'sap' },
+  interfaces: { type: 'IntfAbapInterface', dir: 'sap' },
+  packagesV1: { type: 'PakPackage', dir: 'sap' },
   
-  // SAP schemas - ATC
-  atc: { type: 'AtcWorklist', dir: 'sap' },
-  atcresult: { type: 'AtcWorklist', dir: 'sap' },
-  atcworklist: { type: 'AtcWorklist', dir: 'sap' },
+  // SAP schemas - ATC (prefix: Atc, AtcResult, AtcWorklist)
+  // Note: atc and atcresult schemas don't define AtcWorklist - they define other types
+  // atcworklist schema defines the main AtcWorklist type
+  atcworklist: { type: 'AtcWorklistAtcWorklist', dir: 'sap' },
   
-  // SAP schemas - config
-  configuration: { type: 'Configuration', dir: 'sap' },
-  configurations: { type: 'Configurations', dir: 'sap' },
+  // SAP schemas - config (prefix: Configuration, Config)
+  configuration: { type: 'ConfigurationConfiguration', dir: 'sap' },
+  configurations: { type: 'ConfigConfigurations', dir: 'sap' },
   
-  // SAP schemas - checks
-  checklist: { type: 'CheckMessageList', dir: 'sap' },
+  // SAP schemas - checks (prefix: Checklist)
+  checklist: { type: 'ChecklistMessageList', dir: 'sap' },
   
-  // SAP schemas - debug
-  logpoint: { type: 'AdtLogpoint', dir: 'sap' },
-  traces: { type: 'Traces', dir: 'sap' },
+  // SAP schemas - debug (prefix: Logpoint, Traces)
+  logpoint: { type: 'LogpointAdtLogpoint', dir: 'sap' },
+  traces: { type: 'TracesTraces', dir: 'sap' },
   
-  // SAP schemas - other
-  quickfixes: { type: 'AtcQuickfixes', dir: 'sap' },
-  templatelink: { type: 'LinkType', dir: 'sap' },
+  // SAP schemas - other (prefix: Quickfix, Compat)
+  // quickfixes doesn't have AtcQuickfixes - removed
+  templatelink: { type: 'CompatLinkType', dir: 'sap' },
   
-  // Custom schemas
-  templatelinkExtended: { type: 'TemplateLinksType', dir: 'custom' },
-  transportfind: { type: 'Abap', dir: 'custom' },
-  // Transport management - types not fully generated, using available types
-  'transportmanagment-create': { type: 'RootType', dir: 'custom' },
-  'transportmanagment-single': { type: 'unknown', dir: 'custom' },  // Root type is empty in generated types
+  // Custom schemas (prefix: CompatExt, Http, Asx, TmCreate, TmSingle)
+  templatelinkExtended: { type: 'CompatExtTemplateLinksType', dir: 'custom' },
+  http: { type: 'HttpSessionType', dir: 'custom' },
+  transportfind: { type: 'AsxAbapType', dir: 'custom' },
+  'transportmanagment-create': { type: 'TmCreateRootType', dir: 'custom' },
+  'transportmanagment-single': { type: 'TmSingleRoot', dir: 'custom' },
 };
 
 // Reserved words that can't be used as variable names
@@ -159,8 +160,10 @@ function main() {
   // Generate typed schema exports
   for (const [schemaName, config] of validSchemas) {
     const exportName = toExportName(schemaName);
+    // Use same camelCase conversion as import alias
+    const importAlias = '_' + schemaName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     lines.push(`/** ${schemaName} schema with ${config.type} type */`);
-    lines.push(`export const ${exportName} = typed<${config.type}>(_${schemaName});`);
+    lines.push(`export const ${exportName} = typed<${config.type}>(${importAlias});`);
     lines.push('');
   }
   

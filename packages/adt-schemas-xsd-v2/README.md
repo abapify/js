@@ -1,419 +1,330 @@
-# adt-schemas-xsd
+# @abapify/adt-schemas-xsd-v2
 
-**ADT XML Schemas** - Type-safe SAP ADT schemas generated from official XSD definitions, with built-in `parse`/`build` methods for [speci](../speci/README.md) integration.
+**Type-safe SAP ADT schemas** generated from official XSD definitions with **shared types** and **optimal tree-shaking**.
 
-Part of the **ADT Toolkit** - see [main README](../../README.md) for architecture overview.
+[![npm version](https://badge.fury.io/js/%40abapify%2Fadt-schemas-xsd-v2.svg)](https://www.npmjs.com/package/@abapify/adt-schemas-xsd-v2)
 
-## What is it?
+## Overview
 
-This package provides TypeScript schemas for SAP ADT (ABAP Development Tools) REST APIs, auto-generated from SAP's official XSD schema definitions using [ts-xsd](../ts-xsd/README.md) with the factory generator pattern.
+This package provides TypeScript schemas for SAP ADT (ABAP Development Tools) REST APIs, auto-generated from SAP's official XSD schema definitions using [@abapify/ts-xsd-core](../ts-xsd-core/README.md).
 
-**Key Role**: This is the **single source of truth** for ADT types. All type definitions flow from XSD → TypeScript, eliminating manual type maintenance.
+### Key Features
 
-Each schema is pre-wrapped with `parse()` and `build()` methods, making them directly usable in speci contracts for automatic type inference.
+- **204+ TypeScript interfaces** - Pre-generated, no runtime inference overhead
+- **Shared types across schemas** - `AdtObject`, `LinkType`, etc. are defined once
+- **Optimal bundling** - Tree-shakeable, import only what you need
+- **Full type safety** - Compile-time validation of XML parsing/building
+- **speci integration** - Works directly with REST contract definitions
 
-```typescript
-import { schemas } from 'adt-schemas-xsd';
+### Architecture Highlights
 
-// Schemas have parse/build methods built-in
-const data = schemas.configurations.parse(xmlString);
-// data is fully typed as InferXsd<typeof configurations>
-
-// Use directly in speci contracts - type is automatically inferred
-const contract = {
-  get: () => http.get('/endpoint', {
-    responses: { 200: schemas.configurations },
-  }),
-};
 ```
+XSD Files (SAP Official)
+    ↓ ts-xsd-core codegen
+Schema Literals (as const)
+    ↓ interface generator
+TypeScript Interfaces (204 types)
+    ↓ typed() wrapper
+Typed Schemas (parse/build)
+```
+
+**Single source of truth**: All type definitions flow from XSD → TypeScript, eliminating manual type maintenance.
 
 ## Installation
 
 ```bash
-bun add adt-schemas-xsd
+npm install @abapify/adt-schemas-xsd-v2
+# or
+bun add @abapify/adt-schemas-xsd-v2
 ```
 
-## Usage
+## Quick Start
 
-### With speci Contracts
-
-The primary use case - schemas work directly with speci for type-safe REST contracts:
+### Parse ADT XML
 
 ```typescript
-import { schemas } from 'adt-schemas-xsd';
+import { classes, type AbapClass } from '@abapify/adt-schemas-xsd-v2';
+
+// Parse XML to typed object
+const xml = await fetch('/sap/bc/adt/oo/classes/zcl_my_class').then(r => r.text());
+const data = classes.parse(xml);
+
+// Full type safety - TypeScript knows all properties
+console.log(data.name);           // string
+console.log(data.category);       // 'generalObjectType' | 'exceptionClass' | ...
+console.log(data.include?.[0]);   // AbapClassInclude | undefined
+```
+
+### Build ADT XML
+
+```typescript
+import { classes } from '@abapify/adt-schemas-xsd-v2';
+
+const xml = classes.build({
+  name: 'ZCL_MY_CLASS',
+  type: 'CLAS/OC',
+  category: 'generalObjectType',
+  final: false,
+  abstract: false,
+});
+```
+
+### Use with speci Contracts
+
+```typescript
+import { classes, configurations } from '@abapify/adt-schemas-xsd-v2';
 import { http } from 'speci/rest';
 
-// Response type is automatically inferred from schema
-const configurationsContract = {
-  get: () => http.get('/sap/bc/adt/cts/transportrequests/searchconfiguration/configurations', {
-    responses: { 200: schemas.configurations },
+const adtContracts = {
+  getClass: (name: string) => http.get(`/sap/bc/adt/oo/classes/${name}`, {
+    responses: { 200: classes },
+  }),
+  
+  getConfigurations: () => http.get('/sap/bc/adt/cts/transportrequests/searchconfiguration/configurations', {
+    responses: { 200: configurations },
   }),
 };
 ```
 
-### Direct Parsing
+## Available Schemas
 
-Parse ADT XML responses directly:
+### Core Schemas
+
+| Schema | Type | Description |
+|--------|------|-------------|
+| `adtcore` | `AdtObject` | Core ADT object types |
+| `atom` | `LinkType` | Atom feed format (links, categories) |
+| `abapsource` | `AbapSourceObject` | ABAP source code structures |
+| `abapoo` | `AbapOoObject` | ABAP OO base types |
+
+### Repository Objects
+
+| Schema | Type | Description |
+|--------|------|-------------|
+| `classes` | `AbapClass` | ABAP class metadata |
+| `interfaces` | `AbapInterface` | ABAP interface metadata |
+| `packagesV1` | `Package` | Package/devclass metadata |
+
+### Transport Management
+
+| Schema | Type | Description |
+|--------|------|-------------|
+| `transportfind` | `Abap` | Transport search (ABAP XML format) |
+| `transportmanagmentCreate` | `RootType` | Transport creation |
+| `configurations` | `Configurations` | Search configurations |
+| `configuration` | `Configuration` | Single configuration |
+
+### ATC (ABAP Test Cockpit)
+
+| Schema | Type | Description |
+|--------|------|-------------|
+| `atc` | `AtcWorklist` | ATC main schema |
+| `atcworklist` | `AtcWorklist` | ATC worklist |
+| `atcresult` | `AtcWorklist` | ATC results |
+| `checklist` | `CheckMessageList` | Check message lists |
+| `quickfixes` | `AtcQuickfixes` | ATC quickfixes |
+
+### Debugging & Tracing
+
+| Schema | Type | Description |
+|--------|------|-------------|
+| `logpoint` | `AdtLogpoint` | Logpoint definitions |
+| `traces` | `Traces` | Trace data |
+
+### Templates
+
+| Schema | Type | Description |
+|--------|------|-------------|
+| `templatelink` | `LinkType` | Template links |
+| `templatelinkExtended` | `TemplateLinksType` | Extended template links |
+
+## Type System
+
+### Pre-generated Interfaces
+
+All types are pre-generated as TypeScript interfaces, avoiding runtime inference overhead:
 
 ```typescript
-import { schemas } from 'adt-schemas-xsd';
-
-const xml = await fetch('/sap/bc/adt/cts/transportrequests').then(r => r.text());
-const data = schemas.transportmanagment.parse(xml);
-
-// data is fully typed
-console.log(data.request?.requestHeader?.trRequestId);
-```
-
-### Build XML
-
-Build XML from typed objects:
-
-```typescript
-import { schemas } from 'adt-schemas-xsd';
-
-const xml = schemas.transportmanagment.build({
-  request: {
-    requestHeader: {
-      trRequestId: 'DEVK900001',
-      trDescription: 'My transport',
-    },
-  },
-});
-```
-
-### Available Schemas
-
-| Schema | Description |
-|--------|-------------|
-| `schemas.adtcore` | Core ADT object types (objectReference, etc.) |
-| `schemas.atom` | Atom feed format (links, categories) |
-| `schemas.abapsource` | ABAP source code structures |
-| `schemas.abapoo` | ABAP OO types (classes, interfaces) |
-| `schemas.classes` | Class metadata |
-| `schemas.interfaces` | Interface metadata |
-| `schemas.transportmanagment` | Transport requests and tasks |
-| `schemas.transportsearch` | Transport search results |
-| `schemas.configurations` | Search configurations |
-| `schemas.configuration` | Single configuration |
-| `schemas.atc` | ABAP Test Cockpit |
-| `schemas.atcworklist` | ATC worklist |
-| `schemas.atcresult` | ATC results |
-| `schemas.checkrun` | Check runs |
-| `schemas.checklist` | Check lists |
-
-### Type Inference
-
-```typescript
-import { schemas, type InferXsd } from 'adt-schemas-xsd';
-
-// Get TypeScript type from schema
-type Configurations = InferXsd<typeof schemas.configurations>;
+// Import types directly
+import type { 
+  AbapClass, 
+  AbapInterface, 
+  AdtObject,
+  AdtObjectReference,
+  LinkType 
+} from '@abapify/adt-schemas-xsd-v2';
 
 // Use in your code
-function processConfigs(configs: Configurations) {
-  const configArray = Array.isArray(configs.configuration) 
-    ? configs.configuration 
-    : [configs.configuration];
-  // ...
+function processClass(cls: AbapClass) {
+  console.log(cls.name);
+  console.log(cls.superClassRef?.name);
+  cls.include?.forEach(inc => console.log(inc.includeType));
 }
 ```
 
-### Using Raw Schemas
+### Shared Types
 
-If you need the raw schema without parse/build methods:
+Types are shared across schemas - `AdtObject` is defined once and reused:
 
 ```typescript
-import { schemas } from 'adt-schemas-xsd';
-
-// schemas.configurations is already wrapped
-// Access the underlying schema structure
-console.log(schemas.configurations.ns);       // namespace
-console.log(schemas.configurations.root);     // root element
-console.log(schemas.configurations.elements); // element definitions
+// All these extend AdtObject
+interface AbapSourceObject extends AdtObject { ... }
+interface AbapOoObject extends AbapSourceMainObject { ... }
+interface AbapClass extends AbapOoObject { ... }
+interface AbapInterface extends AbapOoObject { ... }
 ```
 
-### Custom Schema Wrapping
+### Type Hierarchy
 
-Use the schema factory for custom wrapping:
+```
+AdtObject
+├── AdtMainObject
+│   └── AbapSourceMainObject
+│       └── AbapOoObject
+│           ├── AbapClass
+│           └── AbapInterface
+└── AbapSourceObject
+    └── AbapClassInclude
+```
+
+## Schema Structure
+
+Each schema is a W3C-compliant XSD representation with linked imports:
 
 ```typescript
-import { schema, type XsdSchema } from 'adt-schemas-xsd';
-
-// Wrap your own schema with parse/build
-const mySchema = schema({
-  ns: 'http://example.com/custom',
-  root: 'MyRoot',
-  elements: {
-    MyRoot: {
-      sequence: [{ name: 'field', type: 'string' }],
-    },
+// Generated schema literal (classes.ts)
+export default {
+  $xmlns: {
+    adtcore: "http://www.sap.com/adt/core",
+    abapoo: "http://www.sap.com/adt/oo",
+    class: "http://www.sap.com/adt/oo/classes",
   },
-} as const satisfies XsdSchema);
+  $imports: [adtcore, abapoo, abapsource],  // Linked schemas
+  targetNamespace: "http://www.sap.com/adt/oo/classes",
+  element: [
+    { name: "abapClass", type: "class:AbapClass" },
+  ],
+  complexType: [
+    {
+      name: "AbapClass",
+      complexContent: {
+        extension: {
+          base: "abapoo:AbapOoObject",  // Type inheritance
+          sequence: { element: [...] },
+          attribute: [...],
+        }
+      }
+    }
+  ],
+} as const;
+```
 
-// Now mySchema has parse() and build() methods
-const data = mySchema.parse(xml);
+### Cross-Schema Type Resolution
+
+The `$imports` array enables cross-schema type resolution:
+
+```typescript
+// classes schema imports adtcore, abapoo, abapsource
+// Type "adtcore:AdtObjectReference" resolves to AdtObjectReference interface
+// Type "abapoo:AbapOoObject" resolves to AbapOoObject interface
 ```
 
 ## Architecture
 
 ```
-adt-schemas-xsd/
+@abapify/adt-schemas-xsd-v2
 ├── src/
-│   ├── index.ts          # Main exports (schemas, schema factory)
-│   ├── speci.ts          # Schema factory (wraps with parse/build)
+│   ├── index.ts              # Main exports
+│   ├── speci.ts              # typed() wrapper factory
 │   └── schemas/
-│       ├── index.ts      # Generated: exports all schemas
-│       └── generated/    # Generated: individual schema files
-│           ├── configurations.ts
-│           ├── atom.ts
-│           └── ...
+│       ├── index.ts          # Re-exports from generated
+│       └── generated/
+│           ├── index.ts      # Typed schema exports
+│           ├── schemas/
+│           │   ├── sap/      # SAP official schemas (23 files)
+│           │   └── custom/   # Custom schemas (9 files)
+│           └── types/
+│               └── index.ts  # 204 TypeScript interfaces
 ```
 
-### How It Works
+### Generation Pipeline
 
-1. **Download**: XSD files are downloaded from SAP ADT SDK
-2. **Generate**: `ts-xsd` factory generator creates TypeScript files
-3. **Wrap**: Each schema imports the `speci.ts` factory and wraps itself
-4. **Export**: `schemas/index.ts` re-exports all wrapped schemas
+```
+1. Download XSD     → .xsd/model/*.xsd
+2. Parse XSD        → Schema objects (ts-xsd-core)
+3. Generate Literal → schemas/sap/*.ts (as const)
+4. Generate Types   → types/index.ts (interfaces)
+5. Wrap with typed()→ index.ts (parse/build methods)
+```
 
-Generated schema files look like:
+## Custom Schemas (ABAP XML Format)
+
+Some SAP endpoints return ABAP XML format (`asx:abap` envelope) without official XSD. Create manual schemas in `src/schemas/generated/schemas/custom/`:
 
 ```typescript
-// schemas/generated/configurations.ts
-import schema from '../../speci';
-import Atom from './atom';
-import Configuration from './configuration';
-
-export default schema({
-  ns: 'http://www.sap.com/adt/configurations',
-  root: 'Configurations',
-  include: [Atom, Configuration],
-  elements: { ... },
-});
-```
-
-## Manual Schemas for ABAP XML Format
-
-Some SAP endpoints return ABAP XML format (`asx:abap` envelope) which doesn't have official XSD definitions. For these, create manual schemas in `src/schemas/manual/`:
-
-### Creating a Manual Schema
-
-```typescript
-// src/schemas/manual/transportfind.ts
-import schema from '../../speci';
-
-export default schema({
-  ns: 'http://www.sap.com/abapxml',
-  prefix: 'asx',
-  root: 'abap',  // Element name WITHOUT namespace prefix
-  elements: {
-    abap: {
-      sequence: [{ name: 'values', type: 'values' }],
-      attributes: [{ name: 'version', type: 'string' }],
+// schemas/custom/transportfind.ts
+export default {
+  $xmlns: { asx: "http://www.sap.com/abapxml" },
+  targetNamespace: "http://www.sap.com/abapxml",
+  element: [{ name: "abap", type: "Abap" }],
+  complexType: [{
+    name: "Abap",
+    sequence: {
+      element: [
+        { name: "values", type: "Values" },
+      ]
     },
-    values: {
-      sequence: [{ name: 'DATA', type: 'DATA' }],
-    },
-    DATA: {
-      sequence: [
-        { name: 'CTS_REQ_HEADER', type: 'CTS_REQ_HEADER', minOccurs: 0, maxOccurs: 'unbounded' },
-      ],
-    },
-    CTS_REQ_HEADER: {
-      sequence: [
-        { name: 'TRKORR', type: 'string' },
-        { name: 'TRFUNCTION', type: 'string' },
-        // ... more fields
-      ],
-    },
-  },
-} as const);  // CRITICAL: 'as const' is required for proper type inference!
+    attribute: [
+      { name: "version", type: "xs:string" },
+    ]
+  }],
+  // ... more types
+} as const;  // CRITICAL: 'as const' required!
 ```
 
-### Key Points for ABAP XML Schemas
+### Key Points
 
-1. **ALWAYS use `as const`**: Required for TypeScript to infer literal types from the schema definition
-2. **Element names WITHOUT namespace prefix**: Use `'abap'`, `'values'` - NOT `'asx:abap'`, `'asx:values'`
-3. **Root element content is parsed directly**: The parsed result is the content of the root element, not wrapped in it
-4. **Export from index**: Add to `src/schemas/index.ts`:
-   ```typescript
-   export { default as transportfind } from './manual/transportfind';
-   ```
-
-### Parsed Structure
-
-For XML like:
-```xml
-<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
-  <asx:values>
-    <DATA><CTS_REQ_HEADER>...</CTS_REQ_HEADER></DATA>
-  </asx:values>
-</asx:abap>
-```
-
-ts-xsd parses to:
-```javascript
-{
-  version: "1.0",           // Root element attributes
-  values: {                 // Root element content (no 'abap' wrapper)
-    DATA: {
-      CTS_REQ_HEADER: [...]
-    }
-  }
-}
-```
-
-## Testing
-
-### Scenario-Based Schema Tests
-
-Every schema **MUST** have a test scenario with real SAP XML fixtures. This ensures:
-- Parse/build round-trips work correctly
-- Type inference is accurate
-- Schema changes don't break existing functionality
-
-#### Test Structure
-
-```
-tests/
-├── scenarios.test.ts           # Generic test runner
-└── scenarios/
-    ├── base/
-    │   └── scenario.ts         # Base Scenario class
-    ├── index.ts                # Registers all scenarios
-    ├── fixtures/               # Real SAP XML samples
-    │   ├── tm-create.xml
-    │   └── tm-full.xml
-    └── tm.ts                   # Transport management scenarios
-```
-
-#### Creating a New Scenario
-
-1. **Add fixture** - Save real SAP XML response to `tests/scenarios/fixtures/`:
-   ```xml
-   <!-- tests/scenarios/fixtures/myschema.xml -->
-   <?xml version="1.0" encoding="UTF-8"?>
-   <ns:root xmlns:ns="http://www.sap.com/...">...</ns:root>
-   ```
-
-2. **Create scenario class** - Extend `Scenario` with your schema type:
-   ```typescript
-   // tests/scenarios/myschema.ts
-   import { expect } from 'vitest';
-   import { Scenario, type SchemaType } from './base/scenario';
-   import { mySchema } from '../../src/schemas/index';
-
-   export class MySchemaScenario extends Scenario<typeof mySchema> {
-     readonly schema = mySchema;
-     readonly fixtures = ['myschema.xml'];
-
-     validateParsed(data: SchemaType<typeof mySchema>): void {
-       // Type-safe assertions - TypeScript validates property access
-       expect(data.someField).toBe('expected value');
-       expect(data.nested?.child).toBeDefined();
-     }
-
-     validateBuilt(xml: string): void {
-       // Verify XML structure
-       expect(xml).toContain('xmlns:ns="http://www.sap.com/...');
-       expect(xml).toContain('ns:someField="expected value"');
-     }
-   }
-   ```
-
-3. **Register scenario** - Add to `tests/scenarios/index.ts`:
-   ```typescript
-   import { MySchemaScenario } from './myschema';
-   
-   export const SCENARIOS = [
-     // ... existing
-     new MySchemaScenario(),
-   ];
-   ```
-
-#### What Each Test Validates
-
-| Test | Purpose |
-|------|---------|
-| `parses` | XML → typed object works |
-| `validates parsed` | Parsed data has expected values (type-safe) |
-| `builds` | Typed object → XML works |
-| `validates built` | Built XML has correct structure |
-| `round-trips` | parse(build(parse(xml))) === parse(build(parse(xml))) |
-
-#### Type Safety
-
-The `SchemaType<S>` utility extracts the inferred type from a schema, enabling:
-- **Compile-time validation** of property access in `validateParsed`
-- **Autocomplete** for schema fields
-- **Error detection** if schema changes break tests
-
-```typescript
-// TypeScript catches typos at compile time
-validateParsed(data: SchemaType<typeof mySchema>): void {
-  expect(data.requst).toBe('value');  // ❌ Error: 'requst' doesn't exist
-  expect(data.request).toBe('value'); // ✅ OK
-}
-```
-
-### Running Tests
-
-```bash
-# Run all schema tests
-npx nx test adt-schemas-xsd
-
-# Run with verbose output
-npx vitest run --reporter=verbose
-```
+1. **`as const`** - Required for type inference
+2. **Element names without prefix** - Use `'abap'`, not `'asx:abap'`
+3. **Add to typed index** - Register in `generated/index.ts`
 
 ## Development
 
 ### Regenerate Schemas
 
 ```bash
-# Download XSD files from SAP
-npx nx download adt-schemas-xsd
+# Full regeneration pipeline
+npx nx run adt-schemas-xsd-v2:generate
 
-# Generate TypeScript from XSD (uses factory generator)
-npx nx generate adt-schemas-xsd
-
-# Build package
-npx nx build adt-schemas-xsd
+# Individual steps
+npx nx run adt-schemas-xsd-v2:download   # Download XSD files
+npx nx run adt-schemas-xsd-v2:codegen    # Generate schema literals
+npx nx run adt-schemas-xsd-v2:types      # Generate TypeScript interfaces
 ```
 
-### Add New Schemas
+### Add New Schema
 
-Edit `schemas.config.ts` and add schema names:
+1. Add XSD to `.xsd/model/sap/` or create custom schema
+2. Update generation config
+3. Run `npx nx run adt-schemas-xsd-v2:generate`
+4. Add typed wrapper in `generated/index.ts`
+5. **Add test scenario** (mandatory)
 
-```typescript
-export const schemas = [
-  'adtcore',
-  'atom',
-  // Add more schemas here
-  'mynewschema',
-];
+### Testing
+
+```bash
+# Run all tests
+npx nx test adt-schemas-xsd-v2
+
+# Run specific test
+npx vitest run tests/scenarios.test.ts
 ```
 
-### Customize Generation
+Every schema **must** have a test scenario with real SAP XML fixtures.
 
-The generate script uses `ts-xsd` factory generator:
+## speci Integration
 
-```typescript
-// scripts/generate.ts
-import { generateFromXsd, factoryGenerator } from 'ts-xsd/codegen';
-
-const result = generateFromXsd(
-  xsdContent,
-  { resolver: resolveImport, importedSchemas },
-  factoryGenerator,
-  { factory: '../../speci' }  // Path to speci.ts factory
-);
-```
-
-## Integration with speci
-
-This package is designed to work seamlessly with [speci](https://github.com/abapify/speci) for type-safe REST contracts. The `Serializable` interface from speci is used:
+Schemas implement the `Serializable` interface for seamless speci integration:
 
 ```typescript
 interface Serializable<T> {
@@ -422,7 +333,24 @@ interface Serializable<T> {
 }
 ```
 
-speci's `InferSchema` type automatically infers the response type from the `parse()` method's return type, enabling full type safety in contracts.
+This enables automatic type inference in REST contracts:
+
+```typescript
+import { classes } from '@abapify/adt-schemas-xsd-v2';
+
+const contract = http.get('/sap/bc/adt/oo/classes/zcl_test', {
+  responses: { 200: classes },
+});
+
+// Response type is automatically inferred as AbapClass
+const response = await client.execute(contract);
+console.log(response.data.name);  // TypeScript knows this is string
+```
+
+## Related Packages
+
+- **[@abapify/ts-xsd-core](../ts-xsd-core)** - Core XSD parser and type inference
+- **[speci](../speci)** - REST contract library
 
 ## License
 

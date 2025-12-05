@@ -188,9 +188,9 @@ export function generateSchemaFile(xsdContent: string, options: GenerateOptions 
       if (imp.schemaLocation) {
         const modulePath = importResolver(imp.schemaLocation);
         if (modulePath) {
-          // Derive schema name from schemaLocation (e.g., "adtcore.xsd" → "adtcore")
-          const schemaName = imp.schemaLocation.replace(/\.xsd$/, '');
-          tsImports.push(`import { ${schemaName} } from '${modulePath}';`);
+          // Derive schema name from schemaLocation basename (e.g., "../sap/adtcore.xsd" → "adtcore")
+          const schemaName = imp.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+          tsImports.push(`import ${schemaName} from '${modulePath}';`);
           importedSchemaNames.push(schemaName);
         }
       }

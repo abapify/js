@@ -19,7 +19,7 @@ class InterfacesScenario extends Scenario<typeof interfaces> {
 
   validateParsed(data: SchemaType<typeof interfaces>): void {
     // Cast to any for runtime property access (inherited properties not inferred)
-    const parsed = data as Record<string, unknown>;
+    const parsed = data as unknown as Record<string, unknown>;
     
     // Inherited abapoo: attributes
     expect(parsed.modeled).toBe(false);
@@ -59,16 +59,16 @@ class InterfacesScenario extends Scenario<typeof interfaces> {
   }
 
   validateBuilt(xml: string): void {
-    // Root element with namespace (schema uses 'interfaces' prefix)
-    expect(xml).toContain('xmlns:interfaces="http://www.sap.com/adt/oo/interfaces"');
+    // Root element with namespace (schema uses 'intf' prefix from XSD)
+    expect(xml).toContain('xmlns:intf="http://www.sap.com/adt/oo/interfaces"');
     
-    // Interface attributes (prefixed)
-    expect(xml).toContain('interfaces:modeled="false"');
-    expect(xml).toContain('interfaces:sourceUri="source/main"');
+    // Interface attributes (attributes don't have namespace prefix)
+    expect(xml).toContain('modeled="false"');
+    expect(xml).toContain('sourceUri="source/main"');
     
     // Inherited adtcore attributes
-    expect(xml).toContain('interfaces:name="ZIF_SAMPLE_INTERFACE"');
-    expect(xml).toContain('interfaces:type="INTF/OI"');
+    expect(xml).toContain('name="ZIF_SAMPLE_INTERFACE"');
+    expect(xml).toContain('type="INTF/OI"');
   }
 }
 

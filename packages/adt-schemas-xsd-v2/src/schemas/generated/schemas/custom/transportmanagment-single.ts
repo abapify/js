@@ -5,6 +5,9 @@
  * Source: custom/transportmanagment-single.xsd
  */
 
+import atom from '../sap/atom';
+import adtcore from '../sap/adtcore';
+
 export default {
   $xmlns: {
     xs: "http://www.w3.org/2001/XMLSchema",
@@ -12,6 +15,10 @@ export default {
     atom: "http://www.w3.org/2005/Atom",
     adtcore: "http://www.sap.com/adt/core",
   },
+  $imports: [
+    atom,
+    adtcore,
+  ],
   targetNamespace: "http://www.sap.com/cts/adt/tm",
   attributeFormDefault: "qualified",
   elementFormDefault: "qualified",

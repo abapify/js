@@ -5,7 +5,7 @@
  */
 
 export { 
-  systeminformationSchema, 
+  systeminformationSchema,
+  systeminformation,
   type SystemInformation,
-  default as systeminformation 
 } from './systeminformation';

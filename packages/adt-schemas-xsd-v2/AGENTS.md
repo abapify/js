@@ -1,98 +1,186 @@
-# adt-schemas-xsd - AI Agent Guide
+# adt-schemas-xsd-v2 - AI Agent Guide
 
-## Overview
+## Package Overview
 
-This package provides type-safe SAP ADT schemas generated from XSD definitions using `ts-xsd`.
+**Type-safe SAP ADT schemas** with pre-generated TypeScript interfaces and optimal tree-shaking.
 
-## Schema Generation
+| Feature | Description |
+|---------|-------------|
+| **204+ interfaces** | Pre-generated, no runtime inference |
+| **Shared types** | `AdtObject`, `LinkType` defined once |
+| **Tree-shakeable** | Import only what you need |
+| **speci integration** | Works with REST contracts |
 
-**Always use nx target:**
+## 🚨 Critical Rules
 
-```bash
-# ✅ CORRECT - uses config and runs download first
-npx nx run adt-schemas-xsd:generate
+### 1. NEVER Edit Generated Files
 
-# ❌ WRONG - direct command may miss config or dependencies
-npx ts-xsd codegen
+Generated files are in `src/schemas/generated/`:
+- `schemas/sap/*.ts` - SAP official schemas
+- `schemas/custom/*.ts` - Custom schemas
+- `types/index.ts` - TypeScript interfaces
+- `index.ts` - Typed schema exports
+
+**If a generated schema is incorrect:**
+1. Fix the generator in `ts-xsd-core/src/codegen/`
+2. Rebuild: `npx nx build ts-xsd-core`
+3. Regenerate: `npx nx run adt-schemas-xsd-v2:generate`
+
+### 2. Custom Schemas Require `as const`
+
+```typescript
+// ✅ CORRECT - type inference works
+export default {
+  $xmlns: { ... },
+  element: [...],
+  complexType: [...],
+} as const;
+
+// ❌ WRONG - type inference fails
+export default {
+  $xmlns: { ... },
+  element: [...],
+};
 ```
 
-The `generate` target:
-1. Downloads XSD files from SAP (`download` dependency)
-2. Builds ts-xsd (`ts-xsd:build` dependency)
-3. Runs codegen with config: `npx ts-xsd codegen -c tsxsd.config.ts`
+### 3. Every Schema Needs Tests
+
+**No exceptions.** When adding/modifying a schema:
+1. Add real SAP XML fixture to `tests/scenarios/fixtures/`
+2. Create scenario class in `tests/scenarios/`
+3. Register in `tests/scenarios/index.ts`
+4. Run: `npx nx test adt-schemas-xsd-v2`
+
+## Architecture
+
+```
+src/
+├── index.ts              # Main exports
+├── speci.ts              # typed() wrapper factory
+└── schemas/
+    ├── index.ts          # Re-exports from generated
+    └── generated/
+        ├── index.ts      # Typed schema exports (18 schemas)
+        ├── schemas/
+        │   ├── sap/      # SAP official (23 files)
+        │   └── custom/   # Custom (9 files)
+        └── types/
+            └── index.ts  # 204 TypeScript interfaces
+```
+
+### Generation Pipeline
+
+```
+XSD Files (.xsd/model/)
+    ↓ ts-xsd-core parseXsd
+Schema Objects
+    ↓ generateSchemaLiteral
+Schema Literals (as const)
+    ↓ generateInterfaces
+TypeScript Interfaces
+    ↓ typed() wrapper
+Typed Schemas (parse/build)
+```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `tsxsd.config.ts` | Defines schemas to generate, factory path, import resolver |
-| `.xsd/model/*.xsd` | Source XSD files (downloaded from SAP) |
-| `src/schemas/generated/` | Output directory for generated schemas |
-| `src/schemas/manual/` | Manually created schemas (ABAP XML format) |
-| `src/speci.ts` | Factory wrapper adding parse/build methods |
+| `src/speci.ts` | `typed<T>()` wrapper factory |
+| `src/schemas/generated/index.ts` | Typed schema exports |
+| `src/schemas/generated/types/index.ts` | 204 TypeScript interfaces |
+| `scripts/generate*.ts` | Generation scripts |
 
-## Schema Structure
+## Schema Structure (W3C Format)
 
-Generated schemas include:
-- `extends` - Base type name (XSD type inheritance)
-- `sequence` - Ordered child elements
-- `choice` - Choice of child elements  
-- `attributes` - Element attributes
-- `include` - Imported schemas
-
-Example:
 ```typescript
-export default schema({
-  ns: 'http://www.sap.com/adt/oo/classes',
-  root: 'AbapClass',
-  include: [Adtcore, Abapoo],
-  elements: {
-    AbapClass: {
-      extends: 'AbapOoObject',  // Type inheritance
-      sequence: [...],
-      attributes: [...],
-    },
+// Generated schema literal
+export default {
+  $xmlns: {
+    adtcore: "http://www.sap.com/adt/core",
+    class: "http://www.sap.com/adt/oo/classes",
   },
-} as const);
+  $imports: [adtcore, abapoo, abapsource],  // Linked schemas
+  targetNamespace: "http://www.sap.com/adt/oo/classes",
+  element: [
+    { name: "abapClass", type: "class:AbapClass" },
+  ],
+  complexType: [{
+    name: "AbapClass",
+    complexContent: {
+      extension: {
+        base: "abapoo:AbapOoObject",
+        sequence: { element: [...] },
+        attribute: [...],
+      }
+    }
+  }],
+} as const;
 ```
 
-## Modifying Schemas
+### Type Resolution
 
-**NEVER edit generated files directly!**
+- `$imports` links schemas for cross-schema type resolution
+- `base: "abapoo:AbapOoObject"` resolves to `AbapOoObject` interface
+- Namespace prefixes are stripped during resolution
 
-If a generated schema is incorrect:
-1. Fix the generator in `ts-xsd/src/codegen/`
-2. Rebuild ts-xsd: `npx nx build ts-xsd`
-3. Regenerate: `npx nx run adt-schemas-xsd:generate`
+## Common Tasks
 
-For schemas without XSD (ABAP XML format), create manual schemas in `src/schemas/manual/`.
+### Adding a New SAP Schema
 
-## Adding New Schemas
-
-1. Add schema name to `tsxsd.config.ts`:
+1. **Add XSD** to `.xsd/model/sap/`
+2. **Update config** in generation script
+3. **Generate**: `npx nx run adt-schemas-xsd-v2:generate`
+4. **Add typed wrapper** in `generated/index.ts`:
    ```typescript
-   const schemas = {
-     // ... existing
-     mynewschema: { root: 'MyRoot' },
-   };
+   import _newschema from './schemas/sap/newschema';
+   import type { NewSchemaType } from './types';
+   export const newschema = typed<NewSchemaType>(_newschema);
    ```
+5. **Add test scenario** (mandatory)
 
-2. Regenerate: `npx nx run adt-schemas-xsd:generate`
+### Adding a Custom Schema (ABAP XML)
 
-3. Export from `src/schemas/index.ts` if needed
+1. **Create schema** in `src/schemas/generated/schemas/custom/`:
+   ```typescript
+   export default {
+     $xmlns: { asx: "http://www.sap.com/abapxml" },
+     targetNamespace: "http://www.sap.com/abapxml",
+     element: [{ name: "abap", type: "Abap" }],
+     complexType: [{
+       name: "Abap",
+       sequence: { element: [...] },
+       attribute: [{ name: "version", type: "xs:string" }],
+     }],
+   } as const;  // CRITICAL!
+   ```
+2. **Add type** to `types/index.ts`
+3. **Add typed wrapper** in `generated/index.ts`
+4. **Add test scenario** (mandatory)
 
-4. **MANDATORY: Add test scenario** (see below)
+### Regenerating All Schemas
 
-## 🚨 MANDATORY: Schema Test Coverage
+```bash
+# Full pipeline
+npx nx run adt-schemas-xsd-v2:generate
 
-**Every schema MUST have a test scenario.** No exceptions.
+# Individual steps
+npx nx run adt-schemas-xsd-v2:download   # Download XSD
+npx nx run adt-schemas-xsd-v2:codegen    # Generate literals
+npx nx run adt-schemas-xsd-v2:types      # Generate interfaces
+```
 
-When adding or modifying a schema:
-1. Check if scenario exists in `tests/scenarios/`
-2. If not, create one with real SAP XML fixture
-3. Run tests: `npx nx test adt-schemas-xsd`
+## Testing
 
-### Creating a Test Scenario
+```bash
+# Run all tests
+npx nx test adt-schemas-xsd-v2
+
+# Run specific test
+npx vitest run tests/scenarios.test.ts
+```
+
+### Test Scenario Template
 
 ```typescript
 // tests/scenarios/myschema.ts
@@ -102,11 +190,10 @@ import { mySchema } from '../../src/schemas/index';
 
 export class MySchemaScenario extends Scenario<typeof mySchema> {
   readonly schema = mySchema;
-  readonly fixtures = ['myschema.xml'];  // Real SAP XML in fixtures/
+  readonly fixtures = ['myschema.xml'];
 
   validateParsed(data: SchemaType<typeof mySchema>): void {
-    // Type-safe assertions - TS validates property access
-    expect(data.someField).toBe('expected');
+    expect(data.name).toBe('expected');
     expect(data.nested?.child).toBeDefined();
   }
 
@@ -116,34 +203,36 @@ export class MySchemaScenario extends Scenario<typeof mySchema> {
 }
 ```
 
-Register in `tests/scenarios/index.ts`:
-```typescript
-import { MySchemaScenario } from './myschema';
-export const SCENARIOS = [..., new MySchemaScenario()];
+## Common Mistakes
+
+| Mistake | Consequence | Prevention |
+|---------|-------------|------------|
+| Editing generated files | Lost on regeneration | Fix generator instead |
+| Missing `as const` | Type inference fails | Always add `as const` |
+| No test scenario | Regressions undetected | Add test for every schema |
+| Wrong namespace prefix | Parse/build fails | Check SAP XSD |
+| Missing `$imports` | Cross-schema types fail | Link all dependencies |
+
+## Type Hierarchy
+
+```
+AdtObject
+├── AdtMainObject
+│   └── AbapSourceMainObject
+│       └── AbapOoObject
+│           ├── AbapClass
+│           └── AbapInterface
+└── AbapSourceObject
+    └── AbapClassInclude
 ```
 
-### Test Files
+## Dependencies
 
-| File | Purpose |
-|------|---------|
-| `tests/scenarios.test.ts` | Generic test runner |
-| `tests/scenarios/base/scenario.ts` | Base class with `SchemaType<S>` |
-| `tests/scenarios/index.ts` | Scenario registry |
-| `tests/scenarios/fixtures/*.xml` | Real SAP XML samples |
-| `tests/scenarios/*.ts` | Scenario implementations |
+- `@abapify/ts-xsd-core` - Core XSD parser and type inference
+- `speci` - REST contract library (peer)
 
-### What Tests Validate
+## Reference
 
-- **parses**: XML → typed object
-- **validates parsed**: Type-safe property assertions
-- **builds**: Object → XML
-- **validates built**: XML structure verification
-- **round-trips**: Stability check
-
-### Uncovered Schemas (TODO)
-
-Check `src/schemas/index.ts` for exported schemas without scenarios:
-- `adtcore`, `atom` - Base schemas (may not need direct tests)
-- `abapsource`, `abapoo`, `classes`, `interfaces`
-- `transportsearch`, `configurations`, `configuration`
-- `atc`, `atcworklist`, `atcresult`, `checkrun`, `checklist`
+- [README.md](./README.md) - Full package documentation
+- [ts-xsd-core](../ts-xsd-core/README.md) - Core library
+- [SAP ADT Documentation](https://help.sap.com/docs/)
