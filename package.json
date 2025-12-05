@@ -46,6 +46,7 @@
     "openid-client": "^6.6.4",
     "qs": "^6.13.1",
     "reflect-metadata": "^0.2.2",
+    "ts-morph": "^27.0.2",
     "yaml": "^2.6.0",
     "zod": "^4.1.13"
   },

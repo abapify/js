@@ -12,7 +12,7 @@ describe('buildXsd', () => {
   describe('BuildOptions', () => {
     it('should use default options', () => {
       const schema: Schema = { 
-        xmlns: { xs: 'http://www.w3.org/2001/XMLSchema' },
+        $xmlns: { xs: 'http://www.w3.org/2001/XMLSchema' },
         targetNamespace: 'http://example.com' 
       };
       const xsd = buildXsd(schema);
@@ -23,7 +23,7 @@ describe('buildXsd', () => {
 
     it('should use custom prefix for element names', () => {
       const schema: Schema = { 
-        xmlns: { xsd: 'http://www.w3.org/2001/XMLSchema' },
+        $xmlns: { xsd: 'http://www.w3.org/2001/XMLSchema' },
         targetNamespace: 'http://example.com' 
       };
       const xsd = buildXsd(schema, { prefix: 'xsd' });
@@ -1080,10 +1080,10 @@ describe('buildXsd', () => {
     });
   });
 
-  describe('xmlns declarations', () => {
-    it('should output xmlns from schema.xmlns', () => {
+  describe('$xmlns declarations', () => {
+    it('should output xmlns from schema.$xmlns', () => {
       const schema: Schema = {
-        xmlns: {
+        $xmlns: {
           xs: 'http://www.w3.org/2001/XMLSchema',
           tns: 'http://example.com/order',
         },
@@ -1097,7 +1097,7 @@ describe('buildXsd', () => {
 
     it('should output default namespace (empty prefix)', () => {
       const schema: Schema = {
-        xmlns: {
+        $xmlns: {
           '': 'http://www.w3.org/2001/XMLSchema',
           tns: 'http://example.com/order',
         },
@@ -1120,7 +1120,7 @@ describe('buildXsd', () => {
       assert.ok(!xsd.includes('xmlns='));
     });
 
-    it('should preserve xmlns in roundtrip', () => {
+    it('should preserve $xmlns in roundtrip', () => {
       const original = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
            xmlns:tns="http://example.com/order"
@@ -1132,9 +1132,9 @@ describe('buildXsd', () => {
       const rebuilt = buildXsd(parsed);
       const reparsed = parseXsd(rebuilt);
       
-      assert.deepEqual(reparsed.xmlns, parsed.xmlns);
-      assert.equal(reparsed.xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
-      assert.equal(reparsed.xmlns?.tns, 'http://example.com/order');
+      assert.deepEqual(reparsed.$xmlns, parsed.$xmlns);
+      assert.equal(reparsed.$xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
+      assert.equal(reparsed.$xmlns?.tns, 'http://example.com/order');
     });
   });
 });

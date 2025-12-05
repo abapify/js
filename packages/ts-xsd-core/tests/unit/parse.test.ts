@@ -79,15 +79,15 @@ describe('Schema type validation', () => {
   });
 });
 
-describe('xmlns declarations', () => {
-  it('should extract xmlns declarations from schema root', () => {
+describe('$xmlns declarations', () => {
+  it('should extract $xmlns declarations from schema root', () => {
     const schema = parseXsd(xsdContent);
     
-    assert.ok(schema.xmlns, 'xmlns should be present');
-    assert.equal(schema.xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
+    assert.ok(schema.$xmlns, '$xmlns should be present');
+    assert.equal(schema.$xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
   });
 
-  it('should extract multiple xmlns declarations', () => {
+  it('should extract multiple $xmlns declarations', () => {
     const xsd = `<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
            xmlns:tns="http://example.com/order"
@@ -98,10 +98,10 @@ describe('xmlns declarations', () => {
 
     const schema = parseXsd(xsd);
     
-    assert.ok(schema.xmlns, 'xmlns should be present');
-    assert.equal(schema.xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
-    assert.equal(schema.xmlns?.tns, 'http://example.com/order');
-    assert.equal(schema.xmlns?.ext, 'http://example.com/extensions');
+    assert.ok(schema.$xmlns, '$xmlns should be present');
+    assert.equal(schema.$xmlns?.xs, 'http://www.w3.org/2001/XMLSchema');
+    assert.equal(schema.$xmlns?.tns, 'http://example.com/order');
+    assert.equal(schema.$xmlns?.ext, 'http://example.com/extensions');
   });
 
   it('should extract default namespace (xmlns without prefix)', () => {
@@ -114,8 +114,8 @@ describe('xmlns declarations', () => {
 
     const schema = parseXsd(xsd);
     
-    assert.ok(schema.xmlns, 'xmlns should be present');
-    assert.equal(schema.xmlns?.[''], 'http://www.w3.org/2001/XMLSchema');
-    assert.equal(schema.xmlns?.tns, 'http://example.com/order');
+    assert.ok(schema.$xmlns, '$xmlns should be present');
+    assert.equal(schema.$xmlns?.[''], 'http://www.w3.org/2001/XMLSchema');
+    assert.equal(schema.$xmlns?.tns, 'http://example.com/order');
   });
 });

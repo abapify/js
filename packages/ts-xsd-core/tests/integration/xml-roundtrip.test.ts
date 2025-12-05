@@ -176,7 +176,7 @@ describe('XML Roundtrip', () => {
     it('should roundtrip with namespaced elements', () => {
       const schema = {
         targetNamespace: 'http://example.com/order',
-        xmlns: {
+        $xmlns: {
           ord: 'http://example.com/order',
         },
         element: [{ name: 'Order', type: 'OrderType' }],
