@@ -10,26 +10,52 @@
 // =============================================================================
 
 /**
- * Infer TypeScript type from a W3C Schema for the first declared element.
+ * Infer TypeScript type from a W3C Schema.
+ * 
+ * For schemas with multiple root elements, returns a union of all possible
+ * document types. Use type guards or discriminated unions to narrow.
  * 
  * @example
  * ```typescript
  * const schema = {
- *   element: [{ name: 'Person', type: 'PersonType' }],
- *   complexType: [{ name: 'PersonType', sequence: { element: [...] } }]
+ *   element: [
+ *     { name: 'Person', type: 'PersonType' },
+ *     { name: 'Company', type: 'CompanyType' }
+ *   ],
+ *   complexType: [...]
  * } as const;
  * 
- * type Person = InferSchema<typeof schema>;
+ * type Data = InferSchema<typeof schema>;
+ * // PersonType | CompanyType (union of all root element types)
  * ```
  */
 export type InferSchema<T extends SchemaLike> = 
-  T['element'] extends readonly { name: infer N; type?: infer TypeName }[]
-    ? TypeName extends string
-      ? InferTypeName<TypeName, T>
-      : N extends string
-        ? InferTypeName<N, T>
-        : never
-    : never;
+  T['element'] extends readonly ElementLike[]
+    ? InferRootElementTypes<T['element'], T>
+    : unknown;
+
+/**
+ * Infer union of all root element types.
+ * Each root element's type is inferred and combined into a union.
+ */
+export type InferRootElementTypes<E extends readonly ElementLike[], T extends SchemaLike> =
+  E[number] extends infer El
+    ? El extends ElementLike
+      ? El extends { type: infer TypeName }
+        ? TypeName extends string
+          ? InferTypeName<TypeName, T>
+          : El extends { name: infer N }
+            ? N extends string
+              ? InferTypeName<N, T>
+              : unknown
+            : unknown
+        : El extends { name: infer N }
+          ? N extends string
+            ? InferTypeName<N, T>
+            : unknown
+          : unknown
+      : unknown
+    : unknown;
 
 /**
  * Infer TypeScript type for a specific element by name.
@@ -40,10 +66,14 @@ export type InferSchema<T extends SchemaLike> =
  * ```
  */
 export type InferElement<T extends SchemaLike, ElementName extends string> =
-  FindInArray<T['element'], { name: ElementName }> extends { type?: infer TypeName }
-    ? TypeName extends string
-      ? InferTypeName<TypeName, T>
-      : InferTypeName<ElementName, T>
+  FindByName<T['element'], ElementName> extends infer Found
+    ? Found extends { type: infer TypeName }
+      ? TypeName extends string
+        ? InferTypeName<TypeName, T>
+        : InferTypeName<ElementName, T>
+      : Found extends { name: ElementName }
+        ? InferTypeName<ElementName, T>
+        : never
     : never;
 
 /**
@@ -65,11 +95,43 @@ export type InferAllElements<T extends SchemaLike> =
     : never;
 
 // =============================================================================
-// Schema-like type (works with both parsed and literal schemas)
+// Schema Extensions (non-W3C properties)
 // =============================================================================
 
-/** Minimal schema shape for inference - allows additional W3C Schema properties */
-export type SchemaLike = {
+/**
+ * Non-W3C extensions for schema composition and namespace handling.
+ * Properties prefixed with $ are clearly non-W3C.
+ */
+export type SchemaExtensions = {
+  /** 
+   * Namespace prefix declarations (xmlns:prefix -> namespace URI).
+   * Extracted from XML namespace attributes, not part of XSD spec.
+   * Prefixed with $ to indicate this is NOT a W3C XSD property.
+   */
+  readonly $xmlns?: { readonly [prefix: string]: string };
+  
+  /**
+   * Original filename/path of this schema.
+   * Used to reconstruct $imports relationships from schemaLocation references.
+   * Prefixed with $ to indicate this is NOT a W3C XSD property.
+   */
+  readonly $filename?: string;
+  
+  /** 
+   * Resolved imported schemas for cross-schema type resolution.
+   * Actual schema objects that can be searched for type definitions.
+   * Use this to link schemas that import each other.
+   */
+  readonly $imports?: readonly SchemaLike[];
+};
+
+// =============================================================================
+// Schema-like type (W3C properties + extensions)
+// =============================================================================
+
+/** Minimal schema shape for inference - W3C Schema properties plus extensions */
+export type SchemaLike = SchemaExtensions & {
+  // W3C XSD Schema attributes
   readonly targetNamespace?: string;
   readonly elementFormDefault?: string;
   readonly attributeFormDefault?: string;
@@ -78,8 +140,8 @@ export type SchemaLike = {
   readonly blockDefault?: string;
   readonly finalDefault?: string;
   readonly 'xml:lang'?: string;
-  /** Namespace prefix declarations (xmlns:prefix -> namespace URI) */
-  readonly xmlns?: { readonly [prefix: string]: string };
+  
+  // W3C XSD Schema children
   readonly element?: readonly ElementLike[];
   readonly complexType?: readonly ComplexTypeLike[] | { readonly [name: string]: ComplexTypeLike };
   readonly simpleType?: readonly SimpleTypeLike[] | { readonly [name: string]: SimpleTypeLike };
@@ -94,12 +156,12 @@ export type SchemaLike = {
   readonly defaultOpenContent?: unknown;
 };
 
-type AnnotationLike = {
+export type AnnotationLike = {
   readonly documentation?: readonly unknown[];
   readonly appinfo?: readonly unknown[];
 };
 
-type ElementLike = {
+export type ElementLike = {
   readonly name?: string;
   readonly ref?: string;
   readonly type?: string;
@@ -120,7 +182,7 @@ type ElementLike = {
   readonly unique?: readonly unknown[];
 };
 
-type ComplexTypeLike = {
+export type ComplexTypeLike = {
   readonly name?: string;
   readonly id?: string;
   readonly abstract?: boolean;
@@ -143,7 +205,7 @@ type ComplexTypeLike = {
   readonly annotation?: AnnotationLike;
 };
 
-type GroupLike = {
+export type GroupLike = {
   readonly minOccurs?: number | string;
   readonly maxOccurs?: number | string | 'unbounded';
   readonly element?: readonly ElementLike[];
@@ -154,13 +216,13 @@ type GroupLike = {
   readonly annotation?: AnnotationLike;
 };
 
-type GroupRefLike = {
+export type GroupRefLike = {
   readonly ref?: string;
   readonly minOccurs?: number | string;
   readonly maxOccurs?: number | string | 'unbounded';
 };
 
-type AttributeLike = {
+export type AttributeLike = {
   readonly name?: string;
   readonly ref?: string;
   readonly type?: string;
@@ -172,12 +234,12 @@ type AttributeLike = {
   readonly annotation?: AnnotationLike;
 };
 
-type AnyAttributeLike = {
+export type AnyAttributeLike = {
   readonly namespace?: string;
   readonly processContents?: 'strict' | 'lax' | 'skip';
 };
 
-type ExtensionLike = {
+export type ExtensionLike = {
   readonly base?: string;
   readonly sequence?: GroupLike;
   readonly choice?: GroupLike;
@@ -189,14 +251,14 @@ type ExtensionLike = {
   readonly annotation?: AnnotationLike;
 };
 
-type SimpleExtensionLike = {
+export type SimpleExtensionLike = {
   readonly base?: string;
   readonly attribute?: readonly AttributeLike[];
   readonly attributeGroup?: readonly unknown[];
   readonly anyAttribute?: AnyAttributeLike;
 };
 
-type SimpleTypeLike = {
+export type SimpleTypeLike = {
   readonly name?: string;
   readonly id?: string;
   readonly annotation?: AnnotationLike;
@@ -228,35 +290,81 @@ type SimpleTypeLike = {
 // =============================================================================
 
 /** Strip any namespace prefix from a type name (e.g., "tns:PersonType" -> "PersonType") */
-type StripNsPrefix<T extends string> =
+export type StripNsPrefix<T extends string> =
   T extends `${string}:${infer LocalName}` ? LocalName : T;
 
 /** Resolve a type name to its TypeScript type */
-type InferTypeName<TypeName extends string, T extends SchemaLike> =
+export type InferTypeName<TypeName extends string, T extends SchemaLike> =
   // Check for XSD built-in types first (xs:string, xsd:int, etc.)
   TypeName extends `xs:${infer BuiltIn}` | `xsd:${infer BuiltIn}`
     ? InferBuiltInType<BuiltIn>
     : TypeName extends keyof XsdBuiltInTypes
       ? XsdBuiltInTypes[TypeName]
       // Strip namespace prefix and look up in schema types
-      : FindComplexType<StripNsPrefix<TypeName>, T> extends infer CT
-        // Use [CT] extends [never] to properly check for never (avoids distribution)
-        ? [CT] extends [never]
+      // Use FindComplexTypeWithSchema to get both the type AND the schema it was found in
+      : FindComplexTypeWithSchema<StripNsPrefix<TypeName>, T> extends infer Result
+        ? Result extends { type: infer CT; schema: infer S }
+          ? CT extends ComplexTypeLike
+            ? S extends SchemaLike
+              ? InferComplexType<CT, S>  // Use the schema where the type was found!
+              : unknown
+            : unknown
           // Not found in complexType, look up in simpleType
-          ? FindSimpleType<StripNsPrefix<TypeName>, T> extends infer ST
-            ? [ST] extends [never]
-              ? unknown
-              : ST extends SimpleTypeLike
+          : FindSimpleTypeWithSchema<StripNsPrefix<TypeName>, T> extends infer STResult
+            ? STResult extends { type: infer ST; schema: infer _S }
+              ? ST extends SimpleTypeLike
                 ? InferSimpleType<ST>
                 : unknown
-            : unknown
-          : CT extends ComplexTypeLike
-            ? InferComplexType<CT, T>
+              : unknown
             : unknown
         : unknown;
 
-/** Find a complexType by name */
-type FindComplexType<Name extends string, T extends SchemaLike> =
+/** Find a complexType by name (searches in schema and $imports) */
+export type FindComplexType<Name extends string, T extends SchemaLike> =
+  // First try to find in current schema
+  FindComplexTypeLocal<Name, T> extends infer Local
+    ? [Local] extends [never]
+      // Not found locally, search in $imports
+      ? FindComplexTypeInImports<Name, T>
+      : Local
+    : never;
+
+/** Find complexType WITH the schema it was found in (for proper context in inheritance) */
+export type FindComplexTypeWithSchema<Name extends string, T extends SchemaLike> =
+  // First try to find in current schema
+  FindComplexTypeLocal<Name, T> extends infer Local
+    ? [Local] extends [never]
+      // Not found locally, search in $imports
+      ? FindComplexTypeInImportsWithSchema<Name, T>
+      : { type: Local; schema: T }
+    : never;
+
+/** Find complexType in $imports, returning both type and schema */
+export type FindComplexTypeInImportsWithSchema<Name extends string, T extends SchemaLike> =
+  T['$imports'] extends readonly SchemaLike[]
+    ? FindComplexTypeInSchemaArrayWithSchema<Name, T['$imports']>
+    : never;
+
+/** Search through array of schemas for complexType, returning both type and schema */
+export type FindComplexTypeInSchemaArrayWithSchema<Name extends string, Schemas extends readonly SchemaLike[]> =
+  Schemas extends readonly [infer First, ...infer Rest]
+    ? First extends SchemaLike
+      ? FindComplexTypeWithSchema<Name, First> extends infer Found
+        ? [Found] extends [never]
+          ? Rest extends readonly SchemaLike[]
+            ? FindComplexTypeInSchemaArrayWithSchema<Name, Rest>
+            : never
+          : Found extends { type: ComplexTypeLike; schema: SchemaLike }
+            ? Found
+            : Rest extends readonly SchemaLike[]
+              ? FindComplexTypeInSchemaArrayWithSchema<Name, Rest>
+              : never
+        : never
+      : never
+    : never;
+
+/** Find complexType in current schema only */
+export type FindComplexTypeLocal<Name extends string, T extends SchemaLike> =
   T['complexType'] extends readonly ComplexTypeLike[]
     ? FindInArray<T['complexType'], { name: Name }>
     : T['complexType'] extends { readonly [key: string]: ComplexTypeLike }
@@ -265,8 +373,38 @@ type FindComplexType<Name extends string, T extends SchemaLike> =
         : never
       : never;
 
-/** Find a simpleType by name */
-type FindSimpleType<Name extends string, T extends SchemaLike> =
+/** Find complexType in $imports (recursive) */
+export type FindComplexTypeInImports<Name extends string, T extends SchemaLike> =
+  T['$imports'] extends readonly SchemaLike[]
+    ? FindComplexTypeInSchemaArray<Name, T['$imports']>
+    : never;
+
+/** Search through array of schemas for complexType */
+export type FindComplexTypeInSchemaArray<Name extends string, Schemas extends readonly SchemaLike[]> =
+  Schemas extends readonly [infer First, ...infer Rest]
+    ? First extends SchemaLike
+      ? FindComplexType<Name, First> extends infer Found
+        ? [Found] extends [never]
+          ? Rest extends readonly SchemaLike[]
+            ? FindComplexTypeInSchemaArray<Name, Rest>
+            : never
+          : Found
+        : never
+      : never
+    : never;
+
+/** Find a simpleType by name (searches in schema and $imports) */
+export type FindSimpleType<Name extends string, T extends SchemaLike> =
+  // First try to find in current schema
+  FindSimpleTypeLocal<Name, T> extends infer Local
+    ? [Local] extends [never]
+      // Not found locally, search in $imports
+      ? FindSimpleTypeInImports<Name, T>
+      : Local
+    : never;
+
+/** Find simpleType in current schema only */
+export type FindSimpleTypeLocal<Name extends string, T extends SchemaLike> =
   T['simpleType'] extends readonly SimpleTypeLike[]
     ? FindInArray<T['simpleType'], { name: Name }>
     : T['simpleType'] extends { readonly [key: string]: SimpleTypeLike }
@@ -275,12 +413,66 @@ type FindSimpleType<Name extends string, T extends SchemaLike> =
         : never
       : never;
 
+/** Find simpleType in $imports (recursive) */
+export type FindSimpleTypeInImports<Name extends string, T extends SchemaLike> =
+  T['$imports'] extends readonly SchemaLike[]
+    ? FindSimpleTypeInSchemaArray<Name, T['$imports']>
+    : never;
+
+/** Search through array of schemas for simpleType */
+export type FindSimpleTypeInSchemaArray<Name extends string, Schemas extends readonly SchemaLike[]> =
+  Schemas extends readonly [infer First, ...infer Rest]
+    ? First extends SchemaLike
+      ? FindSimpleType<Name, First> extends infer Found
+        ? [Found] extends [never]
+          ? Rest extends readonly SchemaLike[]
+            ? FindSimpleTypeInSchemaArray<Name, Rest>
+            : never
+          : Found
+        : never
+      : never
+    : never;
+
+/** Find simpleType WITH the schema it was found in */
+export type FindSimpleTypeWithSchema<Name extends string, T extends SchemaLike> =
+  // First try to find in current schema
+  FindSimpleTypeLocal<Name, T> extends infer Local
+    ? [Local] extends [never]
+      // Not found locally, search in $imports
+      ? FindSimpleTypeInImportsWithSchema<Name, T>
+      : { type: Local; schema: T }
+    : never;
+
+/** Find simpleType in $imports, returning both type and schema */
+export type FindSimpleTypeInImportsWithSchema<Name extends string, T extends SchemaLike> =
+  T['$imports'] extends readonly SchemaLike[]
+    ? FindSimpleTypeInSchemaArrayWithSchema<Name, T['$imports']>
+    : never;
+
+/** Search through array of schemas for simpleType, returning both type and schema */
+export type FindSimpleTypeInSchemaArrayWithSchema<Name extends string, Schemas extends readonly SchemaLike[]> =
+  Schemas extends readonly [infer First, ...infer Rest]
+    ? First extends SchemaLike
+      ? FindSimpleTypeWithSchema<Name, First> extends infer Found
+        ? [Found] extends [never]
+          ? Rest extends readonly SchemaLike[]
+            ? FindSimpleTypeInSchemaArrayWithSchema<Name, Rest>
+            : never
+          : Found extends { type: SimpleTypeLike; schema: SchemaLike }
+            ? Found
+            : Rest extends readonly SchemaLike[]
+              ? FindSimpleTypeInSchemaArrayWithSchema<Name, Rest>
+              : never
+        : never
+      : never
+    : never;
+
 // =============================================================================
 // ComplexType Inference
 // =============================================================================
 
 /** Infer type from a complexType definition */
-type InferComplexType<CT extends ComplexTypeLike, T extends SchemaLike> =
+export type InferComplexType<CT extends ComplexTypeLike, T extends SchemaLike> =
   // Handle complexContent extension (inheritance)
   CT['complexContent'] extends { extension: infer Ext }
     ? Ext extends ExtensionLike
@@ -294,14 +486,14 @@ type InferComplexType<CT extends ComplexTypeLike, T extends SchemaLike> =
       : InferComplexTypeContent<CT, T>;
 
 /** Infer content from complexType (sequence, choice, all, attributes) */
-type InferComplexTypeContent<CT extends ComplexTypeLike, T extends SchemaLike> =
+export type InferComplexTypeContent<CT extends ComplexTypeLike, T extends SchemaLike> =
   InferGroup<CT['sequence'], T> &
   InferGroup<CT['all'], T> &
   InferChoice<CT['choice'], T> &
   InferAttributes<CT['attribute']>;
 
 /** Infer from complexContent/extension */
-type InferExtension<Ext extends ExtensionLike, T extends SchemaLike> =
+export type InferExtension<Ext extends ExtensionLike, T extends SchemaLike> =
   // Inherit from base type
   (Ext['base'] extends string ? InferTypeName<Ext['base'], T> : {}) &
   // Add own content
@@ -311,7 +503,7 @@ type InferExtension<Ext extends ExtensionLike, T extends SchemaLike> =
   InferAttributes<Ext['attribute']>;
 
 /** Infer from simpleContent/extension (text content + attributes) */
-type InferSimpleContentExtension<Ext extends SimpleExtensionLike, T extends SchemaLike> =
+export type InferSimpleContentExtension<Ext extends SimpleExtensionLike, T extends SchemaLike> =
   (Ext['base'] extends string ? { _text: InferBuiltInType<StripPrefix<Ext['base']>> } : {}) &
   InferAttributes<Ext['attribute']>;
 
@@ -320,7 +512,7 @@ type InferSimpleContentExtension<Ext extends SimpleExtensionLike, T extends Sche
 // =============================================================================
 
 /** Infer from a group (sequence or all) */
-type InferGroup<G, T extends SchemaLike> =
+export type InferGroup<G, T extends SchemaLike> =
   G extends GroupLike
     ? InferElements<G['element'], T> &
       InferNestedSequences<G['sequence'], T> &
@@ -328,19 +520,19 @@ type InferGroup<G, T extends SchemaLike> =
     : {};
 
 /** Infer from choice (union of possibilities) */
-type InferChoice<G, T extends SchemaLike> =
+export type InferChoice<G, T extends SchemaLike> =
   G extends GroupLike
     ? Partial<InferElements<G['element'], T>>
     : {};
 
 /** Infer nested sequences */
-type InferNestedSequences<S, T extends SchemaLike> =
+export type InferNestedSequences<S, T extends SchemaLike> =
   S extends readonly GroupLike[]
     ? UnionToIntersection<InferGroup<S[number], T>>
     : {};
 
 /** Infer nested choices */
-type InferNestedChoices<C, T extends SchemaLike> =
+export type InferNestedChoices<C, T extends SchemaLike> =
   C extends readonly GroupLike[]
     ? Partial<UnionToIntersection<InferGroup<C[number], T>>>
     : {};
@@ -350,13 +542,13 @@ type InferNestedChoices<C, T extends SchemaLike> =
 // =============================================================================
 
 /** Infer from element array */
-type InferElements<E, T extends SchemaLike> =
+export type InferElements<E, T extends SchemaLike> =
   E extends readonly ElementLike[]
     ? InferRequiredElements<E, T> & InferOptionalElements<E, T>
     : {};
 
 /** Infer required elements (minOccurs != 0) */
-type InferRequiredElements<E extends readonly ElementLike[], T extends SchemaLike> = {
+export type InferRequiredElements<E extends readonly ElementLike[], T extends SchemaLike> = {
   [K in ExtractRequiredElementNames<E>]: InferElementType<
     Extract<E[number], { name: K }>,
     T
@@ -364,7 +556,7 @@ type InferRequiredElements<E extends readonly ElementLike[], T extends SchemaLik
 };
 
 /** Infer optional elements (minOccurs = 0) */
-type InferOptionalElements<E extends readonly ElementLike[], T extends SchemaLike> = {
+export type InferOptionalElements<E extends readonly ElementLike[], T extends SchemaLike> = {
   [K in ExtractOptionalElementNames<E>]?: InferElementType<
     Extract<E[number], { name: K }>,
     T
@@ -372,7 +564,7 @@ type InferOptionalElements<E extends readonly ElementLike[], T extends SchemaLik
 };
 
 /** Extract names of required elements */
-type ExtractRequiredElementNames<E extends readonly ElementLike[]> =
+export type ExtractRequiredElementNames<E extends readonly ElementLike[]> =
   E[number] extends infer El
     ? El extends { name: infer N; minOccurs?: infer Min }
       ? Min extends 0 | '0'
@@ -384,7 +576,7 @@ type ExtractRequiredElementNames<E extends readonly ElementLike[]> =
     : never;
 
 /** Extract names of optional elements */
-type ExtractOptionalElementNames<E extends readonly ElementLike[]> =
+export type ExtractOptionalElementNames<E extends readonly ElementLike[]> =
   E[number] extends infer El
     ? El extends { name: infer N; minOccurs: 0 | '0' }
       ? N extends string
@@ -394,7 +586,7 @@ type ExtractOptionalElementNames<E extends readonly ElementLike[]> =
     : never;
 
 /** Infer type for a single element */
-type InferElementType<El extends ElementLike, T extends SchemaLike> =
+export type InferElementType<El extends ElementLike, T extends SchemaLike> =
   // Check for inline complexType
   El extends { complexType: infer CT }
     ? CT extends ComplexTypeLike
@@ -413,7 +605,7 @@ type InferElementType<El extends ElementLike, T extends SchemaLike> =
         : WrapArray<unknown, El>;
 
 /** Wrap in array if maxOccurs > 1 or unbounded */
-type WrapArray<T, El extends ElementLike> =
+export type WrapArray<T, El extends ElementLike> =
   El extends { maxOccurs: 'unbounded' | infer Max }
     ? Max extends 'unbounded'
       ? T[]
@@ -421,9 +613,11 @@ type WrapArray<T, El extends ElementLike> =
         ? Max extends 0 | 1
           ? T
           : T[]
-        : Max extends `${number}`
-          ? T[]  // String number > 1 assumed
-          : T
+        : Max extends '0' | '1'
+          ? T  // String '0' or '1' - single element
+          : Max extends `${number}`
+            ? T[]  // String number > 1
+            : T
     : T;
 
 // =============================================================================
@@ -431,27 +625,27 @@ type WrapArray<T, El extends ElementLike> =
 // =============================================================================
 
 /** Infer from attribute array */
-type InferAttributes<A> =
+export type InferAttributes<A> =
   A extends readonly AttributeLike[]
     ? InferRequiredAttributes<A> & InferOptionalAttributes<A>
     : {};
 
 /** Infer required attributes (use="required") */
-type InferRequiredAttributes<A extends readonly AttributeLike[]> = {
+export type InferRequiredAttributes<A extends readonly AttributeLike[]> = {
   [K in ExtractRequiredAttributeNames<A>]: InferAttributeType<
     Extract<A[number], { name: K }>
   >;
 };
 
 /** Infer optional attributes (use != "required") */
-type InferOptionalAttributes<A extends readonly AttributeLike[]> = {
+export type InferOptionalAttributes<A extends readonly AttributeLike[]> = {
   [K in ExtractOptionalAttributeNames<A>]?: InferAttributeType<
     Extract<A[number], { name: K }>
   >;
 };
 
 /** Extract names of required attributes */
-type ExtractRequiredAttributeNames<A extends readonly AttributeLike[]> =
+export type ExtractRequiredAttributeNames<A extends readonly AttributeLike[]> =
   A[number] extends infer Attr
     ? Attr extends { name: infer N; use: 'required' }
       ? N extends string
@@ -461,7 +655,7 @@ type ExtractRequiredAttributeNames<A extends readonly AttributeLike[]> =
     : never;
 
 /** Extract names of optional attributes */
-type ExtractOptionalAttributeNames<A extends readonly AttributeLike[]> =
+export type ExtractOptionalAttributeNames<A extends readonly AttributeLike[]> =
   A[number] extends infer Attr
     ? Attr extends { name: infer N; use?: infer Use }
       ? Use extends 'required'
@@ -473,7 +667,7 @@ type ExtractOptionalAttributeNames<A extends readonly AttributeLike[]> =
     : never;
 
 /** Infer type for a single attribute */
-type InferAttributeType<Attr extends AttributeLike> =
+export type InferAttributeType<Attr extends AttributeLike> =
   Attr extends { type: infer TypeName }
     ? TypeName extends string
       ? InferBuiltInType<StripPrefix<TypeName>>
@@ -485,7 +679,7 @@ type InferAttributeType<Attr extends AttributeLike> =
 // =============================================================================
 
 /** Infer from simpleType (enums, restrictions) */
-type InferSimpleType<ST extends SimpleTypeLike> =
+export type InferSimpleType<ST extends SimpleTypeLike> =
   ST extends { restriction: { enumeration: readonly { value: infer V }[] } }
     ? V extends string
       ? V
@@ -501,7 +695,7 @@ type InferSimpleType<ST extends SimpleTypeLike> =
 // =============================================================================
 
 /** Map XSD built-in types to TypeScript */
-type XsdBuiltInTypes = {
+export type XsdBuiltInTypes = {
   string: string;
   normalizedString: string;
   token: string;
@@ -551,7 +745,7 @@ type XsdBuiltInTypes = {
 };
 
 /** Infer built-in type by name */
-type InferBuiltInType<Name extends string> =
+export type InferBuiltInType<Name extends string> =
   Name extends keyof XsdBuiltInTypes
     ? XsdBuiltInTypes[Name]
     : unknown;
@@ -561,13 +755,13 @@ type InferBuiltInType<Name extends string> =
 // =============================================================================
 
 /** Strip xs: or xsd: prefix */
-type StripPrefix<T extends string> =
+export type StripPrefix<T extends string> =
   T extends `xs:${infer Rest}` ? Rest :
   T extends `xsd:${infer Rest}` ? Rest :
   T;
 
 /** Find item in array by partial match */
-type FindInArray<Arr, Match> =
+export type FindInArray<Arr, Match> =
   Arr extends readonly [infer First, ...infer Rest]
     ? First extends Match
       ? First
@@ -578,8 +772,39 @@ type FindInArray<Arr, Match> =
         : never
       : never;
 
+/** 
+ * Find item in array by name property.
+ * Works with both literal types ('abapClass') and widened types (string).
+ * For widened arrays where name is `string`, returns the full item union.
+ */
+export type FindByName<Arr, Name extends string> =
+  // First try tuple matching (preserves literal types)
+  Arr extends readonly [infer First, ...infer Rest]
+    ? First extends { name: Name }
+      ? First
+      : First extends { name: string }
+        ? Name extends First['name']  // Check if Name is assignable to the item's name
+          ? First
+          : FindByName<Rest, Name>
+        : FindByName<Rest, Name>
+    // Fallback for non-tuple arrays (widened types)
+    : Arr extends readonly (infer Item)[]
+      ? Item extends { name: infer ItemName }
+        ? ItemName extends string
+          // If item name is literal, check exact match
+          ? string extends ItemName
+            // Item name is widened to `string`, so any Name matches
+            ? Item
+            // Item name is literal, check if Name matches
+            : Name extends ItemName
+              ? Item
+              : never
+          : never
+        : never
+      : never;
+
 /** Convert union to intersection */
-type UnionToIntersection<U> =
+export type UnionToIntersection<U> =
   (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void
     ? I
     : never;

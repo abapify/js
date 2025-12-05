@@ -1185,7 +1185,7 @@ function extractXmlns(el: XmlElement): Record<string, string> | undefined {
 function copyXmlns(el: XmlElement, target: any): void {
   const xmlns = extractXmlns(el);
   if (xmlns) {
-    target.xmlns = xmlns;
+    target.$xmlns = xmlns;
   }
 }
 

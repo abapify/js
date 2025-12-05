@@ -8,6 +8,12 @@ import { describe, test as it } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { parseXsd, type Schema } from '../../src/xsd';
 
+// Helper to safely access array-or-object union types as arrays
+// The Schema type uses unions like `TopLevelSimpleType[] | { [name: string]: LocalSimpleType }`
+// which TypeScript can't index with [0] directly
+// Returns `any[]` to suppress strict type checks in tests
+const asArray = (value: unknown): any[] => value as any[];
+
 describe('parseXsd coverage', () => {
   describe('Error handling', () => {
     it('should throw on invalid root element', () => {
@@ -138,7 +144,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const st = schema.simpleType![0] as any;
+      const st = asArray(schema.simpleType)[0];
       assert.ok(st.list);
       assert.equal(st.list.itemType, 'xs:string');
       assert.equal(st.list.id, 'list1');
@@ -158,7 +164,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const st = schema.simpleType![0] as any;
+      const st = asArray(schema.simpleType)[0];
       assert.ok(st.list);
       assert.ok(st.list.simpleType);
     });
@@ -174,7 +180,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const st = schema.simpleType![0] as any;
+      const st = asArray(schema.simpleType)[0];
       assert.ok(st.union);
       assert.equal(st.union.memberTypes, 'xs:string xs:integer');
       assert.equal(st.union.id, 'union1');
@@ -196,7 +202,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const st = schema.simpleType![0] as any;
+      const st = asArray(schema.simpleType)[0];
       assert.ok(st.union);
       assert.ok(st.union.simpleType);
       assert.equal(st.union.simpleType.length, 2);
@@ -227,7 +233,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const r = (schema.simpleType![0] as any).restriction;
+      const r = asArray(schema.simpleType)[0].restriction;
       assert.ok(r.minExclusive);
       assert.ok(r.minInclusive);
       assert.ok(r.maxExclusive);
@@ -258,7 +264,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const e = (schema.simpleType![0] as any).restriction.enumeration[0];
+      const e = asArray(schema.simpleType)[0].restriction.enumeration[0];
       assert.equal(e.value, 'A');
       assert.equal(e.id, 'enum-a');
       assert.equal(e.fixed, true);
@@ -278,7 +284,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const p = (schema.simpleType![0] as any).restriction.pattern[0];
+      const p = asArray(schema.simpleType)[0].restriction.pattern[0];
       assert.equal(p.value, '[A-Z]+');
       assert.equal(p.id, 'pat1');
       assert.ok(p.annotation);
@@ -298,7 +304,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const r = (schema.simpleType![0] as any).restriction;
+      const r = asArray(schema.simpleType)[0].restriction;
       assert.ok(r.simpleType);
     });
   });
@@ -321,7 +327,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.simpleContent);
       assert.ok(ct.simpleContent.extension);
       assert.equal(ct.simpleContent.extension.base, 'xs:string');
@@ -354,7 +360,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.simpleContent);
       assert.ok(ct.simpleContent.restriction);
       assert.ok(ct.simpleContent.restriction.simpleType);
@@ -379,7 +385,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.complexContent);
       assert.equal(ct.complexContent.mixed, true);
       assert.equal(ct.complexContent.id, 'cc1');
@@ -400,7 +406,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.openContent);
       assert.equal(ct.openContent.mode, 'interleave');
       assert.ok(ct.openContent.any);
@@ -417,7 +423,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.group);
       assert.equal(ct.group.ref, 'myGroup');
       assert.equal(ct.group.minOccurs, '0');
@@ -439,7 +445,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.all);
       assert.equal(ct.all.minOccurs, '0');
       assert.ok(ct.all.element);
@@ -466,7 +472,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.choice);
       assert.ok(ct.choice.element);
       assert.ok(ct.choice.group);
@@ -489,7 +495,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ct = schema.complexType![0] as any;
+      const ct = asArray(schema.complexType)[0];
       assert.ok(ct.assert);
       assert.equal(ct.assert[0].test, '$value > 0');
       assert.equal(ct.assert[0].xpathDefaultNamespace, '##targetNamespace');
@@ -616,7 +622,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const el = (schema.complexType![0] as any).sequence.element[0];
+      const el = asArray(schema.complexType)[0].sequence.element[0];
       assert.equal(el.minOccurs, '0');
       assert.equal(el.maxOccurs, 'unbounded');
       assert.equal(el.form, 'qualified');
@@ -699,7 +705,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const el = (schema.complexType![0] as any).sequence.element[0];
+      const el = asArray(schema.complexType)[0].sequence.element[0];
       assert.ok(el.unique);
       assert.ok(el.key);
       assert.ok(el.keyref);
@@ -769,7 +775,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const attr = (schema.complexType![0] as any).attribute[0];
+      const attr = asArray(schema.complexType)[0].attribute[0];
       assert.equal(attr.use, 'required');
       assert.equal(attr.form, 'qualified');
       assert.equal(attr.targetNamespace, 'http://example.com');
@@ -864,7 +870,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const ag = (schema.complexType![0] as any).attributeGroup[0];
+      const ag = asArray(schema.complexType)[0].attributeGroup[0];
       assert.equal(ag.ref, 'myAttrGroup');
       assert.equal(ag.id, 'agRef1');
     });
@@ -890,7 +896,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const any = (schema.complexType![0] as any).sequence.any[0];
+      const any = asArray(schema.complexType)[0].sequence.any[0];
       assert.equal(any.id, 'any1');
       assert.equal(any.minOccurs, '0');
       assert.equal(any.maxOccurs, 'unbounded');
@@ -915,7 +921,7 @@ describe('parseXsd coverage', () => {
         </xs:schema>`;
       const schema = parseXsd(xsd);
       
-      const aa = (schema.complexType![0] as any).anyAttribute;
+      const aa = asArray(schema.complexType)[0].anyAttribute;
       assert.equal(aa.id, 'anyAttr1');
       assert.equal(aa.namespace, '##local');
       assert.equal(aa.processContents, 'strict');
