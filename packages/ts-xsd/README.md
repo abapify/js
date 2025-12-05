@@ -1,589 +1,365 @@
-# ts-xsd
+# @abapify/ts-xsd-core
 
-**Type-safe XSD schemas for TypeScript** - Parse and build XML with full type inference.
+**Core XSD parser, builder, and type inference** with **1:1 TypeScript representation** of W3C XML Schema Definition (XSD) 1.1.
 
-Part of the **ADT Toolkit** foundation - see [main README](../../README.md) for architecture overview.
+[![npm version](https://badge.fury.io/js/%40abapify%2Fts-xsd-core.svg)](https://www.npmjs.com/package/@abapify/ts-xsd-core)
 
-## What is it?
+## Overview
 
-`ts-xsd` lets you define XSD-like schemas as plain TypeScript objects. TypeScript automatically infers the types, and you get type-safe `parse()` and `build()` functions.
+`ts-xsd-core` is a comprehensive TypeScript library for working with W3C XSD schemas. It provides:
 
-```typescript
-import { parse, build, type XsdSchema, type InferXsd } from 'ts-xsd';
+| Module | Purpose |
+|--------|---------|
+| **xsd** | Parse XSD files into typed `Schema` objects, build XSD from objects |
+| **infer** | Compile-time TypeScript type inference from schema literals |
+| **xml** | Parse/build XML documents using schema definitions |
+| **codegen** | Generate TypeScript schema literals from XSD files |
 
-// Define schema as plain object with `as const`
-const PersonSchema = {
-  ns: 'http://example.com/person',
-  prefix: 'per',
-  element: [
-    { name: 'Person', type: 'Person' },
-  ],
-  complexType: {
-    Person: {
-      sequence: [
-        { name: 'FirstName', type: 'string' },
-        { name: 'LastName', type: 'string' },
-        { name: 'Age', type: 'number', minOccurs: 0 },
-      ],
-      attributes: [
-        { name: 'id', type: 'string', required: true },
-      ],
-    },
-  },
-} as const satisfies XsdSchema;
+### Key Features
 
-// Type is automatically inferred!
-type Person = InferXsd<typeof PersonSchema>;
-// {
-//   id: string;
-//   FirstName: string;
-//   LastName: string;
-//   Age: number | undefined;
-// }
-
-// Parse XML → typed object
-const person = parse(PersonSchema, xmlString);
-console.log(person.FirstName); // ✅ typed as string
-
-// Build typed object → XML
-const xml = build(PersonSchema, {
-  id: '123',
-  FirstName: 'John',
-  LastName: 'Doe',
-  Age: 30,
-});
-```
-
-## Coming from Zod?
-
-ts-xsd uses the same pattern - define schema, infer type:
-
-```typescript
-// Zod
-const UserSchema = z.object({ name: z.string() });
-type User = z.infer<typeof UserSchema>;
-
-// ts-xsd
-const UserSchema = {
-  element: [{ name: 'User', type: 'User' }],
-  complexType: {
-    User: { sequence: [{ name: 'name', type: 'string' }] },
-  },
-} as const satisfies XsdSchema;
-type User = InferXsd<typeof UserSchema>;
-```
-
-Same DX, but for XML instead of JSON.
-
-## Why ts-xsd?
-
-| Feature | ts-xsd | fast-xml-parser | Zod | JSONIX |
-|---------|--------|-----------------|-----|--------|
-| **XML ↔ JSON bidirectional** | ✅ | ✅ | ❌ | ✅ |
-| **Type inference from schema** | ✅ | ❌ | ✅ | ❌ |
-| **Clean domain objects** | ✅ | ❌ | ✅ | ❌ |
-| **No runtime validation overhead** | ✅ | ✅ | ❌ | ❌ |
-| **XSD codegen** | ✅ | ❌ | ❌ | ✅ |
-| **Bundle size** | ~3KB | ~50KB | ~12KB | ~200KB |
+- **Pure W3C XSD 1.1** - Types match the official [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd) exactly
+- **Full roundtrip** - `XSD → Schema → XSD` with semantic preservation
+- **Type inference** - `InferSchema<T>` extracts TypeScript types from schema literals
+- **Shared types** - Cross-schema type resolution via `$imports`
+- **Tree-shakeable** - Only import what you need
+- **Zero runtime dependencies** - Only `@xmldom/xmldom` for DOM parsing
 
 ## Installation
 
 ```bash
-npm install ts-xsd
+npm install @abapify/ts-xsd-core
 # or
-bun add ts-xsd
+bun add @abapify/ts-xsd-core
 ```
 
-## Usage
+## Quick Start
 
-### Define Schema
+### Parse and Build XSD
 
 ```typescript
-const OrderSchema = {
-  element: [
-    { name: 'Order', type: 'Order' },
-  ],
-  complexType: {
-    Order: {
-      sequence: [
-        { name: 'items', type: 'Items' },
-      ],
-      attributes: [
-        { name: 'id', type: 'string', required: true },
-      ],
-    },
-    Items: {
-      sequence: [
-        { name: 'item', type: 'Item', maxOccurs: 'unbounded' },
-      ],
-    },
-    Item: {
-      sequence: [
-        { name: 'name', type: 'string' },
-        { name: 'price', type: 'number' },
-      ],
-    },
-  },
-} as const satisfies XsdSchema;
+import { parseXsd, buildXsd } from '@abapify/ts-xsd-core';
 
-type Order = InferXsd<typeof OrderSchema>;
+// Parse XSD to typed Schema object
+const schema = parseXsd(`
+  <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="person" type="PersonType"/>
+    <xs:complexType name="PersonType">
+      <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="age" type="xs:int" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:schema>
+`);
+
+// Build back to XSD
+const xsd = buildXsd(schema, { pretty: true });
 ```
 
-### Parse XML
+### Type Inference from Schema Literals
 
 ```typescript
-const xml = `
-  <Order id="order-1">
-    <items>
-      <item><name>Apple</name><price>1.5</price></item>
-      <item><name>Banana</name><price>0.75</price></item>
-    </items>
-  </Order>
-`;
+import type { InferSchema } from '@abapify/ts-xsd-core';
 
-const order = parse(OrderSchema, xml);
-// order.id = 'order-1'
-// order.items.item[0].name = 'Apple'
-// order.items.item[0].price = 1.5
+// Define schema as const literal
+const personSchema = {
+  element: [{ name: 'person', type: 'PersonType' }],
+  complexType: [{
+    name: 'PersonType',
+    sequence: {
+      element: [
+        { name: 'name', type: 'xs:string' },
+        { name: 'age', type: 'xs:int', minOccurs: 0 },
+      ]
+    }
+  }]
+} as const;
+
+// Infer TypeScript type at compile time
+type Person = InferSchema<typeof personSchema>;
+// Result: { name: string; age?: number }
 ```
 
-### Build XML
+### Parse XML with Schema
 
 ```typescript
-const order: Order = {
-  id: 'order-2',
-  items: {
-    item: [
-      { name: 'Orange', price: 2.0 },
-      { name: 'Grape', price: 3.5 },
-    ],
-  },
-};
+import { parseXml, buildXml } from '@abapify/ts-xsd-core';
 
-const xml = build(OrderSchema, order);
+const xml = `<person><name>John</name><age>30</age></person>`;
+const data = parseXml(personSchema, xml);
+// data: { name: 'John', age: 30 }
+
+const rebuilt = buildXml(personSchema, data);
+// rebuilt: <person><name>John</name><age>30</age></person>
 ```
 
-## Import from XSD
+## API Reference
 
-Use the CLI to import XSD schemas into TypeScript:
-
-```bash
-# Print TypeScript to stdout (default)
-npx ts-xsd import schema.xsd
-
-# Write to file
-npx ts-xsd import schema.xsd -o generated/
-
-# Process multiple files
-npx ts-xsd import schemas/*.xsd -o out/
-
-# Read from stdin (pipe)
-cat schema.xsd | npx ts-xsd import
-
-# Output JSON instead of TypeScript
-npx ts-xsd import schema.xsd --json
-
-# Pipe JSON to jq
-npx ts-xsd import schema.xsd --json | jq .
-
-# Use custom resolver for xsd:import paths
-npx ts-xsd import schema.xsd -r ./my-resolver.ts
-```
-
-## Pluggable Generators
-
-ts-xsd supports pluggable generators that control how TypeScript code is generated from XSD schemas. This enables different output formats for different use cases.
-
-### Built-in Generators
-
-#### Raw Generator (Default)
-
-Generates plain TypeScript schema files with `XsdSchema` type:
+### XSD Module
 
 ```typescript
-// Generated output
-import type { XsdSchema } from 'ts-xsd';
-
-export default {
-  ns: 'http://example.com/person',
-  element: [{ name: 'Person', type: 'Person' }],
-  complexType: { ... },
-} as const satisfies XsdSchema;
+import { parseXsd, buildXsd, type Schema } from '@abapify/ts-xsd-core';
 ```
 
-#### Factory Generator
+#### `parseXsd(xsd: string): Schema`
 
-Wraps schemas with a factory function for custom processing (e.g., adding `parse`/`build` methods):
+Parse an XSD XML string into a typed Schema object.
 
 ```typescript
-// Generated output
-import schema from '../../my-factory';
+const schema = parseXsd(xsdString);
+console.log(schema.targetNamespace);
+console.log(schema.element?.[0].name);
+```
 
-export default schema({
-  ns: 'http://example.com/person',
-  element: [{ name: 'Person', type: 'Person' }],
-  complexType: { ... },
+#### `buildXsd(schema: Schema, options?: BuildOptions): string`
+
+Build an XSD XML string from a Schema object.
+
+```typescript
+const xsd = buildXsd(schema, {
+  prefix: 'xsd',      // Namespace prefix (default: 'xs')
+  pretty: true,       // Pretty print (default: true)
+  indent: '  '        // Indentation (default: '  ')
 });
 ```
 
-### Using Generators Programmatically
+#### `resolveImports(schema: Schema, resolver: (location: string) => Schema): Schema`
+
+Resolve and link imported schemas for cross-schema type resolution.
 
 ```typescript
-import { generateFromXsd, factoryGenerator, rawGenerator } from 'ts-xsd/codegen';
-
-// Default: raw generator
-const result1 = generateFromXsd(xsdContent, options);
-
-// Factory generator with custom factory path
-const result2 = generateFromXsd(
-  xsdContent,
-  options,
-  factoryGenerator,
-  { factory: '../../my-factory' }
-);
+const linkedSchema = resolveImports(schema, (location) => {
+  return parseXsd(fs.readFileSync(location, 'utf-8'));
+});
 ```
 
-### Creating Custom Generators
-
-Implement the `Generator` interface:
+### Infer Module
 
 ```typescript
-import type { Generator, GeneratorContext } from 'ts-xsd/codegen';
+import type { InferSchema, InferElement, SchemaLike } from '@abapify/ts-xsd-core';
+```
 
-const myGenerator: Generator = {
-  generate({ schema, args }: GeneratorContext): string {
-    // Generate TypeScript code from schema data
-    return `
-import myWrapper from '${args.wrapper || './wrapper'}';
+#### `InferSchema<T>`
 
-export default myWrapper(${JSON.stringify(schema.complexType)});
-`;
-  },
+Infer TypeScript type from a schema literal. Returns union of all root element types.
+
+```typescript
+type Data = InferSchema<typeof mySchema>;
+```
+
+#### `InferElement<T, ElementName>`
+
+Infer type for a specific element by name.
+
+```typescript
+type Person = InferElement<typeof schema, 'person'>;
+```
+
+#### Built-in Type Mapping
+
+| XSD Type | TypeScript |
+|----------|------------|
+| `xs:string`, `xs:token`, `xs:NCName` | `string` |
+| `xs:int`, `xs:integer`, `xs:decimal` | `number` |
+| `xs:boolean` | `boolean` |
+| `xs:date`, `xs:dateTime`, `xs:time` | `string` |
+| `xs:anyURI`, `xs:QName` | `string` |
+| `xs:anyType` | `unknown` |
+
+### XML Module
+
+```typescript
+import { parseXml, buildXml } from '@abapify/ts-xsd-core';
+```
+
+#### `parseXml<T>(schema: SchemaLike, xml: string): T`
+
+Parse XML string using schema definition.
+
+#### `buildXml<T>(schema: SchemaLike, data: T): string`
+
+Build XML string from data using schema definition.
+
+### Codegen Module
+
+```typescript
+import { generateSchemaLiteral, generateInterfaces } from '@abapify/ts-xsd-core';
+```
+
+#### `generateSchemaLiteral(xsd: string, options?: GenerateOptions): string`
+
+Generate TypeScript schema literal from XSD content.
+
+```typescript
+const code = generateSchemaLiteral(xsdContent, {
+  name: 'PersonSchema',
+  features: { $xmlns: true, $imports: true },
+  exclude: ['annotation']
+});
+// export default { ... } as const;
+```
+
+#### `generateInterfaces(schema: Schema, options?: InterfaceOptions): string`
+
+Generate TypeScript interfaces from parsed schema.
+
+## Schema Structure
+
+The `Schema` type is a 1:1 TypeScript representation of W3C XSD:
+
+```typescript
+interface Schema {
+  // Namespace
+  targetNamespace?: string;
+  elementFormDefault?: 'qualified' | 'unqualified';
+  attributeFormDefault?: 'qualified' | 'unqualified';
   
-  // Optional: generate index file
-  generateIndex(schemas: string[]): string {
-    return schemas.map(s => `export { default as ${s} } from './${s}';`).join('\n');
-  },
-};
-```
-
-### Generator Context
-
-Generators receive a context with:
-
-```typescript
-interface GeneratorContext {
-  schema: {
-    namespace?: string;    // Target namespace URI
-    prefix: string;        // Namespace prefix
-    element: SchemaElementDecl[];  // Top-level element declarations
-    complexType: Record<string, unknown>;  // ComplexType definitions
-    simpleType?: Record<string, unknown>;  // SimpleType definitions
-    imports: SchemaImport[];  // Dependencies
-  };
-  args: Record<string, string>;  // CLI arguments (--key=value)
+  // Composition
+  import?: Import[];
+  include?: Include[];
+  
+  // Declarations
+  element?: TopLevelElement[];
+  complexType?: TopLevelComplexType[];
+  simpleType?: TopLevelSimpleType[];
+  group?: NamedGroup[];
+  attributeGroup?: NamedAttributeGroup[];
+  
+  // Extensions (non-W3C, prefixed with $)
+  $xmlns?: { [prefix: string]: string };
+  $imports?: Schema[];  // Resolved imported schemas
+  $filename?: string;   // Source filename
 }
 ```
 
-### Generated Output
+### Cross-Schema Type Resolution
 
-Given this XSD:
-
-```xml
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           targetNamespace="http://example.com/person">
-  <xs:element name="Person">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element name="FirstName" type="xs:string"/>
-        <xs:element name="LastName" type="xs:string"/>
-      </xs:sequence>
-      <xs:attribute name="id" type="xs:string" use="required"/>
-    </xs:complexType>
-  </xs:element>
-</xs:schema>
-```
-
-Generates:
+Link schemas together for cross-schema type resolution:
 
 ```typescript
-import type { XsdSchema } from 'ts-xsd';
+const adtcore = parseXsd(adtcoreXsd);
+const classes = parseXsd(classesXsd);
 
-export default {
-  ns: 'http://example.com/person',
-  prefix: 'person',
-  element: [
-    { name: 'Person', type: 'Person' },
-  ],
-  complexType: {
-    Person: {
-      sequence: [
-        { name: 'FirstName', type: 'string' },
-        { name: 'LastName', type: 'string' },
-      ],
-      attributes: [
-        { name: 'id', type: 'string', required: true },
-      ],
-    },
-  },
-} as const satisfies XsdSchema;
-```
-
-### Handling xsd:import
-
-When an XSD imports other schemas, ts-xsd generates TypeScript imports with an `include` array:
-
-```xml
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           xmlns:common="http://example.com/common"
-           targetNamespace="http://example.com/customer">
-  <xs:import namespace="http://example.com/common" schemaLocation="common.xsd"/>
-  <xs:element name="Customer">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element name="Name" type="xs:string"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-</xs:schema>
-```
-
-Generates:
-
-```typescript
-import type { XsdSchema } from 'ts-xsd';
-import Common from './common';
-
-export default {
-  ns: 'http://example.com/customer',
-  prefix: 'customer',
-  include: [Common],  // Imported schemas
-  element: [
-    { name: 'Customer', type: 'Customer' },
-  ],
-  complexType: {
-    Customer: {
-      sequence: [
-        { name: 'Name', type: 'string' },
-      ],
-    },
-  },
-} as const satisfies XsdSchema;
-```
-
-The `include` array enables:
-- **Type inference** - TypeScript merges element types from all included schemas
-- **Runtime lookup** - `parse()` and `build()` resolve types from included schemas
-
-### Custom Import Resolver
-
-For non-standard `schemaLocation` values (like SAP's `platform:/plugin/...` URLs), use a custom resolver:
-
-```typescript
-// adt-resolver.ts
-import type { ImportResolver } from 'ts-xsd/codegen';
-
-const resolve: ImportResolver = (schemaLocation, namespace) => {
-  // platform:/plugin/.../model/foo.xsd → ./foo
-  const match = schemaLocation.match(/\/model\/([^/]+)\.xsd$/);
-  if (match) return `./${match[1]}`;
-  return schemaLocation.replace(/\.xsd$/, '');
+// Link schemas via $imports
+const linkedClasses = {
+  ...classes,
+  $imports: [adtcore]
 };
 
-export default resolve;
+// Now InferSchema can resolve types from adtcore
+type AbapClass = InferSchema<typeof linkedClasses>;
 ```
 
-Usage:
+## Type Inference Deep Dive
+
+### How It Works
+
+The type inference system uses TypeScript's conditional types to:
+
+1. **Find root elements** - Extract element declarations from schema
+2. **Resolve type references** - Look up `complexType` and `simpleType` by name
+3. **Handle inheritance** - Process `complexContent/extension` for type inheritance
+4. **Map XSD to TS** - Convert XSD types to TypeScript equivalents
+5. **Handle optionality** - `minOccurs="0"` → optional property
+6. **Handle arrays** - `maxOccurs="unbounded"` → array type
+
+### Example: Complex Schema
+
+```typescript
+const schema = {
+  $imports: [baseSchema],
+  element: [{ name: 'order', type: 'OrderType' }],
+  complexType: [{
+    name: 'OrderType',
+    complexContent: {
+      extension: {
+        base: 'base:BaseEntity',  // Inherits from imported schema
+        sequence: {
+          element: [
+            { name: 'items', type: 'ItemType', maxOccurs: 'unbounded' },
+            { name: 'total', type: 'xs:decimal' },
+          ]
+        }
+      }
+    }
+  }, {
+    name: 'ItemType',
+    sequence: {
+      element: [
+        { name: 'sku', type: 'xs:string' },
+        { name: 'quantity', type: 'xs:int' },
+      ]
+    }
+  }]
+} as const;
+
+type Order = InferSchema<typeof schema>;
+// Result:
+// {
+//   ...BaseEntity,  // Inherited properties
+//   items: { sku: string; quantity: number }[];
+//   total: number;
+// }
+```
+
+## Architecture
+
+```
+@abapify/ts-xsd-core
+├── src/
+│   ├── index.ts           # Main exports
+│   ├── xsd/               # XSD parsing and building
+│   │   ├── types.ts       # W3C 1:1 type definitions (630 lines)
+│   │   ├── parse.ts       # XSD → Schema parser
+│   │   ├── build.ts       # Schema → XSD builder
+│   │   └── helpers.ts     # Schema linking utilities
+│   ├── infer/             # Type inference
+│   │   └── types.ts       # InferSchema<T> and helpers (811 lines)
+│   ├── xml/               # XML parsing/building
+│   │   ├── parse.ts       # XML → Object parser
+│   │   └── build.ts       # Object → XML builder
+│   └── codegen/           # Code generation
+│       ├── generate.ts    # Schema literal generator
+│       └── interface-generator.ts  # Interface generator
+```
+
+## Design Principles
+
+1. **Pure W3C XSD** - No invented properties or conveniences
+2. **Type safety** - Full TypeScript support with inference
+3. **Minimal dependencies** - Only `@xmldom/xmldom`
+4. **Tree-shakeable** - Import only what you need
+5. **Tested against W3C** - Verified with official XMLSchema.xsd
+
+## Testing
 
 ```bash
-npx ts-xsd import schema.xsd -r ./adt-resolver.ts
+# Run all tests
+npx nx test ts-xsd-core
+
+# Run with coverage
+npx nx test:coverage ts-xsd-core
 ```
 
-## Composing Schemas with Include
+Tests include:
+- Unit tests for parser, builder, and inference
+- Integration tests with real XSD files
+- W3C XMLSchema.xsd roundtrip verification
 
-You can compose schemas by including other schemas. This enables modular schema design:
+## Related Packages
 
-```typescript
-// common.ts - Shared types
-const CommonSchema = {
-  element: [
-    { name: 'Address', type: 'Address' },
-  ],
-  complexType: {
-    Address: {
-      sequence: [
-        { name: 'Street', type: 'string' },
-        { name: 'City', type: 'string' },
-        { name: 'Country', type: 'string' },
-      ],
-    },
-  },
-} as const satisfies XsdSchema;
+- **[@abapify/adt-schemas-xsd-v2](../adt-schemas-xsd-v2)** - SAP ADT schemas using ts-xsd-core
+- **[speci](../speci)** - REST contract library with schema integration
 
-export default CommonSchema;
-```
+## Documentation
 
-```typescript
-// customer.ts - Uses common types
-import Common from './common';
+- **[Codegen Guide](./docs/codegen.md)** - Comprehensive code generation documentation
+- **[AGENTS.md](./AGENTS.md)** - AI agent guidelines
 
-const CustomerSchema = {
-  include: [Common],  // Include common types
-  element: [
-    { name: 'Customer', type: 'Customer' },
-  ],
-  complexType: {
-    Customer: {
-      sequence: [
-        { name: 'Name', type: 'string' },
-        { name: 'BillingAddress', type: 'Address' },  // From Common
-        { name: 'ShippingAddress', type: 'Address' }, // From Common
-      ],
-    },
-  },
-} as const satisfies XsdSchema;
+## References
 
-// Type inference works across includes!
-type Customer = InferXsd<typeof CustomerSchema>;
-// {
-//   Name: string;
-//   BillingAddress: { Street: string; City: string; Country: string };
-//   ShippingAddress: { Street: string; City: string; Country: string };
-// }
-
-// Parse and build work with included types
-const customer = parse(CustomerSchema, xml);
-const xml = build(CustomerSchema, customer);
-```
-
-## Schema Reference
-
-### XsdSchema
-
-```typescript
-interface XsdSchema {
-  ns?: string;           // Target namespace
-  prefix?: string;       // Namespace prefix
-  element?: XsdElementDecl[];  // Top-level element declarations
-  complexType: Record<string, XsdComplexType>;  // ComplexType definitions
-  simpleType?: Record<string, XsdSimpleType>;   // SimpleType definitions
-  include?: XsdSchema[]; // Imported schemas (types merged at runtime)
-  attributeFormDefault?: 'qualified' | 'unqualified';  // Attribute namespace qualification
-  elementFormDefault?: 'qualified' | 'unqualified';    // Element namespace qualification
-}
-```
-
-### XsdElementDecl
-
-```typescript
-interface XsdElementDecl {
-  name: string;   // Element name
-  type: string;   // Type name (references complexType or simpleType)
-}
-```
-
-### XsdComplexType
-
-```typescript
-interface XsdComplexType {
-  extends?: string;         // Base type name (type inheritance)
-  sequence?: XsdField[];    // Ordered child elements
-  choice?: XsdField[];      // Choice of child elements
-  attributes?: XsdAttribute[];
-  text?: boolean;           // Has text content
-}
-```
-
-### Type Inheritance (extends)
-
-ts-xsd supports XSD type inheritance via the `extends` property. When a type extends another, it inherits all sequence fields, choice fields, and attributes from the base type.
-
-```typescript
-// Base type
-const BaseSchema = {
-  element: [{ name: 'Base', type: 'Base' }],
-  complexType: {
-    Base: {
-      sequence: [{ name: 'baseName', type: 'string' }],
-      attributes: [{ name: 'baseId', type: 'string', required: true }],
-    },
-  },
-} as const satisfies XsdSchema;
-
-// Derived type extends Base
-const DerivedSchema = {
-  include: [BaseSchema],
-  element: [{ name: 'Derived', type: 'Derived' }],
-  complexType: {
-    Derived: {
-      extends: 'Base',  // Inherits baseName and baseId
-      sequence: [{ name: 'derivedName', type: 'string' }],
-    },
-  },
-} as const satisfies XsdSchema;
-
-type Derived = InferXsd<typeof DerivedSchema>;
-// {
-//   baseId: string;      // Inherited from Base
-//   baseName: string;    // Inherited from Base
-//   derivedName: string; // Own field
-// }
-```
-
-**Key features:**
-- **Type inference** - TypeScript correctly infers inherited fields
-- **Multi-level inheritance** - Supports chains like GrandChild → Child → Base
-- **Runtime merging** - `parse()` and `build()` automatically include inherited fields
-- **XSD codegen** - Generator extracts `extends` from `complexContent > extension`
-
-### XsdField
-
-```typescript
-interface XsdField {
-  name: string;
-  type: string;             // Primitive type or element name
-  minOccurs?: number;       // 0 = optional
-  maxOccurs?: number | 'unbounded';  // > 1 or 'unbounded' = array
-}
-```
-
-### XsdAttribute
-
-```typescript
-interface XsdAttribute {
-  name: string;
-  type: string;
-  required?: boolean;
-}
-```
-
-### Primitive Types
-
-| XSD Type | TypeScript Type |
-|----------|-----------------|
-| `string`, `token`, `anyURI`, etc. | `string` |
-| `int`, `integer`, `decimal`, `float`, `double` | `number` |
-| `boolean` | `boolean` |
-| `date`, `dateTime` | `Date` |
-
-## API
-
-### `parse(schema, xml)`
-
-Parse XML string to typed object.
-
-### `build(schema, data, options?)`
-
-Build XML string from typed object.
-
-**Options:**
-- `xmlDecl?: boolean` - Include XML declaration (default: `true`)
-- `encoding?: string` - Encoding (default: `'utf-8'`)
-- `pretty?: boolean` - Pretty print (default: `false`)
-
-### `InferXsd<T>`
-
-TypeScript utility type to infer object type from schema.
+- [W3C XML Schema 1.1 Part 1: Structures](https://www.w3.org/TR/xmlschema11-1/)
+- [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd)
 
 ## License
 

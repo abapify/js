@@ -5,7 +5,7 @@
  * Uses PackageXml type from adk-v2 (inferred from packagesV1 schema).
  */
 
-import type { PackageXml } from '@abapify/adk-v2';
+import type { PackageXml } from '@abapify/adk';
 import type { Page, Component } from '../types';
 import type { NavParams } from '../router';
 import { Section, Field, Box, adtLink } from '../components';

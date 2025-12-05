@@ -12,10 +12,10 @@
   },
   "dependencies": {
     "@abapify/adk": "*",
-    "@abapify/adk-v2": "*",
+    "@abapify/adk": "*",
     "@abapify/adt-auth": "*",
     "@abapify/adt-client": "*",
-    "@abapify/adt-client-v2": "*",
+    "@abapify/adt-client": "*",
     "@abapify/adt-config": "*",
     "@abapify/adt-tui": "*",
     "@abapify/logger": "*",

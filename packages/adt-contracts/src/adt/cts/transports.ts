@@ -8,7 +8,7 @@
  */
 
 import { http } from 'speci/rest';
-import { transportfind } from 'adt-schemas-xsd';
+import { transportfind } from '../../schemas';
 
 // ============================================================================
 // URL Parameter Enums

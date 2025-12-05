@@ -3,7 +3,7 @@
  */
 
 import { fixtures } from 'adt-fixtures';
-import { transportmanagmentSingle, transportmanagmentCreate, transportfind, transportmanagment } from '@abapify/adt-schemas-xsd';
+import { transportmanagmentSingle, transportmanagmentCreate, transportfind, transportmanagment } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { transports, TransportFunction } from '../../src/adt/cts/transports';
 import { transportrequests } from '../../src/adt/cts/transportrequests';

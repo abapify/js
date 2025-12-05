@@ -5,7 +5,7 @@
  * Uses InterfaceResponse type from adt-client-v2.
  */
 
-import type { InterfaceResponse } from '@abapify/adt-client-v2';
+import type { InterfaceResponse } from '@abapify/adt-client';
 import type { Page, Component } from '../types';
 import type { NavParams } from '../router';
 import { Section, Field, Box, adtLink } from '../components';

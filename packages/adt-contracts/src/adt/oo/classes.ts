@@ -6,9 +6,8 @@
  */
 
 import { http, contract } from '../../base';
-import { classes as classesSchema } from 'adt-schemas-xsd';
-import type { InferElement } from 'ts-xsd';
-import type { RestContract } from 'speci/rest';
+import { classes as classesSchema } from '../../schemas';
+import type { ClassAbapClass } from '../../schemas';
 
 /**
  * Include types for ABAP classes
@@ -19,19 +18,15 @@ export type ClassIncludeType = 'definitions' | 'implementations' | 'macros' | 'm
  * Class response type - exported for consumers (ADK, etc.)
  * 
  * This is the canonical type for class metadata.
- * Consumers should import this type instead of inferring from speci internals.
- * 
- * Note: Using InferElement instead of InferXsd because the classes schema has
- * multiple root elements (abapClass, abapClassInclude). InferXsd would create
- * a union type that exceeds TypeScript's serialization limits (TS7056).
+ * Uses pre-generated type from adt-schemas-xsd-v2.
  */
-export type ClassResponse = InferElement<typeof classesSchema, 'abapClass'>;
+export type ClassResponse = ClassAbapClass;
 
 /**
  * /sap/bc/adt/oo/classes
  * Full CRUD operations for ABAP classes
  */
-const _classesContract: RestContract = contract({
+const _classesContract = contract({
   /**
    * GET /sap/bc/adt/oo/classes/{name}
    * Retrieve class metadata including includes
@@ -181,7 +176,8 @@ const _classesContract: RestContract = contract({
   },
 });
 
-export type ClassesContract = RestContract;
-
 /** Exported contract for classes operations */
-export const classesContract: ClassesContract = _classesContract;
+export const classesContract = _classesContract;
+
+/** Type alias for the classes contract */
+export type ClassesContract = typeof classesContract;

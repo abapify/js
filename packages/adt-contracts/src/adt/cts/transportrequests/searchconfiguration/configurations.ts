@@ -4,7 +4,7 @@
  */
 
 import { http, contract } from '../../../../base';
-import { configurations as configurationsSchema, configuration as configurationSchema } from 'adt-schemas-xsd';
+import { configurations as configurationsSchema, configuration as configurationSchema } from '../../../../schemas';
 
 export const configurations = contract({
   /** GET list of search configurations */

@@ -2,18 +2,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "."
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
   "references": [
     {
-      "path": "../ts-xsd"
-    },
-    {
-      "path": "../adt-schemas-xsd"
-    },
-    {
       "path": "../speci"
+    },
+    {
+      "path": "../adt-schemas"
     },
     {
       "path": "../adt-fixtures"

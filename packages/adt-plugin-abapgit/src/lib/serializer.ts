@@ -5,7 +5,7 @@ import type {
   AdkPackage,
   AdkClass,
   AdkInterface,
-} from '@abapify/adk-v2';
+} from '@abapify/adk';
 import { serializePackage } from '../objects/devc';
 import { serializeClass } from '../objects/clas';
 import { serializeInterface } from '../objects/intf';

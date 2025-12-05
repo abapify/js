@@ -1,13 +1,20 @@
 {
   "extends": "../../tsconfig.base.json",
-  "files": [],
-  "include": [],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "moduleResolution": "bundler",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["src/**/*"],
   "references": [
     {
-      "path": "./tsconfig.lib.json"
+      "path": "../adt-contracts"
     },
     {
-      "path": "./tsconfig.spec.json"
+      "path": "../logger"
     }
   ]
 }

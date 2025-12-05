@@ -3,7 +3,7 @@
  * Maps ADK v2 Class objects to abapGit XML structure
  */
 
-import type { AdkClass } from '@abapify/adk-v2';
+import type { AdkClass } from '@abapify/adk';
 import { createSerializer } from '../../lib/create-serializer';
 import { AbapGitClasValuesSchema } from './schema';
 import type { VseoClassTable } from './types';

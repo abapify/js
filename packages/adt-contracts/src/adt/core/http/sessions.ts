@@ -6,7 +6,7 @@
  */
 
 import { http as httpMethod } from '../../../base';
-import { http as httpSchema } from 'adt-schemas-xsd';
+import { http as httpSchema } from '../../../schemas';
 
 export const sessionsContract = {
   /**

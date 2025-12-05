@@ -5,7 +5,7 @@
  * The plugin receives ADK v2 objects from the CLI.
  */
 
-import type { AdkObject, AdkPackage } from '@abapify/adk-v2';
+import type { AdkObject, AdkPackage } from '@abapify/adk';
 
 /**
  * Context provided to plugin during serialization

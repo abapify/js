@@ -3,7 +3,7 @@
  */
 
 import { fixtures } from 'adt-fixtures';
-import { atcworklist } from '@abapify/adt-schemas-xsd';
+import { atcworklist } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { atcContract } from '../../src/adt/atc';
 

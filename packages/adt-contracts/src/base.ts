@@ -7,7 +7,7 @@
  * should import from here, not directly from speci. This allows swapping the
  * underlying implementation (e.g., speci → ts-rest) without impacting consumers.
  * 
- * Schemas from adt-schemas-xsd are already speci-compatible
+ * Schemas from ./schemas are already speci-compatible
  * (they have parse/build methods), so no wrapping is needed.
  */
 
@@ -46,12 +46,12 @@ import type { RestClient } from 'speci/rest';
 /**
  * Identity function for contract definitions.
  * 
- * Schemas from adt-schemas-xsd are already speci-compatible,
+ * Schemas from ./schemas are already speci-compatible,
  * so this is just a pass-through for type safety and documentation.
  * 
  * @example
  * ```ts
- * import { configurations } from 'adt-schemas-xsd';
+ * import { configurations } from './schemas';
  * import { contract, http } from '../base';
  * 
  * export const myContract = contract({

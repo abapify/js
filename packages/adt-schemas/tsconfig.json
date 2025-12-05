@@ -1,18 +1,23 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noPropertyAccessFromIndexSignature": true
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
   },
-  "files": [],
-  "include": [],
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", ".cache", ".xsd"],
   "references": [
     {
-      "path": "./tsconfig.lib.json"
+      "path": "../speci"
+    },
+    {
+      "path": "../ts-xsd"
+    },
+    {
+      "path": "../adt-fixtures"
     }
   ]
 }

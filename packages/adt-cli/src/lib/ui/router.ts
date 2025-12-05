@@ -5,7 +5,7 @@
  * Enables type-agnostic get command.
  */
 
-import type { AdtClient } from '@abapify/adt-client-v2';
+import type { AdtClient } from '@abapify/adt-client';
 import type { Page } from './types';
 
 export type { AdtClient };

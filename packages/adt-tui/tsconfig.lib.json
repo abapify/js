@@ -13,7 +13,7 @@
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../adt-client-v2"
+      "path": "../adt-client"
     }
   ]
 }

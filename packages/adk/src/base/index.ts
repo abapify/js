@@ -1,6 +1,8 @@
 /**
- * Base classes and interfaces for ADK objects
+ * ADK v2 - Base exports
  */
 
-export type { AdkObject, AdkObjectConstructor } from './adk-object';
-export { fromAdtXml } from './instance-factory';
+export * from './types';
+export * from './context';
+export * from './kinds';
+export { AdkObject, BaseModel, type LockHandle } from './model';
