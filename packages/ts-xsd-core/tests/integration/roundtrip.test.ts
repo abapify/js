@@ -168,11 +168,11 @@ describe('XSD Roundtrip', () => {
     assert.ok(xsd.includes('xs:simpleType'));
   });
 
-  it('should preserve original xmlns when present', () => {
-    // XMLSchema has xmlns:xs from parsing - should be preserved
+  it('should preserve original $xmlns when present', () => {
+    // XMLSchema has $xmlns:xs from parsing - should be preserved
     const xsd = buildXsd(XMLSchema);
     
-    assert.ok(XMLSchema.xmlns?.xs, 'Parsed schema should have xmlns.xs');
+    assert.ok(XMLSchema.$xmlns?.xs, 'Parsed schema should have $xmlns.xs');
     assert.ok(xsd.includes('xmlns:xs='));
     assert.ok(xsd.includes('xs:schema'));
   });

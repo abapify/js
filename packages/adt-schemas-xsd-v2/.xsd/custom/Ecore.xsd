@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Eclipse EMF Ecore Stub Schema
+  
+  SAP XSDs reference Ecore namespace for Java code generation metadata.
+  This stub provides the types needed for XSD validation.
+  
+  Common Ecore types used in SAP XSDs:
+  - ecore:EString (maps to xsd:string)
+  - ecore:EInt (maps to xsd:int)
+  - ecore:EBoolean (maps to xsd:boolean)
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore"
+    targetNamespace="http://www.eclipse.org/emf/2002/Ecore"
+    elementFormDefault="qualified">
+
+  <!-- Ecore primitive types mapped to XSD types -->
+  <xsd:simpleType name="EString">
+    <xsd:restriction base="xsd:string"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="EInt">
+    <xsd:restriction base="xsd:int"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="EBoolean">
+    <xsd:restriction base="xsd:boolean"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="EDouble">
+    <xsd:restriction base="xsd:double"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="ELong">
+    <xsd:restriction base="xsd:long"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="EDate">
+    <xsd:restriction base="xsd:dateTime"/>
+  </xsd:simpleType>
+
+</xsd:schema>

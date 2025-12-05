@@ -50,15 +50,14 @@ export function parse<T extends SchemaLike>(
   // Get the type name (strip namespace prefix if present)
   const typeName = stripNsPrefix(elementDecl.type || elementDecl.name || '');
   
-  // Find the complexType definition
-  const complexTypes = getComplexTypesArray(schema.complexType);
-  const complexType = findComplexTypeByName(complexTypes, typeName);
+  // Find the complexType definition (searches current schema and $imports)
+  const found = findComplexTypeWithSchema(typeName, schema);
   
-  if (!complexType) {
+  if (!found) {
     throw new Error(`Schema missing complexType for: ${typeName}`);
   }
 
-  return parseElement(root, complexType, schema) as InferSchema<T>;
+  return parseElement(root, found.type, found.schema) as InferSchema<T>;
 }
 
 /**
@@ -98,9 +97,9 @@ function findElementByName(
 }
 
 /**
- * Find complexType by name
+ * Find complexType by name (searches current schema only)
  */
-function findComplexTypeByName(
+function findComplexTypeByNameLocal(
   complexTypes: readonly ComplexTypeDef[],
   name: string
 ): ComplexTypeDef | undefined {
@@ -108,7 +107,36 @@ function findComplexTypeByName(
 }
 
 /**
+ * Find complexType by name (searches current schema and $imports)
+ * Returns both the type and the schema it was found in
+ */
+function findComplexTypeWithSchema(
+  name: string,
+  schema: SchemaLike
+): { type: ComplexTypeDef; schema: SchemaLike } | undefined {
+  // First try to find in current schema
+  const localType = findComplexTypeByNameLocal(getComplexTypesArray(schema.complexType), name);
+  if (localType) {
+    return { type: localType, schema };
+  }
+
+  // Search in $imports
+  const imports = schema.$imports as readonly SchemaLike[] | undefined;
+  if (imports) {
+    for (const importedSchema of imports) {
+      const found = findComplexTypeWithSchema(name, importedSchema);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Get merged complexType definition including inherited fields from base type
+ * Searches $imports for base types to support cross-schema inheritance
  */
 function getMergedComplexType(
   typeDef: ComplexTypeDef,
@@ -121,14 +149,16 @@ function getMergedComplexType(
   }
 
   const baseName = stripNsPrefix(extension.base);
-  const baseType = findComplexTypeByName(getComplexTypesArray(schema.complexType), baseName);
+  // Search in current schema AND $imports for base type
+  const found = findComplexTypeWithSchema(baseName, schema);
   
-  if (!baseType) {
+  if (!found) {
     return typeDef;
   }
 
   // Recursively get merged base (handles multi-level inheritance)
-  const mergedBase = getMergedComplexType(baseType, schema);
+  // Use the schema where the base type was found for proper context
+  const mergedBase = getMergedComplexType(found.type, found.schema);
 
   // Merge: base fields first, then derived fields
   return {
@@ -230,16 +260,16 @@ function parseField(
                   (typeof field.maxOccurs === 'number' && field.maxOccurs > 1) ||
                   (typeof field.maxOccurs === 'string' && parseInt(field.maxOccurs, 10) > 1);
 
-  // Find nested complexType if this field has a complex type
+  // Find nested complexType if this field has a complex type (searches $imports too)
   const typeName = field.type ? stripNsPrefix(field.type) : undefined;
-  const nestedType = typeName 
-    ? findComplexTypeByName(getComplexTypesArray(schema.complexType), typeName)
+  const nestedFound = typeName 
+    ? findComplexTypeWithSchema(typeName, schema)
     : undefined;
 
   if (isArray) {
     return children.map(child =>
-      nestedType
-        ? parseElement(child, nestedType, schema)
+      nestedFound
+        ? parseElement(child, nestedFound.type, nestedFound.schema)
         : convertValue(getTextContent(child) || '', field.type || 'string')
     );
   }
@@ -249,8 +279,8 @@ function parseField(
   }
 
   const child = children[0];
-  return nestedType
-    ? parseElement(child, nestedType, schema)
+  return nestedFound
+    ? parseElement(child, nestedFound.type, nestedFound.schema)
     : convertValue(getTextContent(child) || '', field.type || 'string');
 }
 

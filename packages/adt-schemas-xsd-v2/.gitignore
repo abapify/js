@@ -1,0 +1,9 @@
+# Downloaded SDK
+.cache/
+.xsd/sap
+
+# Build output
+dist/
+
+# Generated schemas (committed for convenience, but can be regenerated)
+# src/schemas/

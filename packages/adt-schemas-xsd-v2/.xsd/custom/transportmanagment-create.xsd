@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Transport Create Request Schema
+  
+  POST /sap/bc/adt/cts/transportrequests
+  
+  The create request has a simpler structure than list/get responses:
+  - root has useraction="newrequest" attribute
+  - request is direct child of root (not nested in workbench/modifiable)
+  - request has type, target, cts_project attributes
+  - task has owner attribute
+  
+  Note: SAP ADT requires namespace prefix on attributes (non-standard XML)
+        This is handled by prefixedAttributes: true in the schema config.
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:tm="http://www.sap.com/cts/adt/tm"
+    targetNamespace="http://www.sap.com/cts/adt/tm"
+    elementFormDefault="qualified"
+    attributeFormDefault="qualified">
+
+  <!-- Root element -->
+  <xsd:element name="root" type="tm:rootType"/>
+
+  <!-- Root type with useraction -->
+  <xsd:complexType name="rootType">
+    <xsd:sequence>
+      <xsd:element name="request" type="tm:requestType" minOccurs="0" maxOccurs="1"/>
+    </xsd:sequence>
+    <xsd:attribute name="useraction" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Request type -->
+  <xsd:complexType name="requestType">
+    <xsd:sequence>
+      <xsd:element name="task" type="tm:taskType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="desc" type="xsd:string"/>
+    <xsd:attribute name="type" type="xsd:string"/>
+    <xsd:attribute name="target" type="xsd:string"/>
+    <xsd:attribute name="cts_project" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Task type -->
+  <xsd:complexType name="taskType">
+    <xsd:attribute name="owner" type="xsd:string"/>
+  </xsd:complexType>
+
+</xsd:schema>

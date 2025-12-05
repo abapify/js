@@ -99,8 +99,8 @@ function buildSchema(schema: Schema, ctx: BuildContext): string {
   const attrs: string[] = [];
   
   // XML namespace declarations (only if present in schema)
-  if (schema.xmlns) {
-    for (const [prefix, uri] of Object.entries(schema.xmlns)) {
+  if (schema.$xmlns) {
+    for (const [prefix, uri] of Object.entries(schema.$xmlns)) {
       if (prefix === '') {
         attrs.push(`xmlns="${uri}"`);
       } else {

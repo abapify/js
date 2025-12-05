@@ -369,4 +369,82 @@ describe('Type Inference', () => {
       // This is the limitation: parseXsd() returns Schema, not a literal type
     });
   });
+
+  describe('$imports - cross-schema type resolution', () => {
+    // Base schema with a shared type
+    const BaseSchema = {
+      targetNamespace: 'http://example.com/base',
+      complexType: [
+        {
+          name: 'BaseType',
+          sequence: {
+            element: [
+              { name: 'id', type: 'xs:string' },
+              { name: 'name', type: 'xs:string' },
+            ]
+          }
+        }
+      ]
+    } as const;
+
+    // Schema that imports BaseSchema and uses its type
+    const DerivedSchema = {
+      targetNamespace: 'http://example.com/derived',
+      element: [
+        { name: 'Item', type: 'ItemType' }
+      ],
+      complexType: [
+        {
+          name: 'ItemType',
+          complexContent: {
+            extension: {
+              base: 'BaseType',  // References type from BaseSchema
+              sequence: {
+                element: [
+                  { name: 'price', type: 'xs:decimal' },
+                ]
+              }
+            }
+          }
+        }
+      ],
+      $imports: [BaseSchema]  // Link to imported schema
+    } as const;
+
+    it('should resolve types from $imports', () => {
+      // Type inference should find BaseType in $imports
+      type Item = InferSchema<typeof DerivedSchema>;
+      
+      // Compile-time check: Item should have fields from both BaseType and ItemType
+      const item: Item = {
+        id: '123',
+        name: 'Test Item',
+        price: 99.99
+      };
+      
+      assert.equal(item.id, '123');
+      assert.equal(item.name, 'Test Item');
+      assert.equal(item.price, 99.99);
+    });
+
+    it('should accept schemas with $imports as SchemaLike', () => {
+      // Verify $imports is part of SchemaLike
+      const schema: SchemaLike = DerivedSchema;
+      assert.ok(schema.$imports);
+      assert.equal(schema.$imports?.length, 1);
+    });
+
+    it('should work without $imports (backward compatible)', () => {
+      // Schema without $imports should still work
+      type Person = InferSchema<typeof PersonSchema>;
+      
+      const person: Person = {
+        id: '1',
+        firstName: 'John',
+        lastName: 'Doe'
+      };
+      
+      assert.equal(person.firstName, 'John');
+    });
+  });
 });

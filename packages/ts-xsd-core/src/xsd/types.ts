@@ -40,12 +40,35 @@ export type XmlnsDeclarations = {
  */
 export interface OpenAttrs {
   /** 
-   * XML namespace declarations scoped to this element.
+   * XML namespace declarations scoped to this element (xmlns:prefix -> namespace URI).
    * Inherited by child elements unless overridden.
+   * 
+   * Note: Prefixed with $ to indicate this is NOT a W3C XSD property -
+   * it's extracted from XML namespace attributes.
    */
-  readonly xmlns?: XmlnsDeclarations;
+  readonly $xmlns?: XmlnsDeclarations;
+  
   /** Any additional attributes from other namespaces */
   [key: string]: unknown;
+}
+
+/**
+ * Schema-level extensions (non-W3C properties).
+ * Properties prefixed with $ are clearly non-W3C.
+ */
+export interface SchemaAttrs extends OpenAttrs {
+  /**
+   * Original filename/path of this schema.
+   * Used to reconstruct $imports relationships from schemaLocation references.
+   */
+  readonly $filename?: string;
+  
+  /**
+   * Resolved imported schemas for cross-schema type resolution.
+   * Actual schema objects that can be searched for type definitions.
+   * Use this to link schemas that import each other.
+   */
+  readonly $imports?: readonly Schema[];
 }
 
 /**
@@ -84,7 +107,7 @@ export interface Documentation extends OpenAttrs {
 /**
  * xs:schema - the root element of an XSD document
  */
-export interface Schema extends OpenAttrs {
+export interface Schema extends SchemaAttrs {
   readonly id?: string;
   readonly targetNamespace?: string;
   readonly version?: string;
@@ -104,8 +127,10 @@ export interface Schema extends OpenAttrs {
   readonly annotation?: Annotation[];
   
   // Schema top-level declarations
-  readonly simpleType?: TopLevelSimpleType[] | { readonly [name: string]: LocalSimpleType };
-  readonly complexType?: TopLevelComplexType[] | { readonly [name: string]: LocalComplexType };
+  // Note: W3C XSD defines these as arrays only. Union types with maps were removed
+  // because they caused TypeScript inference issues. Use utility functions for lookups.
+  readonly simpleType?: TopLevelSimpleType[];
+  readonly complexType?: TopLevelComplexType[];
   readonly group?: NamedGroup[];
   readonly attributeGroup?: NamedAttributeGroup[];
   readonly element?: TopLevelElement[];

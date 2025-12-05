@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Atom Extension Schema
+  Extends SAP's atom.xsd with missing elements needed for AtomPub Service Document
+  
+  SAP's atom.xsd only defines: link
+  This adds: title, category
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    targetNamespace="http://www.w3.org/2005/Atom"
+    elementFormDefault="qualified">
+
+  <xsd:include schemaLocation="../sap/atom.xsd"/>
+
+  <!-- Atom title element (missing from SAP's atom.xsd) -->
+  <xsd:element name="title" type="xsd:string"/>
+
+  <!-- Atom category element (missing from SAP's atom.xsd) -->
+  <xsd:element name="category" type="atom:categoryType"/>
+
+  <xsd:complexType name="categoryType">
+    <xsd:attribute name="term" type="xsd:string"/>
+    <xsd:attribute name="scheme" type="xsd:string"/>
+    <xsd:attribute name="label" type="xsd:string"/>
+  </xsd:complexType>
+
+</xsd:schema>

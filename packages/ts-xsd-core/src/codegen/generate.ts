@@ -17,6 +17,37 @@ export interface GenerateOptions {
   pretty?: boolean;
   /** Indentation string (default: '  ') */
   indent?: string;
+  /**
+   * Enable specific $ metadata features in output.
+   * - `$xmlns`: Keep `$xmlns` in output (already parsed as $xmlns)
+   * - `$imports`: Rename `import` → `$imports` for schema linking
+   * - `$filename`: Include `$filename` (uses `name` option + '.xsd')
+   * 
+   * @example
+   * ```typescript
+   * features: { $xmlns: true, $imports: true, $filename: true }
+   * ```
+   */
+  features?: {
+    /** Keep `$xmlns` in output */
+    $xmlns?: boolean;
+    /** Rename `import` → `$imports` for schema linking */
+    $imports?: boolean;
+    /** Include `$filename` (uses `name` + '.xsd') */
+    $filename?: boolean;
+  };
+  /**
+   * Property names to exclude from output.
+   * Useful for removing annotations, documentation, etc.
+   * 
+   * @example
+   * ```typescript
+   * exclude: ['annotation']  // Remove all annotation elements
+   * ```
+   */
+  exclude?: string[];
+  /** Resolver for import paths (schemaLocation -> module path) */
+  importResolver?: (schemaLocation: string) => string | null;
 }
 
 /**
@@ -35,7 +66,98 @@ export interface GenerateOptions {
  */
 export function generateSchemaLiteral(xsdContent: string, options: GenerateOptions = {}): string {
   const schema = parseXsd(xsdContent);
-  return schemaToLiteral(schema, options);
+  const features = options.features ?? {};
+  const exclude = new Set(options.exclude ?? []);
+  
+  // Transform schema
+  let outputSchema: Record<string, unknown> = { ...schema };
+  
+  // Add $filename when enabled (uses name option)
+  if (features.$filename && options.name) {
+    outputSchema = { $filename: `${options.name}.xsd`, ...outputSchema };
+  }
+  
+  // Apply transformations (features + exclude)
+  outputSchema = applyTransforms(outputSchema, features, exclude);
+  
+  return schemaToLiteral(outputSchema as Schema, options);
+}
+
+/**
+ * Apply transformations: features ($xmlns, $imports) and exclude filter.
+ * Used by generateSchemaLiteral (without imports).
+ */
+function applyTransforms(
+  schema: Record<string, unknown>,
+  features: NonNullable<GenerateOptions['features']>,
+  exclude: Set<string>
+): Record<string, unknown> {
+  return applyTransformsWithImports(schema, features, exclude, []);
+}
+
+/**
+ * Special marker for schema references (not serialized as strings).
+ */
+class SchemaRef {
+  constructor(public readonly name: string) {}
+}
+
+/**
+ * Apply transformations with schema imports as references.
+ */
+function applyTransformsWithImports(
+  schema: Record<string, unknown>,
+  features: NonNullable<GenerateOptions['features']>,
+  exclude: Set<string>,
+  importedSchemaNames: string[]
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  
+  for (const [key, value] of Object.entries(schema)) {
+    // Skip excluded properties
+    if (exclude.has(key)) {
+      continue;
+    }
+    
+    if (key === '$xmlns') {
+      // $xmlns is already parsed - keep only if feature enabled
+      if (features.$xmlns) {
+        result[key] = value;
+      }
+    } else if (key === 'import') {
+      // Convert import to $imports with schema references
+      if (features.$imports && importedSchemaNames.length > 0) {
+        result['$imports'] = importedSchemaNames.map(name => new SchemaRef(name));
+      }
+      // If no imports resolved, skip the import property entirely
+    } else {
+      // Recursively filter nested objects/arrays for exclude
+      result[key] = filterDeep(value, exclude);
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Recursively filter excluded properties from nested structures.
+ */
+function filterDeep(value: unknown, exclude: Set<string>): unknown {
+  if (Array.isArray(value)) {
+    return value.map(item => filterDeep(item, exclude));
+  }
+  
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (!exclude.has(k)) {
+        result[k] = filterDeep(v, exclude);
+      }
+    }
+    return result;
+  }
+  
+  return value;
 }
 
 /**
@@ -49,7 +171,31 @@ export function generateSchemaFile(xsdContent: string, options: GenerateOptions 
   const {
     name = 'schema',
     comment,
+    features = {},
+    importResolver,
   } = options;
+
+  // Parse to extract imports
+  const schema = parseXsd(xsdContent);
+  const xsdImports = (schema.import ?? []) as Array<{ schemaLocation?: string; namespace?: string }>;
+  
+  // Generate TypeScript import statements if $imports feature enabled
+  const tsImports: string[] = [];
+  const importedSchemaNames: string[] = [];
+  
+  if (features.$imports && importResolver) {
+    for (const imp of xsdImports) {
+      if (imp.schemaLocation) {
+        const modulePath = importResolver(imp.schemaLocation);
+        if (modulePath) {
+          // Derive schema name from schemaLocation (e.g., "adtcore.xsd" → "adtcore")
+          const schemaName = imp.schemaLocation.replace(/\.xsd$/, '');
+          tsImports.push(`import { ${schemaName} } from '${modulePath}';`);
+          importedSchemaNames.push(schemaName);
+        }
+      }
+    }
+  }
 
   const lines: string[] = [
     '/**',
@@ -59,16 +205,50 @@ export function generateSchemaFile(xsdContent: string, options: GenerateOptions 
     comment ? ` * ${comment}` : null,
     ' */',
     '',
-    '// eslint-disable-next-line @typescript-eslint/no-unused-vars',
-    `import type { SchemaLike } from '@abapify/ts-xsd-core';`,
-    '',
-    generateSchemaLiteral(xsdContent, options),
+    // Add TypeScript imports
+    ...tsImports,
+    tsImports.length > 0 ? '' : null,
+    // Generate schema with $imports as array of schema references
+    generateSchemaLiteralWithImports(xsdContent, options, importedSchemaNames),
     '',
     `export type ${pascalCase(name)}Type = typeof ${name};`,
     '',
   ].filter((line): line is string => line !== null);
 
   return lines.join('\n');
+}
+
+/**
+ * Generate schema literal with $imports as schema references.
+ */
+function generateSchemaLiteralWithImports(
+  xsdContent: string, 
+  options: GenerateOptions,
+  importedSchemaNames: string[]
+): string {
+  const schema = parseXsd(xsdContent);
+  const features = options.features ?? {};
+  const exclude = new Set(options.exclude ?? []);
+  
+  // Transform schema
+  let outputSchema: Record<string, unknown> = { ...schema };
+  
+  // Add $filename when enabled (uses name option)
+  if (features.$filename && options.name) {
+    outputSchema = { $filename: `${options.name}.xsd`, ...outputSchema };
+  }
+  
+  // Apply transformations (features + exclude), passing imported schema names
+  outputSchema = applyTransformsWithImports(outputSchema, features, exclude, importedSchemaNames);
+  
+  return schemaToLiteral(outputSchema as Schema, options);
+}
+
+/**
+ * Escape reserved words by adding underscore suffix.
+ */
+function escapeReservedWord(name: string): string {
+  return RESERVED_WORDS.has(name) ? `${name}_` : name;
 }
 
 /**
@@ -81,8 +261,9 @@ function schemaToLiteral(schema: Schema, options: GenerateOptions = {}): string 
     indent = '  ',
   } = options;
 
+  const safeName = escapeReservedWord(name);
   const literal = objectToLiteral(schema, pretty, indent, 0);
-  return `export const ${name} = ${literal} as const satisfies SchemaLike;`;
+  return `export const ${safeName} = ${literal} as const;`;
 }
 
 /**
@@ -96,6 +277,11 @@ function objectToLiteral(
 ): string {
   if (value === null || value === undefined) {
     return 'undefined';
+  }
+
+  // Handle SchemaRef - output as bare identifier (not quoted)
+  if (value instanceof SchemaRef) {
+    return value.name;
   }
 
   if (typeof value === 'string') {
@@ -149,10 +335,22 @@ function objectToLiteral(
 }
 
 /**
+ * JavaScript reserved words that cannot be used as variable names.
+ */
+const RESERVED_WORDS = new Set([
+  'break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete',
+  'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof',
+  'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var',
+  'void', 'while', 'with', 'class', 'const', 'enum', 'export', 'extends',
+  'import', 'super', 'implements', 'interface', 'let', 'package', 'private',
+  'protected', 'public', 'static', 'yield', 'await', 'null', 'true', 'false',
+]);
+
+/**
  * Check if a string is a valid JavaScript identifier.
  */
 function isValidIdentifier(str: string): boolean {
-  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(str);
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(str) && !RESERVED_WORDS.has(str);
 }
 
 /**

@@ -81,8 +81,8 @@ export function build<T extends SchemaLike>(
   }
 
   // Add xmlns declarations from schema
-  if (schema.xmlns) {
-    for (const [pfx, uri] of Object.entries(schema.xmlns)) {
+  if (schema.$xmlns) {
+    for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
       if (pfx && pfx !== prefix) {
         root.setAttribute(`xmlns:${pfx}`, uri as string);
       } else if (!pfx) {
@@ -108,12 +108,12 @@ export function build<T extends SchemaLike>(
 }
 
 /**
- * Get namespace prefix from schema xmlns declarations
+ * Get namespace prefix from schema $xmlns declarations
  */
 function getSchemaPrefix(schema: SchemaLike): string | undefined {
-  if (!schema.xmlns || !schema.targetNamespace) return undefined;
+  if (!schema.$xmlns || !schema.targetNamespace) return undefined;
   
-  for (const [prefix, uri] of Object.entries(schema.xmlns)) {
+  for (const [prefix, uri] of Object.entries(schema.$xmlns)) {
     if (uri === schema.targetNamespace && prefix) {
       return prefix;
     }

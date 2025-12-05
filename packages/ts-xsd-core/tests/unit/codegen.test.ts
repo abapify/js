@@ -29,7 +29,7 @@ describe('Codegen', () => {
       
       // Should export as const
       assert.ok(result.includes('export const PersonSchema ='));
-      assert.ok(result.includes('as const satisfies SchemaLike'));
+      assert.ok(result.includes('as const;'));
       
       // Should include targetNamespace
       assert.ok(result.includes('"http://example.com/person"'));
@@ -69,8 +69,8 @@ describe('Codegen', () => {
       assert.ok(result.includes('Auto-generated schema literal from XSD'));
       assert.ok(result.includes('DO NOT EDIT'));
       
-      // Should import SchemaLike
-      assert.ok(result.includes("import type { SchemaLike }"));
+      // Should NOT import SchemaLike (removed satisfies)
+      assert.ok(!result.includes("import type { SchemaLike }"));
       
       // Should export the schema
       assert.ok(result.includes('export const PersonSchema ='));
@@ -98,7 +98,7 @@ describe('Codegen', () => {
       
       // Should be valid TypeScript
       assert.ok(result.includes('export const XsdSchema ='));
-      assert.ok(result.includes('as const satisfies SchemaLike'));
+      assert.ok(result.includes('as const;'));
       
       // Should include W3C namespace
       assert.ok(result.includes('"http://www.w3.org/2001/XMLSchema"'));
