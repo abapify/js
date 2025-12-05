@@ -11,13 +11,22 @@ import type { InferSchema, SchemaLike } from '../infer/types';
 type XmlElement = any;
 
 // Internal types for working with SchemaLike
+type FieldDef = {
+  name?: string;
+  type?: string;
+  ref?: string;  // Element reference (e.g., "atom:link")
+  minOccurs?: number | string;
+  maxOccurs?: number | string | 'unbounded';
+};
+
 type ComplexTypeDef = {
   name?: string;
-  sequence?: { element?: readonly { name?: string; type?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' }[] };
-  choice?: { element?: readonly { name?: string; type?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' }[] };
-  all?: { element?: readonly { name?: string; type?: string; minOccurs?: number | string; maxOccurs?: number | string | 'unbounded' }[] };
+  sequence?: { element?: readonly FieldDef[] };
+  choice?: { element?: readonly FieldDef[] };
+  all?: { element?: readonly FieldDef[] };
   attribute?: readonly { name?: string; type?: string; use?: string; default?: string }[];
   complexContent?: { extension?: { base?: string; sequence?: ComplexTypeDef['sequence']; choice?: ComplexTypeDef['choice']; all?: ComplexTypeDef['all']; attribute?: ComplexTypeDef['attribute'] } };
+  simpleContent?: { extension?: { base?: string; attribute?: ComplexTypeDef['attribute'] } };
 };
 
 type ElementDef = { name?: string; type?: string };
@@ -194,8 +203,34 @@ function parseElement(
   typeDef: ComplexTypeDef,
   schema: SchemaLike
 ): Record<string, unknown> {
-  const mergedDef = getMergedComplexType(typeDef, schema);
   const result: Record<string, unknown> = {};
+
+  // Handle simpleContent (text content with attributes)
+  if (typeDef.simpleContent?.extension) {
+    const ext = typeDef.simpleContent.extension;
+    
+    // Get text content as $value
+    const textContent = getTextContent(node);
+    const baseType = ext.base ? stripNsPrefix(ext.base) : 'string';
+    result.$value = convertValue(textContent, baseType);
+    
+    // Parse attributes from simpleContent extension
+    if (ext.attribute) {
+      for (const attrDef of ext.attribute) {
+        if (!attrDef.name) continue;
+        const value = getAttributeValue(node, attrDef.name);
+        if (value !== null) {
+          result[attrDef.name] = convertValue(value, attrDef.type || 'string');
+        } else if (attrDef.default !== undefined) {
+          result[attrDef.name] = convertValue(attrDef.default, attrDef.type || 'string');
+        }
+      }
+    }
+    
+    return result;
+  }
+
+  const mergedDef = getMergedComplexType(typeDef, schema);
 
   // Parse attributes
   if (mergedDef.attribute) {
@@ -213,9 +248,9 @@ function parseElement(
   // Parse sequence elements
   if (mergedDef.sequence?.element) {
     for (const elemDef of mergedDef.sequence.element) {
-      const value = parseField(node, elemDef, schema);
-      if (value !== undefined) {
-        result[elemDef.name!] = value;
+      const parsed = parseField(node, elemDef, schema);
+      if (parsed !== undefined) {
+        result[parsed.name] = parsed.value;
       }
     }
   }
@@ -223,9 +258,9 @@ function parseElement(
   // Parse all elements (xs:all - same as sequence at runtime)
   if (mergedDef.all?.element) {
     for (const elemDef of mergedDef.all.element) {
-      const value = parseField(node, elemDef, schema);
-      if (value !== undefined) {
-        result[elemDef.name!] = value;
+      const parsed = parseField(node, elemDef, schema);
+      if (parsed !== undefined) {
+        result[parsed.name] = parsed.value;
       }
     }
   }
@@ -233,9 +268,9 @@ function parseElement(
   // Parse choice elements
   if (mergedDef.choice?.element) {
     for (const elemDef of mergedDef.choice.element) {
-      const value = parseField(node, elemDef, schema);
-      if (value !== undefined) {
-        result[elemDef.name!] = value;
+      const parsed = parseField(node, elemDef, schema);
+      if (parsed !== undefined) {
+        result[parsed.name] = parsed.value;
       }
     }
   }
@@ -245,33 +280,35 @@ function parseElement(
 
 /**
  * Parse a field (child element)
+ * Handles both named elements and element references (ref)
  */
-type FieldDef = NonNullable<NonNullable<ComplexTypeDef['sequence']>['element']>[number];
-
 function parseField(
   parent: XmlElement,
   field: FieldDef,
   schema: SchemaLike
-): unknown {
-  if (!field.name) return undefined;
+): { name: string; value: unknown } | undefined {
+  // Resolve element reference if present
+  const resolved = resolveFieldRef(field, schema);
+  if (!resolved) return undefined;
   
-  const children = getChildElements(parent, field.name);
+  const { elementName, typeName } = resolved;
+  const children = getChildElements(parent, elementName);
   const isArray = field.maxOccurs === 'unbounded' || 
                   (typeof field.maxOccurs === 'number' && field.maxOccurs > 1) ||
                   (typeof field.maxOccurs === 'string' && parseInt(field.maxOccurs, 10) > 1);
 
   // Find nested complexType if this field has a complex type (searches $imports too)
-  const typeName = field.type ? stripNsPrefix(field.type) : undefined;
   const nestedFound = typeName 
     ? findComplexTypeWithSchema(typeName, schema)
     : undefined;
 
   if (isArray) {
-    return children.map(child =>
+    const value = children.map(child =>
       nestedFound
         ? parseElement(child, nestedFound.type, nestedFound.schema)
-        : convertValue(getTextContent(child) || '', field.type || 'string')
+        : convertValue(getTextContent(child) || '', typeName || 'string')
     );
+    return { name: elementName, value };
   }
 
   if (children.length === 0) {
@@ -279,9 +316,71 @@ function parseField(
   }
 
   const child = children[0];
-  return nestedFound
+  const value = nestedFound
     ? parseElement(child, nestedFound.type, nestedFound.schema)
-    : convertValue(getTextContent(child) || '', field.type || 'string');
+    : convertValue(getTextContent(child) || '', typeName || 'string');
+  return { name: elementName, value };
+}
+
+/**
+ * Resolve a field definition to element name and type
+ * Handles both direct name/type and ref references
+ */
+function resolveFieldRef(
+  field: FieldDef,
+  schema: SchemaLike
+): { elementName: string; typeName?: string } | undefined {
+  // Direct element with name
+  if (field.name) {
+    return { elementName: field.name, typeName: field.type ? stripNsPrefix(field.type) : undefined };
+  }
+  
+  // Element reference (e.g., ref: "atom:link")
+  if (field.ref) {
+    const refName = stripNsPrefix(field.ref);
+    // Search for the element declaration in $imports
+    const elementDecl = findElementWithSchema(refName, schema);
+    if (elementDecl) {
+      return {
+        elementName: elementDecl.element.name!,
+        typeName: elementDecl.element.type ? stripNsPrefix(elementDecl.element.type) : undefined,
+      };
+    }
+    // Fallback: use the ref name as element name
+    return { elementName: refName };
+  }
+  
+  return undefined;
+}
+
+/**
+ * Find element declaration by name (searches current schema and $imports)
+ */
+function findElementWithSchema(
+  name: string,
+  schema: SchemaLike
+): { element: ElementDef; schema: SchemaLike } | undefined {
+  // Search in current schema
+  const elements = schema.element as readonly ElementDef[] | undefined;
+  if (elements) {
+    const found = elements.find(el => el.name === name);
+    if (found) {
+      return { element: found, schema };
+    }
+  }
+
+  // Search in $imports
+  const imports = schema.$imports as readonly SchemaLike[] | undefined;
+  if (imports) {
+    for (const importedSchema of imports) {
+      const found = findElementWithSchema(name, importedSchema);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 /**

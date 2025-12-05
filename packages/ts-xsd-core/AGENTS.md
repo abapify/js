@@ -1,109 +1,235 @@
 # ts-xsd-core - AI Agent Guide
 
-## Package Purpose
+## Package Overview
 
-Core XSD parser and builder providing:
-- **`parseXsd()`** - Parse XSD XML strings into typed `Schema` objects
-- **`buildXsd()`** - Build XSD XML strings from typed `Schema` objects
-- **Types** - 1:1 TypeScript representation of W3C XMLSchema.xsd
+**Core XSD parser, builder, and type inference** - the foundation for all XSD-based packages.
 
-This is the foundation layer for `ts-xsd` (codegen) and `adt-schemas-xsd` (SAP ADT).
+| Module | Purpose | Key Exports |
+|--------|---------|-------------|
+| `xsd` | Parse/build XSD files | `parseXsd`, `buildXsd`, `Schema` |
+| `infer` | Compile-time type inference | `InferSchema`, `InferElement` |
+| `xml` | Parse/build XML with schemas | `parseXml`, `buildXml` |
+| `codegen` | Generate TypeScript from XSD | `generateSchemaLiteral`, `generateInterfaces` |
 
-## Project Goal
-
-Create a **1:1 TypeScript representation** of the W3C XMLSchema.xsd:
-https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd
-
-## Critical Rules
+## 🚨 Critical Rules
 
 ### 1. Pure W3C XSD - No Inventions
 
-**NEVER** add properties that don't exist in XMLSchema.xsd:
-- ❌ `attributes` (use `attribute` - the W3C name)
-- ❌ `text` (not in XSD spec)
-- ❌ Direct arrays for `sequence` (must be `ExplicitGroup`)
-- ❌ Any "convenience" shortcuts
+**NEVER** add properties that don't exist in [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd):
 
-**ALWAYS** check XMLSchema.xsd before adding/modifying types:
-- Online: https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd
+| ❌ WRONG | ✅ CORRECT | Reason |
+|----------|-----------|--------|
+| `attributes` | `attribute` | W3C uses singular |
+| `elements` | `element` | W3C uses singular |
+| `text` | `_text` | Not in XSD spec (use `_text` for mixed content) |
+| Direct array for sequence | `ExplicitGroup` | Must match W3C structure |
+
+**Before ANY change to `types.ts`:**
+1. Find the type in [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd)
+2. Match properties exactly (name, type, optionality)
+3. Run `npx nx test ts-xsd-core`
 
 ### 2. Type Naming Convention
 
-Follow W3C XSD type names exactly:
-- `topLevelElement` → `TopLevelElement`
-- `localElement` → `LocalElement`
-- `namedGroup` → `NamedGroup`
-- `explicitGroup` → `ExplicitGroup`
+Follow W3C XSD type names exactly (PascalCase):
 
-### 3. No devDependencies or scripts
+```
+topLevelElement  → TopLevelElement
+localElement     → LocalElement
+namedGroup       → NamedGroup
+explicitGroup    → ExplicitGroup
+```
 
-Package follows monorepo conventions:
+### 3. Extension Properties ($ Prefix)
+
+Non-W3C properties are prefixed with `$` to clearly distinguish them from W3C XSD properties.
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `$xmlns` | `{ [prefix: string]: string }` | **Namespace declarations** - Maps prefixes to namespace URIs. Extracted from `xmlns:*` attributes in XML. Required for resolving QName prefixes like `xs:string` or `adtcore:AdtObject`. |
+| `$imports` | `Schema[]` | **Linked schemas** - Array of resolved imported schemas. Enables cross-schema type resolution. When type inference encounters `base: "adtcore:AdtObject"`, it searches `$imports` to find the `AdtObject` complexType. |
+| `$filename` | `string` | **Source filename** - Original XSD filename (e.g., `classes.xsd`). Enables **backward rendering** - rebuilding XSD from schema objects with correct import references. |
+
+#### Why These Extensions?
+
+**`$xmlns`** - W3C XSD uses QNames (qualified names) like `xs:string` or `adtcore:AdtObject`. To resolve these, we need the namespace prefix mappings. XML stores these as `xmlns:xs="..."` attributes, but XSD schema structure doesn't have a place for them. `$xmlns` preserves this critical information.
+
+**`$imports`** - W3C XSD `import` element only contains `namespace` and `schemaLocation` strings. For type inference to work across schemas, we need actual schema objects. `$imports` holds the resolved, linked schemas.
+
+**`$filename`** - **Enables backward compatibility!** When building XML back from parsed data, we need to reconstruct `schemaLocation` references. `$filename` allows the builder to generate correct import paths, making schemas fully round-trippable: `XSD → Schema → XSD`.
+
+#### Example: Cross-Schema Type Resolution
+
+```typescript
+const adtcore = {
+  $filename: 'adtcore.xsd',
+  targetNamespace: 'http://www.sap.com/adt/core',
+  complexType: [{ name: 'AdtObject', ... }],
+} as const;
+
+const classes = {
+  $xmlns: {
+    adtcore: 'http://www.sap.com/adt/core',
+    class: 'http://www.sap.com/adt/oo/classes',
+  },
+  $imports: [adtcore],  // Linked schema
+  targetNamespace: 'http://www.sap.com/adt/oo/classes',
+  complexType: [{
+    name: 'AbapClass',
+    complexContent: {
+      extension: { base: 'adtcore:AdtObject' }  // Resolved via $imports
+    }
+  }],
+} as const;
+
+// InferSchema<typeof classes> can now resolve AdtObject from $imports
+```
+
+### 4. Monorepo Conventions
+
 - ❌ No `devDependencies` in package.json
 - ❌ No `scripts` in package.json
 - ✅ Use `project.json` for Nx targets
 - ✅ Build target inferred by nx-tsdown plugin
 
-### 4. Verification Process
-
-Before any change to `types.ts`:
-1. Find the corresponding type in XMLSchema.xsd
-2. Match properties exactly (name, type, optionality)
-3. Run `npx nx test ts-xsd-core` to verify
-
-## File Structure
+## Architecture
 
 ```
-src/xsd/
-├── types.ts    # TypeScript interfaces (W3C 1:1 mapping)
-├── parse.ts    # XSD XML → Schema parser (uses @xmldom/xmldom)
-├── build.ts    # Schema → XSD XML builder
-└── index.ts    # Public exports
-
-tests/
-├── unit/
-│   ├── parse.test.ts         # Parser unit tests
-│   ├── parse-coverage.test.ts # Additional coverage tests
-│   └── build.test.ts         # Builder unit tests
-├── integration/
-│   ├── roundtrip.test.ts     # Parse → Build → Parse roundtrip
-│   └── w3c-roundtrip.test.ts # W3C XMLSchema.xsd roundtrip
-└── fixtures/
-    ├── index.ts              # getW3CSchema() - downloads and caches
-    └── cache/                # Downloaded W3C schema (gitignored)
+src/
+├── index.ts           # Main exports
+├── xsd/               # XSD parsing/building (W3C 1:1)
+│   ├── types.ts       # 630 lines - W3C type definitions
+│   ├── parse.ts       # XSD XML → Schema
+│   ├── build.ts       # Schema → XSD XML
+│   └── helpers.ts     # resolveImports, linkSchemas
+├── infer/             # Type inference (compile-time)
+│   └── types.ts       # 811 lines - InferSchema<T>
+├── xml/               # XML parsing/building
+│   ├── parse.ts       # XML → Object (using schema)
+│   └── build.ts       # Object → XML (using schema)
+└── codegen/           # Code generation
+    ├── generate.ts    # Schema literal generator
+    ├── interface-generator.ts  # Interface generator
+    └── presets.ts     # Generation presets
 ```
 
-## Nx Targets
+## Key Type Definitions
+
+### Schema (W3C Root)
+
+```typescript
+interface Schema {
+  // Namespace
+  targetNamespace?: string;
+  elementFormDefault?: 'qualified' | 'unqualified';
+  
+  // Declarations
+  element?: TopLevelElement[];
+  complexType?: TopLevelComplexType[];
+  simpleType?: TopLevelSimpleType[];
+  group?: NamedGroup[];
+  attributeGroup?: NamedAttributeGroup[];
+  
+  // Composition
+  import?: Import[];
+  include?: Include[];
+  
+  // Extensions (non-W3C)
+  $xmlns?: { [prefix: string]: string };
+  $imports?: Schema[];
+}
+```
+
+### Type Inference
+
+```typescript
+// Infer from schema literal
+type Data = InferSchema<typeof schema>;
+
+// Infer specific element
+type Person = InferElement<typeof schema, 'person'>;
+
+// Schema-like constraint
+type SchemaLike = {
+  element?: readonly ElementLike[];
+  complexType?: readonly ComplexTypeLike[];
+  // ...
+};
+```
+
+## Common Tasks
+
+### Adding a New XSD Type
+
+1. **Find in W3C spec**: https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd
+2. **Add interface** to `src/xsd/types.ts`:
+   ```typescript
+   export interface NewType extends Annotated {
+     readonly name: string;
+     readonly someProperty?: string;
+   }
+   ```
+3. **Update parser** in `src/xsd/parse.ts`
+4. **Update builder** in `src/xsd/build.ts`
+5. **Add tests** in `tests/unit/`
+6. **Run tests**: `npx nx test ts-xsd-core`
+
+### Modifying Type Inference
+
+1. **Understand the flow**:
+   - `InferSchema` → `InferRootElementTypes` → `InferTypeName`
+   - `InferTypeName` → `FindComplexType` → `InferComplexType`
+   - `InferComplexType` → `InferGroup` → `InferElements`
+
+2. **Test with real schemas** - inference is complex, test thoroughly
+
+3. **Check recursion limits** - TypeScript has depth limits
+
+### Adding Codegen Feature
+
+1. **Modify generator** in `src/codegen/generate.ts`
+2. **Update options** in `GenerateOptions` interface
+3. **Test output** with real XSD files
+
+## Testing
 
 ```bash
-npx nx build ts-xsd-core      # Build (inferred by nx-tsdown)
-npx nx test ts-xsd-core       # Run tests
-npx nx test:coverage ts-xsd-core  # Run with coverage report
+# Run all tests
+npx nx test ts-xsd-core
+
+# Run with coverage
+npx nx test:coverage ts-xsd-core
+
+# Run specific test
+npx vitest run tests/unit/parse.test.ts
 ```
 
-## Common Mistakes to Avoid
+### Test Categories
 
-1. **Inventing properties** - If it's not in XMLSchema.xsd, don't add it
-2. **Renaming properties** - `attribute` not `attributes`, `element` not `elements`
-3. **Simplifying structures** - Keep nested structure as in XSD
-4. **Adding devDependencies** - Use root workspace dependencies
-5. **Adding scripts** - Use project.json targets
+| Test | Purpose |
+|------|---------|
+| `parse.test.ts` | XSD parsing |
+| `build.test.ts` | XSD building |
+| `roundtrip.test.ts` | Parse → Build → Parse |
+| `w3c-roundtrip.test.ts` | Official XMLSchema.xsd |
+
+## Common Mistakes
+
+| Mistake | Consequence | Prevention |
+|---------|-------------|------------|
+| Inventing properties | Breaks W3C compliance | Check XMLSchema.xsd first |
+| Renaming properties | Type inference fails | Use exact W3C names |
+| Simplifying structures | Loses XSD semantics | Keep nested structure |
+| Missing `as const` | Type inference fails | Always use `as const` |
+| Circular type refs | TypeScript errors | Use `$imports` linking |
 
 ## Dependencies
 
 - `@xmldom/xmldom` - DOM parser for XSD parsing
 
-## Reference Mapping
-
-| XSD | TypeScript |
-|-----|------------|
-| `xs:complexType` | `interface` |
-| `xs:sequence` | `ExplicitGroup` with `element?: LocalElement[]` |
-| `xs:attribute` | Property in interface |
-| `xs:extension base="X"` | `extends X` |
-| `minOccurs="0"` | Optional property (`?`) |
-| `maxOccurs="unbounded"` | Array type (`[]`) |
-
 ## Reference
 
-- [W3C XML Schema 1.1](https://www.w3.org/TR/xmlschema11-1/)
+- [W3C XML Schema 1.1 Part 1: Structures](https://www.w3.org/TR/xmlschema11-1/)
 - [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd)
+- [README.md](./README.md) - Full package documentation
+- [Codegen Guide](./docs/codegen.md) - Code generation documentation

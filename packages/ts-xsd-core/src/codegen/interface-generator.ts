@@ -88,13 +88,23 @@ class InterfaceGenerator {
     this.allImports = allImports ?? this.collectAllImports(schema);
   }
   
-  private collectAllImports(schema: SchemaLike): SchemaLike[] {
+  private collectAllImports(schema: SchemaLike, visited: Set<SchemaLike> = new Set()): SchemaLike[] {
     const result: SchemaLike[] = [];
+    
+    // Prevent infinite recursion
+    if (visited.has(schema)) {
+      return result;
+    }
+    visited.add(schema);
     
     // Collect from $imports (non-W3C extension)
     const imports = schema.$imports;
     if (imports && Array.isArray(imports)) {
-      result.push(...(imports as SchemaLike[]));
+      for (const imp of imports as SchemaLike[]) {
+        result.push(imp);
+        // Recursively collect nested imports
+        result.push(...this.collectAllImports(imp, visited));
+      }
     }
     
     // Collect from include (W3C standard)
@@ -105,7 +115,10 @@ class InterfaceGenerator {
         if (typeof inc === 'object' && inc !== null) {
           // If it's a resolved schema object, add it
           if ('complexType' in inc || 'simpleType' in inc || 'element' in inc) {
-            result.push(inc as SchemaLike);
+            const incSchema = inc as SchemaLike;
+            result.push(incSchema);
+            // Recursively collect nested imports
+            result.push(...this.collectAllImports(incSchema, visited));
           }
         }
       }
