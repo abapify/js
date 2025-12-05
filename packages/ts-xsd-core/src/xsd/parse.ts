@@ -8,6 +8,11 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
+import {
+  getLocalName,
+  getAllChildElements,
+  getTextContent,
+} from '../xml/dom-utils';
 import type {
   Schema,
   Annotation,
@@ -56,8 +61,7 @@ import type {
   Notation,
 } from './types';
 
-// Use any for xmldom Element since it differs from DOM Element
-type XmlElement = any;
+import type { Element } from '@xmldom/xmldom';
 
 /**
  * Parse an XSD string to a typed Schema object
@@ -77,7 +81,7 @@ export function parseXsd(xml: string): Schema {
 // Schema (root)
 // =============================================================================
 
-function parseSchema(el: XmlElement): Schema {
+function parseSchema(el: Element): Schema {
   const schema: Schema = {};
 
   // XML namespace declarations (xmlns:prefix -> URI)
@@ -96,7 +100,7 @@ function parseSchema(el: XmlElement): Schema {
   copyAttr(el, schema, 'xml:lang');
 
   // Child elements
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'annotation':
@@ -148,11 +152,11 @@ function parseSchema(el: XmlElement): Schema {
 // Annotation
 // =============================================================================
 
-function parseAnnotation(el: XmlElement): Annotation {
+function parseAnnotation(el: Element): Annotation {
   const result: Annotation = {};
   copyAttr(el, result, 'id');
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'documentation') {
       pushTo(result, 'documentation', parseDocumentation(child));
@@ -164,7 +168,7 @@ function parseAnnotation(el: XmlElement): Annotation {
   return result;
 }
 
-function parseDocumentation(el: XmlElement): Documentation {
+function parseDocumentation(el: Element): Documentation {
   const result: Documentation = {};
   copyAttr(el, result, 'source');
   copyAttr(el, result, 'xml:lang');
@@ -177,7 +181,7 @@ function parseDocumentation(el: XmlElement): Documentation {
   return result;
 }
 
-function parseAppinfo(el: XmlElement): Appinfo {
+function parseAppinfo(el: Element): Appinfo {
   const result: Appinfo = {};
   copyAttr(el, result, 'source');
 
@@ -193,7 +197,7 @@ function parseAppinfo(el: XmlElement): Appinfo {
 // Include / Import / Redefine / Override
 // =============================================================================
 
-function parseInclude(el: XmlElement): Include {
+function parseInclude(el: Element): Include {
   const result: Include = { schemaLocation: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'schemaLocation');
@@ -201,7 +205,7 @@ function parseInclude(el: XmlElement): Include {
   return result;
 }
 
-function parseImport(el: XmlElement): Import {
+function parseImport(el: Element): Import {
   const result: Import = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'namespace');
@@ -210,12 +214,12 @@ function parseImport(el: XmlElement): Import {
   return result;
 }
 
-function parseRedefine(el: XmlElement): Redefine {
+function parseRedefine(el: Element): Redefine {
   const result: Redefine = { schemaLocation: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'schemaLocation');
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'annotation':
@@ -239,12 +243,12 @@ function parseRedefine(el: XmlElement): Redefine {
   return result;
 }
 
-function parseOverride(el: XmlElement): Override {
+function parseOverride(el: Element): Override {
   const result: Override = { schemaLocation: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'schemaLocation');
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'annotation':
@@ -281,7 +285,7 @@ function parseOverride(el: XmlElement): Override {
 // Element Declarations
 // =============================================================================
 
-function parseTopLevelElement(el: XmlElement): TopLevelElement {
+function parseTopLevelElement(el: Element): TopLevelElement {
   const result: TopLevelElement = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -296,7 +300,7 @@ function parseTopLevelElement(el: XmlElement): TopLevelElement {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
@@ -323,7 +327,7 @@ function parseTopLevelElement(el: XmlElement): TopLevelElement {
   return result;
 }
 
-function parseLocalElement(el: XmlElement): LocalElement {
+function parseLocalElement(el: Element): LocalElement {
   const result: LocalElement = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -340,7 +344,7 @@ function parseLocalElement(el: XmlElement): LocalElement {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
@@ -371,7 +375,7 @@ function parseLocalElement(el: XmlElement): LocalElement {
 // Attribute Declarations
 // =============================================================================
 
-function parseTopLevelAttribute(el: XmlElement): TopLevelAttribute {
+function parseTopLevelAttribute(el: Element): TopLevelAttribute {
   const result: TopLevelAttribute = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -382,7 +386,7 @@ function parseTopLevelAttribute(el: XmlElement): TopLevelAttribute {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'simpleType') {
       (result as any).simpleType = parseLocalSimpleType(child);
     }
@@ -391,7 +395,7 @@ function parseTopLevelAttribute(el: XmlElement): TopLevelAttribute {
   return result;
 }
 
-function parseLocalAttribute(el: XmlElement): LocalAttribute {
+function parseLocalAttribute(el: Element): LocalAttribute {
   const result: LocalAttribute = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -406,7 +410,7 @@ function parseLocalAttribute(el: XmlElement): LocalAttribute {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'simpleType') {
       (result as any).simpleType = parseLocalSimpleType(child);
     }
@@ -419,7 +423,7 @@ function parseLocalAttribute(el: XmlElement): LocalAttribute {
 // Complex Types
 // =============================================================================
 
-function parseTopLevelComplexType(el: XmlElement): TopLevelComplexType {
+function parseTopLevelComplexType(el: Element): TopLevelComplexType {
   const result: TopLevelComplexType = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -435,7 +439,7 @@ function parseTopLevelComplexType(el: XmlElement): TopLevelComplexType {
   return result;
 }
 
-function parseLocalComplexType(el: XmlElement): LocalComplexType {
+function parseLocalComplexType(el: Element): LocalComplexType {
   const result: LocalComplexType = {};
   copyAttr(el, result, 'id');
   copyBoolAttr(el, result, 'mixed');
@@ -446,8 +450,8 @@ function parseLocalComplexType(el: XmlElement): LocalComplexType {
   return result;
 }
 
-function parseComplexTypeContent(el: XmlElement, result: any): void {
-  for (const child of getChildElements(el)) {
+function parseComplexTypeContent(el: Element, result: any): void {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleContent':
@@ -491,7 +495,7 @@ function parseComplexTypeContent(el: XmlElement, result: any): void {
 // Simple Types
 // =============================================================================
 
-function parseTopLevelSimpleType(el: XmlElement): TopLevelSimpleType {
+function parseTopLevelSimpleType(el: Element): TopLevelSimpleType {
   const result: TopLevelSimpleType = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -503,7 +507,7 @@ function parseTopLevelSimpleType(el: XmlElement): TopLevelSimpleType {
   return result;
 }
 
-function parseLocalSimpleType(el: XmlElement): LocalSimpleType {
+function parseLocalSimpleType(el: Element): LocalSimpleType {
   const result: LocalSimpleType = {};
   copyAttr(el, result, 'id');
 
@@ -513,8 +517,8 @@ function parseLocalSimpleType(el: XmlElement): LocalSimpleType {
   return result;
 }
 
-function parseSimpleTypeContent(el: XmlElement, result: any): void {
-  for (const child of getChildElements(el)) {
+function parseSimpleTypeContent(el: Element, result: any): void {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'restriction':
@@ -530,14 +534,14 @@ function parseSimpleTypeContent(el: XmlElement, result: any): void {
   }
 }
 
-function parseSimpleTypeRestriction(el: XmlElement): SimpleTypeRestriction {
+function parseSimpleTypeRestriction(el: Element): SimpleTypeRestriction {
   const result: SimpleTypeRestriction = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
@@ -569,14 +573,14 @@ function parseSimpleTypeRestriction(el: XmlElement): SimpleTypeRestriction {
   return result;
 }
 
-function parseList(el: XmlElement): List {
+function parseList(el: Element): List {
   const result: List = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'itemType');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'simpleType') {
       (result as any).simpleType = parseLocalSimpleType(child);
     }
@@ -585,14 +589,14 @@ function parseList(el: XmlElement): List {
   return result;
 }
 
-function parseUnion(el: XmlElement): Union {
+function parseUnion(el: Element): Union {
   const result: Union = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'memberTypes');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'simpleType') {
       pushTo(result, 'simpleType', parseLocalSimpleType(child));
     }
@@ -601,7 +605,7 @@ function parseUnion(el: XmlElement): Union {
   return result;
 }
 
-function parseFacet(el: XmlElement): Facet {
+function parseFacet(el: Element): Facet {
   const result: Facet = { value: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'value');
@@ -610,7 +614,7 @@ function parseFacet(el: XmlElement): Facet {
   return result;
 }
 
-function parsePattern(el: XmlElement): Pattern {
+function parsePattern(el: Element): Pattern {
   const result: Pattern = { value: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'value');
@@ -622,14 +626,14 @@ function parsePattern(el: XmlElement): Pattern {
 // Complex Content / Simple Content
 // =============================================================================
 
-function parseComplexContent(el: XmlElement): ComplexContent {
+function parseComplexContent(el: Element): ComplexContent {
   const result: ComplexContent = {};
   copyAttr(el, result, 'id');
   copyBoolAttr(el, result, 'mixed');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'restriction') {
       (result as any).restriction = parseComplexContentRestriction(child);
@@ -641,13 +645,13 @@ function parseComplexContent(el: XmlElement): ComplexContent {
   return result;
 }
 
-function parseSimpleContent(el: XmlElement): SimpleContent {
+function parseSimpleContent(el: Element): SimpleContent {
   const result: SimpleContent = {};
   copyAttr(el, result, 'id');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'restriction') {
       (result as any).restriction = parseSimpleContentRestriction(child);
@@ -659,7 +663,7 @@ function parseSimpleContent(el: XmlElement): SimpleContent {
   return result;
 }
 
-function parseComplexContentRestriction(el: XmlElement): ComplexContentRestriction {
+function parseComplexContentRestriction(el: Element): ComplexContentRestriction {
   const result: ComplexContentRestriction = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
@@ -670,7 +674,7 @@ function parseComplexContentRestriction(el: XmlElement): ComplexContentRestricti
   return result;
 }
 
-function parseComplexContentExtension(el: XmlElement): ComplexContentExtension {
+function parseComplexContentExtension(el: Element): ComplexContentExtension {
   const result: ComplexContentExtension = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
@@ -681,14 +685,14 @@ function parseComplexContentExtension(el: XmlElement): ComplexContentExtension {
   return result;
 }
 
-function parseSimpleContentRestriction(el: XmlElement): SimpleContentRestriction {
+function parseSimpleContentRestriction(el: Element): SimpleContentRestriction {
   const result: SimpleContentRestriction = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
@@ -732,14 +736,14 @@ function parseSimpleContentRestriction(el: XmlElement): SimpleContentRestriction
   return result;
 }
 
-function parseSimpleContentExtension(el: XmlElement): SimpleContentExtension {
+function parseSimpleContentExtension(el: Element): SimpleContentExtension {
   const result: SimpleContentExtension = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'attribute':
@@ -764,7 +768,7 @@ function parseSimpleContentExtension(el: XmlElement): SimpleContentExtension {
 // Model Groups
 // =============================================================================
 
-function parseExplicitGroup(el: XmlElement): ExplicitGroup {
+function parseExplicitGroup(el: Element): ExplicitGroup {
   const result: ExplicitGroup = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'minOccurs');
@@ -772,7 +776,7 @@ function parseExplicitGroup(el: XmlElement): ExplicitGroup {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'element':
@@ -796,7 +800,7 @@ function parseExplicitGroup(el: XmlElement): ExplicitGroup {
   return result;
 }
 
-function parseAll(el: XmlElement): All {
+function parseAll(el: Element): All {
   const result: All = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'minOccurs');
@@ -804,7 +808,7 @@ function parseAll(el: XmlElement): All {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'element':
@@ -826,14 +830,14 @@ function parseAll(el: XmlElement): All {
 // Groups and Attribute Groups
 // =============================================================================
 
-function parseNamedGroup(el: XmlElement): NamedGroup {
+function parseNamedGroup(el: Element): NamedGroup {
   const result: NamedGroup = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'all':
@@ -851,7 +855,7 @@ function parseNamedGroup(el: XmlElement): NamedGroup {
   return result;
 }
 
-function parseGroupRef(el: XmlElement): GroupRef {
+function parseGroupRef(el: Element): GroupRef {
   const result: GroupRef = { ref: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'ref');
@@ -861,14 +865,14 @@ function parseGroupRef(el: XmlElement): GroupRef {
   return result;
 }
 
-function parseNamedAttributeGroup(el: XmlElement): NamedAttributeGroup {
+function parseNamedAttributeGroup(el: Element): NamedAttributeGroup {
   const result: NamedAttributeGroup = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
       case 'attribute':
@@ -886,7 +890,7 @@ function parseNamedAttributeGroup(el: XmlElement): NamedAttributeGroup {
   return result;
 }
 
-function parseAttributeGroupRef(el: XmlElement): AttributeGroupRef {
+function parseAttributeGroupRef(el: Element): AttributeGroupRef {
   const result: AttributeGroupRef = { ref: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'ref');
@@ -898,7 +902,7 @@ function parseAttributeGroupRef(el: XmlElement): AttributeGroupRef {
 // Wildcards
 // =============================================================================
 
-function parseAny(el: XmlElement): Any {
+function parseAny(el: Element): Any {
   const result: Any = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'minOccurs');
@@ -911,7 +915,7 @@ function parseAny(el: XmlElement): Any {
   return result;
 }
 
-function parseAnyAttribute(el: XmlElement): AnyAttribute {
+function parseAnyAttribute(el: Element): AnyAttribute {
   const result: AnyAttribute = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'namespace');
@@ -926,7 +930,7 @@ function parseAnyAttribute(el: XmlElement): AnyAttribute {
 // Identity Constraints
 // =============================================================================
 
-function parseUnique(el: XmlElement): Unique {
+function parseUnique(el: Element): Unique {
   const result: Unique = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -934,7 +938,7 @@ function parseUnique(el: XmlElement): Unique {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'selector') {
       (result as any).selector = parseSelector(child);
@@ -946,7 +950,7 @@ function parseUnique(el: XmlElement): Unique {
   return result;
 }
 
-function parseKey(el: XmlElement): Key {
+function parseKey(el: Element): Key {
   const result: Key = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -954,7 +958,7 @@ function parseKey(el: XmlElement): Key {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'selector') {
       (result as any).selector = parseSelector(child);
@@ -966,7 +970,7 @@ function parseKey(el: XmlElement): Key {
   return result;
 }
 
-function parseKeyref(el: XmlElement): Keyref {
+function parseKeyref(el: Element): Keyref {
   const result: Keyref = { name: '', refer: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -975,7 +979,7 @@ function parseKeyref(el: XmlElement): Keyref {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'selector') {
       (result as any).selector = parseSelector(child);
@@ -987,7 +991,7 @@ function parseKeyref(el: XmlElement): Keyref {
   return result;
 }
 
-function parseSelector(el: XmlElement): Selector {
+function parseSelector(el: Element): Selector {
   const result: Selector = { xpath: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'xpath');
@@ -996,7 +1000,7 @@ function parseSelector(el: XmlElement): Selector {
   return result;
 }
 
-function parseField(el: XmlElement): Field {
+function parseField(el: Element): Field {
   const result: Field = { xpath: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'xpath');
@@ -1009,14 +1013,14 @@ function parseField(el: XmlElement): Field {
 // XSD 1.1 Features
 // =============================================================================
 
-function parseOpenContent(el: XmlElement): OpenContent {
+function parseOpenContent(el: Element): OpenContent {
   const result: OpenContent = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'mode');
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'any') {
       (result as any).any = parseAny(child);
     }
@@ -1025,7 +1029,7 @@ function parseOpenContent(el: XmlElement): OpenContent {
   return result;
 }
 
-function parseDefaultOpenContent(el: XmlElement): DefaultOpenContent {
+function parseDefaultOpenContent(el: Element): DefaultOpenContent {
   const result: DefaultOpenContent = { any: {} };
   copyAttr(el, result, 'id');
   copyBoolAttr(el, result, 'appliesToEmpty');
@@ -1033,7 +1037,7 @@ function parseDefaultOpenContent(el: XmlElement): DefaultOpenContent {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'any') {
       (result as any).any = parseAny(child);
     }
@@ -1042,7 +1046,7 @@ function parseDefaultOpenContent(el: XmlElement): DefaultOpenContent {
   return result;
 }
 
-function parseAssertion(el: XmlElement): Assertion {
+function parseAssertion(el: Element): Assertion {
   const result: Assertion = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'test');
@@ -1051,7 +1055,7 @@ function parseAssertion(el: XmlElement): Assertion {
   return result;
 }
 
-function parseAlternative(el: XmlElement): Alternative {
+function parseAlternative(el: Element): Alternative {
   const result: Alternative = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'test');
@@ -1060,7 +1064,7 @@ function parseAlternative(el: XmlElement): Alternative {
 
   parseAnnotationChild(el, result);
 
-  for (const child of getChildElements(el)) {
+  for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'simpleType') {
       (result as any).simpleType = parseLocalSimpleType(child);
@@ -1072,7 +1076,7 @@ function parseAlternative(el: XmlElement): Alternative {
   return result;
 }
 
-function parseNotation(el: XmlElement): Notation {
+function parseNotation(el: Element): Notation {
   const result: Notation = { name: '', public: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
@@ -1086,40 +1090,14 @@ function parseNotation(el: XmlElement): Notation {
 // Utility Functions
 // =============================================================================
 
-function getLocalName(el: XmlElement): string {
-  return el.localName || el.tagName.split(':').pop() || el.tagName;
-}
-
-function getChildElements(el: XmlElement): XmlElement[] {
-  const result: XmlElement[] = [];
-  for (let i = 0; i < el.childNodes.length; i++) {
-    const child = el.childNodes[i];
-    if (child.nodeType === 1) { // ELEMENT_NODE
-      result.push(child as XmlElement);
-    }
-  }
-  return result;
-}
-
-function getTextContent(el: XmlElement): string {
-  let text = '';
-  for (let i = 0; i < el.childNodes.length; i++) {
-    const child = el.childNodes[i];
-    if (child.nodeType === 3) { // TEXT_NODE
-      text += child.textContent || '';
-    }
-  }
-  return text.trim();
-}
-
-function copyAttr(el: XmlElement, target: any, name: string): void {
+function copyAttr(el: Element, target: any, name: string): void {
   const value = el.getAttribute(name);
   if (value !== null) {
     target[name] = value;
   }
 }
 
-function copyBoolAttr(el: XmlElement, target: any, name: string): void {
+function copyBoolAttr(el: Element, target: any, name: string): void {
   const value = el.getAttribute(name);
   if (value !== null) {
     target[name] = value === 'true';
@@ -1133,8 +1111,8 @@ function pushTo(target: any, name: string, value: any): void {
   target[name].push(value);
 }
 
-function parseAnnotationChild(el: XmlElement, result: any): void {
-  for (const child of getChildElements(el)) {
+function parseAnnotationChild(el: Element, result: any): void {
+  for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'annotation') {
       (result as any).annotation = parseAnnotation(child);
       break; // Only one annotation per element
@@ -1153,26 +1131,24 @@ function parseAnnotationChild(el: XmlElement, result: any): void {
  * For <xs:element xmlns="http://default.com">
  * Returns: { "": "http://default.com" }
  */
-function extractXmlns(el: XmlElement): Record<string, string> | undefined {
+function extractXmlns(el: Element): Record<string, string> | undefined {
   const xmlns: Record<string, string> = {};
   let hasXmlns = false;
 
-  if (el.attributes) {
-    for (let i = 0; i < el.attributes.length; i++) {
-      const attr = el.attributes[i];
-      const name = attr.name || attr.nodeName;
-      const value = attr.value || attr.nodeValue;
+  // NamedNodeMap is iterable in xmldom
+  for (const attr of el.attributes) {
+    const name = attr.name;
+    const value = attr.value;
 
-      if (name === 'xmlns') {
-        // Default namespace (no prefix)
-        xmlns[''] = value;
-        hasXmlns = true;
-      } else if (name.startsWith('xmlns:')) {
-        // Prefixed namespace
-        const prefix = name.substring(6); // Remove 'xmlns:'
-        xmlns[prefix] = value;
-        hasXmlns = true;
-      }
+    if (name === 'xmlns') {
+      // Default namespace (no prefix)
+      xmlns[''] = value;
+      hasXmlns = true;
+    } else if (name.startsWith('xmlns:')) {
+      // Prefixed namespace
+      const prefix = name.substring(6); // Remove 'xmlns:'
+      xmlns[prefix] = value;
+      hasXmlns = true;
     }
   }
 
@@ -1182,7 +1158,7 @@ function extractXmlns(el: XmlElement): Record<string, string> | undefined {
 /**
  * Copy xmlns declarations to target if present
  */
-function copyXmlns(el: XmlElement, target: any): void {
+function copyXmlns(el: Element, target: any): void {
   const xmlns = extractXmlns(el);
   if (xmlns) {
     target.$xmlns = xmlns;
