@@ -8,6 +8,10 @@
 
 import { Project, SourceFile, InterfaceDeclarationStructure, PropertySignatureStructure, OptionalKind } from 'ts-morph';
 import type { SchemaLike, ComplexTypeLike, AttributeLike, ElementLike, SimpleTypeLike } from '../infer/types';
+import {
+  findElement as walkerFindElement,
+  stripNsPrefix,
+} from '../walker';
 
 export interface GeneratorOptions {
   /** Root element name to generate interface for */
@@ -31,7 +35,8 @@ export function generateInterfaces(
   const generator = new InterfaceGenerator(schema, sourceFile, options);
   
   if (options.rootElement) {
-    const element = findElement(schema, options.rootElement);
+    const entry = walkerFindElement(options.rootElement, schema);
+    const element = entry?.element;
     if (element?.type) {
       const typeName = stripNsPrefix(element.type);
       generator.generateComplexType(typeName);
@@ -542,20 +547,9 @@ class InterfaceGenerator {
   }
   
   private findElement(name: string): ElementLike | undefined {
-    const elements = this.schema.element;
-    if (elements && Array.isArray(elements)) {
-      const found = elements.find(e => e.name === name);
-      if (found) return found;
-    }
-    // Check in imports
-    for (const imported of this.allImports) {
-      const impElements = imported.element;
-      if (impElements && Array.isArray(impElements)) {
-        const found = impElements.find(e => e.name === name);
-        if (found) return found;
-      }
-    }
-    return undefined;
+    // Use walker's findElement which handles $imports traversal
+    const entry = walkerFindElement(name, this.schema);
+    return entry?.element;
   }
   
   private collectAttributes(
@@ -946,17 +940,7 @@ class InterfaceGenerator {
   }
 }
 
-// Helper functions
-function stripNsPrefix(name: string): string {
-  const colonIndex = name.indexOf(':');
-  return colonIndex >= 0 ? name.slice(colonIndex + 1) : name;
-}
-
-function findElement(schema: SchemaLike, name: string): ElementLike | undefined {
-  const elements = schema.element;
-  if (!elements || !Array.isArray(elements)) return undefined;
-  return elements.find((el: ElementLike) => el.name === name);
-}
+// Helper functions - using walker for findElement and stripNsPrefix
 
 function getComplexTypes(schema: SchemaLike): ComplexTypeLike[] {
   const ct = schema.complexType;

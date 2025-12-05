@@ -16,3 +16,9 @@ export * from './codegen';
 
 // XML module - parse and build XML using schema definitions
 export * from './xml';
+
+// Walker module - generator-based schema traversal
+export * from './walker';
+
+// Visitor module - visitor pattern for schema traversal
+export * from './visitor';
