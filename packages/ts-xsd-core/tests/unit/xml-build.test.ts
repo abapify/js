@@ -123,10 +123,10 @@ describe('buildXml', () => {
       assert.ok(xml.includes('xmlns="http://example.com/ns"'));
     });
 
-    it('should use prefix from xmlns declarations', () => {
+    it('should use prefix from $xmlns declarations', () => {
       const schema = {
         targetNamespace: 'http://example.com/ns',
-        xmlns: {
+        $xmlns: {
           ex: 'http://example.com/ns',
         },
         element: [{ name: 'Data', type: 'DataType' }],
@@ -152,10 +152,10 @@ describe('buildXml', () => {
       assert.ok(xml.includes('<custom:Data'));
     });
 
-    it('should include additional xmlns declarations', () => {
+    it('should include additional $xmlns declarations', () => {
       const schema = {
         targetNamespace: 'http://example.com/ns',
-        xmlns: {
+        $xmlns: {
           tns: 'http://example.com/ns',
           other: 'http://other.com',
         },

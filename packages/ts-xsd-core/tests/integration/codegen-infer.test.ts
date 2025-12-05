@@ -57,7 +57,7 @@ describe('Codegen CLI Integration', () => {
 
       // Verify output
       assert.ok(tsContent.includes(`export const ${schemaName} =`));
-      assert.ok(tsContent.includes('as const satisfies SchemaLike'));
+      assert.ok(tsContent.includes('as const;'));
     }
 
     console.log(`\nGenerated files in: ${OUTPUT_DIR}`);
