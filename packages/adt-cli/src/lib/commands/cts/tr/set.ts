@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
-import { AdkTransportRequest } from '@abapify/adk-v2';
+import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsSetCommand = new Command('set')
   .description('Update transport request (non-interactive, for scripting)')

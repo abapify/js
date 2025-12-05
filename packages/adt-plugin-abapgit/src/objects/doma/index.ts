@@ -3,7 +3,7 @@
  * Maps ADK v2 Domain objects to abapGit XML structure
  */
 
-import type { AdkObject } from '@abapify/adk-v2';
+import type { AdkObject } from '@abapify/adk';
 import { Dd01vTableSchema, Dd07vTabSchema } from './schema';
 import type { Dd01vTable, Dd07vEntry, Dd07vTab, DdicFixedValueType } from './types';
 import { build } from 'ts-xml';

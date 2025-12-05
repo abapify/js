@@ -4,9 +4,8 @@
  */
 
 import { http } from '../../../base';
-import { transportmanagment, transportmanagmentSingle, transportmanagmentCreate } from 'adt-schemas-xsd';
-import type { InferXsd } from 'ts-xsd';
-import type { RestContract } from 'speci/rest';
+import { transportmanagment, transportmanagmentSingle, transportmanagmentCreate } from '../../../schemas';
+import type { TmSingleRoot } from '../../../schemas';
 import { valuehelp } from './valuehelp';
 import { reference } from './reference';
 import { searchconfiguration } from './searchconfiguration';
@@ -15,11 +14,14 @@ import { searchconfiguration } from './searchconfiguration';
  * Transport response type - exported for consumers (ADK, etc.)
  * 
  * This is the canonical type for transport request data.
- * Consumers should import this type instead of inferring from speci internals.
+ * Uses pre-generated type from adt-schemas-xsd-v2.
  */
-export type TransportResponse = InferXsd<typeof transportmanagmentSingle>;
+export type TransportResponse = TmSingleRoot;
 
-export const transportrequests: RestContract = {
+/** Re-export schema for consumers that need direct parsing */
+export { transportmanagmentSingle };
+
+export const transportrequests = {
   /** GET / - List transports */
   list: (params?: { targets?: string; configUri?: string }) =>
     http.get('/sap/bc/adt/cts/transportrequests', {

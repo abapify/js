@@ -15,7 +15,7 @@ import { confirm } from '@inquirer/prompts';
 import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
-import { AdkTransportRequest } from '@abapify/adk-v2';
+import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsReleaseCommand = new Command('release')
   .description('Release transport request')

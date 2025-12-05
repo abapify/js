@@ -1,28 +1,24 @@
 {
   "name": "adt-schemas",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/adt-schemas/src",
-  "projectType": "library",
-  "release": {
-    "version": {
-      "manifestRootsToUpdate": ["dist/{projectRoot}"],
-      "currentVersionResolver": "git-tag",
-      "fallbackCurrentVersionResolver": "disk"
-    }
-  },
-  "tags": [],
   "targets": {
-    "test": {
-      "executor": "nx:run-commands",
+    "download": {
+      "command": "npx p2 download https://tools.hana.ondemand.com/latest -o .cache -f 'com.sap.adt.*' --extract --extract-output .xsd/sap --extract-patterns 'model/*.xsd' && npx tsx scripts/normalize-xsd.ts .xsd/sap",
       "options": {
-        "command": "node --test tests/*.test.ts",
         "cwd": "{projectRoot}"
-      }
+      },
+      "dependsOn": [],
+      "inputs": [],
+      "outputs": ["{projectRoot}/.cache", "{projectRoot}/.xsd/sap"],
+      "cache": false
     },
-    "nx-release-publish": {
+    "codegen": {
+      "command": "npx tsx scripts/codegen.ts",
       "options": {
-        "packageRoot": "dist/{projectRoot}"
-      }
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": ["download", "ts-xsd:build"],
+      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/scripts/codegen.ts"],
+      "outputs": ["{projectRoot}/src/schemas/generated"]
     }
   }
 }

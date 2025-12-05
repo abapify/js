@@ -3,7 +3,7 @@
  * Maps ADK v2 objects to abapGit XML structure
  */
 
-import type { AdkObject } from '@abapify/adk-v2';
+import type { AdkObject } from '@abapify/adk';
 import { createSerializer } from '../../lib/create-serializer';
 import { AbapGitDtelValuesSchema } from './schema';
 import type { Dd04vTable } from './types';
