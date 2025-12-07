@@ -1,4 +1,4 @@
-# @abapify/adt-client-v2
+# @abapify/adt-client
 
 **Contract-driven SAP ADT REST client** - The new architecture using `speci` + `ts-xsd` for full type safety.
 
@@ -8,7 +8,7 @@ This package replaces the legacy `adt-client` with a **contract-first design**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      adt-client-v2                               │
+│                      adt-client                               │
 │              (HTTP Client + Request Execution)                   │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -20,7 +20,7 @@ This package replaces the legacy `adt-client` with a **contract-first design**:
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     adt-schemas-xsd                              │
+│                     adt-schemas                              │
 │        (TypeScript schemas from SAP XSD definitions)             │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -43,13 +43,13 @@ This package replaces the legacy `adt-client` with a **contract-first design**:
 ## Installation
 
 ```bash
-bun add @abapify/adt-client-v2
+bun add @abapify/adt-client
 ```
 
 ## Quick Start
 
 ```typescript
-import { createAdtClient } from '@abapify/adt-client-v2';
+import { createAdtClient } from '@abapify/adt-client';
 
 // Create client
 const client = createAdtClient({
@@ -273,7 +273,7 @@ client.fetch('/arbitrary/endpoint', { method: 'GET' })
 ## Related Packages
 
 - **[adt-contracts](../adt-contracts)** - REST API contracts (speci + ts-xsd)
-- **[adt-schemas-xsd](../adt-schemas-xsd)** - TypeScript schemas from SAP XSD
+- **[adt-schemas](../adt-schemas)** - TypeScript schemas from SAP XSD
 - **[speci](../speci)** - Contract specification system
 - **[ts-xsd](../ts-xsd)** - XSD → TypeScript generation
 

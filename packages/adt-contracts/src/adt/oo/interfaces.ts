@@ -13,7 +13,7 @@ import type { IntfAbapInterface } from '../../schemas';
  * Interface response type - exported for consumers (ADK, etc.)
  * 
  * This is the canonical type for interface metadata.
- * Uses pre-generated type from adt-schemas-xsd-v2.
+ * Uses pre-generated type from adt-schemas.
  */
 export type InterfaceResponse = IntfAbapInterface;
 

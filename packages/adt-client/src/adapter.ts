@@ -2,7 +2,7 @@
  * ADT HTTP Adapter with Basic Authentication
  *
  * Implements the Speci HttpAdapter interface for ADT communication.
- * Automatically handles XML parsing/building using Serializable schemas from adt-schemas-xsd.
+ * Automatically handles XML parsing/building using Serializable schemas from adt-schemas.
  */
 
 import type { AdtConnectionConfig } from './types';
@@ -140,7 +140,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       }
 
       // Get schemas from speci's standard fields
-      // Check if bodySchema is Serializable (has build method from adt-schemas-xsd)
+      // Check if bodySchema is Serializable (has build method from adt-schemas)
       let bodySerializableSchema: { build: (data: unknown) => string } | undefined;
       if (options.bodySchema && typeof options.bodySchema === 'object') {
         if ('build' in options.bodySchema && typeof options.bodySchema.build === 'function') {
@@ -149,7 +149,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       }
 
       // Extract response schema from responses object (passed by speci)
-      // Schemas from adt-schemas-xsd have parse() method (Serializable interface)
+      // Schemas from adt-schemas have parse() method (Serializable interface)
       let serializableSchema: { parse: (xml: string) => unknown } | undefined;
       if (options.responses) {
         const schema200 = options.responses[200];
@@ -183,7 +183,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
           logger?.debug('Body: using raw string');
           logger?.debug('Body content (first 200 chars):', requestBody.substring(0, 200));
         } else if (bodySerializableSchema) {
-          // Use Serializable schema's build method (from adt-schemas-xsd)
+          // Use Serializable schema's build method (from adt-schemas)
           requestBody = bodySerializableSchema.build(body);
           logger?.debug('Body: serialized using Serializable.build()');
           logger?.debug('Body output type:', typeof requestBody);

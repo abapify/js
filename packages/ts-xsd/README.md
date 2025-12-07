@@ -1,12 +1,12 @@
-# @abapify/ts-xsd-core
+# @abapify/ts-xsd
 
 **Core XSD parser, builder, and type inference** with **1:1 TypeScript representation** of W3C XML Schema Definition (XSD) 1.1.
 
-[![npm version](https://badge.fury.io/js/%40abapify%2Fts-xsd-core.svg)](https://www.npmjs.com/package/@abapify/ts-xsd-core)
+[![npm version](https://badge.fury.io/js/%40abapify%2Fts-xsd.svg)](https://www.npmjs.com/package/@abapify/ts-xsd)
 
 ## Overview
 
-`ts-xsd-core` is a comprehensive TypeScript library for working with W3C XSD schemas. It provides:
+`ts-xsd` is a comprehensive TypeScript library for working with W3C XSD schemas. It provides:
 
 | Module | Purpose |
 |--------|---------|
@@ -27,9 +27,9 @@
 ## Installation
 
 ```bash
-npm install @abapify/ts-xsd-core
+npm install @abapify/ts-xsd
 # or
-bun add @abapify/ts-xsd-core
+bun add @abapify/ts-xsd
 ```
 
 ## Quick Start
@@ -37,7 +37,7 @@ bun add @abapify/ts-xsd-core
 ### Parse and Build XSD
 
 ```typescript
-import { parseXsd, buildXsd } from '@abapify/ts-xsd-core';
+import { parseXsd, buildXsd } from '@abapify/ts-xsd';
 
 // Parse XSD to typed Schema object
 const schema = parseXsd(`
@@ -59,7 +59,7 @@ const xsd = buildXsd(schema, { pretty: true });
 ### Type Inference from Schema Literals
 
 ```typescript
-import type { InferSchema } from '@abapify/ts-xsd-core';
+import type { InferSchema } from '@abapify/ts-xsd';
 
 // Define schema as const literal
 const personSchema = {
@@ -83,7 +83,7 @@ type Person = InferSchema<typeof personSchema>;
 ### Parse XML with Schema
 
 ```typescript
-import { parseXml, buildXml } from '@abapify/ts-xsd-core';
+import { parseXml, buildXml } from '@abapify/ts-xsd';
 
 const xml = `<person><name>John</name><age>30</age></person>`;
 const data = parseXml(personSchema, xml);
@@ -98,7 +98,7 @@ const rebuilt = buildXml(personSchema, data);
 ### XSD Module
 
 ```typescript
-import { parseXsd, buildXsd, type Schema } from '@abapify/ts-xsd-core';
+import { parseXsd, buildXsd, type Schema } from '@abapify/ts-xsd';
 ```
 
 #### `parseXsd(xsd: string): Schema`
@@ -136,7 +136,7 @@ const linkedSchema = resolveImports(schema, (location) => {
 ### Infer Module
 
 ```typescript
-import type { InferSchema, InferElement, SchemaLike } from '@abapify/ts-xsd-core';
+import type { InferSchema, InferElement, SchemaLike } from '@abapify/ts-xsd';
 ```
 
 #### `InferSchema<T>`
@@ -169,7 +169,7 @@ type Person = InferElement<typeof schema, 'person'>;
 ### XML Module
 
 ```typescript
-import { parseXml, buildXml } from '@abapify/ts-xsd-core';
+import { parseXml, buildXml } from '@abapify/ts-xsd';
 ```
 
 #### `parseXml<T>(schema: SchemaLike, xml: string): T`
@@ -183,7 +183,7 @@ Build XML string from data using schema definition.
 ### Codegen Module
 
 ```typescript
-import { generateSchemaLiteral, generateInterfaces } from '@abapify/ts-xsd-core';
+import { generateSchemaLiteral, generateInterfaces } from '@abapify/ts-xsd';
 ```
 
 #### `generateSchemaLiteral(xsd: string, options?: GenerateOptions): string`
@@ -305,7 +305,7 @@ type Order = InferSchema<typeof schema>;
 ## Architecture
 
 ```
-@abapify/ts-xsd-core
+@abapify/ts-xsd
 ├── src/
 │   ├── index.ts           # Main exports
 │   ├── xsd/               # XSD parsing and building
@@ -335,10 +335,10 @@ type Order = InferSchema<typeof schema>;
 
 ```bash
 # Run all tests
-npx nx test ts-xsd-core
+npx nx test ts-xsd
 
 # Run with coverage
-npx nx test:coverage ts-xsd-core
+npx nx test:coverage ts-xsd
 ```
 
 Tests include:
@@ -348,7 +348,7 @@ Tests include:
 
 ## Related Packages
 
-- **[@abapify/adt-schemas-xsd-v2](../adt-schemas-xsd-v2)** - SAP ADT schemas using ts-xsd-core
+- **[@abapify/adt-schemas](../adt-schemas)** - SAP ADT schemas using ts-xsd
 - **[speci](../speci)** - REST contract library with schema integration
 
 ## Documentation

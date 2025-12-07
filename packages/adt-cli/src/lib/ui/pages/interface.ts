@@ -2,7 +2,7 @@
  * Interface Page
  *
  * Self-registering page for INTF (ABAP Interface) objects.
- * Uses InterfaceResponse type from adt-client-v2.
+ * Uses InterfaceResponse type from adt-client.
  */
 
 import type { InterfaceResponse } from '@abapify/adt-client';

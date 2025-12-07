@@ -14,7 +14,7 @@ import { searchconfiguration } from './searchconfiguration';
  * Transport response type - exported for consumers (ADK, etc.)
  * 
  * This is the canonical type for transport request data.
- * Uses pre-generated type from adt-schemas-xsd-v2.
+ * Uses pre-generated type from adt-schemas.
  */
 export type TransportResponse = TmSingleRoot;
 

@@ -18,7 +18,7 @@ export type ClassIncludeType = 'definitions' | 'implementations' | 'macros' | 'm
  * Class response type - exported for consumers (ADK, etc.)
  * 
  * This is the canonical type for class metadata.
- * Uses pre-generated type from adt-schemas-xsd-v2.
+ * Uses pre-generated type from adt-schemas.
  */
 export type ClassResponse = ClassAbapClass;
 
