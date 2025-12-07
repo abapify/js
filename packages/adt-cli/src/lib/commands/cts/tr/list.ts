@@ -5,7 +5,7 @@
  */
 
 import { Command } from 'commander';
-import { getAdtClientV2 } from '../../../utils/adt-client-v2';
+import { getAdtClientV2 } from '../../../utils/adt-client';
 
 export const ctsListCommand = new Command('list')
   .description('List transport requests')

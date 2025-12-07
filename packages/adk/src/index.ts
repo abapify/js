@@ -24,7 +24,7 @@ export {
   type AdkMainObjectData,
 } from './base/model';
 
-// ADT integration layer - single point for adt-client-v2 types
+// ADT integration layer - single point for adt-client types
 export type {
   AdtClient,
   AdtContracts,

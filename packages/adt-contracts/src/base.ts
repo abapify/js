@@ -3,7 +3,7 @@
  * 
  * Re-exports speci utilities for contract definitions and client creation.
  * 
- * This module serves as the abstraction boundary - consumers (like adt-client-v2)
+ * This module serves as the abstraction boundary - consumers (like adt-client)
  * should import from here, not directly from speci. This allows swapping the
  * underlying implementation (e.g., speci → ts-rest) without impacting consumers.
  * 
@@ -14,7 +14,7 @@
 // Contract definition utilities
 export { http, type RestContract } from 'speci/rest';
 
-// Client creation utilities (for consumers like adt-client-v2)
+// Client creation utilities (for consumers like adt-client)
 import { createClient as speciCreateClient, type HttpAdapter } from 'speci/rest';
 
 // Import contract and type for client creation

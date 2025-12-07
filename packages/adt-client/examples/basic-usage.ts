@@ -54,7 +54,7 @@ async function demo() {
     // Example 4: Update class source
     console.log('\n=== Example 4: Update Class Source ===');
     const currentSource = await client.adt.oo.classes.source.main.get(className);
-    const modifiedSource = `* Modified by adt-client-v2\n${currentSource}`;
+    const modifiedSource = `* Modified by adt-client\n${currentSource}`;
 
     await client.adt.oo.classes.source.main.put(className, modifiedSource);
     console.log('Source updated successfully');
@@ -64,7 +64,7 @@ async function demo() {
     console.log('Source restored to original');
 
     // Note: Create/delete operations use adt.oo.classes.post/delete
-    // Response types are inferred from adt-schemas-xsd
+    // Response types are inferred from adt-schemas
   } catch (error) {
     console.error('Error:', error);
   }

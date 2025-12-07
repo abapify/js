@@ -55,7 +55,7 @@ export {
 export type { RestEndpointDescriptor, Serializable, RestContract } from '@abapify/adt-contracts';
 
 // Re-export contract response types for ADK consumers
-// This allows ADK to depend only on adt-client-v2, not adt-contracts directly
+// This allows ADK to depend only on adt-client, not adt-contracts directly
 export type { ClassResponse, InterfaceResponse } from '@abapify/adt-contracts';
 export type { Package as PackageResponse } from '@abapify/adt-contracts';
 

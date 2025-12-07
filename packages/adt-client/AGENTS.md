@@ -1,10 +1,10 @@
 # AGENTS.md - ADT Client V2 Development Guide
 
-This file provides guidance to AI coding assistants when working with the `adt-client-v2` package.
+This file provides guidance to AI coding assistants when working with the `adt-client` package.
 
 ## Package Overview
 
-**adt-client-v2** - Modern, contract-driven SAP ADT REST client built on `speci` (type-safe REST contracts) and `ts-xml` (schema-driven XML parsing). This replaces the legacy `adt-client` package with a fully type-safe, testable architecture.
+**adt-client** - Modern, contract-driven SAP ADT REST client built on `speci` (type-safe REST contracts) and `ts-xsd` (schema-driven XML parsing). This replaces the legacy `adt-client` package with a fully type-safe, testable architecture.
 
 ## Architecture Principles
 
@@ -215,15 +215,15 @@ describe('Feature Type Inference', () => {
 **After creating the test**:
 ```bash
 # Build and typecheck - this MUST pass
-npx nx build adt-client-v2
-npx tsc --noEmit  # Run from adt-client-v2 directory
+npx nx build adt-client
+npx tsc --noEmit  # Run from adt-client directory
 ```
 
 If typecheck passes, type inference is working correctly.
 
 ### Rule 3: Schema File Conventions
 
-**For XML Schemas** (using `ts-xml`):
+**For XML Schemas** (using `ts-xsd`):
 
 ⚠️ **CRITICAL**: Always use `createSchema()` helper to enable speci type inference!
 
@@ -285,7 +285,7 @@ export const ExampleSchema = {
 The adapter automatically handles response parsing based on content-type:
 
 - **JSON**: `application/json` or `*+json` → `JSON.parse()`
-- **XML with schema**: `*/*xml` + schema → `ts-xml.parse()`
+- **XML with schema**: `*/*xml` + schema → `ts-xsd.parse()`
 - **Text**: `text/*` → raw string
 - **Other**: raw string
 
@@ -452,10 +452,10 @@ Follow the pattern from Rule 2 above.
 
 ```bash
 # Build the package
-npx nx build adt-client-v2
+npx nx build adt-client
 
 # Typecheck (must pass!)
-cd packages/adt-client-v2 && npx tsc --noEmit
+cd packages/adt-client && npx tsc --noEmit
 
 # If typecheck fails, you forgot the responses field or have a type error
 ```
@@ -624,7 +624,7 @@ Contracts are for typed, schema-driven endpoints. `fetch()` is for debugging and
 ### Runtime Integration Tests
 - **Purpose**: Validate actual SAP responses match schemas
 - **Location**: `tests/e2e/*.test.ts` (future)
-- **Run**: `npx nx test adt-client-v2` (when configured)
+- **Run**: `npx nx test adt-client` (when configured)
 
 ### Manual CLI Testing
 - **Purpose**: Quick validation during development
@@ -633,7 +633,7 @@ Contracts are for typed, schema-driven endpoints. `fetch()` is for debugging and
 ## File Structure
 
 ```
-packages/adt-client-v2/
+packages/adt-client/
 ├── src/
 │   ├── adapter.ts              # HTTP adapter with session management
 │   ├── contract.ts             # Main contract registry
@@ -669,7 +669,7 @@ packages/adt-client-v2/
 ## Key Dependencies
 
 - **speci**: Contract-driven REST client with type inference
-- **ts-xml**: Schema-driven XML parsing with type safety
+- **ts-xsd**: Schema-driven XML parsing with type safety
 - **adt-schemas**: Reusable SAP ADT XML schemas
 
 ## Migration from V1
@@ -685,7 +685,7 @@ When migrating from `adt-client` (v1):
 
 ### Migration Status
 
-**Migrated to V2** (CLI commands using `adt-client-v2`):
+**Migrated to V2** (CLI commands using `adt-client`):
 - ✅ `info` - Session and system information
 - ✅ `fetch` - Generic authenticated HTTP requests
 - ✅ `search` - ABAP object repository search
@@ -729,7 +729,7 @@ const adtClient = createAdtClient({
 **DO** use the shared utility helper:
 ```typescript
 // ✅ CORRECT - Use shared helper
-import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client';
 
 const adtClient = getAdtClientV2();
 ```
@@ -750,7 +750,7 @@ const adtClient = getAdtClientV2({
 });
 ```
 
-**Location:** `packages/adt-cli/src/lib/utils/adt-client-v2.ts`
+**Location:** `packages/adt-cli/src/lib/utils/adt-client.ts`
 
 **Benefits:**
 - **DRY**: No duplicated auth/client creation code

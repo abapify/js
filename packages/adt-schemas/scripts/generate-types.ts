@@ -12,7 +12,7 @@
  * 
  * Usage:
  *   npx tsx scripts/generate-types.ts
- *   npx nx run adt-schemas-xsd-v2:generate-types
+ *   npx nx run adt-schemas:generate-types
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
