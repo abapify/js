@@ -10,4 +10,5 @@
 export { generateSchemaLiteral, generateSchemaFile } from './generate';
 
 // Interface generation
-export { generateInterfaces } from './interface-generator';
+export { generateInterfaces, generateInterfacesWithDeps } from './interface-generator';
+export type { GeneratorOptions, GenerateResult } from './interface-generator';

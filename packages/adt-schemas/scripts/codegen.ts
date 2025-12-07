@@ -1,13 +1,13 @@
 #!/usr/bin/env npx tsx
 /**
- * Codegen script for adt-schemas-xsd-v2
+ * Codegen script for adt-schemas
  * 
  * Generates TypeScript schema files from XSD using ts-xsd.
  * Processes .xsd files from both .xsd/sap/ and .xsd/custom/ directories.
  * 
  * Usage:
  *   npx tsx scripts/codegen.ts
- *   npx nx run adt-schemas-xsd-v2:codegen
+ *   npx nx run adt-schemas:codegen
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';

@@ -11,7 +11,7 @@ import type { Serializable } from './types';
 
 describe('XSD Schema Body Inference', () => {
   // Simulate a ts-xsd schema wrapped with speci's schema() function
-  // This mimics what adt-schemas-xsd/src/speci.ts does
+  // This mimics what adt-schemas/src/speci.ts does
   interface TransportCreate {
     useraction: string;
     request: Array<{

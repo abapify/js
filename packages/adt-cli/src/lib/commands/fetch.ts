@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client';
 
 export const fetchCommand = new Command('fetch')
   .description('Fetch a URL with authentication (like curl but authenticated)')

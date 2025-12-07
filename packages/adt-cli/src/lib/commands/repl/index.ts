@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import { run } from '@abapify/adt-tui';
-import { getAdtClientV2 } from '../../utils/adt-client-v2';
+import { getAdtClientV2 } from '../../utils/adt-client';
 
 /**
  * Create fetch function for adt-tui from ADT client

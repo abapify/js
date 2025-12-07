@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client';
 
 export const searchCommand = new Command('search')
   .description('Search for ABAP objects in the repository')

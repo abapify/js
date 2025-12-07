@@ -214,7 +214,7 @@ export function createAdkFactory(ctx: AdkContext): AdkFactory {
 // Convenience: Create factory from ADT client
 // ============================================
 
-// Factory is the boundary - imports AdtClient directly from adt-client-v2
+// Factory is the boundary - imports AdtClient directly from adt-client
 import type { AdtClient } from '@abapify/adt-client';
 
 /**

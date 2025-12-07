@@ -10,7 +10,7 @@
 - **Many dependencies** (fast-xml-parser, pino, etc.)
 - **Comprehensive** - supports all ADT object types
 
-### V2 (adt-client-v2)
+### V2 (adt-client)
 
 - **Minimalistic design** inspired by speci
 - **Direct method calls** - no service layers
@@ -44,7 +44,7 @@ await client.connect({
 **V2:**
 
 ```typescript
-import { createAdtClient } from '@abapify/adt-client-v2';
+import { createAdtClient } from '@abapify/adt-client';
 
 const client = createAdtClient({
   baseUrl: 'https://sap-system.com:8000',
@@ -193,7 +193,7 @@ try {
    import { createAdtClient } from '@abapify/adt-client';
 
    // New
-   import { createAdtClient } from '@abapify/adt-client-v2';
+   import { createAdtClient } from '@abapify/adt-client';
    ```
 
 2. **Simplify client creation:**

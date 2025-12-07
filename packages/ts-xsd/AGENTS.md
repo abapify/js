@@ -1,4 +1,4 @@
-# ts-xsd-core - AI Agent Guide
+# ts-xsd - AI Agent Guide
 
 ## Package Overview
 
@@ -27,7 +27,7 @@
 **Before ANY change to `types.ts`:**
 1. Find the type in [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd)
 2. Match properties exactly (name, type, optionality)
-3. Run `npx nx test ts-xsd-core`
+3. Run `npx nx test ts-xsd`
 
 ### 2. Type Naming Convention
 
@@ -172,7 +172,7 @@ type SchemaLike = {
 3. **Update parser** in `src/xsd/parse.ts`
 4. **Update builder** in `src/xsd/build.ts`
 5. **Add tests** in `tests/unit/`
-6. **Run tests**: `npx nx test ts-xsd-core`
+6. **Run tests**: `npx nx test ts-xsd`
 
 ### Modifying Type Inference
 
@@ -195,10 +195,10 @@ type SchemaLike = {
 
 ```bash
 # Run all tests
-npx nx test ts-xsd-core
+npx nx test ts-xsd
 
 # Run with coverage
-npx nx test:coverage ts-xsd-core
+npx nx test:coverage ts-xsd
 
 # Run specific test
 npx vitest run tests/unit/parse.test.ts

@@ -261,7 +261,7 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   async lock(): Promise<LockHandle> {
     if (this._lockHandle) return this._lockHandle;
     
-    // TODO: Implement when lock contract is added to adt-client-v2
+    // TODO: Implement when lock contract is added to adt-client
     // For now, use client.fetch() as workaround
     const response = await this.ctx.client.fetch(`${this.objectUri}?_action=LOCK`, {
       method: 'POST',
@@ -283,7 +283,7 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   async unlock(): Promise<void> {
     if (!this._lockHandle) return;
     
-    // TODO: Implement when lock contract is added to adt-client-v2
+    // TODO: Implement when lock contract is added to adt-client
     await this.ctx.client.fetch(`${this.objectUri}?_action=UNLOCK&lockHandle=${encodeURIComponent(this._lockHandle.handle)}`, {
       method: 'POST',
     });

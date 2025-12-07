@@ -10,7 +10,7 @@
  */
 
 import { Command } from 'commander';
-import { getAdtClientV2 } from '../../../utils/adt-client-v2';
+import { getAdtClientV2 } from '../../../utils/adt-client';
 import { initializeAdk, AdkTransportRequest } from '@abapify/adk';
 
 // Status icons

@@ -64,7 +64,7 @@
       "path": "./packages/adk"
     },
     {
-      "path": "./packages/adt-schemas-xsd"
+      "path": "./packages/adt-schemas"
     }
   ]
 }

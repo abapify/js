@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { getAdtClientV2, getCaptured } from '../utils/adt-client-v2';
+import { getAdtClientV2, getCaptured } from '../utils/adt-client';
 import { DiscoveryPage } from '../ui/pages';
 
 export const discoveryCommand = new Command('discovery')

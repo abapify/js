@@ -2,7 +2,7 @@
  * Class Page
  *
  * Self-registering page for CLAS (ABAP Class) objects.
- * Uses ClassResponse type from adt-client-v2.
+ * Uses ClassResponse type from adt-client.
  */
 
 import type { ClassResponse } from '@abapify/adt-client';

@@ -23,6 +23,18 @@ export interface GeneratorOptions {
 }
 
 /**
+ * Result of generating interfaces with dependency tracking
+ */
+export interface GenerateResult {
+  /** Generated TypeScript code */
+  code: string;
+  /** Types defined in this schema (local types) */
+  localTypes: string[];
+  /** Types imported from other schemas (external dependencies) */
+  externalTypes: Map<string, string[]>; // schemaNamespace -> typeNames[]
+}
+
+/**
  * Generate TypeScript interfaces from a Schema
  */
 export function generateInterfaces(
@@ -75,6 +87,78 @@ export function generateInterfaces(
   
   sourceFile.formatText();
   return sourceFile.getFullText();
+}
+
+/**
+ * Generate TypeScript interfaces with dependency tracking.
+ * 
+ * This function generates interfaces for a single schema and tracks:
+ * - localTypes: Types defined in this schema
+ * - externalTypes: Types imported from other schemas (via $imports)
+ * 
+ * Use this for generating per-schema type files with proper imports.
+ * 
+ * @example
+ * ```typescript
+ * const result = generateInterfacesWithDeps(classesSchema, { generateAllTypes: true });
+ * // result.localTypes = ['AbapClass', 'AbapClassInclude', ...]
+ * // result.externalTypes = Map { 'http://www.sap.com/adt/oo' => ['AbapOoObject'] }
+ * ```
+ */
+export function generateInterfacesWithDeps(
+  schema: SchemaLike,
+  options: GeneratorOptions = {}
+): GenerateResult {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const sourceFile = project.createSourceFile('generated.ts', '');
+  
+  const generator = new InterfaceGeneratorWithDeps(schema, sourceFile, options);
+  
+  if (options.rootElement) {
+    const entry = walkerFindElement(options.rootElement, schema);
+    const element = entry?.element;
+    if (element?.type) {
+      const typeName = stripNsPrefix(element.type);
+      generator.generateComplexType(typeName);
+    } else if (element && (element as any).complexType) {
+      generator.generateInlineRootElement(options.rootElement, (element as any).complexType);
+    }
+  }
+  
+  if (options.generateAllTypes) {
+    // Generate interfaces for all elements with inline complexTypes
+    const elements = schema.element;
+    if (elements && Array.isArray(elements)) {
+      for (const el of elements) {
+        if (el.name && (el as any).complexType) {
+          generator.generateInlineRootElement(el.name, (el as any).complexType);
+        }
+      }
+    }
+    
+    // Generate all complex types
+    const complexTypes = getComplexTypes(schema);
+    for (const ct of complexTypes) {
+      if (ct.name) {
+        generator.generateComplexType(ct.name);
+      }
+    }
+    // Generate all simple types
+    const simpleTypes = getSimpleTypes(schema);
+    for (const st of simpleTypes) {
+      if (st.name) {
+        generator.generateComplexType(st.name);
+      }
+    }
+  }
+  
+  sourceFile.formatText();
+  
+  return {
+    code: sourceFile.getFullText(),
+    localTypes: Array.from(generator.getLocalTypes()),
+    externalTypes: generator.getExternalTypes(),
+  };
 }
 
 class InterfaceGenerator {
@@ -964,4 +1048,821 @@ function getSimpleTypes(schema: SchemaLike): SimpleTypeLike[] {
 function findSimpleTypeInSchema(schema: SchemaLike, name: string): SimpleTypeLike | undefined {
   const types = getSimpleTypes(schema);
   return types.find((st: SimpleTypeLike) => st.name === name);
+}
+
+/**
+ * Extended InterfaceGenerator that tracks local vs external types.
+ * 
+ * This generator only generates types defined in the current schema (localTypes),
+ * and tracks references to types from imported schemas (externalTypes).
+ */
+class InterfaceGeneratorWithDeps {
+  private generatedTypes: Set<string>;
+  private localTypes: Set<string>;
+  private externalTypes: Map<string, string[]>; // namespace -> typeNames[]
+  private allImports: SchemaLike[];
+  
+  constructor(
+    private schema: SchemaLike,
+    private sourceFile: SourceFile,
+    private options: GeneratorOptions,
+  ) {
+    this.generatedTypes = new Set<string>();
+    this.localTypes = new Set<string>();
+    this.externalTypes = new Map<string, string[]>();
+    this.allImports = this.collectAllImports(schema);
+  }
+  
+  getLocalTypes(): Set<string> {
+    return this.localTypes;
+  }
+  
+  getExternalTypes(): Map<string, string[]> {
+    return this.externalTypes;
+  }
+  
+  private collectAllImports(schema: SchemaLike, visited: Set<SchemaLike> = new Set()): SchemaLike[] {
+    const result: SchemaLike[] = [];
+    
+    if (visited.has(schema)) {
+      return result;
+    }
+    visited.add(schema);
+    
+    const imports = schema.$imports;
+    if (imports && Array.isArray(imports)) {
+      for (const imp of imports as SchemaLike[]) {
+        result.push(imp);
+        result.push(...this.collectAllImports(imp, visited));
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Check if a type is defined locally in this schema (not in $imports)
+   */
+  private isLocalType(typeName: string): boolean {
+    // Check complexTypes
+    const complexTypes = getComplexTypes(this.schema);
+    if (complexTypes.some(ct => ct.name === typeName)) {
+      return true;
+    }
+    
+    // Check simpleTypes
+    const simpleTypes = getSimpleTypes(this.schema);
+    if (simpleTypes.some(st => st.name === typeName)) {
+      return true;
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Find which imported schema contains a type
+   */
+  private findImportedSchemaForType(typeName: string): SchemaLike | undefined {
+    for (const imported of this.allImports) {
+      const ct = findComplexTypeInSchema(imported, typeName);
+      if (ct) return imported;
+      
+      const st = findSimpleTypeInSchema(imported, typeName);
+      if (st) return imported;
+    }
+    return undefined;
+  }
+  
+  /**
+   * Track an external type reference
+   */
+  private trackExternalType(typeName: string, namespace: string): void {
+    const existing = this.externalTypes.get(namespace) ?? [];
+    if (!existing.includes(typeName)) {
+      existing.push(typeName);
+      this.externalTypes.set(namespace, existing);
+    }
+  }
+  
+  generateInlineRootElement(elementName: string, complexType: ComplexTypeLike): string {
+    const interfaceName = this.toInterfaceName(elementName);
+    
+    if (this.generatedTypes.has(elementName)) {
+      return interfaceName;
+    }
+    this.generatedTypes.add(elementName);
+    this.localTypes.add(interfaceName);
+    
+    const properties: OptionalKind<PropertySignatureStructure>[] = [];
+    const extendsTypes: string[] = [];
+    
+    // Handle complexContent extension
+    if (complexType.complexContent?.extension) {
+      const ext = complexType.complexContent.extension;
+      if (ext.base) {
+        const baseName = stripNsPrefix(ext.base);
+        const baseInterface = this.resolveType(baseName);
+        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
+          extendsTypes.push(baseInterface);
+        }
+      }
+      this.collectProperties(ext, properties);
+    } else {
+      this.collectProperties(complexType, properties);
+    }
+    
+    // Collect attributes from complexType itself
+    if (!complexType.complexContent?.extension) {
+      this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
+    }
+    
+    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
+      name: interfaceName,
+      isExported: true,
+      properties,
+    };
+    
+    if (extendsTypes.length > 0) {
+      interfaceStructure.extends = extendsTypes;
+    }
+    
+    if (this.options.addJsDoc) {
+      interfaceStructure.docs = [{ description: `Generated from element: ${elementName}` }];
+    }
+    
+    this.sourceFile.addInterface(interfaceStructure);
+    return interfaceName;
+  }
+  
+  generateComplexType(typeName: string): string {
+    const interfaceName = this.toInterfaceName(typeName);
+    if (this.generatedTypes.has(interfaceName)) {
+      return interfaceName;
+    }
+    
+    // Check if this is a local type or imported
+    if (!this.isLocalType(typeName)) {
+      // It's an imported type - track it but don't generate
+      this.generatedTypes.add(interfaceName);
+      const importedSchema = this.findImportedSchemaForType(typeName);
+      if (importedSchema?.targetNamespace) {
+        this.trackExternalType(interfaceName, importedSchema.targetNamespace);
+      }
+      return interfaceName;
+    }
+    
+    // Check for simpleType first (enums, restrictions)
+    // Don't add to generatedTypes yet - let generateSimpleType handle it
+    const simpleType = this.findSimpleType(typeName);
+    if (simpleType) {
+      return this.generateSimpleType(typeName, simpleType);
+    }
+    
+    // It's a local complexType - mark as generated and add to localTypes
+    this.generatedTypes.add(interfaceName);
+    this.localTypes.add(interfaceName);
+    
+    const complexType = this.findComplexType(typeName);
+    if (!complexType) {
+      return this.mapSimpleType(typeName);
+    }
+    
+    const properties: OptionalKind<PropertySignatureStructure>[] = [];
+    const extendsTypes: string[] = [];
+    
+    // Handle complexContent extension (inheritance)
+    if (complexType.complexContent?.extension) {
+      const ext = complexType.complexContent.extension;
+      if (ext.base) {
+        const baseName = stripNsPrefix(ext.base);
+        const baseInterface = this.resolveType(baseName);
+        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
+          extendsTypes.push(baseInterface);
+        }
+      }
+      this.collectProperties(ext, properties);
+    }
+    // Handle complexContent restriction
+    else if (complexType.complexContent?.restriction) {
+      const rest = complexType.complexContent.restriction;
+      this.collectPropertiesFromRestriction(rest, properties);
+      
+      if (rest.base) {
+        const baseName = stripNsPrefix(rest.base);
+        const baseInterface = this.resolveType(baseName);
+        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
+          const redefinedProps = properties.map(p => p.name).filter(Boolean);
+          if (redefinedProps.length > 0) {
+            extendsTypes.push(`Omit<${baseInterface}, ${redefinedProps.map(p => `'${p}'`).join(' | ')}>`);
+          } else {
+            extendsTypes.push(baseInterface);
+          }
+        }
+      }
+    }
+    // Handle simpleContent extension (text content with attributes)
+    else if (complexType.simpleContent?.extension) {
+      const ext = complexType.simpleContent.extension;
+      if (ext.base) {
+        const baseType = this.mapSimpleType(stripNsPrefix(ext.base));
+        properties.push({
+          name: '$value',
+          type: baseType,
+          hasQuestionToken: false,
+        });
+      }
+      this.collectAttributes(ext.attribute, properties);
+    }
+    // Handle direct content (no complexContent/simpleContent)
+    else {
+      this.collectProperties(complexType, properties);
+    }
+    
+    // Collect attributes from complexType itself
+    if (!complexType.complexContent?.extension && !complexType.simpleContent?.extension) {
+      this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
+    }
+    
+    // Build interface structure
+    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
+      name: interfaceName,
+      isExported: true,
+      extends: extendsTypes.length > 0 ? extendsTypes : undefined,
+      properties,
+    };
+    
+    if (this.options.addJsDoc) {
+      interfaceStructure.docs = [{ description: `Generated from complexType: ${typeName}` }];
+    }
+    
+    this.sourceFile.addInterface(interfaceStructure);
+    return interfaceName;
+  }
+  
+  private collectProperties(
+    source: ComplexTypeLike | { sequence?: unknown; all?: unknown; choice?: unknown; group?: unknown; attribute?: readonly AttributeLike[]; attributeGroup?: readonly unknown[] },
+    properties: OptionalKind<PropertySignatureStructure>[]
+  ): void {
+    const seq = (source as any).sequence;
+    if (seq) this.collectFromGroup(seq, properties, false, false);
+    
+    const all = (source as any).all;
+    if (all) this.collectFromGroup(all, properties, false, false);
+    
+    const choice = (source as any).choice;
+    if (choice) {
+      const choiceIsArray = choice.maxOccurs === 'unbounded' || 
+                           (typeof choice.maxOccurs === 'string' && choice.maxOccurs !== '1' && choice.maxOccurs !== '0') ||
+                           (typeof choice.maxOccurs === 'number' && choice.maxOccurs > 1);
+      this.collectFromGroup(choice, properties, choiceIsArray, true);
+    }
+    
+    const groupRef = (source as any).group;
+    if (groupRef?.ref) {
+      const groupIsArray = groupRef.maxOccurs === 'unbounded' || 
+                          (typeof groupRef.maxOccurs === 'string' && groupRef.maxOccurs !== '1' && groupRef.maxOccurs !== '0') ||
+                          (typeof groupRef.maxOccurs === 'number' && groupRef.maxOccurs > 1);
+      const groupIsOptional = groupRef.minOccurs === '0' || groupRef.minOccurs === 0;
+      this.collectFromGroupRef(groupRef.ref, properties, groupIsArray, groupIsOptional);
+    }
+    
+    if ('attribute' in source && source.attribute && 'base' in source) {
+      this.collectAttributes(source.attribute, properties);
+    }
+    
+    const attrGroups = (source as any).attributeGroup;
+    if (attrGroups && Array.isArray(attrGroups)) {
+      for (const ag of attrGroups) {
+        if (ag.ref) {
+          this.collectFromAttributeGroupRef(ag.ref, properties);
+        }
+      }
+    }
+  }
+  
+  private collectPropertiesFromRestriction(
+    source: { sequence?: unknown; all?: unknown; choice?: unknown; group?: unknown; attribute?: readonly AttributeLike[]; attributeGroup?: readonly unknown[] },
+    properties: OptionalKind<PropertySignatureStructure>[]
+  ): void {
+    const seq = (source as any).sequence;
+    if (seq) this.collectFromGroup(seq, properties);
+    
+    const all = (source as any).all;
+    if (all) this.collectFromGroup(all, properties);
+    
+    const choice = (source as any).choice;
+    if (choice) this.collectFromGroup(choice, properties);
+    
+    const groupRef = (source as any).group;
+    if (groupRef?.ref) {
+      this.collectFromGroupRef(groupRef.ref, properties);
+    }
+    
+    const anyAttr = (source as any).anyAttribute;
+    if ('attribute' in source && source.attribute) {
+      this.collectAttributes(source.attribute, properties, anyAttr, true);
+    } else if (anyAttr) {
+      this.collectAttributes(undefined, properties, anyAttr, true);
+    }
+    
+    const attrGroups = (source as any).attributeGroup;
+    if (attrGroups && Array.isArray(attrGroups)) {
+      for (const ag of attrGroups) {
+        if (ag.ref) {
+          this.collectFromAttributeGroupRef(ag.ref, properties);
+        }
+      }
+    }
+  }
+  
+  private collectFromGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[], forceArray: boolean = false, forceOptional: boolean = false): void {
+    const groupName = stripNsPrefix(ref);
+    const { group, isChoice } = this.findGroupWithMeta(groupName);
+    if (group) {
+      this.collectFromGroup(group, properties, forceArray, forceOptional || isChoice);
+    }
+  }
+  
+  private collectFromAttributeGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[]): void {
+    const groupName = stripNsPrefix(ref);
+    const attrGroup = this.findAttributeGroup(groupName);
+    if (attrGroup?.attribute) {
+      this.collectAttributes(attrGroup.attribute as readonly AttributeLike[], properties);
+    }
+  }
+  
+  private collectFromGroup(
+    group: { element?: readonly ElementLike[]; any?: readonly unknown[]; group?: unknown; sequence?: unknown; choice?: unknown },
+    properties: OptionalKind<PropertySignatureStructure>[],
+    forceArray: boolean = false,
+    forceOptional: boolean = false
+  ): void {
+    const anyElements = (group as any).any;
+    if (anyElements && Array.isArray(anyElements) && anyElements.length > 0) {
+      const hasIndexSig = properties.some(p => p.name?.startsWith('['));
+      if (!hasIndexSig) {
+        properties.push({
+          name: '[key: string]',
+          type: 'unknown',
+          hasQuestionToken: false,
+        });
+      }
+    }
+    
+    const nestedGroups = (group as any).group;
+    if (nestedGroups) {
+      const groupArray = Array.isArray(nestedGroups) ? nestedGroups : [nestedGroups];
+      for (const g of groupArray) {
+        if (g.ref) {
+          const groupIsArray = g.maxOccurs === 'unbounded' || 
+                              (typeof g.maxOccurs === 'string' && g.maxOccurs !== '1' && g.maxOccurs !== '0') ||
+                              (typeof g.maxOccurs === 'number' && g.maxOccurs > 1);
+          const groupIsOptional = g.minOccurs === '0' || g.minOccurs === 0;
+          this.collectFromGroupRef(g.ref, properties, forceArray || groupIsArray, forceOptional || groupIsOptional);
+        }
+      }
+    }
+    
+    const nestedSeq = (group as any).sequence;
+    if (nestedSeq) {
+      const seqArray = Array.isArray(nestedSeq) ? nestedSeq : [nestedSeq];
+      for (const seq of seqArray) {
+        const seqIsArray = seq.maxOccurs === 'unbounded' || 
+                          (typeof seq.maxOccurs === 'string' && seq.maxOccurs !== '1' && seq.maxOccurs !== '0') ||
+                          (typeof seq.maxOccurs === 'number' && seq.maxOccurs > 1);
+        const seqIsOptional = seq.minOccurs === '0' || seq.minOccurs === 0;
+        this.collectFromGroup(seq, properties, forceArray || seqIsArray, forceOptional || seqIsOptional);
+      }
+    }
+    
+    const nestedChoice = (group as any).choice;
+    if (nestedChoice) {
+      const choiceArray = Array.isArray(nestedChoice) ? nestedChoice : [nestedChoice];
+      for (const ch of choiceArray) {
+        const choiceIsArray = ch.maxOccurs === 'unbounded' || 
+                             (typeof ch.maxOccurs === 'string' && ch.maxOccurs !== '1' && ch.maxOccurs !== '0') ||
+                             (typeof ch.maxOccurs === 'number' && ch.maxOccurs > 1);
+        this.collectFromGroup(ch, properties, forceArray || choiceIsArray, true);
+      }
+    }
+    
+    const elements = group.element;
+    if (!elements) return;
+    
+    for (const el of elements) {
+      if ((el as any).ref) {
+        const refName = stripNsPrefix((el as any).ref);
+        const refElement = this.findElement(refName);
+        
+        const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
+        const isArray = forceArray || el.maxOccurs === 'unbounded' || 
+                        (typeof el.maxOccurs === 'string' && el.maxOccurs !== '1' && el.maxOccurs !== '0') ||
+                        (typeof el.maxOccurs === 'number' && el.maxOccurs > 1);
+        
+        let typeName: string;
+        if (refElement?.type) {
+          typeName = this.resolveType(stripNsPrefix(refElement.type));
+        } else if (refElement && (refElement as any).complexType) {
+          typeName = this.generateInlineComplexType(refName, (refElement as any).complexType);
+        } else {
+          typeName = this.toInterfaceName(refName);
+        }
+        
+        if (isArray) {
+          typeName = `${typeName}[]`;
+        }
+        
+        if (!properties.some(p => p.name === refName)) {
+          properties.push({
+            name: refName,
+            type: typeName,
+            hasQuestionToken: isOptional,
+          });
+        }
+        continue;
+      }
+      
+      if (!el.name) continue;
+      
+      const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
+      const isArray = forceArray || el.maxOccurs === 'unbounded' || 
+                      (typeof el.maxOccurs === 'string' && el.maxOccurs !== '1' && el.maxOccurs !== '0') ||
+                      (typeof el.maxOccurs === 'number' && el.maxOccurs > 1);
+      
+      let typeName: string;
+      if (el.type) {
+        const rawType = el.type;
+        const baseType = stripNsPrefix(rawType);
+        if (rawType.startsWith('xsd:') || rawType.startsWith('xs:')) {
+          if (this.isBuiltInXsdType(baseType)) {
+            typeName = this.mapSimpleType(baseType);
+          } else {
+            typeName = this.resolveType(baseType);
+          }
+        } else {
+          typeName = this.resolveType(baseType);
+        }
+      } else if ((el as any).complexType) {
+        typeName = this.generateInlineComplexType(el.name, (el as any).complexType);
+      } else {
+        typeName = 'unknown';
+      }
+      
+      if (isArray) {
+        typeName = `${typeName}[]`;
+      }
+      
+      if (!properties.some(p => p.name === el.name)) {
+        properties.push({
+          name: el.name,
+          type: typeName,
+          hasQuestionToken: isOptional,
+        });
+      }
+    }
+  }
+  
+  private findElement(name: string): ElementLike | undefined {
+    const entry = walkerFindElement(name, this.schema);
+    return entry?.element;
+  }
+  
+  private collectAttributes(
+    attributes: readonly AttributeLike[] | undefined,
+    properties: OptionalKind<PropertySignatureStructure>[],
+    anyAttribute?: unknown,
+    isRestriction: boolean = false
+  ): void {
+    if (attributes) {
+      for (const attr of attributes) {
+        if ((attr as any).ref) {
+          const refName = (attr as any).ref;
+          const isXmlNamespace = refName.startsWith('xml:');
+          const propName = isXmlNamespace 
+            ? `'${refName}'`
+            : stripNsPrefix(refName);
+          const isOptional = attr.use !== 'required';
+          properties.push({
+            name: propName,
+            type: 'string',
+            hasQuestionToken: isOptional,
+          });
+          continue;
+        }
+        
+        if (!attr.name) continue;
+        if (attr.use === 'prohibited') continue;
+        if (isRestriction && !attr.type) continue;
+        
+        const isOptional = attr.use !== 'required';
+        let typeName: string;
+        if (attr.type) {
+          const rawType = attr.type;
+          const baseType = stripNsPrefix(rawType);
+          if (rawType.startsWith('xsd:') || rawType.startsWith('xs:')) {
+            if (this.isBuiltInXsdType(baseType)) {
+              typeName = this.mapSimpleType(baseType);
+            } else {
+              typeName = this.resolveType(baseType);
+            }
+          } else {
+            typeName = this.resolveType(baseType);
+          }
+        } else {
+          typeName = 'unknown';
+        }
+        
+        properties.push({
+          name: attr.name,
+          type: typeName,
+          hasQuestionToken: isOptional,
+        });
+      }
+    }
+    
+    if (anyAttribute) {
+      const hasIndexSig = properties.some(p => p.name?.startsWith('['));
+      if (!hasIndexSig) {
+        properties.push({
+          name: '[key: string]',
+          type: 'unknown',
+          hasQuestionToken: false,
+        });
+      }
+    }
+  }
+  
+  private generateInlineComplexType(parentName: string, ct: ComplexTypeLike): string {
+    const baseName = this.toInterfaceName(parentName);
+    const interfaceName = baseName.endsWith('Type') ? baseName : baseName + 'Type';
+    
+    if (this.generatedTypes.has(interfaceName)) {
+      return interfaceName;
+    }
+    this.generatedTypes.add(interfaceName);
+    this.localTypes.add(interfaceName);
+    
+    const properties: OptionalKind<PropertySignatureStructure>[] = [];
+    const extendsTypes: string[] = [];
+    
+    if ((ct as any).mixed === true || (ct as any).mixed === 'true') {
+      properties.push({
+        name: '_text',
+        type: 'string',
+        hasQuestionToken: true,
+      });
+    }
+    
+    if (ct.complexContent?.extension) {
+      const ext = ct.complexContent.extension;
+      if (ext.base) {
+        const baseName = stripNsPrefix(ext.base);
+        const baseInterface = this.resolveType(baseName);
+        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
+          extendsTypes.push(baseInterface);
+        }
+      }
+      this.collectProperties(ext, properties);
+    } else {
+      this.collectProperties(ct, properties);
+      this.collectAttributes(ct.attribute, properties);
+    }
+    
+    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
+      name: interfaceName,
+      isExported: true,
+      properties,
+    };
+    
+    if (extendsTypes.length > 0) {
+      interfaceStructure.extends = extendsTypes;
+    }
+    
+    this.sourceFile.addInterface(interfaceStructure);
+    
+    return interfaceName;
+  }
+  
+  private resolveType(typeName: string): string {
+    const builtIn = this.mapSimpleType(typeName);
+    if (builtIn !== typeName) {
+      return builtIn;
+    }
+    
+    // Check if it's a local type
+    if (this.isLocalType(typeName)) {
+      const st = this.findSimpleType(typeName);
+      if (st) {
+        return this.generateSimpleType(typeName, st);
+      }
+      
+      const ct = this.findComplexType(typeName);
+      if (ct) {
+        return this.generateComplexType(typeName);
+      }
+    }
+    
+    // Check in imports - track as external dependency
+    const importedSchema = this.findImportedSchemaForType(typeName);
+    if (importedSchema) {
+      const interfaceName = this.toInterfaceName(typeName);
+      if (importedSchema.targetNamespace) {
+        this.trackExternalType(interfaceName, importedSchema.targetNamespace);
+      }
+      return interfaceName;
+    }
+    
+    // Unknown type - still PascalCase it
+    return this.toInterfaceName(typeName);
+  }
+  
+  private findComplexType(name: string): ComplexTypeLike | undefined {
+    return findComplexTypeInSchema(this.schema, name);
+  }
+  
+  private findSimpleType(name: string): SimpleTypeLike | undefined {
+    return findSimpleTypeInSchema(this.schema, name);
+  }
+  
+  private findGroupWithMeta(name: string): { group: { element?: readonly ElementLike[] } | undefined; isChoice: boolean } {
+    const groups = this.schema.group;
+    if (groups && Array.isArray(groups)) {
+      const found = groups.find((g: any) => g.name === name);
+      if (found) {
+        const isChoice = !!found.choice && !found.sequence && !found.all;
+        const content = found.sequence || found.choice || found.all || found;
+        return { group: content, isChoice };
+      }
+    }
+    for (const imported of this.allImports) {
+      const importedGroups = imported.group;
+      if (importedGroups && Array.isArray(importedGroups)) {
+        const found = importedGroups.find((g: any) => g.name === name);
+        if (found) {
+          const isChoice = !!found.choice && !found.sequence && !found.all;
+          const content = found.sequence || found.choice || found.all || found;
+          return { group: content, isChoice };
+        }
+      }
+    }
+    return { group: undefined, isChoice: false };
+  }
+  
+  private findAttributeGroup(name: string): { attribute?: readonly AttributeLike[] } | undefined {
+    const groups = this.schema.attributeGroup;
+    if (groups && Array.isArray(groups)) {
+      const found = groups.find((g: any) => g.name === name);
+      if (found) return found;
+    }
+    for (const imported of this.allImports) {
+      const importedGroups = imported.attributeGroup;
+      if (importedGroups && Array.isArray(importedGroups)) {
+        const found = importedGroups.find((g: any) => g.name === name);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  }
+  
+  private generateSimpleType(typeName: string, st: SimpleTypeLike): string {
+    const aliasName = this.toInterfaceName(typeName);
+    
+    if (this.generatedTypes.has(typeName)) {
+      return aliasName;
+    }
+    this.generatedTypes.add(typeName);
+    this.localTypes.add(aliasName);
+    
+    if (st.restriction?.enumeration && st.restriction.enumeration.length > 0) {
+      const enumValues = st.restriction.enumeration
+        .map(e => `'${e.value}'`)
+        .join(' | ');
+      
+      this.sourceFile.addTypeAlias({
+        name: aliasName,
+        isExported: true,
+        type: enumValues,
+      });
+      return aliasName;
+    }
+    
+    if (st.union) {
+      const memberTypes = st.union.memberTypes?.split(/\s+/) ?? [];
+      if (memberTypes.length > 0) {
+        const unionTypes = memberTypes
+          .map(t => {
+            const baseType = stripNsPrefix(t);
+            const mapped = this.mapSimpleType(baseType);
+            if (mapped !== baseType) {
+              return mapped;
+            }
+            return this.resolveType(baseType);
+          })
+          .join(' | ');
+        
+        this.sourceFile.addTypeAlias({
+          name: aliasName,
+          isExported: true,
+          type: unionTypes || 'string',
+        });
+        return aliasName;
+      }
+      this.sourceFile.addTypeAlias({
+        name: aliasName,
+        isExported: true,
+        type: 'string',
+      });
+      return aliasName;
+    }
+    
+    if (st.list) {
+      const itemType = st.list.itemType 
+        ? this.mapSimpleType(stripNsPrefix(st.list.itemType))
+        : 'string';
+      this.sourceFile.addTypeAlias({
+        name: aliasName,
+        isExported: true,
+        type: `${itemType}[]`,
+      });
+      return aliasName;
+    }
+    
+    // Simple restriction - use base type
+    if (st.restriction?.base) {
+      const baseType = this.mapSimpleType(stripNsPrefix(st.restriction.base));
+      this.sourceFile.addTypeAlias({
+        name: aliasName,
+        isExported: true,
+        type: baseType,
+      });
+      return aliasName;
+    }
+    
+    // Default to string
+    this.sourceFile.addTypeAlias({
+      name: aliasName,
+      isExported: true,
+      type: 'string',
+    });
+    return aliasName;
+  }
+  
+  private isBuiltInXsdType(typeName: string): boolean {
+    const builtInTypes = [
+      'string', 'boolean', 'int', 'integer', 'long', 'short', 'byte',
+      'decimal', 'float', 'double', 'positiveInteger', 'nonNegativeInteger',
+      'negativeInteger', 'nonPositiveInteger', 'unsignedLong', 'unsignedInt',
+      'unsignedShort', 'unsignedByte', 'date', 'dateTime', 'time', 'duration',
+      'anyURI', 'base64Binary', 'hexBinary', 'QName', 'token', 'language',
+      'Name', 'NCName', 'ID', 'IDREF', 'NMTOKEN', 'normalizedString',
+      'anyType', 'anySimpleType',
+    ];
+    return builtInTypes.includes(typeName);
+  }
+  
+  private mapSimpleType(typeName: string): string {
+    const mapping: Record<string, string> = {
+      'string': 'string',
+      'boolean': 'boolean',
+      'int': 'number',
+      'integer': 'number',
+      'long': 'number',
+      'short': 'number',
+      'byte': 'number',
+      'decimal': 'number',
+      'float': 'number',
+      'double': 'number',
+      'positiveInteger': 'number',
+      'nonNegativeInteger': 'number',
+      'negativeInteger': 'number',
+      'nonPositiveInteger': 'number',
+      'unsignedLong': 'number',
+      'unsignedInt': 'number',
+      'unsignedShort': 'number',
+      'unsignedByte': 'number',
+      'date': 'string',
+      'dateTime': 'string',
+      'time': 'string',
+      'duration': 'string',
+      'anyURI': 'string',
+      'base64Binary': 'string',
+      'hexBinary': 'string',
+      'QName': 'string',
+      'token': 'string',
+      'language': 'string',
+      'Name': 'string',
+      'NCName': 'string',
+      'ID': 'string',
+      'IDREF': 'string',
+      'NMTOKEN': 'string',
+      'normalizedString': 'string',
+      'anyType': 'unknown',
+      'anySimpleType': 'unknown',
+    };
+    return mapping[typeName] ?? typeName;
+  }
+  
+  private toInterfaceName(typeName: string): string {
+    return typeName.charAt(0).toUpperCase() + typeName.slice(1);
+  }
 }

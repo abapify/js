@@ -71,7 +71,7 @@ CLI (adt-cli)
     │   ├── auth methods (basic, slc, oauth, puppeteer)
     │   └── session management (~/.adt/sessions/)
     │
-    └── @abapify/adt-client-v2
+    └── @abapify/adt-client
         └── HTTP client (receives session at runtime)
 ```
 

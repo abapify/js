@@ -1,12 +1,12 @@
-# @abapify/adt-schemas-xsd-v2
+# @abapify/adt-schemas
 
 **Type-safe SAP ADT schemas** generated from official XSD definitions with **shared types** and **optimal tree-shaking**.
 
-[![npm version](https://badge.fury.io/js/%40abapify%2Fadt-schemas-xsd-v2.svg)](https://www.npmjs.com/package/@abapify/adt-schemas-xsd-v2)
+[![npm version](https://badge.fury.io/js/%40abapify%2Fadt-schemas.svg)](https://www.npmjs.com/package/@abapify/adt-schemas)
 
 ## Overview
 
-This package provides TypeScript schemas for SAP ADT (ABAP Development Tools) REST APIs, auto-generated from SAP's official XSD schema definitions using [@abapify/ts-xsd-core](../ts-xsd-core/README.md).
+This package provides TypeScript schemas for SAP ADT (ABAP Development Tools) REST APIs, auto-generated from SAP's official XSD schema definitions using [@abapify/ts-xsd](../ts-xsd/README.md).
 
 ### Key Features
 
@@ -20,7 +20,7 @@ This package provides TypeScript schemas for SAP ADT (ABAP Development Tools) RE
 
 ```
 XSD Files (SAP Official)
-    ↓ ts-xsd-core codegen
+    ↓ ts-xsd codegen
 Schema Literals (as const)
     ↓ interface generator
 TypeScript Interfaces (204 types)
@@ -33,9 +33,9 @@ Typed Schemas (parse/build)
 ## Installation
 
 ```bash
-npm install @abapify/adt-schemas-xsd-v2
+npm install @abapify/adt-schemas
 # or
-bun add @abapify/adt-schemas-xsd-v2
+bun add @abapify/adt-schemas
 ```
 
 ## Quick Start
@@ -43,7 +43,7 @@ bun add @abapify/adt-schemas-xsd-v2
 ### Parse ADT XML
 
 ```typescript
-import { classes, type AbapClass } from '@abapify/adt-schemas-xsd-v2';
+import { classes, type AbapClass } from '@abapify/adt-schemas';
 
 // Parse XML to typed object
 const xml = await fetch('/sap/bc/adt/oo/classes/zcl_my_class').then(r => r.text());
@@ -58,7 +58,7 @@ console.log(data.include?.[0]);   // AbapClassInclude | undefined
 ### Build ADT XML
 
 ```typescript
-import { classes } from '@abapify/adt-schemas-xsd-v2';
+import { classes } from '@abapify/adt-schemas';
 
 const xml = classes.build({
   name: 'ZCL_MY_CLASS',
@@ -72,7 +72,7 @@ const xml = classes.build({
 ### Use with speci Contracts
 
 ```typescript
-import { classes, configurations } from '@abapify/adt-schemas-xsd-v2';
+import { classes, configurations } from '@abapify/adt-schemas';
 import { http } from 'speci/rest';
 
 const adtContracts = {
@@ -152,7 +152,7 @@ import type {
   AdtObject,
   AdtObjectReference,
   LinkType 
-} from '@abapify/adt-schemas-xsd-v2';
+} from '@abapify/adt-schemas';
 
 // Use in your code
 function processClass(cls: AbapClass) {
@@ -232,7 +232,7 @@ The `$imports` array enables cross-schema type resolution:
 ## Architecture
 
 ```
-@abapify/adt-schemas-xsd-v2
+@abapify/adt-schemas
 ├── src/
 │   ├── index.ts              # Main exports
 │   ├── speci.ts              # typed() wrapper factory
@@ -251,7 +251,7 @@ The `$imports` array enables cross-schema type resolution:
 
 ```
 1. Download XSD     → .xsd/model/*.xsd
-2. Parse XSD        → Schema objects (ts-xsd-core)
+2. Parse XSD        → Schema objects (ts-xsd)
 3. Generate Literal → schemas/sap/*.ts (as const)
 4. Generate Types   → types/index.ts (interfaces)
 5. Wrap with typed()→ index.ts (parse/build methods)
@@ -294,19 +294,19 @@ export default {
 
 ```bash
 # Full regeneration pipeline
-npx nx run adt-schemas-xsd-v2:generate
+npx nx run adt-schemas:generate
 
 # Individual steps
-npx nx run adt-schemas-xsd-v2:download   # Download XSD files
-npx nx run adt-schemas-xsd-v2:codegen    # Generate schema literals
-npx nx run adt-schemas-xsd-v2:types      # Generate TypeScript interfaces
+npx nx run adt-schemas:download   # Download XSD files
+npx nx run adt-schemas:codegen    # Generate schema literals
+npx nx run adt-schemas:types      # Generate TypeScript interfaces
 ```
 
 ### Add New Schema
 
 1. Add XSD to `.xsd/model/sap/` or create custom schema
 2. Update generation config
-3. Run `npx nx run adt-schemas-xsd-v2:generate`
+3. Run `npx nx run adt-schemas:generate`
 4. Add typed wrapper in `generated/index.ts`
 5. **Add test scenario** (mandatory)
 
@@ -314,7 +314,7 @@ npx nx run adt-schemas-xsd-v2:types      # Generate TypeScript interfaces
 
 ```bash
 # Run all tests
-npx nx test adt-schemas-xsd-v2
+npx nx test adt-schemas
 
 # Run specific test
 npx vitest run tests/scenarios.test.ts
@@ -336,7 +336,7 @@ interface Serializable<T> {
 This enables automatic type inference in REST contracts:
 
 ```typescript
-import { classes } from '@abapify/adt-schemas-xsd-v2';
+import { classes } from '@abapify/adt-schemas';
 
 const contract = http.get('/sap/bc/adt/oo/classes/zcl_test', {
   responses: { 200: classes },
@@ -349,7 +349,7 @@ console.log(response.data.name);  // TypeScript knows this is string
 
 ## Related Packages
 
-- **[@abapify/ts-xsd-core](../ts-xsd-core)** - Core XSD parser and type inference
+- **[@abapify/ts-xsd](../ts-xsd)** - Core XSD parser and type inference
 - **[speci](../speci)** - REST contract library
 
 ## License

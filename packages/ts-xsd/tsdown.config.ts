@@ -6,6 +6,5 @@ export default defineConfig({
   entry: ['src/index.ts'],
   external: [
     /^node:/,
-    'ts-xml',
   ],
 });

@@ -12,7 +12,7 @@
 
 import { Command } from 'commander';
 import { input, select, confirm } from '@inquirer/prompts';
-import { getAdtClientV2 } from '../../../utils/adt-client-v2';
+import { getAdtClientV2 } from '../../../utils/adt-client';
 import { AdkTransportRequest } from '@abapify/adk';
 
 /**

@@ -51,10 +51,10 @@ We need to separate **low-level HTTP client logic** (contracts, schemas) from **
 
 **Purpose:** Pure HTTP/schema definitions - no business logic
 
-**Location:** `adt-client-v2/src/adt/`
+**Location:** `adt-client/src/adt/`
 
 **Characteristics:**
-- ✅ Schema-driven using `speci` + `ts-xml`
+- ✅ Schema-driven using `speci` + `ts-xsd`
 - ✅ One contract per SAP ADT service area
 - ✅ Type-safe with automatic XML parsing/building
 - ✅ 1:1 mapping to SAP ADT REST endpoints
@@ -64,7 +64,7 @@ We need to separate **low-level HTTP client logic** (contracts, schemas) from **
 
 **Example:**
 ```typescript
-// adt-client-v2/src/adt/cts/transports-contract.ts
+// adt-client/src/adt/cts/transports-contract.ts
 export const transportsContract = createContract({
   list: (filters?: TransportFilters) =>
     adtHttp.get('/sap/bc/adt/cts/transportrequests', {
@@ -92,7 +92,7 @@ export const transportsContract = createContract({
 
 **Purpose:** Orchestrate contracts with business logic
 
-**Location:** `adt-client-v2/src/services/`
+**Location:** `adt-client/src/services/`
 
 **Characteristics:**
 - ✅ Encapsulates multi-step workflows
@@ -104,7 +104,7 @@ export const transportsContract = createContract({
 
 **File Structure:**
 ```
-adt-client-v2/src/services/
+adt-client/src/services/
 ├── transport-service.ts       # Transport business logic
 ├── atc-service.ts             # ATC workflow orchestration
 ├── deployment-service.ts      # Smart locking, CREATE/UPDATE logic
@@ -119,7 +119,7 @@ adt-client-v2/src/services/
 ### Contract (Low-Level)
 
 ```typescript
-// adt-client-v2/src/adt/cts/transports-contract.ts
+// adt-client/src/adt/cts/transports-contract.ts
 export const transportsContract = createContract({
   list: (filters?: TransportFilters) => adtHttp.get(...),
   get: (transportId: string) => adtHttp.get(...),
@@ -131,7 +131,7 @@ export const transportsContract = createContract({
 ### Service (Business Logic)
 
 ```typescript
-// adt-client-v2/src/services/transport-service.ts
+// adt-client/src/services/transport-service.ts
 import type { AdtClient } from '../client';
 
 export class TransportService {
@@ -193,7 +193,7 @@ export class TransportService {
 ### Contract (Low-Level)
 
 ```typescript
-// adt-client-v2/src/adt/atc/atc-contract.ts
+// adt-client/src/adt/atc/atc-contract.ts
 export const atcContract = createContract({
   getCustomizing: () => adtHttp.get('/sap/bc/adt/atc/customizing', ...),
 
@@ -211,7 +211,7 @@ export const atcContract = createContract({
 ### Service (Business Logic)
 
 ```typescript
-// adt-client-v2/src/services/atc-service.ts
+// adt-client/src/services/atc-service.ts
 import type { AdtClient } from '../client';
 
 export class AtcService {
@@ -283,7 +283,7 @@ export class AtcService {
 ## Example: Deployment Service
 
 ```typescript
-// adt-client-v2/src/services/deployment-service.ts
+// adt-client/src/services/deployment-service.ts
 import type { AdtClient } from '../client';
 
 export class DeploymentService {
@@ -353,8 +353,8 @@ export class DeploymentService {
 
 ```typescript
 // adt-cli/src/lib/commands/transport/create.ts
-import { createAdtClient } from '@abapify/adt-client-v2';
-import { TransportService } from '@abapify/adt-client-v2/services';
+import { createAdtClient } from '@abapify/adt-client';
+import { TransportService } from '@abapify/adt-client/services';
 
 export const transportCreateCommand = new Command('create')
   .action(async (options) => {
@@ -437,7 +437,7 @@ const transport = await transportService.createWithAutoUser({ ... });
 
 ```
 packages/
-├── adt-client-v2/
+├── adt-client/
 │   ├── src/
 │   │   ├── adt/                     # Contracts (grouped by SAP path)
 │   │   │   ├── core/

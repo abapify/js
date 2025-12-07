@@ -1,17 +1,17 @@
 /**
  * ADK v2 - ADT Integration Layer
  * 
- * Single integration point for adt-client-v2.
- * All ADK objects import types from here, not directly from adt-client-v2.
+ * Single integration point for adt-client.
+ * All ADK objects import types from here, not directly from adt-client.
  * 
  * This provides:
- * 1. Single dependency point - only this file imports from adt-client-v2
+ * 1. Single dependency point - only this file imports from adt-client
  * 2. Re-exported types - objects import from '../base/adt'
  * 3. Proxy contract - ADK-specific contract interface
  * 
  * Architecture:
  * ```
- * adt-client-v2 (external)
+ * adt-client (external)
  *       ↓
  * base/adt.ts (integration layer)
  *       ↓
@@ -20,8 +20,8 @@
  */
 
 // ============================================
-// Re-export types from adt-client-v2
-// Objects import these instead of from adt-client-v2 directly
+// Re-export types from adt-client
+// Objects import these instead of from adt-client directly
 // ============================================
 
 // Client type (return type of createAdtClient)
@@ -40,7 +40,7 @@ export type {
 
 // ============================================
 // ADK Contract Proxy
-// Wraps adt-client-v2 contract with ADK-specific interface
+// Wraps adt-client contract with ADK-specific interface
 // ============================================
 
 import type { AdtClient } from '@abapify/adt-client';
@@ -48,7 +48,7 @@ import type { AdtClient } from '@abapify/adt-client';
 /**
  * ADT REST contracts accessible via client.adt.*
  * 
- * This is the typed contract layer from adt-client-v2.
+ * This is the typed contract layer from adt-client.
  * Example: client.adt.oo.classes.get('ZCL_MY_CLASS')
  */
 export type AdtContracts = AdtClient['adt'];
@@ -56,7 +56,7 @@ export type AdtContracts = AdtClient['adt'];
 /**
  * ADK Contract interface
  * 
- * Proxy to adt-client-v2 contracts.
+ * Proxy to adt-client contracts.
  * Provides typed access to ADT REST endpoints.
  */
 export interface AdkContract {
