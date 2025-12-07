@@ -25,8 +25,8 @@ export interface AdtConnectionConfig {
  */
 export type AdtRestContract = RestContract;
 
-// Note: Class/Interface types are available from adt-schemas-xsd via InferXsd
-// Example: import { classes, InferXsd } from 'adt-schemas-xsd';
+// Note: Class/Interface types are available from adt-schemas via InferXsd
+// Example: import { classes, InferXsd } from 'adt-schemas';
 // type ClassData = InferXsd<typeof classes, 'AbapClass'>;
 
 // Error response from ADT

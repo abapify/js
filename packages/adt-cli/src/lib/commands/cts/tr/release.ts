@@ -12,7 +12,7 @@
 
 import { Command } from 'commander';
 import { confirm } from '@inquirer/prompts';
-import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
+import { getAdtClientV2, getCliContext } from '../../../utils/adt-client';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
 import { AdkTransportRequest } from '@abapify/adk';

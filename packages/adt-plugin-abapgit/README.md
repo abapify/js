@@ -90,8 +90,8 @@ npx adt import package ./source --format abapgit --target ZPACKAGE
 
 This plugin integrates with:
 
-- **ADT Client v2**: Uses `@abapify/adt-client-v2` for SAP system communication
-- **ADK v2**: Uses `@abapify/adk-v2` for type-safe object handling
+- **ADT Client v2**: Uses `@abapify/adt-client` for SAP system communication
+- **ADK v2**: Uses `@abapify/adk` for type-safe object handling
 - **CLI**: Provides abapGit format import/export operations
 - **abapGit**: Compatible with standard abapGit repository structure
 

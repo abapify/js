@@ -1,4 +1,4 @@
-# adt-schemas-xsd-v2 - AI Agent Guide
+# adt-schemas - AI Agent Guide
 
 ## Package Overview
 
@@ -22,9 +22,9 @@ Generated files are in `src/schemas/generated/`:
 - `index.ts` - Typed schema exports
 
 **If a generated schema is incorrect:**
-1. Fix the generator in `ts-xsd-core/src/codegen/`
-2. Rebuild: `npx nx build ts-xsd-core`
-3. Regenerate: `npx nx run adt-schemas-xsd-v2:generate`
+1. Fix the generator in `ts-xsd/src/codegen/`
+2. Rebuild: `npx nx build ts-xsd`
+3. Regenerate: `npx nx run adt-schemas:generate`
 
 ### 2. Custom Schemas Require `as const`
 
@@ -49,7 +49,7 @@ export default {
 1. Add real SAP XML fixture to `tests/scenarios/fixtures/`
 2. Create scenario class in `tests/scenarios/`
 3. Register in `tests/scenarios/index.ts`
-4. Run: `npx nx test adt-schemas-xsd-v2`
+4. Run: `npx nx test adt-schemas`
 
 ## Architecture
 
@@ -72,7 +72,7 @@ src/
 
 ```
 XSD Files (.xsd/model/)
-    ↓ ts-xsd-core parseXsd
+    ↓ ts-xsd parseXsd
 Schema Objects
     ↓ generateSchemaLiteral
 Schema Literals (as const)
@@ -130,7 +130,7 @@ export default {
 
 1. **Add XSD** to `.xsd/model/sap/`
 2. **Update config** in generation script
-3. **Generate**: `npx nx run adt-schemas-xsd-v2:generate`
+3. **Generate**: `npx nx run adt-schemas:generate`
 4. **Add typed wrapper** in `generated/index.ts`:
    ```typescript
    import _newschema from './schemas/sap/newschema';
@@ -162,19 +162,19 @@ export default {
 
 ```bash
 # Full pipeline
-npx nx run adt-schemas-xsd-v2:generate
+npx nx run adt-schemas:generate
 
 # Individual steps
-npx nx run adt-schemas-xsd-v2:download   # Download XSD
-npx nx run adt-schemas-xsd-v2:codegen    # Generate literals
-npx nx run adt-schemas-xsd-v2:types      # Generate interfaces
+npx nx run adt-schemas:download   # Download XSD
+npx nx run adt-schemas:codegen    # Generate literals
+npx nx run adt-schemas:types      # Generate interfaces
 ```
 
 ## Testing
 
 ```bash
 # Run all tests
-npx nx test adt-schemas-xsd-v2
+npx nx test adt-schemas
 
 # Run specific test
 npx vitest run tests/scenarios.test.ts
@@ -228,11 +228,11 @@ AdtObject
 
 ## Dependencies
 
-- `@abapify/ts-xsd-core` - Core XSD parser and type inference
+- `@abapify/ts-xsd` - Core XSD parser and type inference
 - `speci` - REST contract library (peer)
 
 ## Reference
 
 - [README.md](./README.md) - Full package documentation
-- [ts-xsd-core](../ts-xsd-core/README.md) - Core library
+- [ts-xsd](../ts-xsd/README.md) - Core library
 - [SAP ADT Documentation](https://help.sap.com/docs/)

@@ -1,7 +1,7 @@
 /**
  * Type Inference Test
  *
- * Verifies that speci + ts-xml type inference works correctly
+ * Verifies that speci + ts-xsd type inference works correctly
  */
 
 import { describe, it } from 'node:test';

@@ -1,4 +1,4 @@
-# @abapify/adk-v2
+# @abapify/adk
 
 ABAP Development Kit v2 - Schema-driven object construction for ABAP objects.
 
@@ -6,7 +6,7 @@ ABAP Development Kit v2 - Schema-driven object construction for ABAP objects.
 
 ADK v2 is a complete redesign focused on:
 
-- **Schema-first**: All types derived from `@abapify/adt-schemas-xsd`
+- **Schema-first**: All types derived from `@abapify/adt-schemas`
 - **Contract-based**: Uses `@abapify/adt-contracts` for API interactions
 - **Pure construction**: No network calls, no side effects
 - **Lazy loading**: Source code and includes loaded on-demand
@@ -16,7 +16,7 @@ ADK v2 is a complete redesign focused on:
 
 | Aspect | v1 | v2 |
 |--------|----|----|
-| Schemas | Manual (`adt-schemas`) | XSD-derived (`adt-schemas-xsd`) |
+| Schemas | Manual (`adt-schemas`) | XSD-derived (`adt-schemas`) |
 | Network | Mixed in | Separated out |
 | Source | Eager | Lazy |
 | Dependencies | `adt-client` v1 | `adt-contracts` |
@@ -24,8 +24,8 @@ ADK v2 is a complete redesign focused on:
 ## Usage
 
 ```typescript
-import { AdkFactory } from '@abapify/adk-v2';
-import { adtClientV2 } from '@abapify/adt-client-v2';
+import { AdkFactory } from '@abapify/adk';
+import { adtClientV2 } from '@abapify/adt-client';
 
 // Create factory
 const factory = new AdkFactory();
@@ -45,11 +45,11 @@ const includes = await classObj.getIncludes();
 ## Architecture
 
 ```
-adt-schemas-xsd (types)
+adt-schemas (types)
        ↓
 adt-contracts (API contracts)
        ↓
-adk-v2 (pure construction) ← THIS PACKAGE
+adk (pure construction) ← THIS PACKAGE
        ↓
 adt-cli (orchestration)
 ```

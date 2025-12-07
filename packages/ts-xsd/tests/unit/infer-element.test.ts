@@ -1,7 +1,7 @@
 /**
  * Type inference tests for InferElement with multi-level $imports
  * 
- * This tests the same pattern as adt-schemas-xsd-v2/classes schema:
+ * This tests the same pattern as adt-schemas/classes schema:
  * - AbapClass extends AbapOoObject (in abapoo)
  * - AbapOoObject extends AbapSourceMainObject (in abapsource)
  * - AbapSourceMainObject extends AdtMainObject (in adtcore)
