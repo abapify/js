@@ -11,7 +11,7 @@
  */
 
 import { Command } from 'commander';
-import { getAdtClientV2 } from '../../../utils/adt-client';
+import { getAdtClientV2 } from '../../../utils/adt-client-v2';
 
 /**
  * Extract config ID from URI path

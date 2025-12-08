@@ -166,8 +166,8 @@ describe('InferElement with multi-level $imports', () => {
 
     it('should find element by name in widened array', () => {
       // Simulate widened array (like when imports cause widening)
-      const widenedElements: readonly { name: string; type: string }[] = topSchema.element;
-      type Found = FindByName<typeof widenedElements, 'myClass'>;
+      const _widenedElements: readonly { name: string; type: string }[] = topSchema.element;
+      type Found = FindByName<typeof _widenedElements, 'myClass'>;
       // Should still find (returns the item type)
       type IsNever = [Found] extends [never] ? true : false;
       const _check: IsNever = false;
@@ -326,7 +326,7 @@ describe('InferElement with multi-level $imports', () => {
       ],
     } as const;
 
-    const l4 = {
+    const _l4 = {
       $xmlns: { l1: 'http://l1', l2: 'http://l2', l3: 'http://l3', l4: 'http://l4' },
       $imports: [l1, l2, l3],
       targetNamespace: 'http://l4',
@@ -335,7 +335,7 @@ describe('InferElement with multi-level $imports', () => {
     } as const;
 
     it('should infer element with 4 levels of inheritance', () => {
-      type Obj = InferElement<typeof l4, 'obj'>;
+      type Obj = InferElement<typeof _l4, 'obj'>;
       type IsNever = [Obj] extends [never] ? true : false;
       const _check: IsNever = false;
       
@@ -347,16 +347,21 @@ describe('InferElement with multi-level $imports', () => {
     });
 
     it('should document recursion limit workaround for array access', () => {
-      type Obj = InferElement<typeof l4, 'obj'>;
+      type Obj = InferElement<typeof _l4, 'obj'>;
       
       // KNOWN LIMITATION: Deep schema inheritance (4+ levels) causes TS2589
       // "Type instantiation is excessively deep and possibly infinite"
       // when accessing array element properties inline:
       //   data.items?.map((item) => item.itemType)  // ERROR!
       
-      // WORKAROUND 1: Use 'any' type annotation
-      function testWithAny(data: Obj) {
-        const types = data.items?.map((item: any) => item.itemType);
+      // WORKAROUND 1: Use 'unknown' type annotation with type guard
+      function _testWithUnknown(data: Obj) {
+        const types = data.items?.map((item: unknown) => {
+          if (item && typeof item === 'object' && 'itemType' in item) {
+            return (item as { itemType?: string }).itemType;
+          }
+          return undefined;
+        });
         return types;
       }
       
@@ -364,7 +369,7 @@ describe('InferElement with multi-level $imports', () => {
       interface ItemType {
         itemType?: string;
       }
-      function testWithInterface(data: Obj) {
+      function _testWithInterface(data: Obj) {
         const types = data.items?.map((item: ItemType) => item.itemType);
         return types;
       }

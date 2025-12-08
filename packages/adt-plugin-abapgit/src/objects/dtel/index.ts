@@ -4,34 +4,30 @@
  */
 
 import type { AdkObject } from '@abapify/adk';
-import { createSerializer } from '../../lib/create-serializer';
-import { AbapGitDtelValuesSchema } from './schema';
-import type { Dd04vTable } from './types';
+import { dtel } from '../../schemas/generated';
+import { buildAbapGitEnvelope } from '../../lib/shared-schema';
 
 /**
- * Map ADK v2 object to abapGit DD04V structure
+ * Serialize ADK Data Element to abapGit XML
  *
  * Note: DataElement doesn't have full ADK v2 support yet, so we work with
  *       generic AdkObject and extract what we can from basic properties
  */
-function mapDataElementToAbapGit(dtel: AdkObject): Dd04vTable {
-  return {
-    ROLLNAME: dtel.name || '',
+export function serializeDataElement(dtelObj: AdkObject): string {
+  const data = {
+    ROLLNAME: dtelObj.name || '',
     DDLANGUAGE: 'E',
-    DDTEXT: dtel.description || '',
+    DDTEXT: dtelObj.description || '',
     HEADLEN: '55',
     SCRLEN1: '10',
     SCRLEN2: '20',
     SCRLEN3: '40',
     DTELMASTER: 'E',
   };
+  
+  // Use ts-xsd schema to build the inner content
+  const innerXml = dtel.build(data);
+  
+  // Wrap in abapGit envelope
+  return buildAbapGitEnvelope(innerXml, 'LCL_OBJECT_DTEL');
 }
-
-/**
- * Serialize ADK Data Element to abapGit XML
- */
-export const serializeDataElement = createSerializer({
-  valuesSchema: AbapGitDtelValuesSchema,
-  mapper: mapDataElementToAbapGit,
-  serializerClass: 'LCL_OBJECT_DTEL',
-});

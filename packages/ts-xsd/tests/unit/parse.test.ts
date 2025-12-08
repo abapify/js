@@ -35,8 +35,7 @@ describe('parseXsd', () => {
   it('should parse simpleTypes with enumerations', () => {
     const schema = parseXsd(xsdContent);
 
-    const simpleTypes = schema.simpleType as any[];
-    const formChoice = simpleTypes?.find(st => st.name === 'formChoice');
+    const formChoice = schema.simpleType?.find(st => st.name === 'formChoice');
 
     assert.ok(formChoice, 'formChoice should exist');
     assert.equal(formChoice?.restriction?.enumeration?.length, 2);
