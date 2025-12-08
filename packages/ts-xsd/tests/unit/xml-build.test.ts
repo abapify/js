@@ -693,4 +693,175 @@ describe('buildXml', () => {
       assert.ok(xml.includes('<Product'), `Expected <Product> but got: ${xml}`);
     });
   });
+
+  describe('rootElement option with $imports', () => {
+    it('should throw when rootElement not found in schema or $imports', () => {
+      const schema = {
+        element: [{ name: 'Person', type: 'PersonType' }],
+        complexType: [{
+          name: 'PersonType',
+          sequence: {
+            element: [{ name: 'name', type: 'xs:string' }],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      assert.throws(() => {
+        buildXml(schema, { name: 'Test' }, { rootElement: 'NonExistent' });
+      }, /Element 'NonExistent' not found in schema/);
+    });
+
+    it('should find rootElement in $imports', () => {
+      const importedSchema = {
+        element: [{ name: 'Item', type: 'ItemType' }],
+        complexType: [{
+          name: 'ItemType',
+          sequence: {
+            element: [{ name: 'id', type: 'xs:string' }],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      const mainSchema = {
+        element: [],
+        complexType: [],
+        $imports: [importedSchema],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(mainSchema, { id: '123' }, { rootElement: 'Item', xmlDecl: false });
+      assert.ok(xml.includes('<Item'), `Expected <Item> but got: ${xml}`);
+      assert.ok(xml.includes('<id>123</id>'));
+    });
+  });
+
+  describe('pretty printing', () => {
+    it('should format XML with pretty option', () => {
+      const schema = {
+        element: [{ name: 'Root', type: 'RootType' }],
+        complexType: [{
+          name: 'RootType',
+          sequence: {
+            element: [
+              { name: 'child1', type: 'xs:string' },
+              { name: 'child2', type: 'xs:string' },
+            ],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { child1: 'a', child2: 'b' }, { pretty: true, xmlDecl: false });
+      // Pretty printed XML should have newlines
+      assert.ok(xml.includes('\n'), 'Pretty XML should contain newlines');
+    });
+  });
+
+  describe('encoding option', () => {
+    it('should use custom encoding in XML declaration', () => {
+      const schema = {
+        element: [{ name: 'Root', type: 'RootType' }],
+        complexType: [{
+          name: 'RootType',
+          sequence: {
+            element: [{ name: 'value', type: 'xs:string' }],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { value: 'test' }, { encoding: 'ISO-8859-1' });
+      assert.ok(xml.includes('encoding="ISO-8859-1"'), `Expected ISO-8859-1 encoding but got: ${xml}`);
+    });
+  });
+
+  describe('element without type or complexType', () => {
+    it('should throw when element has no type definition', () => {
+      const schema = {
+        element: [{ name: 'Root' }], // No type or complexType
+        complexType: [],
+      } as const satisfies SchemaLike;
+
+      assert.throws(() => {
+        buildXml(schema, {}, { rootElement: 'Root' });
+      }, /has no type or inline complexType/);
+    });
+  });
+
+  describe('array values', () => {
+    it('should build multiple elements for array values', () => {
+      const schema = {
+        element: [{ name: 'Root', type: 'RootType' }],
+        complexType: [{
+          name: 'RootType',
+          sequence: {
+            element: [{ name: 'item', type: 'xs:string', maxOccurs: 'unbounded' }],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { item: ['a', 'b', 'c'] }, { xmlDecl: false });
+      assert.ok(xml.includes('<item>a</item>'));
+      assert.ok(xml.includes('<item>b</item>'));
+      assert.ok(xml.includes('<item>c</item>'));
+    });
+
+    it('should build array of complex elements', () => {
+      const schema = {
+        element: [{ name: 'Root', type: 'RootType' }],
+        complexType: [
+          {
+            name: 'RootType',
+            sequence: {
+              element: [{ name: 'person', type: 'PersonType', maxOccurs: 'unbounded' }],
+            },
+          },
+          {
+            name: 'PersonType',
+            sequence: {
+              element: [{ name: 'name', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { 
+        person: [{ name: 'Alice' }, { name: 'Bob' }] 
+      }, { xmlDecl: false });
+      
+      assert.ok(xml.includes('<person><name>Alice</name></person>'));
+      assert.ok(xml.includes('<person><name>Bob</name></person>'));
+    });
+  });
+
+  describe('null and undefined handling', () => {
+    it('should skip null attribute values', () => {
+      const schema = {
+        element: [{ name: 'Root', type: 'RootType' }],
+        complexType: [{
+          name: 'RootType',
+          attribute: [{ name: 'id', type: 'xs:string' }],
+        }],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { id: null }, { xmlDecl: false });
+      assert.ok(!xml.includes('id='), 'Should not include null attribute');
+    });
+
+    it('should skip undefined element values', () => {
+      const schema = {
+        element: [{ name: 'Root', type: 'RootType' }],
+        complexType: [{
+          name: 'RootType',
+          sequence: {
+            element: [
+              { name: 'required', type: 'xs:string' },
+              { name: 'optional', type: 'xs:string' },
+            ],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { required: 'yes', optional: undefined }, { xmlDecl: false });
+      assert.ok(xml.includes('<required>yes</required>'));
+      assert.ok(!xml.includes('<optional'), 'Should not include undefined element');
+    });
+  });
 });

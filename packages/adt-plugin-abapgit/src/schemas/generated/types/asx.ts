@@ -6,12 +6,12 @@
  */
 
 /** Generated from complexType: AbapValuesType */
-export interface AbapValuesType {
-    Schema?: (VseoClassType | DevcType | Dd01vType | Dd07vTabType | Dd04vType | VseoInterfType)[];
+export interface AbapValuesType<T = unknown> {
+    Schema?: T[];
 }
 
 /** Generated from complexType: AbapType */
-export interface AbapType {
-    values: AbapValuesType;
+export interface AbapType<T = unknown> {
+    values: AbapValuesType<T>;
     version?: string;
 }

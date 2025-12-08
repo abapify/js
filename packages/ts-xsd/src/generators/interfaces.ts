@@ -19,6 +19,8 @@ import type { Schema } from '../xsd/types';
 export interface InterfacesOptions extends GeneratorOptions {
   /** Output file name pattern. Use {name} for schema name (default: '{name}.types.ts') */
   filePattern?: string;
+  /** Import path pattern for cross-schema type imports. Use {name} for schema name (default: './{name}.types') */
+  importPattern?: string;
   /** Add file header comment */
   header?: boolean;
 }
@@ -50,6 +52,7 @@ export interface InterfacesOptions extends GeneratorOptions {
 export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
   const {
     filePattern = '{name}.types.ts',
+    importPattern = './{name}.types',
     header = true,
     ...generatorOptions
   } = options;
@@ -61,7 +64,7 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
       const { schema, source, allSchemas } = ctx;
       
       // Link schemas: resolve $imports from allSchemas
-      const linkedSchema = linkSchemaImports(schema.schema, allSchemas);
+      const linkedSchema = linkSchemaImports(schema.schema, allSchemas, schema.name);
       
       // Use the core generator with dependency tracking
       const result = generateInterfacesWithDeps(linkedSchema, {
@@ -119,7 +122,8 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
         // Generate import statements
         for (const [schemaFile, types] of typesByFile) {
           const uniqueTypes = [...new Set(types)].sort();
-          lines.push(`import type { ${uniqueTypes.join(', ')} } from './${schemaFile}.types';`);
+          const importPath = importPattern.replace('{name}', schemaFile);
+          lines.push(`import type { ${uniqueTypes.join(', ')} } from '${importPath}';`);
         }
         
         if (typesByFile.size > 0) {
@@ -128,6 +132,39 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
       }
 
       lines.push(result.code);
+
+      // Add substitution values interfaces and specialized interfaces
+      // e.g., interface DomaValuesType { DD01V: Dd01vType; DD07V_TAB?: Dd07vTabType; }
+      //       interface AbapGitDoma { abap: { values: DomaValuesType; version?: string; }; ... }
+      if (result.substitutionAliases.length > 0) {
+        lines.push('');
+        lines.push('// Substitution values types and specialized interfaces');
+        
+        for (const alias of result.substitutionAliases) {
+          // Generate the values interface with element names as properties
+          lines.push(`/** Values type for ${alias.aliasName} with element names as properties */`);
+          lines.push(`export interface ${alias.valuesTypeName} {`);
+          for (const el of alias.elements) {
+            const optional = el.required ? '' : '?';
+            lines.push(`    ${el.elementName}${optional}: ${el.typeName};`);
+          }
+          lines.push('}');
+          lines.push('');
+          
+          // Generate a full interface instead of type alias to get proper element access
+          // This replaces AbapValuesType<T> with the concrete values type
+          lines.push(`/** ${alias.genericType} specialized for ${schema.name} object type */`);
+          lines.push(`export interface ${alias.aliasName} {`);
+          lines.push(`    abap: {`);
+          lines.push(`        values: ${alias.valuesTypeName};`);
+          lines.push(`        version?: string;`);
+          lines.push(`    };`);
+          lines.push(`    version: string;`);
+          lines.push(`    serializer: string;`);
+          lines.push(`    serializer_version: string;`);
+          lines.push(`}`);
+        }
+      }
 
       const fileName = filePattern.replace('{name}', schema.name);
 
@@ -155,7 +192,8 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
  */
 function linkSchemaImports(
   schema: Schema,
-  allSchemas: Map<string, SchemaInfo>
+  allSchemas: Map<string, SchemaInfo>,
+  schemaName: string
 ): Schema {
   // Include ALL schemas as $imports so substitution groups can be resolved
   // This allows finding substitutes defined in any schema, not just direct imports
@@ -167,13 +205,10 @@ function linkSchemaImports(
     $imports.push(schemaInfo.schema);
   }
 
-  if ($imports.length === 0) {
-    return schema;
-  }
-
-  // Return schema with $imports populated with all schemas
+  // Return schema with $imports populated and $filename set
   return {
     ...schema,
     $imports,
+    $filename: schema.$filename ?? `${schemaName}.xsd`,
   };
 }

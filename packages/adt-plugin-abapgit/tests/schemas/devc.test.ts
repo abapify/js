@@ -7,7 +7,7 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { devc as devcSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitDevc } from '../../src/schemas/generated/envelope.types.ts';
+import type { AbapGitDevc } from '../../src/schemas/generated/types/index.ts';
 
 const schema = createTypedSchema<AbapGitDevc>(devcSchema);
 

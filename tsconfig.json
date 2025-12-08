@@ -65,6 +65,9 @@
     },
     {
       "path": "./packages/adt-schemas"
+    },
+    {
+      "path": "./packages/adt-plugin-abapgit"
     }
   ]
 }

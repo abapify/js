@@ -796,4 +796,134 @@ describe('parseXml', () => {
       });
     });
   });
+
+  describe('simpleContent with extension', () => {
+    it('should parse element with simpleContent extension', () => {
+      // Schema with simpleContent - text content with attributes
+      const schema = {
+        element: [{ name: 'Price', type: 'PriceType' }],
+        complexType: [
+          {
+            name: 'PriceType',
+            simpleContent: {
+              extension: {
+                base: 'xs:decimal',
+                attribute: [
+                  { name: 'currency', type: 'xs:string' },
+                  { name: 'discount', type: 'xs:boolean' },
+                ],
+              },
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = `<Price currency="USD" discount="true">99.99</Price>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, {
+        $value: 99.99,
+        currency: 'USD',
+        discount: true,
+      });
+    });
+
+    it('should parse simpleContent with default attribute value', () => {
+      const schema = {
+        element: [{ name: 'Amount', type: 'AmountType' }],
+        complexType: [
+          {
+            name: 'AmountType',
+            simpleContent: {
+              extension: {
+                base: 'xs:integer',
+                attribute: [
+                  { name: 'unit', type: 'xs:string', default: 'pieces' },
+                ],
+              },
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      // XML without the unit attribute - should use default
+      const xml = `<Amount>42</Amount>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, {
+        $value: 42,
+        unit: 'pieces',
+      });
+    });
+
+    it('should parse simpleContent with string base type', () => {
+      const schema = {
+        element: [{ name: 'Label', type: 'LabelType' }],
+        complexType: [
+          {
+            name: 'LabelType',
+            simpleContent: {
+              extension: {
+                base: 'xs:string',
+                attribute: [
+                  { name: 'lang', type: 'xs:string' },
+                ],
+              },
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = `<Label lang="en">Hello World</Label>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, {
+        $value: 'Hello World',
+        lang: 'en',
+      });
+    });
+  });
+
+  describe('Case-insensitive element matching fallback', () => {
+    it('should match element name case-insensitively when exact match fails', () => {
+      // Schema has "Person" but XML has "person" (lowercase)
+      const schema = {
+        element: [{ name: 'Person', type: 'PersonType' }],
+        complexType: [
+          {
+            name: 'PersonType',
+            sequence: {
+              element: [{ name: 'name', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      // XML with lowercase root element
+      const xml = `<person><name>John</name></person>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, { name: 'John' });
+    });
+
+    it('should match element name with different casing', () => {
+      const schema = {
+        element: [{ name: 'EMPLOYEE', type: 'EmployeeType' }],
+        complexType: [
+          {
+            name: 'EmployeeType',
+            sequence: {
+              element: [{ name: 'id', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      // XML with mixed case
+      const xml = `<Employee><id>E123</id></Employee>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, { id: 'E123' });
+    });
+  });
 });

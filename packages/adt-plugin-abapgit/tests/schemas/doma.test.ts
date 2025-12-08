@@ -7,7 +7,7 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { doma as domaSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitDoma } from '../../src/schemas/generated/envelope.types.ts';
+import type { AbapGitDoma } from '../../src/schemas/generated/types/doma.ts';
 
 const schema = createTypedSchema<AbapGitDoma>(domaSchema);
 

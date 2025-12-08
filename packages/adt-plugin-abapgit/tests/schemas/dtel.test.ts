@@ -7,7 +7,7 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { dtel as dtelSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitDtel } from '../../src/schemas/generated/envelope.types.ts';
+import type { AbapGitDtel } from '../../src/schemas/generated/types/index.ts';
 
 const schema = createTypedSchema<AbapGitDtel>(dtelSchema);
 

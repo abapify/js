@@ -229,15 +229,17 @@ function createImportResolver(
   currentSchema: SchemaInfo,
   currentSource: SourceInfo,
   allSources: Record<string, SourceInfo>,
-  _config: CodegenConfig
+  config: CodegenConfig
 ): (schemaLocation: string) => string | null {
+  const ext = config.importExtension ?? '.ts';
+  
   return (schemaLocation: string) => {
     // Extract schema name from location (e.g., "../sap/adtcore.xsd" -> "adtcore")
     const schemaName = schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
     
     // Check if it's in the current source
     if (currentSource.schemas.includes(schemaName)) {
-      return `./${schemaName}.ts`;
+      return `./${schemaName}${ext}`;
     }
     
     // Check other sources
@@ -247,7 +249,7 @@ function createImportResolver(
       if (source.schemas.includes(schemaName)) {
         // Calculate relative path from current output to other source output
         const relPath = relative(currentSource.outputDir, source.outputDir);
-        return `${relPath}/${schemaName}.ts`.replace(/\\/g, '/');
+        return `${relPath}/${schemaName}${ext}`.replace(/\\/g, '/');
       }
     }
     
