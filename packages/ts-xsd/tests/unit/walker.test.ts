@@ -477,4 +477,274 @@ describe('Schema Walker', () => {
       }
     });
   });
+
+  // ==========================================================================
+  // Object-format ComplexType/SimpleType Tests
+  // ==========================================================================
+  describe('Object-format types', () => {
+    const objectFormatSchema: SchemaLike = {
+      complexType: {
+        PersonType: {
+          sequence: {
+            element: [{ name: 'name', type: 'xs:string' }],
+          },
+        },
+        AddressType: {
+          sequence: {
+            element: [{ name: 'street', type: 'xs:string' }],
+          },
+        },
+      } as unknown as ComplexTypeLike[],
+      simpleType: {
+        StatusType: {
+          restriction: { base: 'xs:string' },
+        },
+        CodeType: {
+          restriction: { base: 'xs:integer' },
+        },
+      } as unknown as ComplexTypeLike[],
+    };
+
+    it('should walk complexTypes in object format', () => {
+      const types = [...walkComplexTypes(objectFormatSchema)];
+      const names = types.map(t => t.ct.name);
+      
+      assert.ok(names.includes('PersonType'), 'Should include PersonType');
+      assert.ok(names.includes('AddressType'), 'Should include AddressType');
+    });
+
+    it('should walk simpleTypes in object format', () => {
+      const types = [...walkSimpleTypes(objectFormatSchema)];
+      const names = types.map(t => t.st.name);
+      
+      assert.ok(names.includes('StatusType'), 'Should include StatusType');
+      assert.ok(names.includes('CodeType'), 'Should include CodeType');
+    });
+  });
+
+  // ==========================================================================
+  // Empty Schema Tests
+  // ==========================================================================
+  describe('Empty schemas', () => {
+    const emptySchema: SchemaLike = {};
+
+    it('should handle schema with no complexTypes', () => {
+      const types = [...walkComplexTypes(emptySchema)];
+      assert.equal(types.length, 0);
+    });
+
+    it('should handle schema with no simpleTypes', () => {
+      const types = [...walkSimpleTypes(emptySchema)];
+      assert.equal(types.length, 0);
+    });
+
+    it('should handle schema with no elements', () => {
+      const elements = [...walkTopLevelElements(emptySchema)];
+      assert.equal(elements.length, 0);
+    });
+
+    it('should return undefined for findComplexType in empty schema', () => {
+      const result = findComplexType('NonExistent', emptySchema);
+      assert.equal(result, undefined);
+    });
+
+    it('should return undefined for findSimpleType in empty schema', () => {
+      const result = findSimpleType('NonExistent', emptySchema);
+      assert.equal(result, undefined);
+    });
+
+    it('should return undefined for findElement in empty schema', () => {
+      const result = findElement('NonExistent', emptySchema);
+      assert.equal(result, undefined);
+    });
+  });
+
+  // ==========================================================================
+  // ComplexType with complexContent extension
+  // ==========================================================================
+  describe('ComplexContent extension', () => {
+    const extensionSchema: SchemaLike = {
+      complexType: [
+        {
+          name: 'BaseType',
+          sequence: {
+            element: [{ name: 'baseField', type: 'xs:string' }],
+          },
+          attribute: [{ name: 'baseAttr', type: 'xs:string' }],
+        },
+        {
+          name: 'DerivedType',
+          complexContent: {
+            extension: {
+              base: 'BaseType',
+              sequence: {
+                element: [{ name: 'derivedField', type: 'xs:string' }],
+              },
+              attribute: [{ name: 'derivedAttr', type: 'xs:string' }],
+            },
+          },
+        },
+      ],
+    };
+
+    it('should walk elements from base type via extension', () => {
+      const complexTypes = extensionSchema.complexType as ComplexTypeLike[];
+      const derivedType = complexTypes.find(
+        (ct: ComplexTypeLike) => ct.name === 'DerivedType'
+      ) as ComplexTypeLike;
+      
+      const elements = [...walkElements(derivedType, extensionSchema)];
+      const names = elements.map(e => e.element.name);
+      
+      assert.ok(names.includes('baseField'), 'Should include base field');
+      assert.ok(names.includes('derivedField'), 'Should include derived field');
+    });
+
+    it('should walk attributes from base type via extension', () => {
+      const complexTypes = extensionSchema.complexType as ComplexTypeLike[];
+      const derivedType = complexTypes.find(
+        (ct: ComplexTypeLike) => ct.name === 'DerivedType'
+      ) as ComplexTypeLike;
+      
+      const attrs = [...walkAttributes(derivedType, extensionSchema)];
+      const names = attrs.map(a => a.attribute.name);
+      
+      assert.ok(names.includes('baseAttr'), 'Should include base attribute');
+      assert.ok(names.includes('derivedAttr'), 'Should include derived attribute');
+    });
+  });
+
+  // ==========================================================================
+  // Group references
+  // ==========================================================================
+  describe('Group references', () => {
+    const groupSchema: SchemaLike = {
+      group: [
+        {
+          name: 'CommonFields',
+          sequence: {
+            element: [
+              { name: 'id', type: 'xs:string' },
+              { name: 'timestamp', type: 'xs:dateTime' },
+            ],
+          },
+        },
+      ],
+      complexType: [
+        {
+          name: 'RecordType',
+          sequence: {
+            group: [{ ref: 'CommonFields' }],
+            element: [{ name: 'data', type: 'xs:string' }],
+          },
+        },
+      ],
+    };
+
+    it('should walk elements from group reference', () => {
+      const complexTypes = groupSchema.complexType as ComplexTypeLike[];
+      const recordType = complexTypes.find(
+        (ct: ComplexTypeLike) => ct.name === 'RecordType'
+      ) as ComplexTypeLike;
+      
+      const elements = [...walkElements(recordType, groupSchema)];
+      const names = elements.map(e => e.element.name);
+      
+      assert.ok(names.includes('id'), 'Should include id from group');
+      assert.ok(names.includes('timestamp'), 'Should include timestamp from group');
+      assert.ok(names.includes('data'), 'Should include direct element');
+    });
+  });
+
+  // ==========================================================================
+  // AttributeGroup references
+  // ==========================================================================
+  describe('AttributeGroup references', () => {
+    const attrGroupSchema: SchemaLike = {
+      attributeGroup: [
+        {
+          name: 'CommonAttrs',
+          attribute: [
+            { name: 'lang', type: 'xs:string' },
+            { name: 'encoding', type: 'xs:string' },
+          ],
+        },
+      ],
+      complexType: [
+        {
+          name: 'DocumentType',
+          attributeGroup: [{ ref: 'CommonAttrs' }],
+          attribute: [{ name: 'version', type: 'xs:string' }],
+        },
+      ],
+    };
+
+    it('should walk attributes from attributeGroup reference', () => {
+      const complexTypes = attrGroupSchema.complexType as ComplexTypeLike[];
+      const docType = complexTypes.find(
+        (ct: ComplexTypeLike) => ct.name === 'DocumentType'
+      ) as ComplexTypeLike;
+      
+      const attrs = [...walkAttributes(docType, attrGroupSchema)];
+      const names = attrs.map(a => a.attribute.name);
+      
+      assert.ok(names.includes('lang'), 'Should include lang from group');
+      assert.ok(names.includes('encoding'), 'Should include encoding from group');
+      assert.ok(names.includes('version'), 'Should include direct attribute');
+    });
+  });
+
+  // ==========================================================================
+  // Choice and All groups
+  // ==========================================================================
+  describe('Choice and All groups in walker', () => {
+    const choiceSchema: SchemaLike = {
+      complexType: [
+        {
+          name: 'ChoiceType',
+          choice: {
+            element: [
+              { name: 'optionA', type: 'xs:string' },
+              { name: 'optionB', type: 'xs:integer' },
+            ],
+          },
+        },
+        {
+          name: 'AllType',
+          all: {
+            element: [
+              { name: 'field1', type: 'xs:string' },
+              { name: 'field2', type: 'xs:string' },
+            ],
+          },
+        },
+      ],
+    };
+
+    it('should walk elements from choice group', () => {
+      const complexTypes = choiceSchema.complexType as ComplexTypeLike[];
+      const choiceType = complexTypes.find(
+        (ct: ComplexTypeLike) => ct.name === 'ChoiceType'
+      ) as ComplexTypeLike;
+      
+      const elements = [...walkElements(choiceType, choiceSchema)];
+      const names = elements.map(e => e.element.name);
+      
+      assert.ok(names.includes('optionA'));
+      assert.ok(names.includes('optionB'));
+    });
+
+    it('should walk elements from all group', () => {
+      const complexTypes = choiceSchema.complexType as ComplexTypeLike[];
+      const allType = complexTypes.find(
+        (ct: ComplexTypeLike) => ct.name === 'AllType'
+      ) as ComplexTypeLike;
+      
+      const elements = [...walkElements(allType, choiceSchema)];
+      const names = elements.map(e => e.element.name);
+      
+      assert.ok(names.includes('field1'));
+      assert.ok(names.includes('field2'));
+    });
+  });
 });

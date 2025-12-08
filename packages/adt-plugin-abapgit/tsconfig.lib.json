@@ -16,9 +16,6 @@
       "path": "../ts-xsd"
     },
     {
-      "path": "../speci"
-    },
-    {
       "path": "../adk/tsconfig.lib.json"
     }
   ]

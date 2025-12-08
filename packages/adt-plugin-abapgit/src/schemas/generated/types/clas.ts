@@ -26,3 +26,21 @@ export interface VseoClassType {
     SHRM_ENABLED?: string;
     ABAP_LANGUAGE_VERSION?: string;
 }
+
+
+// Substitution values types and specialized interfaces
+/** Values type for AbapGitClas with element names as properties */
+export interface ClasValuesType {
+    VSEOCLASS: VseoClassType;
+}
+
+/** AbapGit specialized for clas object type */
+export interface AbapGitClas {
+    abap: {
+        values: ClasValuesType;
+        version?: string;
+    };
+    version: string;
+    serializer: string;
+    serializer_version: string;
+}
