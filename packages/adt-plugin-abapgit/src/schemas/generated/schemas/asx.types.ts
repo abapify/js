@@ -7,7 +7,7 @@
 
 /** Generated from complexType: AbapValuesType */
 export interface AbapValuesType {
-    Schema: Schema;
+    Schema?: (VseoClassType | DevcType | Dd01vType | Dd07vTabType | Dd04vType | VseoInterfType)[];
 }
 
 /** Generated from complexType: AbapType */

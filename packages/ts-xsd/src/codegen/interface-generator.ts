@@ -1528,12 +1528,30 @@ class InterfaceGeneratorWithDeps {
           typeName = this.resolveType(stripNsPrefix(refElement.type));
         } else if (refElement && refElement.complexType) {
           typeName = this.generateInlineComplexType(refName, refElement.complexType);
+        } else if (refElement && this.isAbstractElement(refElement)) {
+          // Abstract element - find all substitutes and create union type
+          const substitutes = this.findSubstitutes(refName);
+          if (substitutes.length > 0) {
+            const substituteTypes = substitutes.map(sub => {
+              if (sub.type) {
+                return this.resolveType(stripNsPrefix(sub.type));
+              } else if (sub.complexType) {
+                return sub.name ? this.generateInlineComplexType(sub.name, sub.complexType) : 'unknown';
+              }
+              return sub.name ? this.toInterfaceName(sub.name) : 'unknown';
+            });
+            typeName = substituteTypes.join(' | ');
+          } else {
+            // No substitutes found - use unknown
+            typeName = 'unknown';
+          }
         } else {
           typeName = this.toInterfaceName(refName);
         }
         
         if (isArray) {
-          typeName = `${typeName}[]`;
+          // Only wrap in parentheses if it's a union type (contains |)
+          typeName = typeName.includes(' | ') ? `(${typeName})[]` : `${typeName}[]`;
         }
         
         if (!properties.some(p => p.name === refName)) {
@@ -1928,5 +1946,52 @@ class InterfaceGeneratorWithDeps {
   
   private toInterfaceName(typeName: string): string {
     return typeName.charAt(0).toUpperCase() + typeName.slice(1);
+  }
+  
+  /**
+   * Check if an element is abstract
+   */
+  private isAbstractElement(element: ElementLike): boolean {
+    return element.abstract === true;
+  }
+  
+  /**
+   * Find all elements that substitute for an abstract element.
+   * This handles XSD substitution groups where concrete elements can
+   * substitute for an abstract element.
+   */
+  private findSubstitutes(abstractElementName: string): ElementLike[] {
+    const substitutes: ElementLike[] = [];
+    
+    // Search in current schema
+    const elements = this.schema.element;
+    if (elements && Array.isArray(elements)) {
+      for (const el of elements) {
+        if (el.substitutionGroup) {
+          const subGroupName = stripNsPrefix(el.substitutionGroup);
+          if (subGroupName === abstractElementName) {
+            substitutes.push(el);
+          }
+        }
+      }
+    }
+    
+    // Search in all imports
+    for (const imported of this.allImports) {
+      const importedElements = imported.element;
+      if (importedElements && Array.isArray(importedElements)) {
+        for (const el of importedElements) {
+          const subGroup = el.substitutionGroup;
+          if (subGroup) {
+            const subGroupName = stripNsPrefix(subGroup);
+            if (subGroupName === abstractElementName) {
+              substitutes.push(el);
+            }
+          }
+        }
+      }
+    }
+    
+    return substitutes;
   }
 }

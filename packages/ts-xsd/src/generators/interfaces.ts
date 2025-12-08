@@ -7,9 +7,10 @@
  * Output: `export interface TypeName { ... }`
  */
 
-import type { GeneratorPlugin, TransformContext, GeneratedFile } from '../codegen/types';
+import type { GeneratorPlugin, TransformContext, GeneratedFile, SchemaInfo } from '../codegen/types';
 import { generateInterfacesWithDeps } from '../codegen/interface-generator';
 import type { GeneratorOptions } from '../codegen/interface-generator';
+import type { Schema } from '../xsd/types';
 
 // ============================================================================
 // Options
@@ -57,10 +58,13 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
     name: 'interfaces',
 
     transform(ctx: TransformContext): GeneratedFile[] {
-      const { schema, source } = ctx;
+      const { schema, source, allSchemas } = ctx;
+      
+      // Link schemas: resolve $imports from allSchemas
+      const linkedSchema = linkSchemaImports(schema.schema, allSchemas);
       
       // Use the core generator with dependency tracking
-      const result = generateInterfacesWithDeps(schema.schema, {
+      const result = generateInterfacesWithDeps(linkedSchema, {
         generateAllTypes: true,  // Default to generating all types
         addJsDoc: true,
         ...generatorOptions,
@@ -132,5 +136,44 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
         content: lines.join('\n'),
       }];
     },
+  };
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Link schema imports by resolving schemaLocation references to actual schema objects.
+ * Also includes ALL schemas as $imports so substitution groups can be resolved
+ * across the entire schema set (not just direct imports).
+ * 
+ * This is necessary because substitution groups work in reverse:
+ * - asx.xsd defines abstract element Schema
+ * - doma.xsd imports asx.xsd and defines DD01V substituting for Schema
+ * - When generating asx.types.ts, we need to know about DD01V from doma.xsd
+ */
+function linkSchemaImports(
+  schema: Schema,
+  allSchemas: Map<string, SchemaInfo>
+): Schema {
+  // Include ALL schemas as $imports so substitution groups can be resolved
+  // This allows finding substitutes defined in any schema, not just direct imports
+  const $imports: Schema[] = [];
+  
+  for (const [_name, schemaInfo] of allSchemas) {
+    // Skip self-reference
+    if (schemaInfo.schema === schema) continue;
+    $imports.push(schemaInfo.schema);
+  }
+
+  if ($imports.length === 0) {
+    return schema;
+  }
+
+  // Return schema with $imports populated with all schemas
+  return {
+    ...schema,
+    $imports,
   };
 }

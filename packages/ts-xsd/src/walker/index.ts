@@ -294,12 +294,16 @@ function* walkGroup(
         const refEntry = findElement(refName, schema);
         
         if (refEntry && isAbstractElement(refEntry.element)) {
-          // Abstract element - yield substitutes instead
+          // Abstract element - yield substitutes if found in this schema
           const substitutes = findSubstitutes(refName, schema);
-          for (const sub of substitutes) {
-            yield { element: sub, optional, array, source };
+          if (substitutes.length > 0) {
+            for (const sub of substitutes) {
+              yield { element: sub, optional, array, source };
+            }
+            continue;
           }
-          continue;
+          // No substitutes found in this schema - yield the original element
+          // so the parser can handle substitution using the root schema
         }
       }
       

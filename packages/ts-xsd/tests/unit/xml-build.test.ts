@@ -554,4 +554,143 @@ describe('buildXml', () => {
       }, /missing complexType/);
     });
   });
+
+  describe('Substitution groups', () => {
+    it('should build elements that substitute for abstract element', () => {
+      // Simulates abapGit scenario:
+      // - asx:Schema is abstract
+      // - DD01V substitutes for asx:Schema
+      // - values element contains Schema (abstract) which should be built as DD01V
+      const asxSchema = {
+        targetNamespace: 'http://www.sap.com/abapxml',
+        element: [
+          { name: 'Schema', abstract: true },
+          { name: 'abap', type: 'AbapType' },
+        ],
+        complexType: [
+          {
+            name: 'AbapType',
+            sequence: {
+              element: [{ name: 'values', type: 'AbapValuesType' }],
+            },
+            attribute: [{ name: 'version', type: 'xs:string' }],
+          },
+          {
+            name: 'AbapValuesType',
+            sequence: {
+              element: [{ ref: 'Schema', minOccurs: '0', maxOccurs: 'unbounded' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const domaSchema = {
+        element: [
+          { name: 'DD01V', type: 'Dd01vType', substitutionGroup: 'Schema' },
+        ],
+        complexType: [{
+          name: 'Dd01vType',
+          sequence: {
+            element: [{ name: 'DOMNAME', type: 'xs:string' }],
+          },
+        }],
+        $imports: [asxSchema],
+      } as const satisfies SchemaLike;
+
+      // Combined schema (like doma which includes asx)
+      const combinedSchema = {
+        ...domaSchema,
+        $imports: [asxSchema],
+      } as const satisfies SchemaLike;
+
+      const data = {
+        version: '1.0',
+        values: {
+          DD01V: { DOMNAME: 'ZTEST' },
+        },
+      };
+
+      const xml = buildXml(combinedSchema, data, { rootElement: 'abap', xmlDecl: false });
+
+      // Should build DD01V element (substitute), not Schema (abstract)
+      assert.ok(xml.includes('<abap'), `Expected <abap> but got: ${xml}`);
+      assert.ok(xml.includes('<values>'), `Expected <values> but got: ${xml}`);
+      assert.ok(xml.includes('<DD01V>'), `Expected <DD01V> (substitute) but got: ${xml}`);
+      assert.ok(xml.includes('<DOMNAME>ZTEST</DOMNAME>'), `Expected DOMNAME content but got: ${xml}`);
+      assert.ok(!xml.includes('<Schema>'), `Should NOT have abstract <Schema> element`);
+    });
+  });
+
+  describe('$imports support', () => {
+    it('should find root element from $imports when not in main schema', () => {
+      // Simulates abapGit scenario: doma.xsd includes abapgit.xsd
+      // The root element "abapGit" is in abapgit.xsd, not doma.xsd
+      const abapgitSchema = {
+        element: [{ name: 'abapGit', type: 'AbapGitType' }],
+        complexType: [{
+          name: 'AbapGitType',
+          sequence: {
+            element: [
+              { name: 'version', type: 'xs:string' },
+              { name: 'content', type: 'xs:string' },
+            ],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      const domaSchema = {
+        element: [{ name: 'DD01V', type: 'Dd01vType' }],
+        complexType: [{
+          name: 'Dd01vType',
+          sequence: {
+            element: [{ name: 'DOMNAME', type: 'xs:string' }],
+          },
+        }],
+        $imports: [abapgitSchema],
+      } as const satisfies SchemaLike;
+
+      const data = {
+        version: 'v1.0.0',
+        content: 'test',
+      };
+
+      const xml = buildXml(domaSchema, data, { xmlDecl: false });
+
+      // Should use abapGit as root element (from $imports), not DD01V
+      assert.ok(xml.includes('<abapGit'), `Expected <abapGit> but got: ${xml}`);
+      assert.ok(xml.includes('<version>v1.0.0</version>'));
+      assert.ok(xml.includes('<content>test</content>'));
+      assert.ok(xml.includes('</abapGit>'));
+    });
+
+    it('should prefer element from main schema when data matches both', () => {
+      const importedSchema = {
+        element: [{ name: 'Item', type: 'ItemType' }],
+        complexType: [{
+          name: 'ItemType',
+          sequence: {
+            element: [{ name: 'name', type: 'xs:string' }],
+          },
+        }],
+      } as const satisfies SchemaLike;
+
+      const mainSchema = {
+        element: [{ name: 'Product', type: 'ProductType' }],
+        complexType: [{
+          name: 'ProductType',
+          sequence: {
+            element: [{ name: 'name', type: 'xs:string' }],
+          },
+        }],
+        $imports: [importedSchema],
+      } as const satisfies SchemaLike;
+
+      const data = { name: 'Test' };
+
+      const xml = buildXml(mainSchema, data, { xmlDecl: false });
+
+      // Should prefer Product from main schema
+      assert.ok(xml.includes('<Product'), `Expected <Product> but got: ${xml}`);
+    });
+  });
 });
