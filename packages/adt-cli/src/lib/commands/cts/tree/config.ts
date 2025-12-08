@@ -13,7 +13,7 @@
 import { Command } from 'commander';
 import { render } from 'ink';
 import React from 'react';
-import { getAdtClientV2 } from '../../../utils/adt-client';
+import { getAdtClientV2 } from '../../../utils/adt-client-v2';
 import { TreeConfigEditor, type TreeConfigState } from '../../../components/TreeConfigEditor';
 import { treeConfigSetCommand } from './config-set';
 

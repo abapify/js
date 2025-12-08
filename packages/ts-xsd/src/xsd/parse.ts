@@ -64,6 +64,12 @@ import type {
 import type { Element } from '@xmldom/xmldom';
 
 /**
+ * Mutable version of a type - removes readonly modifiers for building objects incrementally.
+ * Used during parsing to construct typed objects before returning them as readonly.
+ */
+type Mutable<T> = { -readonly [P in keyof T]: T[P] };
+
+/**
  * Parse an XSD string to a typed Schema object
  */
 export function parseXsd(xml: string): Schema {
@@ -82,7 +88,7 @@ export function parseXsd(xml: string): Schema {
 // =============================================================================
 
 function parseSchema(el: Element): Schema {
-  const schema: Schema = {};
+  const schema: Mutable<Schema> = {};
 
   // XML namespace declarations (xmlns:prefix -> URI)
   copyXmlns(el, schema);
@@ -140,7 +146,7 @@ function parseSchema(el: Element): Schema {
         pushTo(schema, 'notation', parseNotation(child));
         break;
       case 'defaultOpenContent':
-        (schema as any).defaultOpenContent = parseDefaultOpenContent(child);
+        schema.defaultOpenContent = parseDefaultOpenContent(child);
         break;
     }
   }
@@ -153,7 +159,7 @@ function parseSchema(el: Element): Schema {
 // =============================================================================
 
 function parseAnnotation(el: Element): Annotation {
-  const result: Annotation = {};
+  const result: Mutable<Annotation> = {};
   copyAttr(el, result, 'id');
 
   for (const child of getAllChildElements(el)) {
@@ -169,25 +175,25 @@ function parseAnnotation(el: Element): Annotation {
 }
 
 function parseDocumentation(el: Element): Documentation {
-  const result: Documentation = {};
+  const result: Mutable<Documentation> = {};
   copyAttr(el, result, 'source');
   copyAttr(el, result, 'xml:lang');
 
   const text = getTextContent(el);
   if (text) {
-    (result as any)._text = text;
+    result._text = text;
   }
 
   return result;
 }
 
 function parseAppinfo(el: Element): Appinfo {
-  const result: Appinfo = {};
+  const result: Mutable<Appinfo> = {};
   copyAttr(el, result, 'source');
 
   const text = getTextContent(el);
   if (text) {
-    (result as any)._text = text;
+    result._text = text;
   }
 
   return result;
@@ -198,7 +204,7 @@ function parseAppinfo(el: Element): Appinfo {
 // =============================================================================
 
 function parseInclude(el: Element): Include {
-  const result: Include = { schemaLocation: '' };
+  const result: Mutable<Include> = { schemaLocation: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'schemaLocation');
   parseAnnotationChild(el, result);
@@ -206,7 +212,7 @@ function parseInclude(el: Element): Include {
 }
 
 function parseImport(el: Element): Import {
-  const result: Import = {};
+  const result: Mutable<Import> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'namespace');
   copyAttr(el, result, 'schemaLocation');
@@ -215,7 +221,7 @@ function parseImport(el: Element): Import {
 }
 
 function parseRedefine(el: Element): Redefine {
-  const result: Redefine = { schemaLocation: '' };
+  const result: Mutable<Redefine> = { schemaLocation: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'schemaLocation');
 
@@ -244,7 +250,7 @@ function parseRedefine(el: Element): Redefine {
 }
 
 function parseOverride(el: Element): Override {
-  const result: Override = { schemaLocation: '' };
+  const result: Mutable<Override> = { schemaLocation: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'schemaLocation');
 
@@ -286,7 +292,7 @@ function parseOverride(el: Element): Override {
 // =============================================================================
 
 function parseTopLevelElement(el: Element): TopLevelElement {
-  const result: TopLevelElement = { name: '' };
+  const result: Mutable<TopLevelElement> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'type');
@@ -304,10 +310,10 @@ function parseTopLevelElement(el: Element): TopLevelElement {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
-        (result as any).simpleType = parseLocalSimpleType(child);
+        result.simpleType = parseLocalSimpleType(child);
         break;
       case 'complexType':
-        (result as any).complexType = parseLocalComplexType(child);
+        result.complexType = parseLocalComplexType(child);
         break;
       case 'unique':
         pushTo(result, 'unique', parseUnique(child));
@@ -328,7 +334,7 @@ function parseTopLevelElement(el: Element): TopLevelElement {
 }
 
 function parseLocalElement(el: Element): LocalElement {
-  const result: LocalElement = {};
+  const result: Mutable<LocalElement> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'ref');
@@ -348,10 +354,10 @@ function parseLocalElement(el: Element): LocalElement {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
-        (result as any).simpleType = parseLocalSimpleType(child);
+        result.simpleType = parseLocalSimpleType(child);
         break;
       case 'complexType':
-        (result as any).complexType = parseLocalComplexType(child);
+        result.complexType = parseLocalComplexType(child);
         break;
       case 'unique':
         pushTo(result, 'unique', parseUnique(child));
@@ -376,7 +382,7 @@ function parseLocalElement(el: Element): LocalElement {
 // =============================================================================
 
 function parseTopLevelAttribute(el: Element): TopLevelAttribute {
-  const result: TopLevelAttribute = { name: '' };
+  const result: Mutable<TopLevelAttribute> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'type');
@@ -388,7 +394,7 @@ function parseTopLevelAttribute(el: Element): TopLevelAttribute {
 
   for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'simpleType') {
-      (result as any).simpleType = parseLocalSimpleType(child);
+      result.simpleType = parseLocalSimpleType(child);
     }
   }
 
@@ -396,7 +402,7 @@ function parseTopLevelAttribute(el: Element): TopLevelAttribute {
 }
 
 function parseLocalAttribute(el: Element): LocalAttribute {
-  const result: LocalAttribute = {};
+  const result: Mutable<LocalAttribute> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'ref');
@@ -412,7 +418,7 @@ function parseLocalAttribute(el: Element): LocalAttribute {
 
   for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'simpleType') {
-      (result as any).simpleType = parseLocalSimpleType(child);
+      result.simpleType = parseLocalSimpleType(child);
     }
   }
 
@@ -424,7 +430,7 @@ function parseLocalAttribute(el: Element): LocalAttribute {
 // =============================================================================
 
 function parseTopLevelComplexType(el: Element): TopLevelComplexType {
-  const result: TopLevelComplexType = { name: '' };
+  const result: Mutable<TopLevelComplexType> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyBoolAttr(el, result, 'mixed');
@@ -440,7 +446,7 @@ function parseTopLevelComplexType(el: Element): TopLevelComplexType {
 }
 
 function parseLocalComplexType(el: Element): LocalComplexType {
-  const result: LocalComplexType = {};
+  const result: Mutable<LocalComplexType> = {};
   copyAttr(el, result, 'id');
   copyBoolAttr(el, result, 'mixed');
 
@@ -450,7 +456,7 @@ function parseLocalComplexType(el: Element): LocalComplexType {
   return result;
 }
 
-function parseComplexTypeContent(el: Element, result: any): void {
+function parseComplexTypeContent(el: Element, result: Mutable<TopLevelComplexType> | Mutable<LocalComplexType>): void {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
@@ -496,7 +502,7 @@ function parseComplexTypeContent(el: Element, result: any): void {
 // =============================================================================
 
 function parseTopLevelSimpleType(el: Element): TopLevelSimpleType {
-  const result: TopLevelSimpleType = { name: '' };
+  const result: Mutable<TopLevelSimpleType> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'final');
@@ -508,7 +514,7 @@ function parseTopLevelSimpleType(el: Element): TopLevelSimpleType {
 }
 
 function parseLocalSimpleType(el: Element): LocalSimpleType {
-  const result: LocalSimpleType = {};
+  const result: Mutable<LocalSimpleType> = {};
   copyAttr(el, result, 'id');
 
   parseAnnotationChild(el, result);
@@ -517,7 +523,7 @@ function parseLocalSimpleType(el: Element): LocalSimpleType {
   return result;
 }
 
-function parseSimpleTypeContent(el: Element, result: any): void {
+function parseSimpleTypeContent(el: Element, result: Mutable<TopLevelSimpleType> | Mutable<LocalSimpleType>): void {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     switch (name) {
@@ -535,7 +541,7 @@ function parseSimpleTypeContent(el: Element, result: any): void {
 }
 
 function parseSimpleTypeRestriction(el: Element): SimpleTypeRestriction {
-  const result: SimpleTypeRestriction = {};
+  const result: Mutable<SimpleTypeRestriction> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
@@ -545,7 +551,7 @@ function parseSimpleTypeRestriction(el: Element): SimpleTypeRestriction {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
-        (result as any).simpleType = parseLocalSimpleType(child);
+        result.simpleType = parseLocalSimpleType(child);
         break;
       case 'minExclusive':
       case 'minInclusive':
@@ -574,7 +580,7 @@ function parseSimpleTypeRestriction(el: Element): SimpleTypeRestriction {
 }
 
 function parseList(el: Element): List {
-  const result: List = {};
+  const result: Mutable<List> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'itemType');
 
@@ -582,7 +588,7 @@ function parseList(el: Element): List {
 
   for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'simpleType') {
-      (result as any).simpleType = parseLocalSimpleType(child);
+      result.simpleType = parseLocalSimpleType(child);
     }
   }
 
@@ -590,7 +596,7 @@ function parseList(el: Element): List {
 }
 
 function parseUnion(el: Element): Union {
-  const result: Union = {};
+  const result: Mutable<Union> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'memberTypes');
 
@@ -606,7 +612,7 @@ function parseUnion(el: Element): Union {
 }
 
 function parseFacet(el: Element): Facet {
-  const result: Facet = { value: '' };
+  const result: Mutable<Facet> = { value: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'value');
   copyBoolAttr(el, result, 'fixed');
@@ -615,7 +621,7 @@ function parseFacet(el: Element): Facet {
 }
 
 function parsePattern(el: Element): Pattern {
-  const result: Pattern = { value: '' };
+  const result: Mutable<Pattern> = { value: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'value');
   parseAnnotationChild(el, result);
@@ -627,7 +633,7 @@ function parsePattern(el: Element): Pattern {
 // =============================================================================
 
 function parseComplexContent(el: Element): ComplexContent {
-  const result: ComplexContent = {};
+  const result: Mutable<ComplexContent> = {};
   copyAttr(el, result, 'id');
   copyBoolAttr(el, result, 'mixed');
 
@@ -636,9 +642,9 @@ function parseComplexContent(el: Element): ComplexContent {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'restriction') {
-      (result as any).restriction = parseComplexContentRestriction(child);
+      result.restriction = parseComplexContentRestriction(child);
     } else if (name === 'extension') {
-      (result as any).extension = parseComplexContentExtension(child);
+      result.extension = parseComplexContentExtension(child);
     }
   }
 
@@ -646,7 +652,7 @@ function parseComplexContent(el: Element): ComplexContent {
 }
 
 function parseSimpleContent(el: Element): SimpleContent {
-  const result: SimpleContent = {};
+  const result: Mutable<SimpleContent> = {};
   copyAttr(el, result, 'id');
 
   parseAnnotationChild(el, result);
@@ -654,9 +660,9 @@ function parseSimpleContent(el: Element): SimpleContent {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'restriction') {
-      (result as any).restriction = parseSimpleContentRestriction(child);
+      result.restriction = parseSimpleContentRestriction(child);
     } else if (name === 'extension') {
-      (result as any).extension = parseSimpleContentExtension(child);
+      result.extension = parseSimpleContentExtension(child);
     }
   }
 
@@ -664,7 +670,7 @@ function parseSimpleContent(el: Element): SimpleContent {
 }
 
 function parseComplexContentRestriction(el: Element): ComplexContentRestriction {
-  const result: ComplexContentRestriction = { base: '' };
+  const result: Mutable<ComplexContentRestriction> = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
@@ -675,7 +681,7 @@ function parseComplexContentRestriction(el: Element): ComplexContentRestriction 
 }
 
 function parseComplexContentExtension(el: Element): ComplexContentExtension {
-  const result: ComplexContentExtension = { base: '' };
+  const result: Mutable<ComplexContentExtension> = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
@@ -686,7 +692,7 @@ function parseComplexContentExtension(el: Element): ComplexContentExtension {
 }
 
 function parseSimpleContentRestriction(el: Element): SimpleContentRestriction {
-  const result: SimpleContentRestriction = { base: '' };
+  const result: Mutable<SimpleContentRestriction> = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
@@ -696,7 +702,7 @@ function parseSimpleContentRestriction(el: Element): SimpleContentRestriction {
     const name = getLocalName(child);
     switch (name) {
       case 'simpleType':
-        (result as any).simpleType = parseLocalSimpleType(child);
+        result.simpleType = parseLocalSimpleType(child);
         break;
       case 'minExclusive':
       case 'minInclusive':
@@ -725,7 +731,7 @@ function parseSimpleContentRestriction(el: Element): SimpleContentRestriction {
         pushTo(result, 'attributeGroup', parseAttributeGroupRef(child));
         break;
       case 'anyAttribute':
-        (result as any).anyAttribute = parseAnyAttribute(child);
+        result.anyAttribute = parseAnyAttribute(child);
         break;
       case 'assert':
         pushTo(result, 'assert', parseAssertion(child));
@@ -737,7 +743,7 @@ function parseSimpleContentRestriction(el: Element): SimpleContentRestriction {
 }
 
 function parseSimpleContentExtension(el: Element): SimpleContentExtension {
-  const result: SimpleContentExtension = { base: '' };
+  const result: Mutable<SimpleContentExtension> = { base: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'base');
 
@@ -753,7 +759,7 @@ function parseSimpleContentExtension(el: Element): SimpleContentExtension {
         pushTo(result, 'attributeGroup', parseAttributeGroupRef(child));
         break;
       case 'anyAttribute':
-        (result as any).anyAttribute = parseAnyAttribute(child);
+        result.anyAttribute = parseAnyAttribute(child);
         break;
       case 'assert':
         pushTo(result, 'assert', parseAssertion(child));
@@ -769,7 +775,7 @@ function parseSimpleContentExtension(el: Element): SimpleContentExtension {
 // =============================================================================
 
 function parseExplicitGroup(el: Element): ExplicitGroup {
-  const result: ExplicitGroup = {};
+  const result: Mutable<ExplicitGroup> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'minOccurs');
   copyAttr(el, result, 'maxOccurs');
@@ -801,7 +807,7 @@ function parseExplicitGroup(el: Element): ExplicitGroup {
 }
 
 function parseAll(el: Element): All {
-  const result: All = {};
+  const result: Mutable<All> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'minOccurs');
   copyAttr(el, result, 'maxOccurs');
@@ -831,7 +837,7 @@ function parseAll(el: Element): All {
 // =============================================================================
 
 function parseNamedGroup(el: Element): NamedGroup {
-  const result: NamedGroup = { name: '' };
+  const result: Mutable<NamedGroup> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
 
@@ -841,13 +847,13 @@ function parseNamedGroup(el: Element): NamedGroup {
     const name = getLocalName(child);
     switch (name) {
       case 'all':
-        (result as any).all = parseAll(child);
+        result.all = parseAll(child);
         break;
       case 'choice':
-        (result as any).choice = parseExplicitGroup(child);
+        result.choice = parseExplicitGroup(child);
         break;
       case 'sequence':
-        (result as any).sequence = parseExplicitGroup(child);
+        result.sequence = parseExplicitGroup(child);
         break;
     }
   }
@@ -856,7 +862,7 @@ function parseNamedGroup(el: Element): NamedGroup {
 }
 
 function parseGroupRef(el: Element): GroupRef {
-  const result: GroupRef = { ref: '' };
+  const result: Mutable<GroupRef> = { ref: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'ref');
   copyAttr(el, result, 'minOccurs');
@@ -866,7 +872,7 @@ function parseGroupRef(el: Element): GroupRef {
 }
 
 function parseNamedAttributeGroup(el: Element): NamedAttributeGroup {
-  const result: NamedAttributeGroup = { name: '' };
+  const result: Mutable<NamedAttributeGroup> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
 
@@ -882,7 +888,7 @@ function parseNamedAttributeGroup(el: Element): NamedAttributeGroup {
         pushTo(result, 'attributeGroup', parseAttributeGroupRef(child));
         break;
       case 'anyAttribute':
-        (result as any).anyAttribute = parseAnyAttribute(child);
+        result.anyAttribute = parseAnyAttribute(child);
         break;
     }
   }
@@ -891,7 +897,7 @@ function parseNamedAttributeGroup(el: Element): NamedAttributeGroup {
 }
 
 function parseAttributeGroupRef(el: Element): AttributeGroupRef {
-  const result: AttributeGroupRef = { ref: '' };
+  const result: Mutable<AttributeGroupRef> = { ref: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'ref');
   parseAnnotationChild(el, result);
@@ -903,7 +909,7 @@ function parseAttributeGroupRef(el: Element): AttributeGroupRef {
 // =============================================================================
 
 function parseAny(el: Element): Any {
-  const result: Any = {};
+  const result: Mutable<Any> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'minOccurs');
   copyAttr(el, result, 'maxOccurs');
@@ -916,7 +922,7 @@ function parseAny(el: Element): Any {
 }
 
 function parseAnyAttribute(el: Element): AnyAttribute {
-  const result: AnyAttribute = {};
+  const result: Mutable<AnyAttribute> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'namespace');
   copyAttr(el, result, 'processContents');
@@ -931,7 +937,7 @@ function parseAnyAttribute(el: Element): AnyAttribute {
 // =============================================================================
 
 function parseUnique(el: Element): Unique {
-  const result: Unique = { name: '' };
+  const result: Mutable<Unique> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'ref');
@@ -941,7 +947,7 @@ function parseUnique(el: Element): Unique {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'selector') {
-      (result as any).selector = parseSelector(child);
+      result.selector = parseSelector(child);
     } else if (name === 'field') {
       pushTo(result, 'field', parseField(child));
     }
@@ -951,7 +957,7 @@ function parseUnique(el: Element): Unique {
 }
 
 function parseKey(el: Element): Key {
-  const result: Key = { name: '' };
+  const result: Mutable<Key> = { name: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'ref');
@@ -961,7 +967,7 @@ function parseKey(el: Element): Key {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'selector') {
-      (result as any).selector = parseSelector(child);
+      result.selector = parseSelector(child);
     } else if (name === 'field') {
       pushTo(result, 'field', parseField(child));
     }
@@ -971,7 +977,7 @@ function parseKey(el: Element): Key {
 }
 
 function parseKeyref(el: Element): Keyref {
-  const result: Keyref = { name: '', refer: '' };
+  const result: Mutable<Keyref> = { name: '', refer: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'ref');
@@ -982,7 +988,7 @@ function parseKeyref(el: Element): Keyref {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'selector') {
-      (result as any).selector = parseSelector(child);
+      result.selector = parseSelector(child);
     } else if (name === 'field') {
       pushTo(result, 'field', parseField(child));
     }
@@ -992,7 +998,7 @@ function parseKeyref(el: Element): Keyref {
 }
 
 function parseSelector(el: Element): Selector {
-  const result: Selector = { xpath: '' };
+  const result: Mutable<Selector> = { xpath: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'xpath');
   copyAttr(el, result, 'xpathDefaultNamespace');
@@ -1001,7 +1007,7 @@ function parseSelector(el: Element): Selector {
 }
 
 function parseField(el: Element): Field {
-  const result: Field = { xpath: '' };
+  const result: Mutable<Field> = { xpath: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'xpath');
   copyAttr(el, result, 'xpathDefaultNamespace');
@@ -1014,7 +1020,7 @@ function parseField(el: Element): Field {
 // =============================================================================
 
 function parseOpenContent(el: Element): OpenContent {
-  const result: OpenContent = {};
+  const result: Mutable<OpenContent> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'mode');
 
@@ -1022,7 +1028,7 @@ function parseOpenContent(el: Element): OpenContent {
 
   for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'any') {
-      (result as any).any = parseAny(child);
+      result.any = parseAny(child);
     }
   }
 
@@ -1030,7 +1036,7 @@ function parseOpenContent(el: Element): OpenContent {
 }
 
 function parseDefaultOpenContent(el: Element): DefaultOpenContent {
-  const result: DefaultOpenContent = { any: {} };
+  const result: Mutable<DefaultOpenContent> = { any: {} };
   copyAttr(el, result, 'id');
   copyBoolAttr(el, result, 'appliesToEmpty');
   copyAttr(el, result, 'mode');
@@ -1039,7 +1045,7 @@ function parseDefaultOpenContent(el: Element): DefaultOpenContent {
 
   for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'any') {
-      (result as any).any = parseAny(child);
+      result.any = parseAny(child);
     }
   }
 
@@ -1047,7 +1053,7 @@ function parseDefaultOpenContent(el: Element): DefaultOpenContent {
 }
 
 function parseAssertion(el: Element): Assertion {
-  const result: Assertion = {};
+  const result: Mutable<Assertion> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'test');
   copyAttr(el, result, 'xpathDefaultNamespace');
@@ -1056,7 +1062,7 @@ function parseAssertion(el: Element): Assertion {
 }
 
 function parseAlternative(el: Element): Alternative {
-  const result: Alternative = {};
+  const result: Mutable<Alternative> = {};
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'test');
   copyAttr(el, result, 'type');
@@ -1067,9 +1073,9 @@ function parseAlternative(el: Element): Alternative {
   for (const child of getAllChildElements(el)) {
     const name = getLocalName(child);
     if (name === 'simpleType') {
-      (result as any).simpleType = parseLocalSimpleType(child);
+      result.simpleType = parseLocalSimpleType(child);
     } else if (name === 'complexType') {
-      (result as any).complexType = parseLocalComplexType(child);
+      result.complexType = parseLocalComplexType(child);
     }
   }
 
@@ -1077,7 +1083,7 @@ function parseAlternative(el: Element): Alternative {
 }
 
 function parseNotation(el: Element): Notation {
-  const result: Notation = { name: '', public: '' };
+  const result: Mutable<Notation> = { name: '', public: '' };
   copyAttr(el, result, 'id');
   copyAttr(el, result, 'name');
   copyAttr(el, result, 'public');
@@ -1090,31 +1096,31 @@ function parseNotation(el: Element): Notation {
 // Utility Functions
 // =============================================================================
 
-function copyAttr(el: Element, target: any, name: string): void {
+function copyAttr(el: Element, target: Record<string, unknown>, name: string): void {
   const value = el.getAttribute(name);
   if (value !== null) {
     target[name] = value;
   }
 }
 
-function copyBoolAttr(el: Element, target: any, name: string): void {
+function copyBoolAttr(el: Element, target: Record<string, unknown>, name: string): void {
   const value = el.getAttribute(name);
   if (value !== null) {
     target[name] = value === 'true';
   }
 }
 
-function pushTo(target: any, name: string, value: any): void {
+function pushTo(target: Record<string, unknown>, name: string, value: unknown): void {
   if (!target[name]) {
     target[name] = [];
   }
-  target[name].push(value);
+  (target[name] as unknown[]).push(value);
 }
 
-function parseAnnotationChild(el: Element, result: any): void {
+function parseAnnotationChild(el: Element, result: { annotation?: Annotation }): void {
   for (const child of getAllChildElements(el)) {
     if (getLocalName(child) === 'annotation') {
-      (result as any).annotation = parseAnnotation(child);
+      result.annotation = parseAnnotation(child);
       break; // Only one annotation per element
     }
   }
@@ -1158,7 +1164,7 @@ function extractXmlns(el: Element): Record<string, string> | undefined {
 /**
  * Copy xmlns declarations to target if present
  */
-function copyXmlns(el: Element, target: any): void {
+function copyXmlns(el: Element, target: { $xmlns?: Record<string, string> }): void {
   const xmlns = extractXmlns(el);
   if (xmlns) {
     target.$xmlns = xmlns;

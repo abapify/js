@@ -95,4 +95,3 @@ export default {
     },
   ],
 } as const;
-

@@ -21,8 +21,9 @@ import {
   getLocalName,
 } from './dom-utils';
 
-// Use 'any' for xmldom types since they don't match browser DOM types
-type XmlElement = any;
+import type { Element } from '@xmldom/xmldom';
+
+type XmlElement = Element;
 
 /**
  * Parse XML string to typed object using schema definition
@@ -140,10 +141,14 @@ function parseElement(
 function parseSimpleContent(
   node: XmlElement,
   typeDef: ComplexTypeLike,
-  schema: SchemaLike
+  _schema: SchemaLike
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  const ext = typeDef.simpleContent!.extension!;
+  const simpleContent = typeDef.simpleContent;
+  if (!simpleContent?.extension) {
+    return result;
+  }
+  const ext = simpleContent.extension;
   
   // Get text content as $value
   const textContent = getTextContent(node);
@@ -186,8 +191,9 @@ function resolveElementInfo(
     const refName = stripNsPrefix(element.ref);
     const refElement = findElement(refName, schema);
     if (refElement) {
+      const name = refElement.element.name ?? refName;
       return {
-        name: refElement.element.name!,
+        name,
         typeName: refElement.element.type ? stripNsPrefix(refElement.element.type) : undefined,
       };
     }

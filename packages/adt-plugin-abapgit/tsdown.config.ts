@@ -10,6 +10,5 @@ export default defineConfig({
     // External all node built-ins and npm packages to avoid bundling issues
     /^node:/,
     /^@abapify\//,
-    'ts-xml',
   ],
 });
