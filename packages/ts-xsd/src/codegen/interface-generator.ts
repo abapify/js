@@ -38,6 +38,34 @@ export interface GeneratorOptions {
 }
 
 /**
+ * Element to type mapping for substitution groups
+ */
+export interface SubstitutionElement {
+  /** Element name (e.g., 'DD01V', 'VSEOCLASS') */
+  elementName: string;
+  /** Type name (e.g., 'Dd01vType', 'VseoClassType') */
+  typeName: string;
+  /** Whether this element is required (based on minOccurs) */
+  required: boolean;
+}
+
+/**
+ * Substitution type alias info
+ */
+export interface SubstitutionTypeAlias {
+  /** Name of the type alias (e.g., 'AbapGitClas') */
+  aliasName: string;
+  /** Name of the values interface (e.g., 'ClasValuesType') */
+  valuesTypeName: string;
+  /** The generic type being specialized (e.g., 'AbapGit') */
+  genericType: string;
+  /** Elements that substitute the abstract element */
+  elements: SubstitutionElement[];
+  /** The abstract element being substituted (e.g., 'Schema') */
+  substitutedElement: string;
+}
+
+/**
  * Result of generating interfaces with dependency tracking
  */
 export interface GenerateResult {
@@ -47,6 +75,8 @@ export interface GenerateResult {
   localTypes: string[];
   /** Types imported from other schemas (external dependencies) */
   externalTypes: Map<string, string[]>; // schemaNamespace -> typeNames[]
+  /** Substitution type aliases for elements in substitution groups */
+  substitutionAliases: SubstitutionTypeAlias[];
 }
 
 /**
@@ -173,6 +203,7 @@ export function generateInterfacesWithDeps(
     code: sourceFile.getFullText(),
     localTypes: Array.from(generator.getLocalTypes()),
     externalTypes: generator.getExternalTypes(),
+    substitutionAliases: generator.getSubstitutionAliases(),
   };
 }
 
@@ -1125,6 +1156,10 @@ class InterfaceGeneratorWithDeps {
   private localTypes: Set<string>;
   private externalTypes: Map<string, string[]>; // namespace -> typeNames[]
   private allImports: SchemaLike[];
+  /** Types that need a generic parameter due to abstract element references */
+  private genericTypes: Set<string>;
+  /** Map from type name to the property that uses the generic */
+  private genericPropertyMap: Map<string, string>;
   
   constructor(
     private schema: SchemaLike,
@@ -1135,6 +1170,246 @@ class InterfaceGeneratorWithDeps {
     this.localTypes = new Set<string>();
     this.externalTypes = new Map<string, string[]>();
     this.allImports = this.collectAllImports(schema);
+    this.genericTypes = new Set<string>();
+    this.genericPropertyMap = new Map<string, string>();
+    
+    // Pre-scan to identify types that need generics
+    this.scanForAbstractElements();
+  }
+  
+  /**
+   * Pre-scan schema to identify types that reference abstract elements.
+   * These types will need generic type parameters.
+   */
+  private scanForAbstractElements(): void {
+    // Find all abstract elements in this schema and imports
+    const abstractElements = new Set<string>();
+    
+    const scanSchemaForAbstract = (schema: SchemaLike) => {
+      const elements = schema.element;
+      if (elements && Array.isArray(elements)) {
+        for (const el of elements) {
+          if (el.abstract === true && el.name) {
+            abstractElements.add(el.name);
+          }
+        }
+      }
+    };
+    
+    scanSchemaForAbstract(this.schema);
+    for (const imported of this.allImports) {
+      scanSchemaForAbstract(imported);
+    }
+    
+    if (abstractElements.size === 0) return;
+    
+    // Now scan complexTypes to find which ones reference abstract elements
+    const scanComplexType = (typeName: string, ct: ComplexTypeLike) => {
+      const checkGroup = (group: GroupLike | undefined) => {
+        if (!group?.element) return;
+        for (const el of group.element) {
+          if (el.ref) {
+            const refName = stripNsPrefix(el.ref);
+            if (abstractElements.has(refName)) {
+              // This type references an abstract element - needs generic
+              this.genericTypes.add(typeName);
+              this.genericPropertyMap.set(typeName, refName);
+              return;
+            }
+          }
+        }
+        // Check nested groups
+        if (group.sequence) {
+          const seqs = Array.isArray(group.sequence) ? group.sequence : [group.sequence];
+          for (const seq of seqs) checkGroup(seq);
+        }
+        if (group.choice) {
+          const choices = Array.isArray(group.choice) ? group.choice : [group.choice];
+          for (const ch of choices) checkGroup(ch);
+        }
+      };
+      
+      checkGroup(ct.sequence);
+      checkGroup(ct.choice);
+      checkGroup(ct.all);
+      if (ct.complexContent?.extension) {
+        checkGroup(ct.complexContent.extension.sequence);
+        checkGroup(ct.complexContent.extension.choice);
+      }
+    };
+    
+    // Scan all complex types in current schema
+    const complexTypes = getComplexTypes(this.schema);
+    for (const ct of complexTypes) {
+      if (ct.name) {
+        scanComplexType(ct.name, ct);
+      }
+    }
+    
+    // Also scan elements with inline complexTypes in current schema
+    const elements = this.schema.element;
+    if (elements && Array.isArray(elements)) {
+      for (const el of elements) {
+        if (el.name && el.complexType) {
+          scanComplexType(el.name, el.complexType);
+        }
+      }
+    }
+    
+    // IMPORTANT: Also scan imported schemas' types to mark them as needing generics
+    // This is needed so that when we propagate, we know which imported types need generics
+    for (const imported of this.allImports) {
+      const importedComplexTypes = getComplexTypes(imported);
+      for (const ct of importedComplexTypes) {
+        if (ct.name) {
+          scanComplexType(ct.name, ct);
+        }
+      }
+      
+      const importedElements = imported.element;
+      if (importedElements && Array.isArray(importedElements)) {
+        for (const el of importedElements) {
+          if (el.name && el.complexType) {
+            scanComplexType(el.name, el.complexType);
+          }
+        }
+      }
+    }
+    
+    // Propagate generics: if type A uses type B which has a generic, A also needs generic
+    this.propagateGenerics();
+  }
+  
+  /**
+   * Propagate generic requirements through type hierarchy.
+   * If type A has a property of type B, and B needs a generic, then A also needs a generic.
+   */
+  private propagateGenerics(): void {
+    // Build a map of type dependencies
+    const typeDeps = new Map<string, Set<string>>();
+    
+    // Helper to resolve element ref to its type
+    const resolveElementType = (refName: string): string | undefined => {
+      // Search in current schema
+      const elements = this.schema.element;
+      if (elements && Array.isArray(elements)) {
+        const found = elements.find(e => e.name === refName);
+        if (found?.type) return stripNsPrefix(found.type);
+      }
+      // Search in imports
+      for (const imported of this.allImports) {
+        const importedElements = imported.element;
+        if (importedElements && Array.isArray(importedElements)) {
+          const found = importedElements.find(e => e.name === refName);
+          if (found?.type) return stripNsPrefix(found.type);
+        }
+      }
+      return undefined;
+    };
+    
+    const scanDeps = (typeName: string, ct: ComplexTypeLike) => {
+      const deps = new Set<string>();
+      
+      const checkGroup = (group: GroupLike | undefined) => {
+        if (!group?.element) return;
+        for (const el of group.element) {
+          if (el.type) {
+            const refType = stripNsPrefix(el.type);
+            deps.add(refType);
+          } else if (el.ref) {
+            // Handle element references - resolve to their type
+            const refName = stripNsPrefix(el.ref);
+            const refType = resolveElementType(refName);
+            if (refType) {
+              deps.add(refType);
+            }
+          }
+        }
+        if (group.sequence) {
+          const seqs = Array.isArray(group.sequence) ? group.sequence : [group.sequence];
+          for (const seq of seqs) checkGroup(seq);
+        }
+        if (group.choice) {
+          const choices = Array.isArray(group.choice) ? group.choice : [group.choice];
+          for (const ch of choices) checkGroup(ch);
+        }
+      };
+      
+      checkGroup(ct.sequence);
+      checkGroup(ct.choice);
+      checkGroup(ct.all);
+      if (ct.complexContent?.extension) {
+        checkGroup(ct.complexContent.extension.sequence);
+        checkGroup(ct.complexContent.extension.choice);
+      }
+      
+      typeDeps.set(typeName, deps);
+    };
+    
+    const complexTypes = getComplexTypes(this.schema);
+    for (const ct of complexTypes) {
+      if (ct.name) {
+        scanDeps(ct.name, ct);
+      }
+    }
+    
+    // Also scan elements with inline complexTypes
+    const elements = this.schema.element;
+    if (elements && Array.isArray(elements)) {
+      for (const el of elements) {
+        if (el.name && el.complexType) {
+          scanDeps(el.name, el.complexType);
+        }
+      }
+    }
+    
+    // IMPORTANT: Also scan imported schemas' types for dependency tracking
+    for (const imported of this.allImports) {
+      const importedComplexTypes = getComplexTypes(imported);
+      for (const ct of importedComplexTypes) {
+        if (ct.name) {
+          scanDeps(ct.name, ct);
+        }
+      }
+      
+      const importedElements = imported.element;
+      if (importedElements && Array.isArray(importedElements)) {
+        for (const el of importedElements) {
+          if (el.name && el.complexType) {
+            scanDeps(el.name, el.complexType);
+          }
+        }
+      }
+    }
+    
+    // Iteratively propagate generics until no changes
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [typeName, deps] of typeDeps) {
+        if (this.genericTypes.has(typeName)) continue;
+        
+        for (const dep of deps) {
+          if (this.genericTypes.has(dep)) {
+            this.genericTypes.add(typeName);
+            // Track which property causes the generic need
+            const depProp = this.genericPropertyMap.get(dep);
+            if (depProp) {
+              this.genericPropertyMap.set(typeName, depProp);
+            }
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * Check if a type needs a generic parameter
+   */
+  private needsGeneric(typeName: string): boolean {
+    return this.genericTypes.has(typeName);
   }
   
   getLocalTypes(): Set<string> {
@@ -1143,6 +1418,111 @@ class InterfaceGeneratorWithDeps {
   
   getExternalTypes(): Map<string, string[]> {
     return this.externalTypes;
+  }
+  
+  /**
+   * Get substitution type aliases for elements in substitution groups.
+   * For each schema with substitution elements, we generate:
+   * 1. A values interface with element names as properties (e.g., DomaValuesType)
+   * 2. A type alias using AbapGit with that values type (e.g., AbapGitDoma)
+   */
+  getSubstitutionAliases(): SubstitutionTypeAlias[] {
+    const aliases: SubstitutionTypeAlias[] = [];
+    
+    const elements = this.schema.element;
+    if (!elements || !Array.isArray(elements)) return aliases;
+    
+    // Collect all elements that substitute the same abstract element
+    // Key: substitutedElement, Value: array of {elementName, typeName}
+    const substitutionsByAbstract = new Map<string, SubstitutionElement[]>();
+    
+    for (const el of elements) {
+      if (!el.substitutionGroup || !el.name || !el.type) continue;
+      
+      const substitutedElement = stripNsPrefix(el.substitutionGroup);
+      const elementName = el.name; // Keep original element name (e.g., 'DD01V')
+      const typeName = this.toInterfaceName(stripNsPrefix(el.type));
+      
+      // Find the abstract element to verify it exists
+      const abstractElement = this.findElement(substitutedElement);
+      if (!abstractElement) continue;
+      
+      const existing = substitutionsByAbstract.get(substitutedElement) ?? [];
+      existing.push({
+        elementName,
+        typeName,
+        required: true, // For now, assume first element is required, others optional
+      });
+      substitutionsByAbstract.set(substitutedElement, existing);
+    }
+    
+    // For each abstract element, create a single alias with values interface
+    for (const [substitutedElement, substitutionElements] of substitutionsByAbstract) {
+      const rootGenericTypes = this.findRootGenericTypes(substitutedElement);
+      
+      for (const genericType of rootGenericTypes) {
+        // Generate names from schema filename (4-letter object type)
+        let schemaSuffix = this.schema.$filename?.replace('.xsd', '') ?? '';
+        if (!schemaSuffix) {
+          // Fallback: use first element name
+          schemaSuffix = substitutionElements[0].elementName.toLowerCase();
+        }
+        const capitalizedSuffix = this.toInterfaceName(schemaSuffix);
+        const aliasName = `${genericType}${capitalizedSuffix}`;
+        const valuesTypeName = `${capitalizedSuffix}ValuesType`;
+        
+        // Mark first element as required, rest as optional
+        const elementsWithRequired = substitutionElements.map((el, index) => ({
+          ...el,
+          required: index === 0,
+        }));
+        
+        aliases.push({
+          aliasName,
+          valuesTypeName,
+          genericType,
+          elements: elementsWithRequired,
+          substitutedElement,
+        });
+      }
+    }
+    
+    return aliases;
+  }
+  
+  /**
+   * Find root types that have generics due to referencing the given abstract element.
+   * These are typically the top-level types like AbapGit that eventually reference the abstract element.
+   */
+  private findRootGenericTypes(_abstractElementName: string): string[] {
+    const rootTypes: string[] = [];
+    
+    // Look for types that need generics and are "root" types (not referenced by other generic types)
+    // For now, we'll look for elements with inline complexTypes that need generics
+    for (const imported of this.allImports) {
+      const elements = imported.element;
+      if (!elements || !Array.isArray(elements)) continue;
+      
+      for (const el of elements) {
+        if (el.name && el.complexType && this.genericTypes.has(el.name)) {
+          // Check if this is a "root" type (has no parent generic type referencing it)
+          // For simplicity, we'll include all generic element types
+          rootTypes.push(this.toInterfaceName(el.name));
+        }
+      }
+    }
+    
+    // Also check current schema
+    const elements = this.schema.element;
+    if (elements && Array.isArray(elements)) {
+      for (const el of elements) {
+        if (el.name && el.complexType && this.genericTypes.has(el.name)) {
+          rootTypes.push(this.toInterfaceName(el.name));
+        }
+      }
+    }
+    
+    return rootTypes;
   }
   
   private collectAllImports(schema: SchemaLike, visited: Set<SchemaLike> = new Set()): SchemaLike[] {
@@ -1210,9 +1590,10 @@ class InterfaceGeneratorWithDeps {
   
   generateInlineRootElement(elementName: string, complexType: ComplexTypeLike): string {
     const interfaceName = this.toInterfaceName(elementName);
+    const needsGeneric = this.needsGeneric(elementName);
     
     if (this.generatedTypes.has(elementName)) {
-      return interfaceName;
+      return needsGeneric ? `${interfaceName}<T>` : interfaceName;
     }
     this.generatedTypes.add(elementName);
     this.localTypes.add(interfaceName);
@@ -1225,7 +1606,7 @@ class InterfaceGeneratorWithDeps {
       const ext = complexType.complexContent.extension;
       if (ext.base) {
         const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveType(baseName);
+        const baseInterface = this.resolveTypeWithGeneric(baseName);
         if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
           extendsTypes.push(baseInterface);
         }
@@ -1240,8 +1621,11 @@ class InterfaceGeneratorWithDeps {
       this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
     }
     
+    // Build interface name with generic if needed
+    const fullInterfaceName = needsGeneric ? `${interfaceName}<T = unknown>` : interfaceName;
+    
     const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-      name: interfaceName,
+      name: fullInterfaceName,
       isExported: true,
       properties,
     };
@@ -1255,13 +1639,15 @@ class InterfaceGeneratorWithDeps {
     }
     
     this.sourceFile.addInterface(interfaceStructure);
-    return interfaceName;
+    return needsGeneric ? `${interfaceName}<T>` : interfaceName;
   }
   
   generateComplexType(typeName: string): string {
     const interfaceName = this.toInterfaceName(typeName);
+    const needsGeneric = this.needsGeneric(typeName);
+    
     if (this.generatedTypes.has(interfaceName)) {
-      return interfaceName;
+      return needsGeneric ? `${interfaceName}<T>` : interfaceName;
     }
     
     // Check if this is a local type or imported
@@ -1272,7 +1658,7 @@ class InterfaceGeneratorWithDeps {
       if (importedSchema?.targetNamespace) {
         this.trackExternalType(interfaceName, importedSchema.targetNamespace);
       }
-      return interfaceName;
+      return needsGeneric ? `${interfaceName}<T>` : interfaceName;
     }
     
     // Check for simpleType first (enums, restrictions)
@@ -1299,7 +1685,7 @@ class InterfaceGeneratorWithDeps {
       const ext = complexType.complexContent.extension;
       if (ext.base) {
         const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveType(baseName);
+        const baseInterface = this.resolveTypeWithGeneric(baseName);
         if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
           extendsTypes.push(baseInterface);
         }
@@ -1347,9 +1733,11 @@ class InterfaceGeneratorWithDeps {
       this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
     }
     
-    // Build interface structure
+    // Build interface structure with generic if needed
+    const fullInterfaceName = needsGeneric ? `${interfaceName}<T = unknown>` : interfaceName;
+    
     const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-      name: interfaceName,
+      name: fullInterfaceName,
       isExported: true,
       extends: extendsTypes.length > 0 ? extendsTypes : undefined,
       properties,
@@ -1360,7 +1748,7 @@ class InterfaceGeneratorWithDeps {
     }
     
     this.sourceFile.addInterface(interfaceStructure);
-    return interfaceName;
+    return needsGeneric ? `${interfaceName}<T>` : interfaceName;
   }
   
   private collectProperties(
@@ -1525,33 +1913,20 @@ class InterfaceGeneratorWithDeps {
         
         let typeName: string;
         if (refElement?.type) {
-          typeName = this.resolveType(stripNsPrefix(refElement.type));
+          // Use resolveTypeWithGeneric to add <T> if the type needs it
+          typeName = this.resolveTypeWithGeneric(stripNsPrefix(refElement.type));
         } else if (refElement && refElement.complexType) {
           typeName = this.generateInlineComplexType(refName, refElement.complexType);
         } else if (refElement && this.isAbstractElement(refElement)) {
-          // Abstract element - find all substitutes and create union type
-          const substitutes = this.findSubstitutes(refName);
-          if (substitutes.length > 0) {
-            const substituteTypes = substitutes.map(sub => {
-              if (sub.type) {
-                return this.resolveType(stripNsPrefix(sub.type));
-              } else if (sub.complexType) {
-                return sub.name ? this.generateInlineComplexType(sub.name, sub.complexType) : 'unknown';
-              }
-              return sub.name ? this.toInterfaceName(sub.name) : 'unknown';
-            });
-            typeName = substituteTypes.join(' | ');
-          } else {
-            // No substitutes found - use unknown
-            typeName = 'unknown';
-          }
+          // Abstract element - use generic type parameter T instead of union
+          // This allows the containing type to be parameterized with the concrete type
+          typeName = 'T';
         } else {
           typeName = this.toInterfaceName(refName);
         }
         
         if (isArray) {
-          // Only wrap in parentheses if it's a union type (contains |)
-          typeName = typeName.includes(' | ') ? `(${typeName})[]` : `${typeName}[]`;
+          typeName = `${typeName}[]`;
         }
         
         if (!properties.some(p => p.name === refName)) {
@@ -1579,10 +1954,12 @@ class InterfaceGeneratorWithDeps {
           if (this.isBuiltInXsdType(baseType)) {
             typeName = this.mapSimpleType(baseType);
           } else {
-            typeName = this.resolveType(baseType);
+            // Use resolveTypeWithGeneric to add <T> if the type needs it
+            typeName = this.resolveTypeWithGeneric(baseType);
           }
         } else {
-          typeName = this.resolveType(baseType);
+          // Use resolveTypeWithGeneric to add <T> if the type needs it
+          typeName = this.resolveTypeWithGeneric(baseType);
         }
       } else if (el.complexType) {
         typeName = this.generateInlineComplexType(el.name, el.complexType);
@@ -1756,6 +2133,21 @@ class InterfaceGeneratorWithDeps {
     
     // Unknown type - still PascalCase it
     return this.toInterfaceName(typeName);
+  }
+  
+  /**
+   * Resolve a type name, adding generic parameter <T> if the type needs it
+   */
+  private resolveTypeWithGeneric(typeName: string): string {
+    const baseType = this.resolveType(typeName);
+    
+    // Check if this type needs a generic parameter
+    // But don't add <T> if it already has it (from generateComplexType)
+    if (this.needsGeneric(typeName) && !baseType.includes('<T>')) {
+      return `${baseType}<T>`;
+    }
+    
+    return baseType;
   }
   
   private findComplexType(name: string): ComplexTypeLike | undefined {
