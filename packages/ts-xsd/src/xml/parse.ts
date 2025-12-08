@@ -17,9 +17,80 @@ import {
 import {
   getAttributeValue,
   getChildElements,
+  getAllChildElements,
   getTextContent,
   getLocalName,
 } from './dom-utils';
+
+/**
+ * Find all elements that substitute for a given abstract element
+ * Searches current schema and all $imports
+ */
+function findSubstitutingElements(
+  abstractElementName: string,
+  schema: SchemaLike
+): Array<{ element: ElementLike; schema: SchemaLike }> {
+  const results: Array<{ element: ElementLike; schema: SchemaLike }> = [];
+  
+  // Helper to check elements in a schema
+  const checkSchema = (s: SchemaLike) => {
+    const elements = s.element;
+    if (!elements) return;
+    
+    for (const el of elements) {
+      if (el.substitutionGroup) {
+        const subGroupName = stripNsPrefix(el.substitutionGroup);
+        if (subGroupName === abstractElementName) {
+          results.push({ element: el, schema: s });
+        }
+      }
+    }
+  };
+  
+  // Check current schema
+  checkSchema(schema);
+  
+  // Check all imported schemas
+  const imports = (schema as { $imports?: SchemaLike[] }).$imports;
+  if (imports) {
+    for (const imported of imports) {
+      checkSchema(imported);
+      // Recursively check nested imports
+      const nestedResults = findSubstitutingElements(abstractElementName, imported);
+      results.push(...nestedResults);
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * Check if an element is abstract
+ * Searches current schema and all $imports
+ */
+function isAbstractElement(elementName: string, schema: SchemaLike): boolean {
+  // Check current schema
+  const elements = schema.element;
+  if (elements) {
+    for (const el of elements) {
+      if (el.name === elementName && el.abstract === true) {
+        return true;
+      }
+    }
+  }
+  
+  // Check imported schemas
+  const imports = (schema as { $imports?: SchemaLike[] }).$imports;
+  if (imports) {
+    for (const imported of imports) {
+      if (isAbstractElement(elementName, imported)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
 
 import type { Element } from '@xmldom/xmldom';
 
@@ -49,6 +120,12 @@ export function parse<T extends SchemaLike>(
     throw new Error(`Schema missing element declaration for: ${rootLocalName}`);
   }
 
+  // Check for inline complexType first
+  const inlineComplexType = (elementEntry.element as { complexType?: ComplexTypeLike }).complexType;
+  if (inlineComplexType) {
+    return parseElement(root, inlineComplexType, elementEntry.schema, schema) as InferSchema<T>;
+  }
+
   // Get the type name (strip namespace prefix if present)
   const typeName = stripNsPrefix(elementEntry.element.type || elementEntry.element.name || '');
   
@@ -59,7 +136,7 @@ export function parse<T extends SchemaLike>(
     throw new Error(`Schema missing complexType for: ${typeName}`);
   }
 
-  return parseElement(root, typeEntry.ct, typeEntry.schema) as InferSchema<T>;
+  return parseElement(root, typeEntry.ct, typeEntry.schema, schema) as InferSchema<T>;
 }
 
 /**
@@ -87,17 +164,22 @@ function findElementByName(
 /**
  * Parse a single element using its complexType definition
  * Uses walker to iterate elements and attributes (handles inheritance automatically)
+ * @param node - The XML element to parse
+ * @param typeDef - The complexType definition for this element
+ * @param schema - The schema where typeDef is defined (for type resolution)
+ * @param rootSchema - The root schema (for substitution group lookups)
  */
 function parseElement(
   node: XmlElement,
   typeDef: ComplexTypeLike,
-  schema: SchemaLike
+  schema: SchemaLike,
+  rootSchema: SchemaLike
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   // Handle simpleContent (text content with attributes)
   if (typeDef.simpleContent?.extension) {
-    return parseSimpleContent(node, typeDef, schema);
+    return parseSimpleContent(node, typeDef, schema, rootSchema);
   }
 
   // Parse attributes using walker (handles inheritance)
@@ -116,19 +198,39 @@ function parseElement(
     const resolved = resolveElementInfo(element, schema);
     if (!resolved) continue;
     
-    const children = getChildElements(node, resolved.name);
-    
-    if (array || children.length > 1) {
-      // Array element
-      const values = children.map(child => 
-        parseChildValue(child, resolved.typeName, schema)
-      );
-      if (values.length > 0) {
-        result[resolved.name] = values;
+    // Check if this is a reference to an abstract element (substitution group head)
+    // Use rootSchema for substitution lookups since substitutes can be in any imported schema
+    const isAbstract = isAbstractElement(resolved.name, rootSchema);
+    if (isAbstract) {
+      // Find all elements that substitute for this abstract element
+      const substitutes = findSubstitutingElements(resolved.name, rootSchema);
+      
+      // Get all child elements and check if any match a substituting element
+      const allChildren = getAllChildElements(node);
+      for (const child of allChildren) {
+        const childName = getLocalName(child);
+        const substitute = substitutes.find(s => s.element.name === childName);
+        if (substitute && substitute.element.name) {
+          const subTypeName = substitute.element.type ? stripNsPrefix(substitute.element.type) : undefined;
+          result[substitute.element.name] = parseChildValue(child, subTypeName, substitute.schema, rootSchema);
+        }
       }
-    } else if (children.length === 1) {
-      // Single element
-      result[resolved.name] = parseChildValue(children[0], resolved.typeName, schema);
+    } else {
+      // Normal element handling
+      const children = getChildElements(node, resolved.name);
+      
+      if (array || children.length > 1) {
+        // Array element
+        const values = children.map(child => 
+          parseChildValue(child, resolved.typeName, schema, rootSchema)
+        );
+        if (values.length > 0) {
+          result[resolved.name] = values;
+        }
+      } else if (children.length === 1) {
+        // Single element
+        result[resolved.name] = parseChildValue(children[0], resolved.typeName, schema, rootSchema);
+      }
     }
   }
 
@@ -141,7 +243,8 @@ function parseElement(
 function parseSimpleContent(
   node: XmlElement,
   typeDef: ComplexTypeLike,
-  _schema: SchemaLike
+  _schema: SchemaLike,
+  _rootSchema: SchemaLike
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   const simpleContent = typeDef.simpleContent;
@@ -210,13 +313,14 @@ function resolveElementInfo(
 function parseChildValue(
   child: XmlElement,
   typeName: string | undefined,
-  schema: SchemaLike
+  schema: SchemaLike,
+  rootSchema: SchemaLike
 ): unknown {
   // Find nested complexType if this field has a complex type
   const nestedType = typeName ? findComplexType(typeName, schema) : undefined;
   
   if (nestedType) {
-    return parseElement(child, nestedType.ct, nestedType.schema);
+    return parseElement(child, nestedType.ct, nestedType.schema, rootSchema);
   }
   
   return convertValue(getTextContent(child) || '', typeName || 'string');

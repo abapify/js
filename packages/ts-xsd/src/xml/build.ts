@@ -44,12 +44,16 @@ export function build<T extends SchemaLike>(
 
   // Find the element declaration - either by name or by matching data
   let elementDecl: ElementLike | undefined;
+  let elementSchema: SchemaLike = schema;
   
   if (options.rootElement) {
-    elementDecl = schema.element?.find(e => e.name === options.rootElement);
-    if (!elementDecl) {
+    // Search in main schema and $imports
+    const found = findElement(options.rootElement, schema);
+    if (!found) {
       throw new Error(`Element '${options.rootElement}' not found in schema`);
     }
+    elementDecl = found.element;
+    elementSchema = found.schema;
   } else {
     elementDecl = findMatchingElement(data as Record<string, unknown>, schema);
     if (!elementDecl) {
@@ -59,13 +63,13 @@ export function build<T extends SchemaLike>(
 
   // Get the complexType - either inline or by reference
   let rootType: ComplexTypeLike;
-  let rootSchema: SchemaLike = schema;
+  let rootSchema: SchemaLike = elementSchema;
   
   if (elementDecl.complexType) {
     rootType = elementDecl.complexType as ComplexTypeLike;
   } else if (elementDecl.type) {
     const typeName = stripNsPrefix(elementDecl.type);
-    const rootTypeEntry = findComplexType(typeName, schema);
+    const rootTypeEntry = findComplexType(typeName, elementSchema);
     if (!rootTypeEntry) {
       throw new Error(`Schema missing complexType for: ${typeName}`);
     }
@@ -82,7 +86,7 @@ export function build<T extends SchemaLike>(
   }
   const root = createRootElement(doc, elementName, schema, prefix);
 
-  buildElement(doc, root, data as Record<string, unknown>, rootType, rootSchema, prefix);
+  buildElement(doc, root, data as Record<string, unknown>, rootType, rootSchema, schema, prefix);
   doc.appendChild(root);
 
   let xml = new XMLSerializer().serializeToString(doc);
@@ -99,37 +103,42 @@ export function build<T extends SchemaLike>(
 }
 
 /**
- * Find the element declaration that best matches the data structure
+ * Find the element declaration that best matches the data structure.
+ * Searches in the main schema first, then in $imports.
  */
 function findMatchingElement(
   data: Record<string, unknown>,
   schema: SchemaLike
 ): ElementLike | undefined {
-  const elements = schema.element;
-  if (!elements || elements.length === 0) {
-    return undefined;
-  }
-  
-  if (elements.length === 1) {
-    return elements[0];
-  }
-
   const dataKeys = new Set(Object.keys(data));
   let bestMatch: ElementLike | undefined;
   let bestScore = -1;
 
-  for (const element of elements) {
-    if (!element.type) continue;
-    const typeName = stripNsPrefix(element.type);
-    const typeEntry = findComplexType(typeName, schema);
-    if (!typeEntry) continue;
+  // Helper to score an element against the data
+  const scoreElement = (element: ElementLike, searchSchema: SchemaLike): number => {
+    let ct: ComplexTypeLike | undefined;
+    let ctSchema: SchemaLike = searchSchema;
+    
+    // Handle inline complexType
+    if (element.complexType) {
+      ct = element.complexType as ComplexTypeLike;
+    } else if (element.type) {
+      const typeName = stripNsPrefix(element.type);
+      const typeEntry = findComplexType(typeName, searchSchema);
+      if (typeEntry) {
+        ct = typeEntry.ct;
+        ctSchema = typeEntry.schema;
+      }
+    }
+    
+    if (!ct) return 0;
 
     // Get all field names from this type using walker
     const typeFields = new Set<string>();
-    for (const { element: el } of walkElements(typeEntry.ct, typeEntry.schema)) {
+    for (const { element: el } of walkElements(ct, ctSchema)) {
       if (el.name) typeFields.add(el.name);
     }
-    for (const { attribute } of walkAttributes(typeEntry.ct, typeEntry.schema)) {
+    for (const { attribute } of walkAttributes(ct, ctSchema)) {
       if (attribute.name) typeFields.add(attribute.name);
     }
 
@@ -137,19 +146,50 @@ function findMatchingElement(
     dataKeys.forEach(key => {
       if (typeFields.has(key)) score++;
     });
+    return score;
+  };
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = element;
+  // Search in main schema first
+  const elements = schema.element;
+  if (elements && elements.length > 0) {
+    for (const element of elements) {
+      const score = scoreElement(element, schema);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = element;
+      }
     }
   }
 
-  return bestMatch || elements[0];
+  // Search in $imports if no good match found in main schema
+  const imports = schema.$imports as SchemaLike[] | undefined;
+  if (imports) {
+    for (const importedSchema of imports) {
+      const importedElements = importedSchema.element;
+      if (!importedElements) continue;
+      
+      for (const element of importedElements) {
+        const score = scoreElement(element, importedSchema);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = element;
+        }
+      }
+    }
+  }
+
+  // Fallback to first element if no match found
+  if (!bestMatch && elements && elements.length > 0) {
+    return elements[0];
+  }
+
+  return bestMatch;
 }
 
 /**
  * Build element content using its complexType definition
  * Uses walker to iterate elements and attributes (handles inheritance automatically)
+ * @param rootSchema - The original schema passed to build(), used for substitution group lookup
  */
 function buildElement(
   doc: XmlDocument,
@@ -157,6 +197,7 @@ function buildElement(
   data: Record<string, unknown>,
   typeDef: ComplexTypeLike,
   schema: SchemaLike,
+  rootSchema: SchemaLike,
   prefix: string | undefined
 ): void {
   // Build attributes using walker (handles inheritance)
@@ -170,12 +211,34 @@ function buildElement(
 
   // Build child elements using walker (handles inheritance, groups, refs)
   for (const { element } of walkElements(typeDef, schema)) {
+    // Check if this is a ref to an abstract element
+    if (element.ref) {
+      const refName = stripNsPrefix(element.ref);
+      const refElement = findElement(refName, schema);
+      
+      if (refElement && refElement.element.abstract) {
+        // Abstract element - find substitutes in data using rootSchema
+        const substitutes = findSubstitutes(refName, rootSchema);
+        for (const substitute of substitutes) {
+          const subName = substitute.element.name;
+          if (!subName) continue;
+          
+          const value = data[subName];
+          if (value !== undefined) {
+            const typeName = substitute.element.type ? stripNsPrefix(substitute.element.type) : undefined;
+            buildField(doc, node, value, subName, typeName, substitute.schema, rootSchema, prefix);
+          }
+        }
+        continue;
+      }
+    }
+    
     const resolved = resolveElementInfo(element, schema);
     if (!resolved) continue;
     
     const value = data[resolved.name];
     if (value !== undefined) {
-      buildField(doc, node, value, resolved.name, resolved.typeName, schema, prefix);
+      buildField(doc, node, value, resolved.name, resolved.typeName, schema, rootSchema, prefix);
     }
   }
 }
@@ -223,6 +286,7 @@ function buildField(
   elementName: string,
   typeName: string | undefined,
   schema: SchemaLike,
+  rootSchema: SchemaLike,
   prefix: string | undefined
 ): void {
   if (value === undefined || value === null) return;
@@ -235,7 +299,7 @@ function buildField(
     for (const item of value) {
       const child = doc.createElement(tagName);
       if (nestedType) {
-        buildElement(doc, child, item as Record<string, unknown>, nestedType.ct, nestedType.schema, prefix);
+        buildElement(doc, child, item as Record<string, unknown>, nestedType.ct, nestedType.schema, rootSchema, prefix);
       } else {
         child.appendChild(doc.createTextNode(formatValue(item, typeName || 'string')));
       }
@@ -244,11 +308,50 @@ function buildField(
   } else {
     const child = doc.createElement(tagName);
     if (nestedType) {
-      buildElement(doc, child, value as Record<string, unknown>, nestedType.ct, nestedType.schema, prefix);
+      buildElement(doc, child, value as Record<string, unknown>, nestedType.ct, nestedType.schema, rootSchema, prefix);
     } else {
       child.appendChild(doc.createTextNode(formatValue(value, typeName || 'string')));
     }
     parent.appendChild(child);
   }
+}
+
+/**
+ * Find all elements that substitute for a given abstract element name.
+ * Searches in the main schema and all $imports.
+ */
+function findSubstitutes(
+  abstractElementName: string,
+  schema: SchemaLike
+): Array<{ element: ElementLike; schema: SchemaLike }> {
+  const substitutes: Array<{ element: ElementLike; schema: SchemaLike }> = [];
+  
+  // Helper to search in a single schema
+  const searchSchema = (s: SchemaLike) => {
+    const elements = s.element;
+    if (!elements) return;
+    
+    for (const el of elements) {
+      if (el.substitutionGroup) {
+        const subGroupName = stripNsPrefix(el.substitutionGroup);
+        if (subGroupName === abstractElementName) {
+          substitutes.push({ element: el, schema: s });
+        }
+      }
+    }
+  };
+  
+  // Search in main schema
+  searchSchema(schema);
+  
+  // Search in $imports
+  const imports = schema.$imports as SchemaLike[] | undefined;
+  if (imports) {
+    for (const imported of imports) {
+      searchSchema(imported);
+    }
+  }
+  
+  return substitutes;
 }
 

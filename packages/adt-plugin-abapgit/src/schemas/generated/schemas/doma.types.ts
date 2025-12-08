@@ -19,6 +19,7 @@ export interface Dd01vType {
     ENTITYTAB?: string;
     CONVEXIT?: string;
     DDTEXT?: string;
+    DOMMASTER?: string;
 }
 
 /** Generated from complexType: Dd07vType */

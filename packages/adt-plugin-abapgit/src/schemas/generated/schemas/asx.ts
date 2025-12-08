@@ -29,6 +29,8 @@ export default {
         element: [
           {
             ref: "asx:Schema",
+            minOccurs: "0",
+            maxOccurs: "unbounded",
           },
         ],
       },

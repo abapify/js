@@ -16,6 +16,3 @@ export * from './schemas/devc.types';
 export * from './schemas/doma.types';
 export * from './schemas/dtel.types';
 export * from './schemas/intf.types';
-
-// Envelope types - combines abapGit envelope with all content types
-export * from './envelope.types';

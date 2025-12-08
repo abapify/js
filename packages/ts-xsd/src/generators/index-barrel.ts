@@ -21,6 +21,8 @@ export interface IndexBarrelOptions {
   includeTypedExports?: boolean;
   /** Add file header comment */
   header?: boolean;
+  /** Import extension to use: '.ts' for Node.js native, '' for bundlers (default: '.ts') */
+  importExtension?: '.ts' | '';
 }
 
 // ============================================================================
@@ -48,6 +50,7 @@ export interface IndexBarrelOptions {
 export function indexBarrel(options: IndexBarrelOptions = {}): GeneratorPlugin {
   const {
     filename = 'index.ts',
+    importExtension = '.ts',
     namedExports = false,
     includeTypedExports = false,
     header = true,
@@ -85,15 +88,15 @@ export function indexBarrel(options: IndexBarrelOptions = {}): GeneratorPlugin {
         for (const schema of sortedSchemas) {
           if (namedExports) {
             const exportName = toValidIdentifier(schema.name);
-            lines.push(`export { default as ${exportName} } from './${schema.name}.ts';`);
+            lines.push(`export { default as ${exportName} } from './${schema.name}${importExtension}';`);
           } else {
-            lines.push(`export * from './${schema.name}.ts';`);
+            lines.push(`export * from './${schema.name}${importExtension}';`);
           }
 
           // Also export from typed files if requested
           if (includeTypedExports) {
             const typeName = pascalCase(schema.name);
-            lines.push(`export type { ${typeName} } from './${schema.name}.typed.ts';`);
+            lines.push(`export type { ${typeName} } from './${schema.name}.typed${importExtension}';`);
           }
         }
 
