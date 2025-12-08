@@ -580,4 +580,220 @@ describe('parseXml', () => {
       assert.deepStrictEqual(result, { name: 'Test' });
     });
   });
+
+  describe('Inline complexType on elements', () => {
+    it('should parse element with inline complexType', () => {
+      const schema = {
+        element: [
+          {
+            name: 'Person',
+            complexType: {
+              sequence: {
+                element: [{ name: 'name', type: 'xs:string' }],
+              },
+              attribute: [{ name: 'id', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = `<Person id="123"><name>John</name></Person>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, { id: '123', name: 'John' });
+    });
+
+    it('should parse nested inline complexType', () => {
+      const schema = {
+        element: [
+          {
+            name: 'Envelope',
+            complexType: {
+              sequence: {
+                element: [{ name: 'body', type: 'BodyType' }],
+              },
+              attribute: [{ name: 'version', type: 'xs:string' }],
+            },
+          },
+        ],
+        complexType: [
+          {
+            name: 'BodyType',
+            sequence: {
+              element: [{ name: 'content', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = `<Envelope version="1.0"><body><content>Hello</content></body></Envelope>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, { version: '1.0', body: { content: 'Hello' } });
+    });
+  });
+
+  describe('Element references', () => {
+    it('should resolve element ref in sequence', () => {
+      const schema = {
+        $imports: [
+          {
+            targetNamespace: 'http://example.com/common',
+            element: [{ name: 'header', type: 'HeaderType' }],
+            complexType: [
+              {
+                name: 'HeaderType',
+                sequence: {
+                  element: [{ name: 'title', type: 'xs:string' }],
+                },
+              },
+            ],
+          },
+        ],
+        element: [
+          {
+            name: 'Document',
+            complexType: {
+              sequence: {
+                element: [{ ref: 'common:header' }],
+              },
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = `<Document><header><title>Test</title></header></Document>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, { header: { title: 'Test' } });
+    });
+
+    it('should resolve element ref to imported schema element', () => {
+      const commonSchema = {
+        targetNamespace: 'http://www.sap.com/abapxml',
+        element: [{ name: 'abap', type: 'AbapType' }],
+        complexType: [
+          {
+            name: 'AbapType',
+            sequence: {
+              element: [{ name: 'values', type: 'ValuesType' }],
+            },
+            attribute: [{ name: 'version', type: 'xs:string' }],
+          },
+          {
+            name: 'ValuesType',
+            sequence: {
+              element: [{ name: 'data', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const;
+
+      const schema = {
+        $xmlns: { asx: 'http://www.sap.com/abapxml' },
+        $imports: [commonSchema],
+        element: [
+          {
+            name: 'wrapper',
+            complexType: {
+              sequence: {
+                element: [{ ref: 'asx:abap' }],
+              },
+              attribute: [{ name: 'id', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = `<wrapper id="W1"><abap version="1.0"><values><data>test</data></values></abap></wrapper>`;
+      const result = parseXml(schema, xml);
+
+      assert.deepStrictEqual(result, {
+        id: 'W1',
+        abap: {
+          version: '1.0',
+          values: { data: 'test' },
+        },
+      });
+    });
+  });
+
+  describe('XSD substitution groups', () => {
+    it('should parse elements that substitute for abstract element', () => {
+      // This tests the abapGit pattern where:
+      // - asx:Schema is abstract
+      // - DD01V substitutes for asx:Schema
+      // - asx:values contains ref to asx:Schema (which can be any substitute)
+      const asxSchema = {
+        targetNamespace: 'http://www.sap.com/abapxml',
+        element: [
+          { name: 'Schema', abstract: true },
+          { name: 'abap', type: 'AbapType' },
+        ],
+        complexType: [
+          {
+            name: 'AbapValuesType',
+            sequence: {
+              element: [
+                { ref: 'asx:Schema', minOccurs: '0', maxOccurs: 'unbounded' },
+              ],
+            },
+          },
+          {
+            name: 'AbapType',
+            sequence: {
+              element: [{ name: 'values', type: 'AbapValuesType' }],
+            },
+            attribute: [{ name: 'version', type: 'xs:string' }],
+          },
+        ],
+      } as const;
+
+      const domaSchema = {
+        $xmlns: { asx: 'http://www.sap.com/abapxml' },
+        $imports: [asxSchema],
+        element: [
+          { name: 'DD01V', type: 'Dd01vType', substitutionGroup: 'asx:Schema' },
+        ],
+        complexType: [
+          {
+            name: 'Dd01vType',
+            sequence: {
+              element: [{ name: 'DOMNAME', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const;
+
+      // Combined schema that includes both (simulating XSD include)
+      const combinedSchema = {
+        $xmlns: { asx: 'http://www.sap.com/abapxml' },
+        $imports: [asxSchema, domaSchema],
+        element: [
+          {
+            name: 'abapGit',
+            complexType: {
+              sequence: {
+                element: [{ ref: 'asx:abap' }],
+              },
+              attribute: [{ name: 'version', type: 'xs:string' }],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = `<abapGit version="1.0"><abap version="1.0"><values><DD01V><DOMNAME>TEST</DOMNAME></DD01V></values></abap></abapGit>`;
+      const result = parseXml(combinedSchema, xml);
+
+      assert.deepStrictEqual(result, {
+        version: '1.0',
+        abap: {
+          version: '1.0',
+          values: {
+            DD01V: { DOMNAME: 'TEST' },
+          },
+        },
+      });
+    });
+  });
 });

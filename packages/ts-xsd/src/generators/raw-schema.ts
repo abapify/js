@@ -141,17 +141,34 @@ function buildOutputSchema(
     result.$xmlns = schema.$xmlns;
   }
 
-  // Add $imports if enabled
-  if (options.$imports && schema.import) {
-    const imports = schema.import as Array<{ schemaLocation?: string }>;
+  // Add $imports if enabled (from both import and include)
+  if (options.$imports) {
     const importRefs: SchemaRef[] = [];
     
-    for (const imp of imports) {
-      if (imp.schemaLocation) {
-        const resolved = options.resolveImport(imp.schemaLocation);
-        if (resolved) {
-          const name = imp.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
-          importRefs.push(new SchemaRef(name));
+    // Handle xs:import
+    if (schema.import) {
+      const imports = schema.import as Array<{ schemaLocation?: string }>;
+      for (const imp of imports) {
+        if (imp.schemaLocation) {
+          const resolved = options.resolveImport(imp.schemaLocation);
+          if (resolved) {
+            const name = imp.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+            importRefs.push(new SchemaRef(name));
+          }
+        }
+      }
+    }
+    
+    // Handle xs:include (same namespace, different file)
+    if (schema.include) {
+      const includes = schema.include as Array<{ schemaLocation?: string }>;
+      for (const inc of includes) {
+        if (inc.schemaLocation) {
+          const resolved = options.resolveImport(inc.schemaLocation);
+          if (resolved) {
+            const name = inc.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+            importRefs.push(new SchemaRef(name));
+          }
         }
       }
     }
@@ -184,16 +201,31 @@ function getSchemaImports(
   resolveImport: (schemaLocation: string) => string | null
 ): Array<{ name: string; path: string }> {
   const imports: Array<{ name: string; path: string }> = [];
-  const xsdImports = schema.import as Array<{ schemaLocation?: string }> | undefined;
   
-  if (!xsdImports) return imports;
-
-  for (const imp of xsdImports) {
-    if (imp.schemaLocation) {
-      const modulePath = resolveImport(imp.schemaLocation);
-      if (modulePath) {
-        const name = imp.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
-        imports.push({ name, path: modulePath });
+  // Handle xs:import
+  const xsdImports = schema.import as Array<{ schemaLocation?: string }> | undefined;
+  if (xsdImports) {
+    for (const imp of xsdImports) {
+      if (imp.schemaLocation) {
+        const modulePath = resolveImport(imp.schemaLocation);
+        if (modulePath) {
+          const name = imp.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+          imports.push({ name, path: modulePath });
+        }
+      }
+    }
+  }
+  
+  // Handle xs:include
+  const xsdIncludes = schema.include as Array<{ schemaLocation?: string }> | undefined;
+  if (xsdIncludes) {
+    for (const inc of xsdIncludes) {
+      if (inc.schemaLocation) {
+        const modulePath = resolveImport(inc.schemaLocation);
+        if (modulePath) {
+          const name = inc.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+          imports.push({ name, path: modulePath });
+        }
       }
     }
   }
