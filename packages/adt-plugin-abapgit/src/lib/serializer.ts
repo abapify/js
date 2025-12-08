@@ -126,7 +126,7 @@ export class AbapGitSerializer {
     fileExtension: string
   ): Promise<string[]> {
     const files: string[] = [];
-    const data = obj.getData() as Record<string, unknown>;
+    const data = obj.dataSync as Record<string, unknown>;
 
     // Main class file - get from source attribute or first include
     const includes = Array.isArray(data.include) ? data.include : [];
@@ -184,7 +184,7 @@ export class AbapGitSerializer {
     const files: string[] = [];
 
     // For generic objects, try to get source from data
-    const data = obj.getData() as Record<string, unknown>;
+    const data = obj.dataSync as Record<string, unknown>;
 
     // Check if there's lazy-loaded content
     if (data.content) {
@@ -238,65 +238,6 @@ export class AbapGitSerializer {
     return mapping[includeType] || includeType;
   }
 
-  /**
-   * Get abapGit object type code (4-char SAP type)
-   */
-  private getAbapGitObjectType(kind: string): string {
-    const types: Record<string, string> = {
-      Class: 'CLAS',
-      Interface: 'INTF',
-      Program: 'PROG',
-      FunctionGroup: 'FUGR',
-      Table: 'TABL',
-      DataElement: 'DTEL',
-      Domain: 'DOMA',
-      Package: 'DEVC',
-    };
-    return types[kind] || kind.toUpperCase().substring(0, 4);
-  }
-
-  /**
-   * Generate package.devc.xml for a package
-   */
-  private generatePackageXml(
-    packageName: string,
-    rootPackage: string,
-    objects: AdkObject[]
-  ): string {
-    // Try to find a Package object with this name to get its description (case-insensitive)
-    const packageObj = objects.find(
-      (obj) =>
-        obj.kind === 'Package' &&
-        obj.name.toUpperCase() === packageName.toUpperCase()
-    );
-
-    // Use the package object's description if available, otherwise derive from name
-    let description: string;
-    if (packageObj && packageObj.description) {
-      description = packageObj.description;
-    } else if (packageName === rootPackage) {
-      description = packageName; // Root package fallback
-    } else if (packageName.startsWith(rootPackage + '_')) {
-      // Child package - use suffix as description
-      const suffix = packageName.substring(rootPackage.length + 1);
-      description =
-        suffix.charAt(0).toUpperCase() + suffix.slice(1).toLowerCase();
-    } else {
-      description = packageName; // Fallback to package name
-    }
-
-    return `<?xml version="1.0" encoding="utf-8"?>
-<abapGit version="v1.0.0" serializer="LCL_OBJECT_DEVC" serializer_version="v1.0.0">
- <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
-  <asx:values>
-   <DEVC>
-    <CTEXT>${this.escapeXml(description)}</CTEXT>
-   </DEVC>
-  </asx:values>
- </asx:abap>
-</abapGit>`;
-  }
-
   private generateObjectXml(obj: AdkObject): string {
     // Use object-specific serializers based on kind
     if (isPackage(obj)) {
@@ -319,47 +260,4 @@ export class AbapGitSerializer {
     throw new Error(`No serializer available for object type: ${obj.kind}`);
   }
 
-  private generateRootAbapGitXml(objects: AdkObject[]): string {
-    // Extract unique packages from objects (for future use)
-    // const packages = [
-    //   ...new Set(
-    //     objects.map((o) => {
-    //       if (hasSpec(o) && o.spec.core?.package) {
-    //         return o.spec.core.package;
-    //       }
-    //       return '$TMP';
-    //     })
-    //   ),
-    // ];
-
-    return `<?xml version="1.0" encoding="utf-8"?>
-<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
- <asx:values>
-  <DATA>
-   <MASTER_LANGUAGE>E</MASTER_LANGUAGE>
-   <STARTING_FOLDER>/src/</STARTING_FOLDER>
-   <FOLDER_LOGIC>PREFIX</FOLDER_LOGIC>
-   <IGNORE>
-    <item>/.gitignore</item>
-    <item>/LICENSE</item>
-    <item>/README.md</item>
-    <item>/package.json</item>
-    <item>/.travis.yml</item>
-    <item>/.gitlab-ci.yml</item>
-    <item>/abaplint.json</item>
-    <item>/azure-pipelines.yml</item>
-   </IGNORE>
-  </DATA>
- </asx:values>
-</asx:abap>`;
-  }
-
-  private escapeXml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
 }

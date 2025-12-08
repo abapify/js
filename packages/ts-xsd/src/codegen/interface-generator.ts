@@ -7,7 +7,22 @@
  */
 
 import { Project, SourceFile, InterfaceDeclarationStructure, PropertySignatureStructure, OptionalKind } from 'ts-morph';
-import type { SchemaLike, ComplexTypeLike, AttributeLike, ElementLike, SimpleTypeLike } from '../infer/types';
+import type { SchemaLike, ComplexTypeLike, AttributeLike, ElementLike, SimpleTypeLike, GroupLike, GroupRefLike, AnyAttributeLike } from '../infer/types';
+
+/**
+ * Type for sources that can contain content model (sequence, choice, all, group)
+ * Used by collectProperties methods
+ */
+type ContentModelSource = {
+  readonly sequence?: GroupLike;
+  readonly choice?: GroupLike;
+  readonly all?: GroupLike;
+  readonly group?: GroupRefLike;
+  readonly attribute?: readonly AttributeLike[];
+  readonly attributeGroup?: readonly unknown[];
+  readonly anyAttribute?: AnyAttributeLike;
+  readonly base?: string;
+};
 import {
   findElement as walkerFindElement,
   stripNsPrefix,
@@ -52,9 +67,9 @@ export function generateInterfaces(
     if (element?.type) {
       const typeName = stripNsPrefix(element.type);
       generator.generateComplexType(typeName);
-    } else if (element && (element as any).complexType) {
+    } else if (element?.complexType) {
       // Element has inline complexType - generate it with the element name
-      generator.generateInlineRootElement(options.rootElement, (element as any).complexType);
+      generator.generateInlineRootElement(options.rootElement, element.complexType);
     }
   }
   
@@ -63,8 +78,8 @@ export function generateInterfaces(
     const elements = schema.element;
     if (elements && Array.isArray(elements)) {
       for (const el of elements) {
-        if (el.name && (el as any).complexType) {
-          generator.generateInlineRootElement(el.name, (el as any).complexType);
+        if (el.name && el.complexType) {
+          generator.generateInlineRootElement(el.name, el.complexType);
         }
       }
     }
@@ -120,8 +135,8 @@ export function generateInterfacesWithDeps(
     if (element?.type) {
       const typeName = stripNsPrefix(element.type);
       generator.generateComplexType(typeName);
-    } else if (element && (element as any).complexType) {
-      generator.generateInlineRootElement(options.rootElement, (element as any).complexType);
+    } else if (element?.complexType) {
+      generator.generateInlineRootElement(options.rootElement, element.complexType);
     }
   }
   
@@ -130,8 +145,8 @@ export function generateInterfacesWithDeps(
     const elements = schema.element;
     if (elements && Array.isArray(elements)) {
       for (const el of elements) {
-        if (el.name && (el as any).complexType) {
-          generator.generateInlineRootElement(el.name, (el as any).complexType);
+        if (el.name && el.complexType) {
+          generator.generateInlineRootElement(el.name, el.complexType);
         }
       }
     }
@@ -368,19 +383,16 @@ class InterfaceGenerator {
   }
   
   private collectProperties(
-    source: ComplexTypeLike | { sequence?: unknown; all?: unknown; choice?: unknown; group?: unknown; attribute?: readonly AttributeLike[]; attributeGroup?: readonly unknown[] },
+    source: ComplexTypeLike | ContentModelSource,
     properties: OptionalKind<PropertySignatureStructure>[]
   ): void {
-    const seq = (source as any).sequence;
-    if (seq) this.collectFromGroup(seq, properties, false, false);
-    
-    const all = (source as any).all;
-    if (all) this.collectFromGroup(all, properties, false, false);
+    if (source.sequence) this.collectFromGroup(source.sequence, properties, false, false);
+    if (source.all) this.collectFromGroup(source.all, properties, false, false);
     
     // Choice elements are always optional (only one is selected)
     // But if choice has maxOccurs="unbounded", elements should be arrays
-    const choice = (source as any).choice;
-    if (choice) {
+    if (source.choice) {
+      const choice = source.choice;
       const choiceIsArray = choice.maxOccurs === 'unbounded' || 
                            (typeof choice.maxOccurs === 'string' && choice.maxOccurs !== '1' && choice.maxOccurs !== '0') ||
                            (typeof choice.maxOccurs === 'number' && choice.maxOccurs > 1);
@@ -388,7 +400,7 @@ class InterfaceGenerator {
     }
     
     // Handle group reference
-    const groupRef = (source as any).group;
+    const groupRef = source.group;
     if (groupRef?.ref) {
       // Check if the group reference has maxOccurs="unbounded"
       const groupIsArray = groupRef.maxOccurs === 'unbounded' || 
@@ -400,16 +412,16 @@ class InterfaceGenerator {
     }
     
     // Only collect attributes from extension source (not from complexType - that's done separately)
-    if ('attribute' in source && source.attribute && 'base' in source) {
+    if (source.attribute && 'base' in source) {
       this.collectAttributes(source.attribute, properties);
     }
     
     // Handle attributeGroup references
-    const attrGroups = (source as any).attributeGroup;
-    if (attrGroups && Array.isArray(attrGroups)) {
-      for (const ag of attrGroups) {
-        if (ag.ref) {
-          this.collectFromAttributeGroupRef(ag.ref, properties);
+    if (source.attributeGroup) {
+      for (const ag of source.attributeGroup) {
+        const agRef = ag as { ref?: string };
+        if (agRef.ref) {
+          this.collectFromAttributeGroupRef(agRef.ref, properties);
         }
       }
     }
@@ -421,46 +433,40 @@ class InterfaceGenerator {
    * and attributes without a type are just modifying parent's attribute
    */
   private collectPropertiesFromRestriction(
-    source: { sequence?: unknown; all?: unknown; choice?: unknown; group?: unknown; attribute?: readonly AttributeLike[]; attributeGroup?: readonly unknown[] },
+    source: ContentModelSource,
     properties: OptionalKind<PropertySignatureStructure>[]
   ): void {
-    const seq = (source as any).sequence;
-    if (seq) this.collectFromGroup(seq, properties);
-    
-    const all = (source as any).all;
-    if (all) this.collectFromGroup(all, properties);
-    
-    const choice = (source as any).choice;
-    if (choice) this.collectFromGroup(choice, properties);
+    if (source.sequence) this.collectFromGroup(source.sequence, properties);
+    if (source.all) this.collectFromGroup(source.all, properties);
+    if (source.choice) this.collectFromGroup(source.choice, properties);
     
     // Handle group reference
-    const groupRef = (source as any).group;
+    const groupRef = source.group;
     if (groupRef?.ref) {
       this.collectFromGroupRef(groupRef.ref, properties);
     }
     
     // Collect attributes with restriction semantics
     // Also handle anyAttribute for index signature
-    const anyAttr = (source as any).anyAttribute;
-    if ('attribute' in source && source.attribute) {
-      this.collectAttributes(source.attribute, properties, anyAttr, true);
-    } else if (anyAttr) {
+    if (source.attribute) {
+      this.collectAttributes(source.attribute, properties, source.anyAttribute, true);
+    } else if (source.anyAttribute) {
       // No attributes but has anyAttribute - add index signature
-      this.collectAttributes(undefined, properties, anyAttr, true);
+      this.collectAttributes(undefined, properties, source.anyAttribute, true);
     }
     
     // Handle attributeGroup references
-    const attrGroups = (source as any).attributeGroup;
-    if (attrGroups && Array.isArray(attrGroups)) {
-      for (const ag of attrGroups) {
-        if (ag.ref) {
-          this.collectFromAttributeGroupRef(ag.ref, properties);
+    if (source.attributeGroup) {
+      for (const ag of source.attributeGroup) {
+        const agRef = ag as { ref?: string };
+        if (agRef.ref) {
+          this.collectFromAttributeGroupRef(agRef.ref, properties);
         }
       }
     }
   }
   
-  private collectFromGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[], forceArray: boolean = false, forceOptional: boolean = false): void {
+  private collectFromGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[], forceArray = false, forceOptional = false): void {
     const groupName = stripNsPrefix(ref);
     const { group, isChoice } = this.findGroupWithMeta(groupName);
     if (group) {
@@ -478,14 +484,13 @@ class InterfaceGenerator {
   }
   
   private collectFromGroup(
-    group: { element?: readonly ElementLike[]; any?: readonly unknown[]; group?: unknown; sequence?: unknown; choice?: unknown },
+    group: GroupLike,
     properties: OptionalKind<PropertySignatureStructure>[],
-    forceArray: boolean = false,
-    forceOptional: boolean = false
+    forceArray = false,
+    forceOptional = false
   ): void {
     // Handle any wildcard
-    const anyElements = (group as any).any;
-    if (anyElements && Array.isArray(anyElements) && anyElements.length > 0) {
+    if (group.any && group.any.length > 0) {
       // xs:any allows any element - represent as index signature
       // Only add if not already present
       const hasIndexSig = properties.some(p => p.name?.startsWith('['));
@@ -499,10 +504,8 @@ class InterfaceGenerator {
     }
     
     // Handle nested group references within the group
-    const nestedGroups = (group as any).group;
-    if (nestedGroups) {
-      const groupArray = Array.isArray(nestedGroups) ? nestedGroups : [nestedGroups];
-      for (const g of groupArray) {
+    if (group.group) {
+      for (const g of group.group) {
         if (g.ref) {
           // Check if the group reference has maxOccurs="unbounded"
           const groupIsArray = g.maxOccurs === 'unbounded' || 
@@ -516,10 +519,8 @@ class InterfaceGenerator {
     }
     
     // Handle nested sequence within the group
-    const nestedSeq = (group as any).sequence;
-    if (nestedSeq) {
-      const seqArray = Array.isArray(nestedSeq) ? nestedSeq : [nestedSeq];
-      for (const seq of seqArray) {
+    if (group.sequence) {
+      for (const seq of group.sequence) {
         // Check if the nested sequence has maxOccurs="unbounded"
         const seqIsArray = seq.maxOccurs === 'unbounded' || 
                           (typeof seq.maxOccurs === 'string' && seq.maxOccurs !== '1' && seq.maxOccurs !== '0') ||
@@ -531,10 +532,8 @@ class InterfaceGenerator {
     }
     
     // Handle nested choice within the group - choices are always optional (only one is selected)
-    const nestedChoice = (group as any).choice;
-    if (nestedChoice) {
-      const choiceArray = Array.isArray(nestedChoice) ? nestedChoice : [nestedChoice];
-      for (const ch of choiceArray) {
+    if (group.choice) {
+      for (const ch of group.choice) {
         // Check if the choice has maxOccurs="unbounded" for array typing
         const choiceIsArray = ch.maxOccurs === 'unbounded' || 
                              (typeof ch.maxOccurs === 'string' && ch.maxOccurs !== '1' && ch.maxOccurs !== '0') ||
@@ -550,8 +549,8 @@ class InterfaceGenerator {
     
     for (const el of elements) {
       // Handle element reference (ref="xs:include")
-      if ((el as any).ref) {
-        const refName = stripNsPrefix((el as any).ref);
+      if (el.ref) {
+        const refName = stripNsPrefix(el.ref);
         const refElement = this.findElement(refName);
         
         // Use minOccurs/maxOccurs from the reference, not the target element
@@ -564,15 +563,33 @@ class InterfaceGenerator {
         let typeName: string;
         if (refElement?.type) {
           typeName = this.resolveType(stripNsPrefix(refElement.type));
-        } else if (refElement && (refElement as any).complexType) {
-          typeName = this.generateInlineComplexType(refName, (refElement as any).complexType);
+        } else if (refElement?.complexType) {
+          typeName = this.generateInlineComplexType(refName, refElement.complexType);
+        } else if (refElement && this.isAbstractElement(refElement)) {
+          // Abstract element - find all substitutes and create union type
+          const substitutes = this.findSubstitutes(refName);
+          if (substitutes.length > 0) {
+            const substituteTypes = substitutes.map(sub => {
+              if (sub.type) {
+                return this.resolveType(stripNsPrefix(sub.type));
+              } else if (sub.complexType) {
+                return sub.name ? this.generateInlineComplexType(sub.name, sub.complexType) : 'unknown';
+              }
+              return sub.name ? this.toInterfaceName(sub.name) : 'unknown';
+            });
+            typeName = substituteTypes.join(' | ');
+          } else {
+            // No substitutes found - use unknown
+            typeName = 'unknown';
+          }
         } else {
           // Element exists but has no type - use the element name as type
           typeName = this.toInterfaceName(refName);
         }
         
         if (isArray) {
-          typeName = `${typeName}[]`;
+          // Only wrap in parentheses if it's a union type (contains |)
+          typeName = typeName.includes(' | ') ? `(${typeName})[]` : `${typeName}[]`;
         }
         
         // Skip if property already exists (deduplication)
@@ -609,8 +626,8 @@ class InterfaceGenerator {
         } else {
           typeName = this.resolveType(baseType);
         }
-      } else if ((el as any).complexType) {
-        typeName = this.generateInlineComplexType(el.name, (el as any).complexType);
+      } else if (el.complexType) {
+        typeName = this.generateInlineComplexType(el.name, el.complexType);
       } else {
         typeName = 'unknown';
       }
@@ -636,17 +653,64 @@ class InterfaceGenerator {
     return entry?.element;
   }
   
+  /**
+   * Find all elements that substitute for a given abstract element.
+   * This handles XSD substitution groups where concrete elements can
+   * substitute for an abstract element.
+   */
+  private findSubstitutes(abstractElementName: string): ElementLike[] {
+    const substitutes: ElementLike[] = [];
+    
+    // Search in current schema
+    const elements = this.schema.element;
+    if (elements && Array.isArray(elements)) {
+      for (const el of elements) {
+        if (el.substitutionGroup) {
+          const subGroupName = stripNsPrefix(el.substitutionGroup);
+          if (subGroupName === abstractElementName) {
+            substitutes.push(el);
+          }
+        }
+      }
+    }
+    
+    // Search in all imports
+    for (const imported of this.allImports) {
+      const importedElements = imported.element;
+      if (importedElements && Array.isArray(importedElements)) {
+        for (const el of importedElements) {
+          const subGroup = el.substitutionGroup;
+          if (subGroup) {
+            const subGroupName = stripNsPrefix(subGroup);
+            if (subGroupName === abstractElementName) {
+              substitutes.push(el);
+            }
+          }
+        }
+      }
+    }
+    
+    return substitutes;
+  }
+  
+  /**
+   * Check if an element is abstract
+   */
+  private isAbstractElement(element: ElementLike): boolean {
+    return element.abstract === true;
+  }
+  
   private collectAttributes(
     attributes: readonly AttributeLike[] | undefined,
     properties: OptionalKind<PropertySignatureStructure>[],
     anyAttribute?: unknown,
-    isRestriction: boolean = false
+    isRestriction = false
   ): void {
     if (attributes) {
       for (const attr of attributes) {
         // Handle attribute reference (ref="atcfinding:location" -> "location")
-        if ((attr as any).ref) {
-          const refName = (attr as any).ref;
+        if (attr.ref) {
+          const refName = attr.ref;
           // Strip namespace prefix - the ref points to a global attribute by name
           // e.g., ref="atcfinding:location" -> property name is "location"
           // Exception: xml:lang and xml:base are special XML attributes that keep the prefix
@@ -732,7 +796,7 @@ class InterfaceGenerator {
     const extendsTypes: string[] = [];
     
     // Handle mixed content - add _text property
-    if ((ct as any).mixed === true || (ct as any).mixed === 'true') {
+    if (ct.mixed === true) {
       properties.push({
         name: '_text',
         type: 'string',
@@ -835,7 +899,7 @@ class InterfaceGenerator {
     // Search in current schema
     const groups = this.schema.group;
     if (groups && Array.isArray(groups)) {
-      const found = groups.find((g: any) => g.name === name);
+      const found = groups.find((g) => g.name === name);
       if (found) {
         // Group can have sequence/choice/all containing elements
         const isChoice = !!found.choice && !found.sequence && !found.all;
@@ -847,7 +911,7 @@ class InterfaceGenerator {
     for (const imported of this.allImports) {
       const importedGroups = imported.group;
       if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g: any) => g.name === name);
+        const found = importedGroups.find((g) => g.name === name);
         if (found) {
           const isChoice = !!found.choice && !found.sequence && !found.all;
           const content = found.sequence || found.choice || found.all || found;
@@ -862,14 +926,14 @@ class InterfaceGenerator {
     // Search in current schema
     const groups = this.schema.attributeGroup;
     if (groups && Array.isArray(groups)) {
-      const found = groups.find((g: any) => g.name === name);
+      const found = groups.find((g) => g.name === name);
       if (found) return found;
     }
     // Search in imports
     for (const imported of this.allImports) {
       const importedGroups = imported.attributeGroup;
       if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g: any) => g.name === name);
+        const found = importedGroups.find((g) => g.name === name);
         if (found) return found;
       }
     }
@@ -1300,16 +1364,16 @@ class InterfaceGeneratorWithDeps {
   }
   
   private collectProperties(
-    source: ComplexTypeLike | { sequence?: unknown; all?: unknown; choice?: unknown; group?: unknown; attribute?: readonly AttributeLike[]; attributeGroup?: readonly unknown[] },
+    source: ComplexTypeLike | ContentModelSource,
     properties: OptionalKind<PropertySignatureStructure>[]
   ): void {
-    const seq = (source as any).sequence;
+    const seq = source.sequence;
     if (seq) this.collectFromGroup(seq, properties, false, false);
     
-    const all = (source as any).all;
+    const all = source.all;
     if (all) this.collectFromGroup(all, properties, false, false);
     
-    const choice = (source as any).choice;
+    const choice = source.choice;
     if (choice) {
       const choiceIsArray = choice.maxOccurs === 'unbounded' || 
                            (typeof choice.maxOccurs === 'string' && choice.maxOccurs !== '1' && choice.maxOccurs !== '0') ||
@@ -1317,7 +1381,7 @@ class InterfaceGeneratorWithDeps {
       this.collectFromGroup(choice, properties, choiceIsArray, true);
     }
     
-    const groupRef = (source as any).group;
+    const groupRef = source.group;
     if (groupRef?.ref) {
       const groupIsArray = groupRef.maxOccurs === 'unbounded' || 
                           (typeof groupRef.maxOccurs === 'string' && groupRef.maxOccurs !== '1' && groupRef.maxOccurs !== '0') ||
@@ -1330,7 +1394,7 @@ class InterfaceGeneratorWithDeps {
       this.collectAttributes(source.attribute, properties);
     }
     
-    const attrGroups = (source as any).attributeGroup;
+    const attrGroups = source.attributeGroup;
     if (attrGroups && Array.isArray(attrGroups)) {
       for (const ag of attrGroups) {
         if (ag.ref) {
@@ -1341,31 +1405,31 @@ class InterfaceGeneratorWithDeps {
   }
   
   private collectPropertiesFromRestriction(
-    source: { sequence?: unknown; all?: unknown; choice?: unknown; group?: unknown; attribute?: readonly AttributeLike[]; attributeGroup?: readonly unknown[] },
+    source: ContentModelSource,
     properties: OptionalKind<PropertySignatureStructure>[]
   ): void {
-    const seq = (source as any).sequence;
+    const seq = source.sequence;
     if (seq) this.collectFromGroup(seq, properties);
     
-    const all = (source as any).all;
+    const all = source.all;
     if (all) this.collectFromGroup(all, properties);
     
-    const choice = (source as any).choice;
+    const choice = source.choice;
     if (choice) this.collectFromGroup(choice, properties);
     
-    const groupRef = (source as any).group;
+    const groupRef = source.group;
     if (groupRef?.ref) {
       this.collectFromGroupRef(groupRef.ref, properties);
     }
     
-    const anyAttr = (source as any).anyAttribute;
+    const anyAttr = source.anyAttribute;
     if ('attribute' in source && source.attribute) {
       this.collectAttributes(source.attribute, properties, anyAttr, true);
     } else if (anyAttr) {
       this.collectAttributes(undefined, properties, anyAttr, true);
     }
     
-    const attrGroups = (source as any).attributeGroup;
+    const attrGroups = source.attributeGroup;
     if (attrGroups && Array.isArray(attrGroups)) {
       for (const ag of attrGroups) {
         if (ag.ref) {
@@ -1375,7 +1439,7 @@ class InterfaceGeneratorWithDeps {
     }
   }
   
-  private collectFromGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[], forceArray: boolean = false, forceOptional: boolean = false): void {
+  private collectFromGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[], forceArray = false, forceOptional = false): void {
     const groupName = stripNsPrefix(ref);
     const { group, isChoice } = this.findGroupWithMeta(groupName);
     if (group) {
@@ -1392,12 +1456,12 @@ class InterfaceGeneratorWithDeps {
   }
   
   private collectFromGroup(
-    group: { element?: readonly ElementLike[]; any?: readonly unknown[]; group?: unknown; sequence?: unknown; choice?: unknown },
+    group: GroupLike,
     properties: OptionalKind<PropertySignatureStructure>[],
-    forceArray: boolean = false,
-    forceOptional: boolean = false
+    forceArray = false,
+    forceOptional = false
   ): void {
-    const anyElements = (group as any).any;
+    const anyElements = group.any;
     if (anyElements && Array.isArray(anyElements) && anyElements.length > 0) {
       const hasIndexSig = properties.some(p => p.name?.startsWith('['));
       if (!hasIndexSig) {
@@ -1409,7 +1473,7 @@ class InterfaceGeneratorWithDeps {
       }
     }
     
-    const nestedGroups = (group as any).group;
+    const nestedGroups = group.group;
     if (nestedGroups) {
       const groupArray = Array.isArray(nestedGroups) ? nestedGroups : [nestedGroups];
       for (const g of groupArray) {
@@ -1423,7 +1487,7 @@ class InterfaceGeneratorWithDeps {
       }
     }
     
-    const nestedSeq = (group as any).sequence;
+    const nestedSeq = group.sequence;
     if (nestedSeq) {
       const seqArray = Array.isArray(nestedSeq) ? nestedSeq : [nestedSeq];
       for (const seq of seqArray) {
@@ -1435,7 +1499,7 @@ class InterfaceGeneratorWithDeps {
       }
     }
     
-    const nestedChoice = (group as any).choice;
+    const nestedChoice = group.choice;
     if (nestedChoice) {
       const choiceArray = Array.isArray(nestedChoice) ? nestedChoice : [nestedChoice];
       for (const ch of choiceArray) {
@@ -1450,8 +1514,8 @@ class InterfaceGeneratorWithDeps {
     if (!elements) return;
     
     for (const el of elements) {
-      if ((el as any).ref) {
-        const refName = stripNsPrefix((el as any).ref);
+      if (el.ref) {
+        const refName = stripNsPrefix(el.ref);
         const refElement = this.findElement(refName);
         
         const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
@@ -1462,8 +1526,8 @@ class InterfaceGeneratorWithDeps {
         let typeName: string;
         if (refElement?.type) {
           typeName = this.resolveType(stripNsPrefix(refElement.type));
-        } else if (refElement && (refElement as any).complexType) {
-          typeName = this.generateInlineComplexType(refName, (refElement as any).complexType);
+        } else if (refElement && refElement.complexType) {
+          typeName = this.generateInlineComplexType(refName, refElement.complexType);
         } else {
           typeName = this.toInterfaceName(refName);
         }
@@ -1502,8 +1566,8 @@ class InterfaceGeneratorWithDeps {
         } else {
           typeName = this.resolveType(baseType);
         }
-      } else if ((el as any).complexType) {
-        typeName = this.generateInlineComplexType(el.name, (el as any).complexType);
+      } else if (el.complexType) {
+        typeName = this.generateInlineComplexType(el.name, el.complexType);
       } else {
         typeName = 'unknown';
       }
@@ -1531,12 +1595,12 @@ class InterfaceGeneratorWithDeps {
     attributes: readonly AttributeLike[] | undefined,
     properties: OptionalKind<PropertySignatureStructure>[],
     anyAttribute?: unknown,
-    isRestriction: boolean = false
+    isRestriction = false
   ): void {
     if (attributes) {
       for (const attr of attributes) {
-        if ((attr as any).ref) {
-          const refName = (attr as any).ref;
+        if (attr.ref) {
+          const refName = attr.ref;
           const isXmlNamespace = refName.startsWith('xml:');
           const propName = isXmlNamespace 
             ? `'${refName}'`
@@ -1605,7 +1669,7 @@ class InterfaceGeneratorWithDeps {
     const properties: OptionalKind<PropertySignatureStructure>[] = [];
     const extendsTypes: string[] = [];
     
-    if ((ct as any).mixed === true || (ct as any).mixed === 'true') {
+    if (ct.mixed === true) {
       properties.push({
         name: '_text',
         type: 'string',
@@ -1687,7 +1751,7 @@ class InterfaceGeneratorWithDeps {
   private findGroupWithMeta(name: string): { group: { element?: readonly ElementLike[] } | undefined; isChoice: boolean } {
     const groups = this.schema.group;
     if (groups && Array.isArray(groups)) {
-      const found = groups.find((g: any) => g.name === name);
+      const found = groups.find((g) => g.name === name);
       if (found) {
         const isChoice = !!found.choice && !found.sequence && !found.all;
         const content = found.sequence || found.choice || found.all || found;
@@ -1697,7 +1761,7 @@ class InterfaceGeneratorWithDeps {
     for (const imported of this.allImports) {
       const importedGroups = imported.group;
       if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g: any) => g.name === name);
+        const found = importedGroups.find((g) => g.name === name);
         if (found) {
           const isChoice = !!found.choice && !found.sequence && !found.all;
           const content = found.sequence || found.choice || found.all || found;
@@ -1711,13 +1775,13 @@ class InterfaceGeneratorWithDeps {
   private findAttributeGroup(name: string): { attribute?: readonly AttributeLike[] } | undefined {
     const groups = this.schema.attributeGroup;
     if (groups && Array.isArray(groups)) {
-      const found = groups.find((g: any) => g.name === name);
+      const found = groups.find((g) => g.name === name);
       if (found) return found;
     }
     for (const imported of this.allImports) {
       const importedGroups = imported.attributeGroup;
       if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g: any) => g.name === name);
+        const found = importedGroups.find((g) => g.name === name);
         if (found) return found;
       }
     }

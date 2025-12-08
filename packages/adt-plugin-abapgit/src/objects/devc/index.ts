@@ -4,27 +4,21 @@
  */
 
 import type { AdkPackage } from '@abapify/adk';
-import { createSerializer } from '../../lib/create-serializer';
-import { AbapGitDevcValuesSchema } from './schema';
-import type { DevcTable } from './types';
-
-/**
- * Map ADK v2 Package to abapGit DEVC structure
- *
- * Note: DEVCLASS is not included in abapGit package.devc.xml files (only CTEXT)
- */
-function mapPackageToAbapGit(pkg: AdkPackage): DevcTable {
-  // Access description directly from AdkPackage
-  return {
-    CTEXT: pkg.description || '',
-  };
-}
+import { devc } from '../../schemas/generated';
+import { buildAbapGitEnvelope } from '../../lib/shared-schema';
 
 /**
  * Serialize ADK Package to abapGit XML
+ * Note: DEVCLASS is not included in abapGit package.devc.xml files (only CTEXT)
  */
-export const serializePackage = createSerializer({
-  valuesSchema: AbapGitDevcValuesSchema,
-  mapper: mapPackageToAbapGit,
-  serializerClass: 'LCL_OBJECT_DEVC',
-});
+export function serializePackage(pkg: AdkPackage): string {
+  const data = {
+    CTEXT: pkg.description || '',
+  };
+  
+  // Use ts-xsd schema to build the inner content
+  const innerXml = devc.build(data);
+  
+  // Wrap in abapGit envelope
+  return buildAbapGitEnvelope(innerXml, 'LCL_OBJECT_DEVC');
+}

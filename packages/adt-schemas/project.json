@@ -12,12 +12,12 @@
       "cache": false
     },
     "codegen": {
-      "command": "npx tsx scripts/codegen.ts",
+      "command": "npx ts-xsd codegen --verbose",
       "options": {
         "cwd": "{projectRoot}"
       },
       "dependsOn": ["download", "ts-xsd:build"],
-      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/scripts/codegen.ts"],
+      "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/ts-xsd.config.ts"],
       "outputs": ["{projectRoot}/src/schemas/generated"]
     }
   }

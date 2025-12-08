@@ -419,4 +419,62 @@ describe('Schema Walker', () => {
       assert.equal(iterationCount, 6); // 0, 1, 2, 3, 4, 5
     });
   });
+
+  // ==========================================================================
+  // Substitution Groups
+  // ==========================================================================
+
+  describe('substitution groups', () => {
+    // Schema mimicking abapGit pattern:
+    // - asx:Schema is abstract
+    // - DEVC, CLAS substitute for asx:Schema
+    // - AbapValuesType has ref to asx:Schema
+    const substitutionSchema: SchemaLike = {
+      targetNamespace: 'http://www.sap.com/abapxml',
+      element: [
+        { name: 'Schema', abstract: true },
+        { name: 'DEVC', type: 'DevcType', substitutionGroup: 'asx:Schema' },
+        { name: 'CLAS', type: 'ClasType', substitutionGroup: 'asx:Schema' },
+      ],
+      complexType: [
+        { name: 'DevcType', sequence: { element: [{ name: 'CTEXT', type: 'xs:string' }] } },
+        { name: 'ClasType', sequence: { element: [{ name: 'CLSNAME', type: 'xs:string' }] } },
+        {
+          name: 'AbapValuesType',
+          sequence: {
+            element: [
+              { ref: 'asx:Schema' },
+            ],
+          },
+        },
+      ],
+    };
+
+    it('should yield substitutes instead of abstract element ref', () => {
+      const complexTypes = substitutionSchema.complexType as ComplexTypeLike[];
+      const valuesType = complexTypes.find((ct: ComplexTypeLike) => ct.name === 'AbapValuesType');
+      assert.ok(valuesType, 'AbapValuesType should exist');
+      
+      const elements = [...walkElements(valuesType, substitutionSchema)];
+      
+      // Should yield DEVC and CLAS (the substitutes), not Schema (the abstract)
+      const elementNames = elements.map(e => e.element.name);
+      
+      assert.ok(elementNames.includes('DEVC'), 'Should include DEVC substitute');
+      assert.ok(elementNames.includes('CLAS'), 'Should include CLAS substitute');
+      assert.ok(!elementNames.includes('Schema'), 'Should NOT include abstract Schema');
+    });
+
+    it('should preserve optionality from ref when yielding substitutes', () => {
+      const complexTypes = substitutionSchema.complexType as ComplexTypeLike[];
+      const valuesType = complexTypes.find((ct: ComplexTypeLike) => ct.name === 'AbapValuesType');
+      assert.ok(valuesType);
+      const elements = [...walkElements(valuesType, substitutionSchema)];
+      
+      // All substitutes should have same optionality as the original ref
+      for (const entry of elements) {
+        assert.equal(entry.optional, false, `${entry.element.name} should not be optional`);
+      }
+    });
+  });
 });

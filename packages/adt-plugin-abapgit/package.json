@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@abapify/adk": "*",
-    "speci": "*",
     "ts-xsd": "workspace:*"
   }
 }

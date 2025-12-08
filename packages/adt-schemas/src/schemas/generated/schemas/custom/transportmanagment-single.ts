@@ -444,4 +444,3 @@ export default {
     },
   ],
 } as const;
-

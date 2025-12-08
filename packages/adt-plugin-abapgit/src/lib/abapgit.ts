@@ -1,6 +1,5 @@
-import type { AdkObject } from '@abapify/adk';
 import { createFormatPlugin } from './types';
-import type { FormatPlugin, SerializationContext } from './types';
+import type { FormatPlugin } from './types';
 import { AbapGitSerializer } from './serializer';
 import { writeFileSync } from 'fs';
 import { join } from 'path';

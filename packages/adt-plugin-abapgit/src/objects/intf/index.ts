@@ -4,30 +4,25 @@
  */
 
 import type { AdkInterface } from '@abapify/adk';
-import { createSerializer } from '../../lib/create-serializer';
-import { AbapGitIntfValuesSchema } from './schema';
-import type { VseoInterfTable } from './types';
-
-/**
- * Map ADK v2 Interface to abapGit VSEOINTERF structure
- */
-function mapInterfaceToAbapGit(intf: AdkInterface): VseoInterfTable {
-  // Access properties directly from AdkInterface
-  return {
-    CLSNAME: intf.name || '',
-    LANGU: 'E',
-    DESCRIPT: intf.description || '',
-    EXPOSURE: '2', // 2 = Public
-    STATE: '1', // 1 = Active
-    UNICODE: 'X',
-  };
-}
+import { intf } from '../../schemas/generated';
+import { buildAbapGitEnvelope } from '../../lib/shared-schema';
 
 /**
  * Serialize ADK Interface to abapGit XML
  */
-export const serializeInterface = createSerializer({
-  valuesSchema: AbapGitIntfValuesSchema,
-  mapper: mapInterfaceToAbapGit,
-  serializerClass: 'LCL_OBJECT_INTF',
-});
+export function serializeInterface(intfObj: AdkInterface): string {
+  const data = {
+    CLSNAME: intfObj.name || '',
+    LANGU: 'E',
+    DESCRIPT: intfObj.description || '',
+    EXPOSURE: '2', // 2 = Public
+    STATE: '1', // 1 = Active
+    UNICODE: 'X',
+  };
+  
+  // Use ts-xsd schema to build the inner content
+  const innerXml = intf.build(data);
+  
+  // Wrap in abapGit envelope
+  return buildAbapGitEnvelope(innerXml, 'LCL_OBJECT_INTF');
+}

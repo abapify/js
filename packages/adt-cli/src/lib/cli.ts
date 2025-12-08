@@ -30,7 +30,7 @@ import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setGlobalLogger } from './shared/clients';
-import { setCliContext } from './utils/adt-client';
+import { setCliContext } from './utils/adt-client-v2';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 

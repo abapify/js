@@ -2,13 +2,20 @@
   "name": "adt-plugin-abapgit",
   "targets": {
     "codegen": {
-      "command": "npx ts-xsd codegen -c tsxsd.config.ts",
+      "command": "npx ts-xsd codegen --verbose",
       "options": {
         "cwd": "{projectRoot}"
       },
       "dependsOn": ["ts-xsd:build"],
-      "inputs": ["{projectRoot}/xsd/*.xsd", "{projectRoot}/tsxsd.config.ts"],
+      "inputs": ["{projectRoot}/xsd/*.xsd", "{projectRoot}/ts-xsd.config.ts"],
       "outputs": ["{projectRoot}/src/schemas/generated"]
+    },
+    "test": {
+      "command": "node --test tests/**/*.test.ts",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "inputs": ["{projectRoot}/tests/**/*.ts", "{projectRoot}/src/**/*.ts"]
     }
   }
 }

@@ -363,4 +363,3 @@ export default {
     },
   ],
 } as const;
-

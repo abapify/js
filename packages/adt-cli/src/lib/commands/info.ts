@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
-import { getAdtClientV2 } from '../utils/adt-client';
+import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const infoCommand = new Command('info')
   .description('Get SAP system and session information')

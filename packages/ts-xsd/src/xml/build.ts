@@ -76,7 +76,11 @@ export function build<T extends SchemaLike>(
   }
 
   // Create root element with namespace declarations
-  const root = createRootElement(doc, elementDecl.name!, schema, prefix);
+  const elementName = elementDecl.name ?? elementDecl.ref;
+  if (!elementName) {
+    throw new Error('Element declaration has no name or ref');
+  }
+  const root = createRootElement(doc, elementName, schema, prefix);
 
   buildElement(doc, root, data as Record<string, unknown>, rootType, rootSchema, prefix);
   doc.appendChild(root);
@@ -196,8 +200,9 @@ function resolveElementInfo(
     const refName = stripNsPrefix(element.ref);
     const refElement = findElement(refName, schema);
     if (refElement) {
+      const name = refElement.element.name ?? refName;
       return {
-        name: refElement.element.name!,
+        name,
         typeName: refElement.element.type ? stripNsPrefix(refElement.element.type) : undefined,
       };
     }

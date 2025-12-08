@@ -2,13 +2,14 @@
  * Shared utilities for XML builders
  */
 
+import type { Document, Element } from '@xmldom/xmldom';
 import { DOMImplementation } from '@xmldom/xmldom';
 import type { SchemaLike, ComplexTypeLike, ElementLike } from '../infer/types';
 import { findComplexType, stripNsPrefix } from '../walker';
 
-// Use 'any' for xmldom types since they don't match browser DOM types
-export type XmlDocument = any;
-export type XmlElement = any;
+// Re-export xmldom types for use in other modules
+export type XmlDocument = Document;
+export type XmlElement = Element;
 
 export interface BuildOptions {
   /** Include XML declaration (default: true) */
@@ -88,7 +89,7 @@ export function createRootElement(
 export function findElementDeclaration(
   schema: SchemaLike,
   rootElement?: string,
-  data?: Record<string, unknown>
+  _data?: Record<string, unknown>
 ): ElementLike {
   if (rootElement) {
     const elementDecl = schema.element?.find(e => e.name === rootElement);

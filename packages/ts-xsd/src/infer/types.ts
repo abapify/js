@@ -492,10 +492,14 @@ export type InferComplexTypeContent<CT extends ComplexTypeLike, T extends Schema
   InferChoice<CT['choice'], T> &
   InferAttributes<CT['attribute']>;
 
+/** Empty object type for conditional fallbacks - use {} not Record<string, never> to avoid intersection issues */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+type EmptyObject = {};
+
 /** Infer from complexContent/extension */
 export type InferExtension<Ext extends ExtensionLike, T extends SchemaLike> =
   // Inherit from base type
-  (Ext['base'] extends string ? InferTypeName<Ext['base'], T> : {}) &
+  (Ext['base'] extends string ? InferTypeName<Ext['base'], T> : EmptyObject) &
   // Add own content
   InferGroup<Ext['sequence'], T> &
   InferGroup<Ext['all'], T> &
@@ -503,8 +507,8 @@ export type InferExtension<Ext extends ExtensionLike, T extends SchemaLike> =
   InferAttributes<Ext['attribute']>;
 
 /** Infer from simpleContent/extension (text content + attributes) */
-export type InferSimpleContentExtension<Ext extends SimpleExtensionLike, T extends SchemaLike> =
-  (Ext['base'] extends string ? { _text: InferBuiltInType<StripPrefix<Ext['base']>> } : {}) &
+export type InferSimpleContentExtension<Ext extends SimpleExtensionLike, _T extends SchemaLike> =
+  (Ext['base'] extends string ? { _text: InferBuiltInType<StripPrefix<Ext['base']>> } : EmptyObject) &
   InferAttributes<Ext['attribute']>;
 
 // =============================================================================
@@ -517,25 +521,25 @@ export type InferGroup<G, T extends SchemaLike> =
     ? InferElements<G['element'], T> &
       InferNestedSequences<G['sequence'], T> &
       InferNestedChoices<G['choice'], T>
-    : {};
+    : EmptyObject;
 
 /** Infer from choice (union of possibilities) */
 export type InferChoice<G, T extends SchemaLike> =
   G extends GroupLike
     ? Partial<InferElements<G['element'], T>>
-    : {};
+    : EmptyObject;
 
 /** Infer nested sequences */
 export type InferNestedSequences<S, T extends SchemaLike> =
   S extends readonly GroupLike[]
     ? UnionToIntersection<InferGroup<S[number], T>>
-    : {};
+    : EmptyObject;
 
 /** Infer nested choices */
 export type InferNestedChoices<C, T extends SchemaLike> =
   C extends readonly GroupLike[]
     ? Partial<UnionToIntersection<InferGroup<C[number], T>>>
-    : {};
+    : EmptyObject;
 
 // =============================================================================
 // Element Inference
@@ -545,12 +549,24 @@ export type InferNestedChoices<C, T extends SchemaLike> =
 export type InferElements<E, T extends SchemaLike> =
   E extends readonly ElementLike[]
     ? InferRequiredElements<E, T> & InferOptionalElements<E, T>
-    : {};
+    : EmptyObject;
+
+/** Find element by name or ref (after stripping prefix) */
+type FindElementByName<E extends readonly ElementLike[], K extends string> =
+  Extract<E[number], { name: K }> extends never
+    ? E[number] extends infer El
+      ? El extends { ref: infer R }
+        ? R extends string
+          ? StripPrefix<R> extends K ? El : never
+          : never
+        : never
+      : never
+    : Extract<E[number], { name: K }>;
 
 /** Infer required elements (minOccurs != 0) */
 export type InferRequiredElements<E extends readonly ElementLike[], T extends SchemaLike> = {
   [K in ExtractRequiredElementNames<E>]: InferElementType<
-    Extract<E[number], { name: K }>,
+    FindElementByName<E, K>,
     T
   >;
 };
@@ -558,51 +574,110 @@ export type InferRequiredElements<E extends readonly ElementLike[], T extends Sc
 /** Infer optional elements (minOccurs = 0) */
 export type InferOptionalElements<E extends readonly ElementLike[], T extends SchemaLike> = {
   [K in ExtractOptionalElementNames<E>]?: InferElementType<
-    Extract<E[number], { name: K }>,
+    FindElementByName<E, K>,
     T
   >;
 };
 
-/** Extract names of required elements */
-export type ExtractRequiredElementNames<E extends readonly ElementLike[]> =
-  E[number] extends infer El
-    ? El extends { name: infer N; minOccurs?: infer Min }
-      ? Min extends 0 | '0'
-        ? never
-        : N extends string
-          ? N
-          : never
-      : never
-    : never;
+/** Get element name - handles both name and ref (strips prefix from ref) */
+type GetElementName<El> =
+  El extends { name: infer N }
+    ? N extends string ? N : never
+    : El extends { ref: infer R }
+      ? R extends string ? StripPrefix<R> : never
+      : never;
 
-/** Extract names of optional elements */
-export type ExtractOptionalElementNames<E extends readonly ElementLike[]> =
-  E[number] extends infer El
-    ? El extends { name: infer N; minOccurs: 0 | '0' }
-      ? N extends string
-        ? N
-        : never
+/** Check if element is optional (minOccurs is 0 or '0') */
+type ElementIsOptional<El> = El extends { minOccurs: infer M }
+  ? M extends 0 | '0' ? true : false
+  : false;
+
+/** Extract names of required elements (distributive over union) */
+export type ExtractRequiredElementNames<E extends readonly ElementLike[]> = {
+  [K in keyof E]: E[K] extends ElementLike
+    ? ElementIsOptional<E[K]> extends true
+      ? never
+      : GetElementName<E[K]>
+    : never
+}[number];
+
+/** Extract names of optional elements (distributive over union) */
+export type ExtractOptionalElementNames<E extends readonly ElementLike[]> = {
+  [K in keyof E]: E[K] extends ElementLike
+    ? ElementIsOptional<E[K]> extends true
+      ? GetElementName<E[K]>
       : never
-    : never;
+    : never
+}[number];
 
 /** Infer type for a single element */
 export type InferElementType<El extends ElementLike, T extends SchemaLike> =
-  // Check for inline complexType
-  El extends { complexType: infer CT }
-    ? CT extends ComplexTypeLike
-      ? WrapArray<InferComplexType<CT, T>, El>
+  // Check for element reference (ref="prefix:elementName")
+  El extends { ref: infer Ref }
+    ? Ref extends string
+      ? WrapArray<InferElementRef<Ref, T>, El>
       : WrapArray<unknown, El>
-    // Check for inline simpleType
-    : El extends { simpleType: infer ST }
-      ? ST extends SimpleTypeLike
-        ? WrapArray<InferSimpleType<ST>, El>
+    // Check for inline complexType
+    : El extends { complexType: infer CT }
+      ? CT extends ComplexTypeLike
+        ? WrapArray<InferComplexType<CT, T>, El>
         : WrapArray<unknown, El>
-      // Reference to named type
-      : El extends { type: infer TypeName }
-        ? TypeName extends string
-          ? WrapArray<InferTypeName<TypeName, T>, El>
+      // Check for inline simpleType
+      : El extends { simpleType: infer ST }
+        ? ST extends SimpleTypeLike
+          ? WrapArray<InferSimpleType<ST>, El>
           : WrapArray<unknown, El>
-        : WrapArray<unknown, El>;
+        // Reference to named type
+        : El extends { type: infer TypeName }
+          ? TypeName extends string
+            ? WrapArray<InferTypeName<TypeName, T>, El>
+            : WrapArray<unknown, El>
+          : WrapArray<unknown, El>;
+
+/** Infer type for an element reference - looks up the element in schema or $imports */
+type InferElementRef<Ref extends string, T extends SchemaLike> =
+  // First try to find in current schema's elements
+  FindByName<T['element'], StripPrefix<Ref>> extends infer Found
+    ? [Found] extends [never]
+      // Not found in current schema - try $imports
+      ? InferElementFromImports<Ref, T>
+      // Found in current schema
+      : Found extends ElementLike
+        ? InferFoundElement<Found, T>
+        : unknown
+    : unknown;
+
+/** Infer type from a found element */
+type InferFoundElement<Found extends ElementLike, T extends SchemaLike> =
+  Found extends { type: infer TypeName }
+    ? TypeName extends string
+      ? InferTypeName<TypeName, T>
+      : unknown
+    : Found extends { complexType: infer CT }
+      ? CT extends ComplexTypeLike
+        ? InferComplexType<CT, T>
+        : unknown
+      : unknown;
+
+/** Try to find and infer element from $imports */
+type InferElementFromImports<Ref extends string, T extends SchemaLike> =
+  FindElementInImports<Ref, T['$imports']> extends infer ImportedEl
+    ? [ImportedEl] extends [never]
+      ? unknown
+      : ImportedEl extends ElementLike
+        ? InferFoundElement<ImportedEl, T>
+        : unknown
+    : unknown;
+
+/** Find element in $imports array */
+type FindElementInImports<Ref extends string, Imports> =
+  Imports extends readonly SchemaLike[]
+    ? Imports[number] extends infer S
+      ? S extends SchemaLike
+        ? FindByName<S['element'], StripPrefix<Ref>>
+        : never
+      : never
+    : never;
 
 /** Wrap in array if maxOccurs > 1 or unbounded */
 export type WrapArray<T, El extends ElementLike> =
@@ -628,7 +703,7 @@ export type WrapArray<T, El extends ElementLike> =
 export type InferAttributes<A> =
   A extends readonly AttributeLike[]
     ? InferRequiredAttributes<A> & InferOptionalAttributes<A>
-    : {};
+    : EmptyObject;
 
 /** Infer required attributes (use="required") */
 export type InferRequiredAttributes<A extends readonly AttributeLike[]> = {
@@ -754,11 +829,9 @@ export type InferBuiltInType<Name extends string> =
 // Utility Types
 // =============================================================================
 
-/** Strip xs: or xsd: prefix */
+/** Strip any namespace prefix (e.g., xs:string -> string, atom:link -> link) */
 export type StripPrefix<T extends string> =
-  T extends `xs:${infer Rest}` ? Rest :
-  T extends `xsd:${infer Rest}` ? Rest :
-  T;
+  T extends `${string}:${infer Rest}` ? Rest : T;
 
 /** Find item in array by partial match */
 export type FindInArray<Arr, Match> =

@@ -279,4 +279,3 @@ export default {
     },
   ],
 } as const;
-

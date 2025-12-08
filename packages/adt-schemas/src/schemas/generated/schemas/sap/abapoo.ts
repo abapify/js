@@ -50,4 +50,3 @@ export default {
     },
   ],
 } as const;
-

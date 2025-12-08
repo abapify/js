@@ -551,4 +551,176 @@ describe('Interface Generator', () => {
       );
     });
   });
+
+  // Substitution group test - abapGit pattern
+  // asx:Schema is abstract, DEVC/CLAS/etc substitute for it
+  describe('Substitution group type generation', () => {
+    // Base schema with abstract element
+    const asxSchema = {
+      $xmlns: { asx: 'http://www.sap.com/abapxml', xs: 'http://www.w3.org/2001/XMLSchema' },
+      targetNamespace: 'http://www.sap.com/abapxml',
+      element: [
+        { name: 'Schema', abstract: true },  // Abstract element
+        { name: 'abap', type: 'asx:AbapType' },
+      ],
+      complexType: [
+        {
+          name: 'AbapValuesType',
+          sequence: {
+            element: [
+              { ref: 'asx:Schema' },  // Reference to abstract element
+            ],
+          },
+        },
+        {
+          name: 'AbapType',
+          sequence: {
+            element: [
+              { name: 'values', type: 'asx:AbapValuesType' },
+            ],
+          },
+          attribute: [
+            { name: 'version', type: 'xs:string', default: '1.0' },
+          ],
+        },
+      ],
+    } as const;
+
+    // DEVC schema that substitutes for asx:Schema
+    const devcSchema = {
+      $xmlns: { asx: 'http://www.sap.com/abapxml', xs: 'http://www.w3.org/2001/XMLSchema' },
+      targetNamespace: 'http://www.sap.com/abapxml',
+      $imports: [asxSchema],
+      element: [
+        { name: 'DEVC', type: 'DevcType', substitutionGroup: 'asx:Schema' },
+      ],
+      complexType: [
+        {
+          name: 'DevcType',
+          all: {
+            element: [
+              { name: 'CTEXT', type: 'xs:string', minOccurs: '0' },
+              { name: 'PARENTCL', type: 'xs:string', minOccurs: '0' },
+            ],
+          },
+        },
+      ],
+    } as const;
+
+    // abapGit envelope schema
+    const abapgitSchema = {
+      $xmlns: { asx: 'http://www.sap.com/abapxml', xs: 'http://www.w3.org/2001/XMLSchema' },
+      targetNamespace: 'http://www.sap.com/abapxml',
+      $imports: [asxSchema],
+      element: [
+        {
+          name: 'abapGit',
+          complexType: {
+            sequence: {
+              element: [
+                { ref: 'asx:abap' },
+              ],
+            },
+            attribute: [
+              { name: 'version', type: 'xs:string', use: 'required' },
+              { name: 'serializer', type: 'xs:string', use: 'required' },
+              { name: 'serializer_version', type: 'xs:string', use: 'required' },
+            ],
+          },
+        },
+      ],
+    } as const;
+
+    it('should generate AbapValuesType with Schema property', () => {
+      const output = generateInterfaces(asxSchema, {
+        generateAllTypes: true,
+      });
+      
+      assert.ok(output.includes('export interface AbapValuesType'), 'Should have AbapValuesType');
+      assert.ok(output.includes('export interface AbapType'), 'Should have AbapType');
+      // Schema is abstract - should still generate a property for it
+      assert.ok(output.includes('Schema'), 'AbapValuesType should have Schema property');
+    });
+
+    it('should generate DevcType for substitution element', () => {
+      const output = generateInterfaces(devcSchema, {
+        generateAllTypes: true,
+      });
+      
+      assert.ok(output.includes('export interface DevcType'), 'Should have DevcType');
+      assert.ok(output.includes('CTEXT?: string'), 'DevcType should have CTEXT');
+      assert.ok(output.includes('PARENTCL?: string'), 'DevcType should have PARENTCL');
+    });
+
+    it('should generate abapGit envelope type', () => {
+      const output = generateInterfaces(abapgitSchema, {
+        rootElement: 'abapGit',
+      });
+      
+      // Should have the envelope type (inline complexType)
+      assert.ok(output.includes('abap'), 'Should have abap property');
+      assert.ok(output.includes('version'), 'Should have version attribute');
+      assert.ok(output.includes('serializer'), 'Should have serializer attribute');
+      assert.ok(output.includes('serializer_version'), 'Should have serializer_version attribute');
+    });
+
+    // The key test: when we have a concrete schema (DEVC) that substitutes asx:Schema,
+    // the generated type for AbapValuesType should ideally use the concrete type
+    // This is currently a limitation - AbapValuesType.Schema is typed as unknown/any
+    // because the generator doesn't know which substitutes are available
+    it('should handle substitution group in values type', () => {
+      // Combined schema with both asx and devc
+      const combinedSchema = {
+        $xmlns: { asx: 'http://www.sap.com/abapxml', xs: 'http://www.w3.org/2001/XMLSchema' },
+        targetNamespace: 'http://www.sap.com/abapxml',
+        element: [
+          { name: 'Schema', abstract: true },
+          { name: 'DEVC', type: 'DevcType', substitutionGroup: 'asx:Schema' },
+          { name: 'abap', type: 'asx:AbapType' },
+        ],
+        complexType: [
+          {
+            name: 'DevcType',
+            all: {
+              element: [
+                { name: 'CTEXT', type: 'xs:string', minOccurs: '0' },
+              ],
+            },
+          },
+          {
+            name: 'AbapValuesType',
+            sequence: {
+              element: [
+                { ref: 'asx:Schema' },
+              ],
+            },
+          },
+          {
+            name: 'AbapType',
+            sequence: {
+              element: [
+                { name: 'values', type: 'asx:AbapValuesType' },
+              ],
+            },
+          },
+        ],
+      } as const;
+
+      const output = generateInterfaces(combinedSchema, {
+        generateAllTypes: true,
+      });
+      
+      console.log('Generated output:\n', output);
+      
+      // Schema property should be typed as DevcType (the substitute type)
+      assert.ok(output.includes('export interface DevcType'), 'Should have DevcType');
+      assert.ok(output.includes('export interface AbapValuesType'), 'Should have AbapValuesType');
+      
+      // Check if Schema property uses the substitute type
+      const hasTypedSchema = output.includes('Schema: DevcType') || 
+                             output.includes('Schema?: DevcType');
+      
+      assert.ok(hasTypedSchema, 'AbapValuesType.Schema should be typed as DevcType (the substitute type)');
+    });
+  });
 });

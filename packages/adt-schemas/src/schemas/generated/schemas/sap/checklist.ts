@@ -221,4 +221,3 @@ export default {
     },
   ],
 } as const;
-

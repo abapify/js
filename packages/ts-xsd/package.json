@@ -5,8 +5,13 @@
   "type": "module",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
+  "bin": {
+    "ts-xsd": "./dist/codegen/cli.mjs"
+  },
   "exports": {
     ".": "./dist/index.mjs",
+    "./codegen/cli": "./dist/codegen/cli.mjs",
+    "./generators": "./dist/generators/index.mjs",
     "./package.json": "./package.json"
   },
   "dependencies": {

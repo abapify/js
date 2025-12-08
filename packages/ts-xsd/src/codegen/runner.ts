@@ -1,0 +1,256 @@
+/**
+ * Config Runner
+ * 
+ * Executes the generator pipeline based on configuration.
+ */
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { join, dirname, relative } from 'node:path';
+import { parseXsd } from '../xsd';
+import type {
+  CodegenConfig,
+  SchemaInfo,
+  SourceInfo,
+  SetupContext,
+  TransformContext,
+  FinalizeContext,
+  AfterAllContext,
+} from './types';
+
+// ============================================================================
+// Runner
+// ============================================================================
+
+export interface RunnerOptions {
+  /** Root directory (where config file is located) */
+  rootDir: string;
+  /** Dry run - don't write files, just return what would be written */
+  dryRun?: boolean;
+  /** Verbose logging */
+  verbose?: boolean;
+}
+
+export interface RunnerResult {
+  /** Files that were written (or would be written in dry run) */
+  files: Array<{ path: string; source: string }>;
+  /** Schemas that were processed */
+  schemas: Array<{ name: string; source: string }>;
+  /** Errors that occurred */
+  errors: Array<{ schema?: string; source?: string; error: Error }>;
+}
+
+/**
+ * Run the codegen pipeline
+ */
+export async function runCodegen(
+  config: CodegenConfig,
+  options: RunnerOptions
+): Promise<RunnerResult> {
+  const { rootDir, dryRun = false, verbose = false } = options;
+  const result: RunnerResult = { files: [], schemas: [], errors: [] };
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  const log = verbose ? console.log.bind(console) : () => {};
+
+  // Build source info map
+  const sources: Record<string, SourceInfo> = {};
+  for (const [name, sourceConfig] of Object.entries(config.sources)) {
+    sources[name] = {
+      name,
+      xsdDir: join(rootDir, sourceConfig.xsdDir),
+      outputDir: join(rootDir, sourceConfig.outputDir),
+      schemas: sourceConfig.schemas,
+    };
+  }
+
+  // Setup context
+  const setupCtx: SetupContext = { sources, rootDir };
+
+  // Run beforeAll hook
+  if (config.beforeAll) {
+    log(`\n🔧 Running beforeAll hook...`);
+    await config.beforeAll({ sources, rootDir });
+  }
+
+  // Run setup for all generators
+  for (const generator of config.generators) {
+    if (generator.setup) {
+      log(`[${generator.name}] Running setup...`);
+      await generator.setup(setupCtx);
+    }
+  }
+
+  // Process each source
+  const processedSchemas = new Map<string, SchemaInfo[]>();
+
+  for (const [sourceName, source] of Object.entries(sources)) {
+    log(`\n📦 Processing source: ${sourceName}`);
+    const schemaInfos: SchemaInfo[] = [];
+    const allSchemas = new Map<string, SchemaInfo>();
+
+    // First pass: parse all schemas
+    for (const schemaName of source.schemas) {
+      const xsdPath = join(source.xsdDir, `${schemaName}.xsd`);
+      
+      if (!existsSync(xsdPath)) {
+        log(`  ⚠️  Skipping ${schemaName} - XSD not found`);
+        continue;
+      }
+
+      try {
+        const xsdContent = readFileSync(xsdPath, 'utf-8');
+        const schema = parseXsd(xsdContent);
+        
+        const schemaInfo: SchemaInfo = {
+          name: schemaName,
+          xsdContent,
+          schema,
+          sourceName,
+          xsdPath,
+        };
+        
+        schemaInfos.push(schemaInfo);
+        allSchemas.set(schemaName, schemaInfo);
+        result.schemas.push({ name: schemaName, source: sourceName });
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        log(`  ❌ Failed to parse ${schemaName}: ${err.message}`);
+        result.errors.push({ schema: schemaName, source: sourceName, error: err });
+      }
+    }
+
+    processedSchemas.set(sourceName, schemaInfos);
+
+    // Second pass: run transform for each schema
+    for (const schemaInfo of schemaInfos) {
+      const transformCtx: TransformContext = {
+        schema: schemaInfo,
+        source,
+        allSchemas,
+        allSources: sources,
+        rootDir,
+        resolveImport: createImportResolver(schemaInfo, source, sources, config),
+      };
+
+      for (const generator of config.generators) {
+        if (generator.transform) {
+          try {
+            const files = await generator.transform(transformCtx);
+            for (const file of files) {
+              const fullPath = join(source.outputDir, file.path);
+              
+              if (!dryRun) {
+                mkdirSync(dirname(fullPath), { recursive: true });
+                writeFileSync(fullPath, file.content);
+              }
+              
+              result.files.push({ path: fullPath, source: sourceName });
+              log(`  ✅ [${generator.name}] Generated ${file.path}`);
+            }
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            log(`  ❌ [${generator.name}] Failed ${schemaInfo.name}: ${err.message}`);
+            result.errors.push({ schema: schemaInfo.name, source: sourceName, error: err });
+          }
+        }
+      }
+    }
+  }
+
+  // Run finalize for all generators
+  const finalizeCtx: FinalizeContext = {
+    processedSchemas,
+    sources,
+    rootDir,
+  };
+
+  for (const generator of config.generators) {
+    if (generator.finalize) {
+      try {
+        log(`\n[${generator.name}] Running finalize...`);
+        const files = await generator.finalize(finalizeCtx);
+        
+        for (const file of files) {
+          // Finalize files go to each source's output dir
+          for (const [sourceName, source] of Object.entries(sources)) {
+            const fullPath = join(source.outputDir, file.path);
+            
+            if (!dryRun) {
+              mkdirSync(dirname(fullPath), { recursive: true });
+              writeFileSync(fullPath, file.content);
+            }
+            
+            result.files.push({ path: fullPath, source: sourceName });
+            log(`  ✅ [${generator.name}] Generated ${file.path} for ${sourceName}`);
+          }
+        }
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        log(`  ❌ [${generator.name}] Finalize failed: ${err.message}`);
+        result.errors.push({ error: err });
+      }
+    }
+  }
+
+  // Run afterAll hook
+  if (config.afterAll) {
+    log(`\n🔧 Running afterAll hook...`);
+    const afterAllCtx: AfterAllContext = {
+      sources,
+      rootDir,
+      processedSchemas,
+      generatedFiles: result.files.map(f => ({ path: f.path, content: '' })), // Content not tracked
+    };
+    
+    const extraFiles = await config.afterAll(afterAllCtx);
+    if (extraFiles && Array.isArray(extraFiles)) {
+      for (const file of extraFiles) {
+        const fullPath = join(rootDir, file.path);
+        
+        if (!dryRun) {
+          mkdirSync(dirname(fullPath), { recursive: true });
+          writeFileSync(fullPath, file.content);
+        }
+        
+        result.files.push({ path: fullPath, source: 'afterAll' });
+        log(`  ✅ [afterAll] Generated ${file.path}`);
+      }
+    }
+  }
+
+  return result;
+}
+
+// ============================================================================
+// Import Resolution
+// ============================================================================
+
+function createImportResolver(
+  currentSchema: SchemaInfo,
+  currentSource: SourceInfo,
+  allSources: Record<string, SourceInfo>,
+  _config: CodegenConfig
+): (schemaLocation: string) => string | null {
+  return (schemaLocation: string) => {
+    // Extract schema name from location (e.g., "../sap/adtcore.xsd" -> "adtcore")
+    const schemaName = schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+    
+    // Check if it's in the current source
+    if (currentSource.schemas.includes(schemaName)) {
+      return `./${schemaName}.ts`;
+    }
+    
+    // Check other sources
+    for (const [sourceName, source] of Object.entries(allSources)) {
+      if (sourceName === currentSource.name) continue;
+      
+      if (source.schemas.includes(schemaName)) {
+        // Calculate relative path from current output to other source output
+        const relPath = relative(currentSource.outputDir, source.outputDir);
+        return `${relPath}/${schemaName}.ts`.replace(/\\/g, '/');
+      }
+    }
+    
+    return null;
+  };
+}

@@ -6,7 +6,7 @@
  */
 
 import { Command } from 'commander';
-import { getAdtClientV2, getCliContext } from '../../../utils/adt-client';
+import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
 import { router } from '../../../ui/router';
