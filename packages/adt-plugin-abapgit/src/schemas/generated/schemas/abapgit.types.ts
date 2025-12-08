@@ -5,9 +5,11 @@
  * Source: abapgit/abapgit.xsd
  */
 
+import type { AbapType } from './asx.types';
+
 /** Generated from element: abapGit */
 export interface AbapGit {
-    abap: Abap;
+    abap: AbapType;
     version: string;
     serializer: string;
     serializer_version: string;

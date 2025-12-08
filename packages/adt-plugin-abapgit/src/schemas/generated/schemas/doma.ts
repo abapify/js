@@ -6,6 +6,7 @@
  */
 
 import asx from './asx.ts';
+import abapgit from './abapgit.ts';
 
 export default {
   $xmlns: {
@@ -14,6 +15,7 @@ export default {
   },
   $imports: [
     asx,
+    abapgit,
   ],
   elementFormDefault: "qualified",
   include: [
@@ -94,6 +96,11 @@ export default {
           },
           {
             name: "DDTEXT",
+            type: "xs:string",
+            minOccurs: "0",
+          },
+          {
+            name: "DOMMASTER",
             type: "xs:string",
             minOccurs: "0",
           },
