@@ -5,14 +5,7 @@
  */
 
 // Schemas
-export * from './schemas';
+export * from './schemas/index.ts';
 
-// Types - re-export from individual type files
-// Note: Types are exported individually to handle cross-schema dependencies
-export * from './schemas/asx.types';
-export * from './schemas/abapgit.types';
-export * from './schemas/clas.types';
-export * from './schemas/devc.types';
-export * from './schemas/doma.types';
-export * from './schemas/dtel.types';
-export * from './schemas/intf.types';
+// Types
+export * from './types/index.ts';
