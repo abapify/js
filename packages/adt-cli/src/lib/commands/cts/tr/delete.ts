@@ -12,7 +12,7 @@
 
 import { Command } from 'commander';
 import { input } from '@inquirer/prompts';
-import { getAdtClientV2, getCliContext } from '../../../utils/adt-client';
+import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
 

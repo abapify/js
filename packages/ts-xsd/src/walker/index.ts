@@ -270,8 +270,8 @@ function* walkGroup(
   group: GroupLike | undefined,
   source: 'sequence' | 'choice' | 'all',
   schema: SchemaLike,
-  parentOptional: boolean = false,
-  parentArray: boolean = false
+  parentOptional = false,
+  parentArray = false
 ): Generator<ElementEntry> {
   if (!group) return;
   
@@ -287,6 +287,22 @@ function* walkGroup(
     for (const element of group.element) {
       const optional = choiceOptional || groupOptional || element.minOccurs === 0 || element.minOccurs === '0';
       const array = groupArray || isArray(element);
+      
+      // Handle element reference to abstract element with substitution group
+      if (element.ref) {
+        const refName = stripNsPrefix(element.ref);
+        const refEntry = findElement(refName, schema);
+        
+        if (refEntry && isAbstractElement(refEntry.element)) {
+          // Abstract element - yield substitutes instead
+          const substitutes = findSubstitutes(refName, schema);
+          for (const sub of substitutes) {
+            yield { element: sub, optional, array, source };
+          }
+          continue;
+        }
+      }
+      
       yield { element, optional, array, source };
     }
   }
@@ -324,8 +340,8 @@ function* walkGroup(
 function* walkGroupRef(
   ref: string,
   schema: SchemaLike,
-  parentOptional: boolean = false,
-  parentArray: boolean = false
+  parentOptional = false,
+  parentArray = false
 ): Generator<ElementEntry> {
   const groupName = stripNsPrefix(ref);
   const group = findGroup(groupName, schema);
@@ -503,4 +519,41 @@ function isArray(item: { maxOccurs?: number | string | 'unbounded' }): boolean {
     return !isNaN(num) && num > 1;
   }
   return false;
+}
+
+// =============================================================================
+// Substitution Group Support
+// =============================================================================
+
+/**
+ * Check if an element is abstract
+ */
+export function isAbstractElement(element: ElementLike): boolean {
+  return (element as { abstract?: boolean | string }).abstract === true || 
+         (element as { abstract?: boolean | string }).abstract === 'true';
+}
+
+/**
+ * Find all elements that substitute for a given abstract element.
+ * This handles XSD substitution groups where concrete elements can
+ * substitute for an abstract element.
+ */
+export function findSubstitutes(
+  abstractElementName: string,
+  schema: SchemaLike
+): ElementLike[] {
+  const substitutes: ElementLike[] = [];
+  
+  // Walk all top-level elements looking for substitutionGroup
+  for (const { element } of walkTopLevelElements(schema)) {
+    const subGroup = (element as { substitutionGroup?: string }).substitutionGroup;
+    if (subGroup) {
+      const subGroupName = stripNsPrefix(subGroup);
+      if (subGroupName === abstractElementName) {
+        substitutes.push(element);
+      }
+    }
+  }
+  
+  return substitutes;
 }

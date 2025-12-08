@@ -191,4 +191,3 @@ export default {
     },
   ],
 } as const;
-

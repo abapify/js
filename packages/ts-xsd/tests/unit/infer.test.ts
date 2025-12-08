@@ -7,7 +7,7 @@
 
 import { describe, test as it } from 'node:test';
 import { strict as assert } from 'node:assert';
-import type { InferSchema, InferElement, SchemaLike } from '../../src/infer';
+import type { InferSchema, SchemaLike } from '../../src/infer';
 
 // =============================================================================
 // Test Schemas (defined with `as const` for literal types)
@@ -141,8 +141,8 @@ const EnumSchema = {
 type Person = InferSchema<typeof PersonSchema>;
 type Address = InferSchema<typeof AddressSchema>;
 type Order = InferSchema<typeof OrderSchema>;
-type Employee = InferSchema<typeof InheritanceSchema>;
-type Status = InferSchema<typeof EnumSchema>;
+type _Employee = InferSchema<typeof InheritanceSchema>;
+type _Status = InferSchema<typeof EnumSchema>;
 
 // Type assertions - these will fail to compile if inference is wrong
 const _personTest: Person = {
@@ -267,7 +267,7 @@ describe('Type Inference', () => {
       // W3C XMLSchema.xsd as a literal type.
       
       // Simplified xs:schema element definition
-      const XsdSchemaSchema = {
+      const _XsdSchemaSchema = {
         element: [
           { name: 'schema', type: 'schemaType' }
         ],
@@ -327,7 +327,7 @@ describe('Type Inference', () => {
       } as const;
 
       // Infer the type of an XSD schema document
-      type XsdDocument = InferSchema<typeof XsdSchemaSchema>;
+      type XsdDocument = InferSchema<typeof _XsdSchemaSchema>;
       
       // This should give us a type like:
       // {

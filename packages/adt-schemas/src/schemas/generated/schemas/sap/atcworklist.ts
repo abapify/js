@@ -123,4 +123,3 @@ export default {
     },
   ],
 } as const;
-
