@@ -36,7 +36,8 @@ export type ClassXml = ClassResponse;
  * - AdkMainObject: package, packageRef, responsible, masterLanguage, masterSystem, abapLanguageVersion
  */
 export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implements AbapClass {
-  readonly kind = ClassKind;
+  static readonly kind = ClassKind;
+  readonly kind = AdkClass.kind;
   
   // ADT object URI
   get objectUri(): string { return `/sap/bc/adt/oo/classes/${encodeURIComponent(this.name.toLowerCase())}`; }
