@@ -36,7 +36,8 @@ export type PackageXml = NonNullable<PackageResponse>;
  * The `package` getter is overridden to return the super package name.
  */
 export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> implements AbapPackage {
-  readonly kind = PackageKind;
+  static readonly kind = PackageKind;
+  readonly kind = AdkPackage.kind;
   
   // ADT object URI
   get objectUri(): string { return `/sap/bc/adt/packages/${encodeURIComponent(this.name)}`; }
