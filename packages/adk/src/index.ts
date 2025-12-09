@@ -103,6 +103,8 @@ export {
   resolveKind,
   parseAdtType,
   getMainType,
+  getKindForType,
+  getTypeForKind,
   isTypeRegistered,
   getRegisteredTypes,
   getRegisteredKinds,

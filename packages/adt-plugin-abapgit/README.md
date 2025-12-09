@@ -1,99 +1,125 @@
 # @abapify/adt-plugin-abapgit
 
-## Overview
+abapGit format plugin for ADT - serializes ABAP objects to Git-compatible XML/ABAP files.
 
-This plugin provides abapGit format support for the ADT CLI, enabling import and export of ABAP objects in abapGit-compatible XML/ABAP format for seamless Git integration.
+## Architecture Overview
 
-**Uses ADK v2** for type-safe ABAP object handling.
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        adt-plugin-abapgit                           │
+├─────────────────────────────────────────────────────────────────────┤
+│  XSD Schemas (xsd/)          →  ts-xsd codegen  →  TypeScript types │
+│  (XML structure definition)     (build time)       + parser/builder │
+├─────────────────────────────────────────────────────────────────────┤
+│  Object Handlers (handlers/)                                        │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │
+│  │  CLAS   │ │  INTF   │ │  DEVC   │ │  DTEL   │ │  DOMA   │       │
+│  │ handler │ │ handler │ │ handler │ │ handler │ │ handler │       │
+│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘       │
+│       └──────────┬┴──────────┬┴──────────┬┴──────────┘             │
+│                  ▼           ▼           ▼                          │
+│            createHandler (factory)                                  │
+│            - Auto-registration                                      │
+│            - Default serialize logic                                │
+│            - File naming conventions                                │
+├─────────────────────────────────────────────────────────────────────┤
+│  ADK Facade (@abapify/adk)                                          │
+│  - AdkClass, AdkInterface, AdkPackage...                            │
+│  - Client-agnostic object model                                     │
+│  - Source code retrieval via getSource()/getIncludeSource()         │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-## Format Support
+## Key Design Decisions
 
-### Supported Object Types
+### 1. XSD Schemas as Single Source of Truth
 
-- [x] Classes (CLAS)
-- [x] Interfaces (INTF)
-- [x] Programs (PROG)
-- [x] Function Groups (FUGR)
-- [x] Packages (DEVC)
+**Why XSD?**
+- XML Schema Definition (XSD) is the **industry standard** for XML structure validation
+- Can be used **outside our tools** (e.g., `xmllint --schema intf.xsd file.xml`)
+- Provides **formal contract** for abapGit XML format
+- Enables **automated validation** in CI/CD pipelines
 
-### File Structure
+```bash
+# Validate any abapGit XML file against our schema
+xmllint --schema xsd/intf.xsd myinterface.intf.xml --noout
+```
+
+### 2. ts-xsd for Type-Safe XML Handling
+
+**Why ts-xsd?**
+
+Unlike typical XML codegen tools that only generate types, `ts-xsd` provides:
+- **TypeScript types** with full type inference
+- **XML parser** that returns typed objects
+- **XML builder** that accepts typed objects
+- **Schema object** for runtime validation
+
+```typescript
+// Generated from XSD - fully typed parse/build
+import { intf } from './schemas/generated';
+
+const data = intf.parse(xmlString);  // → AbapGitIntf (typed)
+const xml = intf.build(data);        // → string (valid XML)
+```
+
+### 3. ADK as Client-Agnostic Facade
+
+**Why not implement ADT client features in the plugin?**
+
+The plugin **only consumes** the ADK facade:
+- ADK handles all SAP communication details
+- Plugin focuses purely on **serialization format**
+- Same plugin works with any ADT client implementation
+- Clear separation of concerns
+
+```typescript
+// Plugin receives ADK objects, doesn't care how they were fetched
+getSources: (cls) => cls.includes.map((inc) => ({
+  suffix: ABAPGIT_SUFFIX[inc.includeType],
+  content: cls.getIncludeSource(inc.includeType),  // ADK handles this
+}))
+```
+
+### 4. Handlers Don't Touch File System
+
+**Why delegate file operations to base class?**
+
+Object handlers **only define mappings**:
+- `toAbapGit()` - ADK data → abapGit XML structure
+- `getSource()` / `getSources()` - which source files to create
+
+The `createHandler` factory handles:
+- File creation with correct naming
+- XML building with proper envelope
+- Promise resolution for async sources
+- Empty content filtering
+
+## Supported Object Types
+
+| Type | Status | Handler | Notes |
+|------|--------|---------|-------|
+| CLAS | ✅ | `clas.ts` | Multiple includes (main, locals_def, locals_imp, testclasses, macros) |
+| INTF | ✅ | `intf.ts` | Single source file |
+| DEVC | ✅ | `devc.ts` | Fixed filename `package.devc.xml` |
+| DTEL | ✅ | `dtel.ts` | Metadata only (no source) |
+| DOMA | ✅ | `doma.ts` | Custom serialize for fixed values |
+
+## File Structure
 
 ```
 src/
-├── zcl_example.clas.abap           # Class source code
-├── zcl_example.clas.locals_imp.abap # Local implementations
-├── zcl_example.clas.testclasses.abap # Test classes
-├── zcl_example.clas.xml            # Class metadata
-├── zif_example.intf.abap           # Interface source
-├── zif_example.intf.xml            # Interface metadata
-└── package.devc.xml                # Package definition
+├── zcl_example.clas.abap              # Main class source
+├── zcl_example.clas.locals_def.abap   # Local type definitions
+├── zcl_example.clas.locals_imp.abap   # Local implementations
+├── zcl_example.clas.testclasses.abap  # Test classes
+├── zcl_example.clas.xml               # Class metadata
+├── zif_example.intf.abap              # Interface source
+├── zif_example.intf.xml               # Interface metadata
+├── ztest_dtel.dtel.xml                # Data element (no source)
+├── ztest_doma.doma.xml                # Domain (no source)
+└── package.devc.xml                   # Package definition
 ```
-
-## Installation
-
-This plugin is automatically available when using `@abapify/adt-cli`.
-
-## Usage
-
-### Export Objects
-
-```bash
-# Export single object
-npx adt export object CLAS ZCL_EXAMPLE --format abapgit --output ./output
-
-# Export package
-npx adt export package ZPACKAGE --format abapgit --output ./output
-```
-
-### Import Objects
-
-```bash
-# Import from directory
-npx adt import package ./source --format abapgit --target ZPACKAGE
-```
-
-## Configuration
-
-### Plugin Options
-
-- `includeInactive`: Include inactive objects (default: false)
-- `xmlFormat`: XML formatting style (default: 'pretty')
-- `encoding`: File encoding (default: 'utf-8')
-
-### Example Configuration
-
-```json
-{
-  "format": "abapgit",
-  "options": {
-    "includeInactive": false,
-    "xmlFormat": "pretty",
-    "encoding": "utf-8"
-  }
-}
-```
-
-## File Mapping
-
-### Object to File Mapping
-
-| Object Type | File Pattern                   | Description                  |
-| ----------- | ------------------------------ | ---------------------------- |
-| CLAS        | `{name}.clas.abap`             | Main class source code       |
-| CLAS        | `{name}.clas.xml`              | Class metadata and structure |
-| CLAS        | `{name}.clas.locals_imp.abap`  | Local implementations        |
-| CLAS        | `{name}.clas.testclasses.abap` | Test class implementations   |
-| INTF        | `{name}.intf.abap`             | Interface source code        |
-| INTF        | `{name}.intf.xml`              | Interface metadata           |
-
-## Integration
-
-This plugin integrates with:
-
-- **ADT Client v2**: Uses `@abapify/adt-client` for SAP system communication
-- **ADK v2**: Uses `@abapify/adk` for type-safe object handling
-- **CLI**: Provides abapGit format import/export operations
-- **abapGit**: Compatible with standard abapGit repository structure
 
 ## Development
 
@@ -109,16 +135,24 @@ npx nx build adt-plugin-abapgit
 npx nx test adt-plugin-abapgit
 ```
 
-## Specification
+### Regenerating Schemas
 
-For detailed technical specifications, see:
+After modifying XSD files:
 
-- [Plugin Architecture Specification](../../docs/specs/adt-cli/plugin-architecture.md)
-- [abapGit Documentation](https://docs.abapgit.org/)
+```bash
+npx nx codegen adt-plugin-abapgit
+```
 
 ## Contributing
 
-1. Follow the plugin architecture specification
-2. Ensure compatibility with abapGit standards
-3. Add comprehensive tests
-4. Update documentation
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on:
+- Adding new object type support
+- XSD schema conventions
+- Handler implementation patterns
+- Testing requirements
+
+## See Also
+
+- [abapGit Documentation](https://docs.abapgit.org/)
+- [@abapify/adt-plugin](../adt-plugin/README.md) - Plugin interface
+- [@abapify/adk](../adk/README.md) - ABAP Development Kit

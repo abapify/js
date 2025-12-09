@@ -1,8 +1,9 @@
 {
-  "name": "@abapify/adt-plugin-abapgit",
+  "name": "@abapify/adt-plugin",
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "description": "ADT Plugin interface and factory for abapify",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -11,11 +12,9 @@
     "./package.json": "./package.json"
   },
   "nx": {
-    "name": "adt-plugin-abapgit"
+    "name": "adt-plugin"
   },
   "dependencies": {
-    "@abapify/adk": "*",
-    "@abapify/adt-plugin": "*",
-    "ts-xsd": "workspace:*"
+    "@abapify/adk": "*"
   }
 }

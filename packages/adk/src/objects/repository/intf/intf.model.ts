@@ -29,7 +29,8 @@ export type InterfaceXml = InterfaceResponse;
  * - AdkMainObject: package, packageRef, responsible, masterLanguage, masterSystem, abapLanguageVersion
  */
 export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceXml> implements AbapInterface {
-  readonly kind = InterfaceKind;
+  static readonly kind = InterfaceKind;
+  readonly kind = AdkInterface.kind;
   
   // ADT object URI
   get objectUri(): string { return `/sap/bc/adt/oo/interfaces/${encodeURIComponent(this.name.toLowerCase())}`; }
