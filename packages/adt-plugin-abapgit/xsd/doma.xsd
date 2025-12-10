@@ -1,56 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   abapGit DOMA (Domain) Schema
-  
+
   Defines the DD01V and DD07V_TAB structures used in *.doma.xml files.
   Based on SAP DDIC tables DD01V (domain header) and DD07V (fixed values).
+
+  Uses xs:redefine to extend AbapValuesType with DOMA-specific elements.
+  This ensures DD01V/DD07V_TAB can only appear inside asx:values, not as root.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sap.com/abapxml"
            xmlns:asx="http://www.sap.com/abapxml"
-           elementFormDefault="qualified">
+           elementFormDefault="unqualified">
 
-  <xs:import namespace="http://www.sap.com/abapxml" schemaLocation="asx.xsd"/>
-  <xs:include schemaLocation="abapgit.xsd"/>
+  <!-- Include types (brought into asx namespace) -->
+  <xs:include schemaLocation="types/dd01v.xsd"/>
+  <xs:include schemaLocation="types/dd07v.xsd"/>
 
-  <!-- DD01V substitutes asx:Schema -->
-  <xs:element name="DD01V" type="Dd01vType" substitutionGroup="asx:Schema"/>
+  <!-- Redefine AbapValuesType to include DOMA-specific elements -->
+  <xs:redefine schemaLocation="asx.xsd">
+    <xs:complexType name="AbapValuesType">
+      <xs:complexContent>
+        <xs:extension base="asx:AbapValuesType">
+          <xs:sequence>
+            <xs:element name="DD01V" type="asx:Dd01vType" minOccurs="0"/>
+            <xs:element name="DD07V_TAB" type="asx:Dd07vTabType" minOccurs="0"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:redefine>
 
-  <!-- DD07V_TAB substitutes asx:Schema -->
-  <xs:element name="DD07V_TAB" type="Dd07vTabType" substitutionGroup="asx:Schema"/>
-
-  <xs:complexType name="Dd01vType">
-    <xs:all>
-      <xs:element name="DOMNAME" type="xs:string"/>
-      <xs:element name="DDLANGUAGE" type="xs:string" minOccurs="0"/>
-      <xs:element name="DATATYPE" type="xs:string" minOccurs="0"/>
-      <xs:element name="LENG" type="xs:string" minOccurs="0"/>
-      <xs:element name="OUTPUTLEN" type="xs:string" minOccurs="0"/>
-      <xs:element name="DECIMALS" type="xs:string" minOccurs="0"/>
-      <xs:element name="LOWERCASE" type="xs:string" minOccurs="0"/>
-      <xs:element name="SIGNFLAG" type="xs:string" minOccurs="0"/>
-      <xs:element name="VALEXI" type="xs:string" minOccurs="0"/>
-      <xs:element name="ENTITYTAB" type="xs:string" minOccurs="0"/>
-      <xs:element name="CONVEXIT" type="xs:string" minOccurs="0"/>
-      <xs:element name="DDTEXT" type="xs:string" minOccurs="0"/>
-      <xs:element name="DOMMASTER" type="xs:string" minOccurs="0"/>
-    </xs:all>
-  </xs:complexType>
-
-  <xs:complexType name="Dd07vTabType">
-    <xs:sequence>
-      <xs:element name="DD07V" type="Dd07vType" minOccurs="0" maxOccurs="unbounded"/>
-    </xs:sequence>
-  </xs:complexType>
-
-  <xs:complexType name="Dd07vType">
-    <xs:all>
-      <xs:element name="DOMNAME" type="xs:string" minOccurs="0"/>
-      <xs:element name="VALPOS" type="xs:string" minOccurs="0"/>
-      <xs:element name="DDLANGUAGE" type="xs:string" minOccurs="0"/>
-      <xs:element name="DOMVALUE_L" type="xs:string" minOccurs="0"/>
-      <xs:element name="DOMVALUE_H" type="xs:string" minOccurs="0"/>
-      <xs:element name="DDTEXT" type="xs:string" minOccurs="0"/>
-    </xs:all>
-  </xs:complexType>
+  <!-- Import abapGit root element -->
+  <xs:import schemaLocation="abapgit.xsd"/>
 
 </xs:schema>

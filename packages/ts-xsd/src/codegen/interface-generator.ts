@@ -7,7 +7,7 @@
  */
 
 import { Project, SourceFile, InterfaceDeclarationStructure, PropertySignatureStructure, OptionalKind } from 'ts-morph';
-import type { SchemaLike, ComplexTypeLike, AttributeLike, ElementLike, SimpleTypeLike, GroupLike, GroupRefLike, AnyAttributeLike } from '../infer/types';
+import type { SchemaLike, ComplexTypeLike, AttributeLike, ElementLike, SimpleTypeLike, GroupLike, GroupRefLike, AnyAttributeLike } from '../infer';
 
 /**
  * Type for sources that can contain content model (sequence, choice, all, group)
