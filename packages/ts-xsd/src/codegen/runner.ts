@@ -80,15 +80,15 @@ export async function runCodegen(
     }
   }
 
-  // Process each source
+  // First pass: parse ALL schemas from ALL sources into a global map
+  // This is needed for cross-source type resolution (e.g., custom schemas importing SAP schemas)
   const processedSchemas = new Map<string, SchemaInfo[]>();
+  const globalAllSchemas = new Map<string, SchemaInfo>();
 
   for (const [sourceName, source] of Object.entries(sources)) {
     log(`\n📦 Processing source: ${sourceName}`);
     const schemaInfos: SchemaInfo[] = [];
-    const allSchemas = new Map<string, SchemaInfo>();
 
-    // First pass: parse all schemas
     for (const schemaName of source.schemas) {
       const xsdPath = join(source.xsdDir, `${schemaName}.xsd`);
       
@@ -101,6 +101,9 @@ export async function runCodegen(
         const xsdContent = readFileSync(xsdPath, 'utf-8');
         const schema = parseXsd(xsdContent);
         
+        // Set $filename for schema identification (used by linkSchemas and interface generator)
+        (schema as { $filename?: string }).$filename = `${schemaName}.xsd`;
+        
         const schemaInfo: SchemaInfo = {
           name: schemaName,
           xsdContent,
@@ -110,7 +113,8 @@ export async function runCodegen(
         };
         
         schemaInfos.push(schemaInfo);
-        allSchemas.set(schemaName, schemaInfo);
+        // Add to global map with unique key (sourceName/schemaName to avoid collisions)
+        globalAllSchemas.set(schemaName, schemaInfo);
         result.schemas.push({ name: schemaName, source: sourceName });
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -120,13 +124,17 @@ export async function runCodegen(
     }
 
     processedSchemas.set(sourceName, schemaInfos);
+  }
 
-    // Second pass: run transform for each schema
+  // Second pass: run transforms with global schema map
+  for (const [sourceName, source] of Object.entries(sources)) {
+    const schemaInfos = processedSchemas.get(sourceName) ?? [];
+    
     for (const schemaInfo of schemaInfos) {
       const transformCtx: TransformContext = {
         schema: schemaInfo,
         source,
-        allSchemas,
+        allSchemas: globalAllSchemas, // Use global map for cross-source resolution
         allSources: sources,
         rootDir,
         resolveImport: createImportResolver(schemaInfo, source, sources, config),
@@ -231,7 +239,7 @@ function createImportResolver(
   allSources: Record<string, SourceInfo>,
   config: CodegenConfig
 ): (schemaLocation: string) => string | null {
-  const ext = config.importExtension ?? '.ts';
+  const ext = config.importExtension ?? '';  // Default to extensionless for bundler compatibility
   
   return (schemaLocation: string) => {
     // Extract schema name from location (e.g., "../sap/adtcore.xsd" -> "adtcore")
