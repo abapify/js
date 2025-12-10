@@ -712,15 +712,17 @@ describe('Interface Generator', () => {
       
       console.log('Generated output:\n', output);
       
-      // Schema property should be typed as DevcType (the substitute type)
+      // Should have DevcType and AbapValuesType
       assert.ok(output.includes('export interface DevcType'), 'Should have DevcType');
       assert.ok(output.includes('export interface AbapValuesType'), 'Should have AbapValuesType');
       
-      // Check if Schema property uses the substitute type
-      const hasTypedSchema = output.includes('Schema: DevcType') || 
-                             output.includes('Schema?: DevcType');
+      // With correct substitution group handling, the abstract element (Schema)
+      // should be replaced by concrete element names (DEVC) in the generated type.
+      // So instead of Schema?: T, we should have DEVC?: DevcType
+      const hasSubstituteProperty = output.includes('DEVC?: DevcType') || 
+                                    output.includes('DEVC: DevcType');
       
-      assert.ok(hasTypedSchema, 'AbapValuesType.Schema should be typed as DevcType (the substitute type)');
+      assert.ok(hasSubstituteProperty, 'AbapValuesType should have DEVC property with DevcType (substitute element name, not abstract Schema)');
     });
   });
 });

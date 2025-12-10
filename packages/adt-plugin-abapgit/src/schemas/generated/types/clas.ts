@@ -27,20 +27,13 @@ export interface VseoClassType {
     ABAP_LANGUAGE_VERSION?: string;
 }
 
-
-// Substitution values types and specialized interfaces
-/** Values type for AbapGitClas with element names as properties */
+/** Values type for substitution group elements */
 export interface ClasValuesType {
-    VSEOCLASS: VseoClassType;
+    VSEOCLASS?: VseoClassType;
 }
 
-/** AbapGit specialized for clas object type */
-export interface AbapGitClas {
-    abap: {
-        values: ClasValuesType;
-        version?: string;
-    };
-    version: string;
-    serializer: string;
-    serializer_version: string;
+/** Root type for clas - specialized AbapType with concrete values */
+export interface ClasType {
+    values: ClasValuesType;
+    version?: string;
 }

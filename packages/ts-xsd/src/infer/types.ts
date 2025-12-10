@@ -120,9 +120,16 @@ export type SchemaExtensions = {
   /** 
    * Resolved imported schemas for cross-schema type resolution.
    * Actual schema objects that can be searched for type definitions.
-   * Use this to link schemas that import each other.
+   * Use this to link schemas that import each other (xs:import - different namespace).
    */
   readonly $imports?: readonly SchemaLike[];
+  
+  /**
+   * Resolved included schemas for same-namespace type resolution.
+   * Content from xs:include is in the same namespace as the including schema.
+   * Walker traverses both $imports and $includes for type lookups.
+   */
+  readonly $includes?: readonly SchemaLike[];
 };
 
 // =============================================================================

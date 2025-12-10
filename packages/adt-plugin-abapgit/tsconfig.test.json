@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": ".",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "references": [
+    {
+      "path": "../ts-xsd"
+    },
+    {
+      "path": "../adk/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-plugin/tsconfig.lib.json"
+    }
+  ]
+}
