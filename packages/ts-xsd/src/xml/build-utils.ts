@@ -4,7 +4,7 @@
 
 import type { Document, Element } from '@xmldom/xmldom';
 import { DOMImplementation } from '@xmldom/xmldom';
-import type { SchemaLike, ComplexTypeLike, ElementLike } from '../infer/types';
+import type { SchemaLike, ComplexTypeLike, ElementLike } from '../infer';
 import { findComplexType, stripNsPrefix } from '../walker';
 
 // Re-export xmldom types for use in other modules

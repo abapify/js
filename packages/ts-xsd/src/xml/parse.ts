@@ -6,7 +6,7 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
-import type { InferSchema, SchemaLike, ComplexTypeLike, ElementLike } from '../infer/types';
+import type { InferSchema, SchemaLike, ComplexTypeLike, ElementLike } from '../infer';
 import {
   findComplexType,
   findElement,
