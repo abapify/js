@@ -21,7 +21,7 @@ export interface IndexBarrelOptions {
   includeTypedExports?: boolean;
   /** Add file header comment */
   header?: boolean;
-  /** Import extension to use: '.ts' for Node.js native, '' for bundlers (default: '.ts') */
+  /** Import extension to use: '.ts' for Node.js native, '' for bundlers (default: '' for bundler compatibility) */
   importExtension?: '.ts' | '';
 }
 
@@ -50,7 +50,7 @@ export interface IndexBarrelOptions {
 export function indexBarrel(options: IndexBarrelOptions = {}): GeneratorPlugin {
   const {
     filename = 'index.ts',
-    importExtension = '.ts',
+    importExtension = '',  // Default to extensionless for bundler compatibility
     namedExports = false,
     includeTypedExports = false,
     header = true,

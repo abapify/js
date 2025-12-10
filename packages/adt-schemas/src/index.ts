@@ -18,4 +18,4 @@
 export * from './schemas';
 
 // Export speci adapter
-export { default as schema, type SpeciSchema, type SchemaType, type TypedSchema } from './speci';
+export { typed, type TypedSchema } from './speci';

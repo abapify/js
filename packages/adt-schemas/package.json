@@ -10,7 +10,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "ts-xsd": "*"
+    "ts-xsd": "*",
+    "speci": "*"
   },
   "devDependencies": {
     "adt-fixtures": "*"

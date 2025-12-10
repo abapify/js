@@ -5,6 +5,12 @@
  * Source: sap/atcresult.xsd
  */
 
+import atcresultquery from './atcresultquery';
+import atcfinding from './atcfinding';
+import atcobject from './atcobject';
+import atctagdescription from './atctagdescription';
+import atcinfo from './atcinfo';
+
 export default {
   $xmlns: {
     xsd: "http://www.w3.org/2001/XMLSchema",
@@ -16,6 +22,13 @@ export default {
     atcresultquery: "http://www.sap.com/adt/atc/resultquery",
     atcresult: "http://www.sap.com/adt/atc/result",
   },
+  $imports: [
+    atcresultquery,
+    atcfinding,
+    atcobject,
+    atctagdescription,
+    atcinfo,
+  ],
   targetNamespace: "http://www.sap.com/adt/atc/result",
   attributeFormDefault: "qualified",
   elementFormDefault: "qualified",
