@@ -58,17 +58,30 @@ export interface OpenAttrs {
  */
 export interface SchemaAttrs extends OpenAttrs {
   /**
+   * Namespace prefix declarations (xmlns:prefix -> namespace URI).
+   * Extracted from XML namespace attributes, not part of XSD spec.
+   */
+  readonly $xmlns?: { readonly [prefix: string]: string };
+  
+  /**
    * Original filename/path of this schema.
    * Used to reconstruct $imports relationships from schemaLocation references.
    */
   readonly $filename?: string;
   
   /**
-   * Resolved imported schemas for cross-schema type resolution.
+   * Resolved imported schemas for cross-schema type resolution (xs:import).
    * Actual schema objects that can be searched for type definitions.
-   * Use this to link schemas that import each other.
+   * Use this to link schemas that import each other (different namespace).
    */
   readonly $imports?: readonly Schema[];
+  
+  /**
+   * Resolved included schemas for same-namespace type resolution (xs:include).
+   * Content from xs:include is in the same namespace as the including schema.
+   * Walker traverses both $imports and $includes for type lookups.
+   */
+  readonly $includes?: readonly Schema[];
 }
 
 /**
@@ -627,3 +640,24 @@ export interface Notation extends Annotated {
   readonly public: string;
   readonly system?: string;
 }
+
+// =============================================================================
+// Union Type Aliases
+// =============================================================================
+// These union types work with both top-level and local variants.
+// Use these in code that needs to handle elements/types from any context.
+
+/** Element - either top-level or local */
+export type Element = TopLevelElement | LocalElement;
+
+/** ComplexType - either top-level (named) or local (inline) */
+export type ComplexType = TopLevelComplexType | LocalComplexType;
+
+/** SimpleType - either top-level (named) or local (inline) */
+export type SimpleType = TopLevelSimpleType | LocalSimpleType;
+
+/** Attribute - either top-level or local */
+export type Attribute = TopLevelAttribute | LocalAttribute;
+
+/** Group content (sequence, choice, all) */
+export type Group = ExplicitGroup | All;

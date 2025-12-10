@@ -19,7 +19,11 @@
  * ```
  */
 
-import type { SchemaLike, ComplexTypeLike, ElementLike, AttributeLike, GroupLike, SimpleTypeLike } from '../infer/types';
+// Using schema-like types because walker needs to work with both:
+// 1. Parsed schemas at runtime (Schema from xsd/types.ts)
+// 2. `as const` literals for type inference (readonly arrays)
+// The "Like" types are loose enough to accept both.
+import type { SchemaLike, ComplexTypeLike, ElementLike, AttributeLike, GroupLike, SimpleTypeLike } from '../xsd/schema-like';
 
 // =============================================================================
 // Types
@@ -103,6 +107,29 @@ export function* walkComplexTypes(schema: SchemaLike, options: WalkOptions = {})
     }
   }
   
+  // Yield complexTypes from redefine blocks (these override types from included schemas)
+  // Redefine types are yielded FIRST so findComplexType finds them before the original
+  if (schema.redefine) {
+    for (const redef of schema.redefine) {
+      if (redef.complexType) {
+        for (const ct of redef.complexType) {
+          yield { ct, schema };
+        }
+      }
+    }
+  }
+  
+  // Yield complexTypes from override blocks (XSD 1.1)
+  if (schema.override) {
+    for (const ovr of schema.override) {
+      if (ovr.complexType) {
+        for (const ct of ovr.complexType) {
+          yield { ct, schema };
+        }
+      }
+    }
+  }
+  
   // Recurse into $includes (same namespace - content is merged)
   if (schema.$includes) {
     for (const included of schema.$includes) {
@@ -131,6 +158,28 @@ export function* walkSimpleTypes(schema: SchemaLike, options: WalkOptions = {}):
     } else {
       for (const [name, st] of Object.entries(simpleTypes)) {
         yield { st: { ...st, name } as SimpleTypeLike, schema };
+      }
+    }
+  }
+  
+  // Yield simpleTypes from redefine blocks (these override types from included schemas)
+  if (schema.redefine) {
+    for (const redef of schema.redefine) {
+      if (redef.simpleType) {
+        for (const st of redef.simpleType) {
+          yield { st, schema };
+        }
+      }
+    }
+  }
+  
+  // Yield simpleTypes from override blocks (XSD 1.1)
+  if (schema.override) {
+    for (const ovr of schema.override) {
+      if (ovr.simpleType) {
+        for (const st of ovr.simpleType) {
+          yield { st, schema };
+        }
       }
     }
   }

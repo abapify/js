@@ -36,15 +36,3 @@ export interface Dd07vType {
 export interface Dd07vTabType {
     DD07V?: Dd07vType[];
 }
-
-/** Values type for substitution group elements */
-export interface DomaValuesType {
-    DD01V?: Dd01vType;
-    DD07V_TAB?: Dd07vTabType;
-}
-
-/** Root type for doma - specialized AbapType with concrete values */
-export interface DomaType {
-    values: DomaValuesType;
-    version?: string;
-}

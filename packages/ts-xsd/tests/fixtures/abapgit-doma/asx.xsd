@@ -15,8 +15,7 @@
 
   <xs:complexType name="AbapValuesType">
     <xs:sequence>
-      <!-- Allow any elements from any namespace inside values -->
-      <xs:any namespace="##any" minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
+      <xs:element ref="asx:Schema" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
 

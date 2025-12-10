@@ -6,7 +6,7 @@
  */
 
 import { XMLSerializer } from '@xmldom/xmldom';
-import type { SchemaLike, ComplexTypeLike, ElementLike } from '../infer/types';
+import type { SchemaLike, ComplexTypeLike, ElementLike } from '../infer';
 import {
   findComplexType,
   findElement,

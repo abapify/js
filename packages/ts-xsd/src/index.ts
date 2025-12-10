@@ -17,5 +17,5 @@ export * from './codegen';
 // XML module - parse and build XML using schema definitions
 export * from './xml';
 
-// Walker module - generator-based schema traversal
+// Walker module - generator-based schema traversal (legacy, for inference)
 export * from './walker';
