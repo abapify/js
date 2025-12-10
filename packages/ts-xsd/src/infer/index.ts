@@ -24,4 +24,9 @@
  * ```
  */
 
-export type * from './types';
+// Schema-like types (minimal constraints for `as const` literals)
+// Re-exported from xsd/ for convenience
+export type * from '../xsd/schema-like';
+
+// Type inference utilities (InferSchema, InferElement, etc.)
+export type * from './infer';

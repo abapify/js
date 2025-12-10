@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DEVC - Package type (SAP DDIC table TDEVC) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:complexType name="DevcType">
+    <xs:all>
+      <xs:element name="CTEXT" type="xs:string" minOccurs="0"/>
+      <xs:element name="PARENTCL" type="xs:string" minOccurs="0"/>
+      <xs:element name="PDEVCLASS" type="xs:string" minOccurs="0"/>
+      <xs:element name="DLVUNIT" type="xs:string" minOccurs="0"/>
+      <xs:element name="COMPONENT" type="xs:string" minOccurs="0"/>
+      <xs:element name="NAMESPACE" type="xs:string" minOccurs="0"/>
+      <xs:element name="TPCLASS" type="xs:string" minOccurs="0"/>
+      <xs:element name="SRV_CHECK" type="xs:string" minOccurs="0"/>
+      <xs:element name="KORRFLAG" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+</xs:schema>
