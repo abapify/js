@@ -5,24 +5,11 @@
  * Source: abapgit/doma.xsd
  */
 
-import asx from './asx.ts';
-import abapgit from './abapgit.ts';
-
 export default {
   $xmlns: {
     xs: "http://www.w3.org/2001/XMLSchema",
     asx: "http://www.sap.com/abapxml",
   },
-  $imports: [
-    asx,
-    abapgit,
-  ],
-  elementFormDefault: "qualified",
-  include: [
-    {
-      schemaLocation: "abapgit.xsd",
-    },
-  ],
   element: [
     {
       name: "DD01V",
@@ -33,6 +20,43 @@ export default {
       name: "DD07V_TAB",
       type: "Dd07vTabType",
       substitutionGroup: "asx:Schema",
+    },
+    {
+      name: "abapGit",
+      complexType: {
+        sequence: {
+          element: [
+            {
+              ref: "asx:abap",
+            },
+          ],
+        },
+        attribute: [
+          {
+            name: "version",
+            type: "xs:string",
+            use: "required",
+          },
+          {
+            name: "serializer",
+            type: "xs:string",
+            use: "required",
+          },
+          {
+            name: "serializer_version",
+            type: "xs:string",
+            use: "required",
+          },
+        ],
+      },
+    },
+    {
+      name: "Schema",
+      abstract: true,
+    },
+    {
+      name: "abap",
+      type: "asx:AbapType",
     },
   ],
   complexType: [
@@ -156,6 +180,43 @@ export default {
           },
         ],
       },
+    },
+    {
+      name: "AbapValuesType",
+      sequence: {
+        element: [
+          {
+            name: "DD01V",
+            type: "Dd01vType",
+            minOccurs: "0",
+            maxOccurs: "unbounded",
+          },
+          {
+            name: "DD07V_TAB",
+            type: "Dd07vTabType",
+            minOccurs: "0",
+            maxOccurs: "unbounded",
+          },
+        ],
+      },
+    },
+    {
+      name: "AbapType",
+      sequence: {
+        element: [
+          {
+            name: "values",
+            type: "asx:AbapValuesType",
+          },
+        ],
+      },
+      attribute: [
+        {
+          name: "version",
+          type: "xs:string",
+          "default": "1.0",
+        },
+      ],
     },
   ],
 } as const;

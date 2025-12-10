@@ -16,20 +16,13 @@ export interface VseoInterfType {
     ABAP_LANGUAGE_VERSION?: string;
 }
 
-
-// Substitution values types and specialized interfaces
-/** Values type for AbapGitIntf with element names as properties */
+/** Values type for substitution group elements */
 export interface IntfValuesType {
-    VSEOINTERF: VseoInterfType;
+    VSEOINTERF?: VseoInterfType;
 }
 
-/** AbapGit specialized for intf object type */
-export interface AbapGitIntf {
-    abap: {
-        values: IntfValuesType;
-        version?: string;
-    };
-    version: string;
-    serializer: string;
-    serializer_version: string;
+/** Root type for intf - specialized AbapType with concrete values */
+export interface IntfType {
+    values: IntfValuesType;
+    version?: string;
 }

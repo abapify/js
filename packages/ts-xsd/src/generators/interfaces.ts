@@ -52,11 +52,20 @@ export interface InterfacesOptions extends GeneratorOptions {
 export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
   const {
     filePattern = '{name}.types.ts',
-    // importPattern is no longer used - we calculate paths based on source
-    importPattern: _importPattern = './{name}.types',
+    // importPattern for cross-schema type imports - derived from filePattern if not specified
+    importPattern = deriveImportPattern(options.filePattern ?? '{name}.types.ts'),
     header = true,
     ...generatorOptions
   } = options;
+  
+  // Derive import pattern from file pattern by removing directory prefix and extension
+  function deriveImportPattern(fp: string): string {
+    // Remove leading directory parts (e.g., '../types/' -> '')
+    const basename = fp.split('/').pop() ?? fp;
+    // Remove .ts extension and replace {name} placeholder
+    const withoutExt = basename.replace(/\.ts$/, '');
+    return `./${withoutExt}`;
+  }
 
   return {
     name: 'interfaces',
@@ -143,7 +152,8 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
           const newTypes = types.filter(t => 
             !importedTypes.has(t) && 
             // Check if type is actually used (as a type reference, not just in comments)
-            new RegExp(`:\\s*${t}[\\[\\];,\\s]|extends\\s+${t}[\\s{<]`).test(generatedCode)
+            // Match: `: TypeName[`, `: TypeName;`, `: TypeName,`, `: TypeName `, `: TypeName<`, `extends TypeName`
+            new RegExp(`:\\s*${t}[\\[\\];,\\s<]|extends\\s+${t}[\\s{<]`).test(generatedCode)
           );
           if (newTypes.length === 0) continue;
           
@@ -152,14 +162,16 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
           
           const schemaName = schemaKey.split('/')[1];
           
-          // Calculate relative path based on source
+          // Calculate relative path based on source using importPattern
           let importPath: string;
           if (sourceName === source.name) {
-            // Same source - use simple relative path
-            importPath = `./${schemaName}.types`;
+            // Same source - use importPattern with {name} replaced
+            importPath = importPattern.replace('{name}', schemaName);
           } else {
             // Different source - need to go up and into other source
-            importPath = `../${sourceName}/${schemaName}.types`;
+            // Extract the basename pattern from importPattern (e.g., './{name}' -> '{name}')
+            const basenamePattern = importPattern.replace(/^\.\//, '');
+            importPath = `../${sourceName}/${basenamePattern.replace('{name}', schemaName)}`;
           }
           
           lines.push(`import type { ${uniqueTypes.join(', ')} } from '${importPath}';`);

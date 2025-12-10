@@ -195,6 +195,10 @@ export function generateInterfacesWithDeps(
         generator.generateComplexType(st.name);
       }
     }
+    
+    // Generate values interfaces for substitution groups
+    // This creates interfaces like DomaValuesType with DD01V and DD07V_TAB properties
+    generator.generateSubstitutionValuesInterfaces();
   }
   
   sourceFile.formatText();
@@ -597,22 +601,40 @@ class InterfaceGenerator {
         } else if (refElement?.complexType) {
           typeName = this.generateInlineComplexType(refName, refElement.complexType);
         } else if (refElement && this.isAbstractElement(refElement)) {
-          // Abstract element - find all substitutes and create union type
+          // Abstract element - expand to multiple properties, one for each substitute
+          // This is the correct XSD substitution group behavior: the abstract element
+          // is replaced by concrete element names in the XML
           const substitutes = this.findSubstitutes(refName);
           if (substitutes.length > 0) {
-            const substituteTypes = substitutes.map(sub => {
+            for (const sub of substitutes) {
+              if (!sub.name) continue;
+              
+              let subTypeName: string;
               if (sub.type) {
-                return this.resolveType(stripNsPrefix(sub.type));
+                subTypeName = this.resolveType(stripNsPrefix(sub.type));
               } else if (sub.complexType) {
-                return sub.name ? this.generateInlineComplexType(sub.name, sub.complexType) : 'unknown';
+                subTypeName = this.generateInlineComplexType(sub.name, sub.complexType);
+              } else {
+                subTypeName = this.toInterfaceName(sub.name);
               }
-              return sub.name ? this.toInterfaceName(sub.name) : 'unknown';
-            });
-            typeName = substituteTypes.join(' | ');
-          } else {
-            // No substitutes found - use unknown
-            typeName = 'unknown';
+              
+              if (isArray) {
+                subTypeName = `${subTypeName}[]`;
+              }
+              
+              // Add property for each substitute element using its actual element name
+              if (!properties.some(p => p.name === sub.name)) {
+                properties.push({
+                  name: sub.name,
+                  type: subTypeName,
+                  hasQuestionToken: true, // All substitutes are optional
+                });
+              }
+            }
+            continue; // Skip adding the abstract element itself
           }
+          // No substitutes found - fall through to add abstract element with unknown type
+          typeName = 'unknown';
         } else {
           // Element exists but has no type - use the element name as type
           typeName = this.toInterfaceName(refName);
@@ -1417,6 +1439,36 @@ class InterfaceGeneratorWithDeps {
     return this.genericTypes.has(typeName);
   }
   
+  /**
+   * Find elements that substitute for a given abstract element in THIS schema only.
+   * Does NOT search in $imports - each schema should only include its own substitutes.
+   */
+  private findLocalSubstitutes(abstractElementName: string): ElementLike[] {
+    const substitutes: ElementLike[] = [];
+    
+    // Search in current schema only
+    const elements = this.schema.element;
+    if (elements && Array.isArray(elements)) {
+      for (const el of elements) {
+        if (el.substitutionGroup) {
+          const subGroupName = stripNsPrefix(el.substitutionGroup);
+          if (subGroupName === abstractElementName) {
+            substitutes.push(el);
+          }
+        }
+      }
+    }
+    
+    return substitutes;
+  }
+  
+  /**
+   * Check if an element is abstract
+   */
+  private isAbstractElement(element: ElementLike): boolean {
+    return element.abstract === true;
+  }
+  
   getLocalTypes(): Set<string> {
     return this.localTypes;
   }
@@ -1493,6 +1545,106 @@ class InterfaceGeneratorWithDeps {
     }
     
     return aliases;
+  }
+  
+  /**
+   * Generate interfaces for substitution group values.
+   * 
+   * When elements substitute an abstract element (like asx:Schema),
+   * we generate a values interface that includes all substituting elements
+   * as optional properties.
+   * 
+   * For example, doma.xsd has DD01V and DD07V_TAB substituting asx:Schema,
+   * so we generate:
+   * ```typescript
+   * export interface DomaValuesType {
+   *   DD01V?: Dd01vType;
+   *   DD07V_TAB?: Dd07vTabType;
+   * }
+   * ```
+   */
+  generateSubstitutionValuesInterfaces(): void {
+    const elements = this.schema.element;
+    if (!elements || !Array.isArray(elements)) return;
+    
+    // Collect all elements that substitute the same abstract element
+    // Key: substitutedElement, Value: array of {elementName, typeName}
+    const substitutionsByAbstract = new Map<string, Array<{ elementName: string; typeName: string }>>();
+    
+    for (const el of elements) {
+      if (!el.substitutionGroup || !el.name || !el.type) continue;
+      
+      const substitutedElement = stripNsPrefix(el.substitutionGroup);
+      const elementName = el.name; // Keep original element name (e.g., 'DD01V')
+      const typeName = this.toInterfaceName(stripNsPrefix(el.type));
+      
+      const existing = substitutionsByAbstract.get(substitutedElement) ?? [];
+      existing.push({ elementName, typeName });
+      substitutionsByAbstract.set(substitutedElement, existing);
+    }
+    
+    // For each abstract element group, generate a values interface
+    for (const [_substitutedElement, substitutionElements] of substitutionsByAbstract) {
+      // Generate interface name from schema filename
+      let schemaSuffix = (this.schema as { $filename?: string }).$filename?.replace('.xsd', '') ?? '';
+      if (!schemaSuffix) {
+        // Fallback: use first element name
+        schemaSuffix = substitutionElements[0].elementName.toLowerCase();
+      }
+      const valuesTypeName = `${this.toInterfaceName(schemaSuffix)}ValuesType`;
+      
+      // Skip if already generated
+      if (this.generatedTypes.has(valuesTypeName)) continue;
+      this.generatedTypes.add(valuesTypeName);
+      this.localTypes.add(valuesTypeName);
+      
+      // Build properties for each substituting element
+      const properties: OptionalKind<PropertySignatureStructure>[] = substitutionElements.map(el => ({
+        name: el.elementName,
+        type: el.typeName,
+        hasQuestionToken: true, // All optional since they can appear 0 or more times
+      }));
+      
+      // Add the interface
+      const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
+        name: valuesTypeName,
+        isExported: true,
+        properties,
+      };
+      
+      if (this.options.addJsDoc) {
+        (interfaceStructure as InterfaceDeclarationStructure).docs = [{
+          description: `Values type for substitution group elements`,
+        }];
+      }
+      
+      this.sourceFile.addInterface(interfaceStructure);
+      
+      // Also generate the root type that wraps the values type
+      // This is the specialized version of AbapType for this schema
+      const rootTypeName = `${this.toInterfaceName(schemaSuffix)}Type`;
+      if (!this.generatedTypes.has(rootTypeName)) {
+        this.generatedTypes.add(rootTypeName);
+        this.localTypes.add(rootTypeName);
+        
+        const rootInterfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
+          name: rootTypeName,
+          isExported: true,
+          properties: [
+            { name: 'values', type: valuesTypeName, hasQuestionToken: false },
+            { name: 'version', type: 'string', hasQuestionToken: true },
+          ],
+        };
+        
+        if (this.options.addJsDoc) {
+          (rootInterfaceStructure as InterfaceDeclarationStructure).docs = [{
+            description: `Root type for ${schemaSuffix} - specialized AbapType with concrete values`,
+          }];
+        }
+        
+        this.sourceFile.addInterface(rootInterfaceStructure);
+      }
+    }
   }
   
   /**
@@ -1940,8 +2092,38 @@ class InterfaceGeneratorWithDeps {
         } else if (refElement && refElement.complexType) {
           typeName = this.generateInlineComplexType(refName, refElement.complexType);
         } else if (refElement && this.isAbstractElement(refElement)) {
-          // Abstract element - use generic type parameter T instead of union
-          // This allows the containing type to be parameterized with the concrete type
+          // Abstract element - expand to properties for substitutes defined in THIS schema only
+          // Each schema should only include its own substitutes, not from all imports
+          const localSubstitutes = this.findLocalSubstitutes(refName);
+          if (localSubstitutes.length > 0) {
+            for (const sub of localSubstitutes) {
+              if (!sub.name) continue;
+              
+              let subTypeName: string;
+              if (sub.type) {
+                subTypeName = this.resolveTypeWithGeneric(stripNsPrefix(sub.type));
+              } else if (sub.complexType) {
+                subTypeName = this.generateInlineComplexType(sub.name, sub.complexType);
+              } else {
+                subTypeName = this.toInterfaceName(sub.name);
+              }
+              
+              if (isArray) {
+                subTypeName = `${subTypeName}[]`;
+              }
+              
+              // Add property for each substitute element using its actual element name
+              if (!properties.some(p => p.name === sub.name)) {
+                properties.push({
+                  name: sub.name,
+                  type: subTypeName,
+                  hasQuestionToken: true, // All substitutes are optional
+                });
+              }
+            }
+            continue; // Skip adding the abstract element itself
+          }
+          // No local substitutes found - fall back to generic T
           typeName = 'T';
         } else {
           typeName = this.toInterfaceName(refName);
@@ -2389,13 +2571,6 @@ class InterfaceGeneratorWithDeps {
       return typeName.toLowerCase();
     }
     return typeName.charAt(0).toUpperCase() + typeName.slice(1);
-  }
-  
-  /**
-   * Check if an element is abstract
-   */
-  private isAbstractElement(element: ElementLike): boolean {
-    return element.abstract === true;
   }
   
 }
