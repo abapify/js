@@ -68,6 +68,9 @@
     },
     {
       "path": "./packages/adt-plugin-abapgit"
+    },
+    {
+      "path": "./packages/adt-plugin"
     }
   ]
 }

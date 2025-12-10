@@ -8,6 +8,8 @@
  * - CLI handles auth management (via v1 AuthManager stored in ~/.adt/auth.json)
  * - This module extracts credentials and creates v2 client
  * - v2 client remains pure (no CLI/file I/O dependencies)
+ * 
+ * Shared state (context, loggers, capture) is in shared/adt-client.ts
  */
 import { createAdtClient, LoggingPlugin, FileLoggingPlugin, type Logger, type ResponseContext, type AdtClient } from '@abapify/adt-client';
 import type { AdtAdapterConfig } from '@abapify/adt-client';
@@ -16,92 +18,27 @@ import { loadAuthSession, isExpired, refreshCredentials, type CookieCredentials,
 import { createProgressReporter, type ProgressReporter } from './progress-reporter';
 import { setAdtSystem } from '../ui/components/link';
 
-// =============================================================================
-// Global CLI Context (set by CLI preAction hook)
-// =============================================================================
+// Re-export shared state from shared/adt-client.ts for backward compatibility
+export {
+  type CliContext,
+  setCliContext,
+  getCliContext,
+  resetCliContext,
+  silentLogger,
+  consoleLogger,
+  type CapturedResponse,
+  getCaptured,
+  setCaptured,
+  resetCaptured,
+} from '../shared/adt-client';
 
-export interface CliContext {
-  sid?: string;
-  logger?: Logger;
-  logLevel?: string;
-  logOutput?: string;
-  logResponseFiles?: boolean;
-  verbose?: boolean | string;
-}
-
-let globalCliContext: CliContext = {};
-
-/**
- * Set global CLI context (called by CLI preAction hook)
- * This allows getAdtClientV2() to auto-read CLI options without passing them explicitly
- */
-export function setCliContext(context: CliContext): void {
-  globalCliContext = { ...globalCliContext, ...context };
-}
-
-/**
- * Get current CLI context
- */
-export function getCliContext(): CliContext {
-  return globalCliContext;
-}
-
-/**
- * Silent logger - suppresses all output (default for CLI)
- */
-const silentLogger: Logger = {
-  trace: () => {},
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-  fatal: () => {},
-  child: () => silentLogger,
-};
-
-/**
- * Console logger - outputs to console (used when enableLogging is true)
- */
-const consoleLogger: Logger = {
-  trace: (msg: string) => console.debug(msg),
-  debug: (msg: string) => console.debug(msg),
-  info: (msg: string) => console.log(msg),
-  warn: (msg: string) => console.warn(msg),
-  error: (msg: string) => console.error(msg),
-  fatal: (msg: string) => console.error(msg),
-  child: () => consoleLogger,
-};
-
-// =============================================================================
-// Capture Plugin Support
-// =============================================================================
-
-/**
- * Captured response data from the last request
- */
-export interface CapturedResponse {
-  /** Raw XML/text response */
-  xml?: string;
-  /** Parsed JSON response */
-  json?: unknown;
-}
-
-// Global capture storage (reset on each request)
-let lastCaptured: CapturedResponse = {};
-
-/**
- * Get the last captured response (for commands that need raw XML/JSON)
- */
-export function getCaptured(): CapturedResponse {
-  return lastCaptured;
-}
-
-/**
- * Reset captured data (called before each request when capture is enabled)
- */
-function resetCaptured(): void {
-  lastCaptured = {};
-}
+import {
+  getCliContext,
+  silentLogger,
+  consoleLogger,
+  setCaptured,
+  resetCaptured,
+} from '../shared/adt-client';
 
 // =============================================================================
 // Client Options
@@ -262,10 +199,10 @@ export async function getAdtClientV2(options?: AdtClientV2Options): Promise<AdtC
     plugins.push({
       name: 'capture',
       process: (context: ResponseContext) => {
-        lastCaptured = {
+        setCaptured({
           xml: context.rawText,
           json: context.parsedData,
-        };
+        });
         return context.parsedData;
       },
     });

@@ -8,6 +8,53 @@ This file provides guidance to AI coding assistants when working with the `adt-c
 
 ## Architecture
 
+### Command → Service Pattern (CRITICAL)
+
+**Commands MUST call Services for business logic. Commands should be thin wrappers.**
+
+```
+┌─────────────────────────────────────┐
+│ Command (commands/import/transport) │
+│ - Parse CLI arguments               │
+│ - Initialize ADK/client             │
+│ - Call service                      │
+│ - Display results to user           │
+└─────────────┬───────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────┐
+│ Service (services/import/service)   │
+│ - Business logic                    │
+│ - ADK operations                    │
+│ - Plugin delegation                 │
+│ - Returns result object             │
+└─────────────────────────────────────┘
+```
+
+**Why?**
+- **DRY**: Business logic in one place, reusable
+- **Testability**: Services can be unit tested without CLI
+- **Separation**: CLI concerns (args, output) vs business logic
+- **Programmatic use**: Services can be called from other code
+
+**Example:**
+```typescript
+// Command - thin wrapper
+export const importTransportCommand = new Command('transport')
+  .action(async (transportNumber, outputDir, options) => {
+    const service = new ImportService();
+    const result = await service.importTransport({
+      transportNumber,
+      outputPath: outputDir,
+      format: options.format,
+      objectTypes: options.objectTypes?.split(','),
+    });
+    
+    // Display results
+    console.log(`✅ Imported ${result.results.success} objects`);
+  });
+```
+
 ### Command Structure
 
 Commands are organized in `src/lib/commands/`:

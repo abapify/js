@@ -78,7 +78,7 @@ export type {
 } from './objects/repository/intf';
 export { AdkInterface } from './objects/repository/intf';
 
-// CTS types
+// CTS types (legacy complex transport)
 export type {
   TransportData,
   TransportRequestData,
@@ -93,6 +93,14 @@ export type {
   ReleaseResult,
 } from './objects/cts';
 export { AdkTransportItem, AdkTransportRequest, AdkTransportTask, AdkTransportObject, clearConfigCache } from './objects/cts';
+
+// CTS - Simplified transport for import operations
+export { 
+  AdkTransport, 
+  AdkTransportObjectRef, 
+  AdkTransportTaskRef,
+  type TransportResponse,
+} from './objects/cts';
 
 // Factory and registry
 export type { AdkFactory } from './factory';

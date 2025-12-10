@@ -5,11 +5,16 @@
  * Source: custom/atomExtended.xsd
  */
 
+import atom from '../sap/atom';
+
 export default {
   $xmlns: {
     xsd: "http://www.w3.org/2001/XMLSchema",
     atom: "http://www.w3.org/2005/Atom",
   },
+  $imports: [
+    atom,
+  ],
   targetNamespace: "http://www.w3.org/2005/Atom",
   elementFormDefault: "qualified",
   include: [

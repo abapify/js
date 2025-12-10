@@ -23,6 +23,7 @@ import type {
   TransportData, 
   TransportRequestData, 
   TransportTaskData,
+  TransportObjectData,
   TransportCreateOptions, 
   TransportUpdateOptions, 
   ReleaseResult,
@@ -412,7 +413,20 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
     });
     
     const requests = collectAllRequests(response);
-    return requests.map(r => new AdkTransportRequest(context, r as TransportData));
+    // Wrap raw request data in TransportData structure expected by constructor
+    return requests.map(r => new AdkTransportRequest(context, {
+      name: r.number || '',
+      object_type: 'K',
+      request: {
+        number: r.number,
+        owner: r.owner,
+        desc: r.desc,
+        status: r.status,
+        uri: r.uri,
+        task: r.task as TransportTaskData | TransportTaskData[] | undefined,
+        abap_object: r.abap_object as TransportObjectData | TransportObjectData[] | undefined,
+      },
+    } as TransportData));
   }
 
   /**

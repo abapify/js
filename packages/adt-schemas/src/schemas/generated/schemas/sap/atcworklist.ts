@@ -5,6 +5,10 @@
  * Source: sap/atcworklist.xsd
  */
 
+import atcinfo from './atcinfo';
+import atcobject from './atcobject';
+import atctagdescription from './atctagdescription';
+
 export default {
   $xmlns: {
     xsd: "http://www.w3.org/2001/XMLSchema",
@@ -14,6 +18,11 @@ export default {
     atctd: "http://www.sap.com/adt/atc/tagdescription",
     atcworklist: "http://www.sap.com/adt/atc/worklist",
   },
+  $imports: [
+    atcinfo,
+    atcobject,
+    atctagdescription,
+  ],
   targetNamespace: "http://www.sap.com/adt/atc/worklist",
   attributeFormDefault: "qualified",
   elementFormDefault: "qualified",

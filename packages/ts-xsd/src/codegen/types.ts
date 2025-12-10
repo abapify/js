@@ -175,7 +175,7 @@ export interface CodegenConfig {
   sources: Record<string, SourceConfig>;
   /** Generator plugins to run */
   generators: GeneratorPlugin[];
-  /** Import extension for generated files: '.ts' for Node.js native, '' for bundlers (default: '.ts') */
+  /** Import extension for generated files: '.ts' for Node.js native, '' for bundlers (default: '' for bundler compatibility) */
   importExtension?: '.ts' | '';
   /** Features to enable for all generators */
   features?: {

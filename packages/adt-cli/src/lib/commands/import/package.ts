@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { ImportService } from '../../services/import/service';
 import { IconRegistry } from '../../utils/icon-registry';
-import { AdtClientImpl } from '@abapify/adt-client';
+import { getAdtClientV2 } from '../../utils/adt-client-v2';
 
 export const importPackageCommand = new Command('package')
   .argument('<packageName>', 'ABAP package name to import')
@@ -19,18 +19,16 @@ export const importPackageCommand = new Command('package')
   .option('--sub-packages', 'Include subpackages', false)
   .option(
     '--format <format>',
-    'Output format: oat | abapgit | @abapify/oat | @abapify/abapgit | @abapify/oat/flat',
+    'Output format: oat | abapgit | @abapify/oat | @abapify/abapgit',
     'oat'
   )
-  .action(async (packageName, targetFolder, options, command) => {
-    const logger = command.parent?.parent?.logger;
-
+  .option('--debug', 'Enable debug output', false)
+  .action(async (packageName, targetFolder, options) => {
     try {
-      // Create ADT client with logger
-      const adtClient = new AdtClientImpl({
-        logger: logger?.child({ component: 'cli' }),
-      });
-      const importService = new ImportService(adtClient);
+      // Initialize ADT client (also initializes ADK)
+      await getAdtClientV2();
+
+      const importService = new ImportService();
 
       // Determine output path: --output option, targetFolder argument, or default
       const outputPath =
@@ -58,20 +56,22 @@ export const importPackageCommand = new Command('package')
         debug: options.debug,
       });
 
-      // Compact success message - details only in debug mode
-      if (options.debug) {
-        console.log(`\n✅ Import completed successfully!`);
-        console.log(`📁 Package: ${result.packageName}`);
-        console.log(`📝 Description: ${result.description}`);
-        console.log(`📊 Total objects: ${result.totalObjects}`);
-        console.log(`✅ Processed: ${result.processedObjects}`);
+      // Display results
+      console.log(`\n✅ Package import complete!`);
+      console.log(`📦 Package: ${result.packageName}`);
+      console.log(`📝 Description: ${result.description}`);
+      console.log(`📊 Results: ${result.results.success} success, ${result.results.skipped} skipped, ${result.results.failed} failed`);
 
-        // Show objects by type
+      // Show object type breakdown
+      if (Object.keys(result.objectsByType).length > 0) {
+        console.log(`\n📋 Objects by type:`);
         for (const [type, count] of Object.entries(result.objectsByType)) {
           const icon = IconRegistry.getIcon(type);
-          console.log(`${icon} ${type}: ${count}`);
+          console.log(`   ${icon} ${type}: ${count}`);
         }
       }
+
+      console.log(`\n✨ Files written to: ${result.outputPath}`);
     } catch (error) {
       console.error(
         `❌ Import failed:`,

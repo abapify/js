@@ -17,7 +17,7 @@ import type { Schema } from '../xsd/types';
 // ============================================================================
 
 export interface InterfacesOptions extends GeneratorOptions {
-  /** Output file name pattern. Use {name} for schema name (default: '{name}.types.ts') */
+  /** Output file name pattern. Use {name} for schema name, {source} for source name (default: '{name}.types.ts') */
   filePattern?: string;
   /** Import path pattern for cross-schema type imports. Use {name} for schema name (default: './{name}.types') */
   importPattern?: string;
@@ -52,7 +52,8 @@ export interface InterfacesOptions extends GeneratorOptions {
 export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
   const {
     filePattern = '{name}.types.ts',
-    importPattern = './{name}.types',
+    // importPattern is no longer used - we calculate paths based on source
+    importPattern: _importPattern = './{name}.types',
     header = true,
     ...generatorOptions
   } = options;
@@ -63,7 +64,7 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
     transform(ctx: TransformContext): GeneratedFile[] {
       const { schema, source, allSchemas } = ctx;
       
-      // Link schemas: resolve $imports from allSchemas
+      // Link schemas: resolve $imports from allSchemas (includes ALL sources)
       const linkedSchema = linkSchemaImports(schema.schema, allSchemas, schema.name);
       
       // Use the core generator with dependency tracking
@@ -90,43 +91,81 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
       }
 
       // Add imports for external types
-      // Map namespace URIs to schema names using import declarations
-      const imports = schema.schema.import;
-      
+      // Build a comprehensive map from $filename to schema info (name + source)
+      // This handles cases where multiple schemas share the same targetNamespace
       if (result.externalTypes.size > 0) {
-        // Build a map from namespace URI to schema filename
-        const nsToSchemaFile = new Map<string, string>();
+        // Build schema key → schema info mapping
+        // Keys can be $filename (e.g., "atomExtended.xsd") or namespace (fallback)
+        const keyToSchemaInfo = new Map<string, { name: string; sourceName: string }>();
         
-        if (imports && Array.isArray(imports)) {
-          for (const imp of imports) {
-            if (imp.namespace && imp.schemaLocation) {
-              // Extract filename without extension from schemaLocation
-              const schemaFile = imp.schemaLocation.replace(/\.xsd$/, '');
-              nsToSchemaFile.set(imp.namespace, schemaFile);
+        for (const [schemaName, schemaInfo] of allSchemas) {
+          // Primary key: $filename (matches schemaLocation in XSD import)
+          const filename = (schemaInfo.schema as { $filename?: string }).$filename;
+          if (filename) {
+            keyToSchemaInfo.set(filename, { name: schemaName, sourceName: schemaInfo.sourceName });
+          }
+          // Fallback key: namespace (for schemas without $filename)
+          const ns = schemaInfo.schema.targetNamespace;
+          if (ns && !keyToSchemaInfo.has(ns)) {
+            keyToSchemaInfo.set(ns, { name: schemaName, sourceName: schemaInfo.sourceName });
+          }
+        }
+        
+        // Group external types by their source schema
+        const typesBySchema = new Map<string, { types: string[]; sourceName: string }>();
+        
+        for (const [schemaKey, types] of result.externalTypes) {
+          if (types.length === 0) continue;
+          
+          // Find the schema for this key ($filename or namespace)
+          const schemaInfo = keyToSchemaInfo.get(schemaKey);
+          if (schemaInfo) {
+            const key = `${schemaInfo.sourceName}/${schemaInfo.name}`;
+            const existing = typesBySchema.get(key);
+            if (existing) {
+              existing.types.push(...types);
+            } else {
+              typesBySchema.set(key, { types: [...types], sourceName: schemaInfo.sourceName });
             }
           }
         }
         
-        // Group external types by their source schema file
-        const typesByFile = new Map<string, string[]>();
+        // Generate import statements with correct relative paths
+        // Track already imported types to avoid duplicates across schemas
+        const importedTypes = new Set<string>();
         
-        for (const [namespace, types] of result.externalTypes) {
-          // Find the schema file for this namespace
-          const schemaFile = nsToSchemaFile.get(namespace);
-          if (schemaFile && types.length > 0) {
-            const existing = typesByFile.get(schemaFile) || [];
-            typesByFile.set(schemaFile, [...existing, ...types]);
+        // Filter to only types actually used in the generated code
+        const generatedCode = result.code;
+        
+        for (const [schemaKey, { types, sourceName }] of typesBySchema) {
+          // Filter out types already imported from another schema
+          // AND filter out types not actually used in the generated code
+          const newTypes = types.filter(t => 
+            !importedTypes.has(t) && 
+            // Check if type is actually used (as a type reference, not just in comments)
+            new RegExp(`:\\s*${t}[\\[\\];,\\s]|extends\\s+${t}[\\s{<]`).test(generatedCode)
+          );
+          if (newTypes.length === 0) continue;
+          
+          const uniqueTypes = [...new Set(newTypes)].sort();
+          uniqueTypes.forEach(t => importedTypes.add(t));
+          
+          const schemaName = schemaKey.split('/')[1];
+          
+          // Calculate relative path based on source
+          let importPath: string;
+          if (sourceName === source.name) {
+            // Same source - use simple relative path
+            importPath = `./${schemaName}.types`;
+          } else {
+            // Different source - need to go up and into other source
+            importPath = `../${sourceName}/${schemaName}.types`;
           }
-        }
-        
-        // Generate import statements
-        for (const [schemaFile, types] of typesByFile) {
-          const uniqueTypes = [...new Set(types)].sort();
-          const importPath = importPattern.replace('{name}', schemaFile);
+          
           lines.push(`import type { ${uniqueTypes.join(', ')} } from '${importPath}';`);
         }
         
-        if (typesByFile.size > 0) {
+        if (typesBySchema.size > 0) {
           lines.push('');
         }
       }
@@ -136,37 +175,14 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
       // Add substitution values interfaces and specialized interfaces
       // e.g., interface DomaValuesType { DD01V: Dd01vType; DD07V_TAB?: Dd07vTabType; }
       //       interface AbapGitDoma { abap: { values: DomaValuesType; version?: string; }; ... }
-      if (result.substitutionAliases.length > 0) {
-        lines.push('');
-        lines.push('// Substitution values types and specialized interfaces');
-        
-        for (const alias of result.substitutionAliases) {
-          // Generate the values interface with element names as properties
-          lines.push(`/** Values type for ${alias.aliasName} with element names as properties */`);
-          lines.push(`export interface ${alias.valuesTypeName} {`);
-          for (const el of alias.elements) {
-            const optional = el.required ? '' : '?';
-            lines.push(`    ${el.elementName}${optional}: ${el.typeName};`);
-          }
-          lines.push('}');
-          lines.push('');
-          
-          // Generate a full interface instead of type alias to get proper element access
-          // This replaces AbapValuesType<T> with the concrete values type
-          lines.push(`/** ${alias.genericType} specialized for ${schema.name} object type */`);
-          lines.push(`export interface ${alias.aliasName} {`);
-          lines.push(`    abap: {`);
-          lines.push(`        values: ${alias.valuesTypeName};`);
-          lines.push(`        version?: string;`);
-          lines.push(`    };`);
-          lines.push(`    version: string;`);
-          lines.push(`    serializer: string;`);
-          lines.push(`    serializer_version: string;`);
-          lines.push(`}`);
-        }
-      }
+      // NOTE: Substitution aliases removed - was hardcoded ABAP XML structure
+      // that doesn't belong in a generic XSD interface generator.
+      // If substitution group support is needed, it should be done properly
+      // based on XSD substitutionGroup semantics, not domain-specific structure.
 
-      const fileName = filePattern.replace('{name}', schema.name);
+      const fileName = filePattern
+        .replace('{name}', schema.name)
+        .replace('{source}', source.name);
 
       return [{
         path: fileName,
@@ -195,14 +211,20 @@ function linkSchemaImports(
   allSchemas: Map<string, SchemaInfo>,
   schemaName: string
 ): Schema {
-  // Include ALL schemas as $imports so substitution groups can be resolved
-  // This allows finding substitutes defined in any schema, not just direct imports
+  // Create a flat list of all schemas with $filename set
+  // These schemas do NOT have $imports set to avoid circular references
+  // The walker will only search one level deep
   const $imports: Schema[] = [];
   
-  for (const [_name, schemaInfo] of allSchemas) {
+  for (const [name, schemaInfo] of allSchemas) {
     // Skip self-reference
     if (schemaInfo.schema === schema) continue;
-    $imports.push(schemaInfo.schema);
+    // Create a copy with $filename set but NO $imports to prevent recursion
+    $imports.push({
+      ...schemaInfo.schema,
+      $filename: schemaInfo.schema.$filename ?? `${name}.xsd`,
+      $imports: undefined, // Explicitly clear to prevent recursion
+    });
   }
 
   // Return schema with $imports populated and $filename set

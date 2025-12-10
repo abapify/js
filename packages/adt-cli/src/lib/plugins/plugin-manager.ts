@@ -1,6 +1,13 @@
-import { BaseFormat } from '../formats/base-format';
+// TODO: BaseFormat and FormatRegistry were removed - needs ADK migration
+// import { BaseFormat } from '../formats/base-format';
 import { ConfigLoader } from '../config/loader';
 import { CliConfig } from '../config/interfaces';
+
+// TODO: Stub until ADK migration
+interface BaseFormat {
+  name: string;
+  description: string;
+}
 
 export interface PluginInfo {
   name: string;
@@ -221,14 +228,13 @@ export class PluginManager {
 
   /**
    * Load built-in plugin
+   * TODO: FormatRegistry was removed - needs ADK migration
    */
   private async loadBuiltinPlugin(
     pluginName: string,
-    options?: Record<string, any>
+    _options?: Record<string, any>
   ): Promise<BaseFormat> {
-    // For now, use the existing FormatRegistry for built-in plugins
-    const { FormatRegistry } = await import('../formats/format-registry');
-    return FormatRegistry.get(pluginName);
+    throw new Error(`Built-in plugin '${pluginName}' not available - FormatRegistry needs ADK migration`);
   }
 
   /**

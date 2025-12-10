@@ -1114,6 +1114,11 @@ class InterfaceGenerator {
   }
   
   private toInterfaceName(typeName: string): string {
+    // Don't PascalCase primitive types - keep them lowercase
+    const primitives = new Set(['string', 'number', 'boolean', 'unknown', 'any', 'void', 'null', 'undefined', 'never', 'object']);
+    if (primitives.has(typeName.toLowerCase())) {
+      return typeName.toLowerCase();
+    }
     // PascalCase the type name
     return typeName.charAt(0).toUpperCase() + typeName.slice(1);
   }
@@ -1579,13 +1584,29 @@ class InterfaceGeneratorWithDeps {
   
   /**
    * Track an external type reference
+   * Uses $filename as key (from schemaLocation), falling back to namespace
    */
-  private trackExternalType(typeName: string, namespace: string): void {
-    const existing = this.externalTypes.get(namespace) ?? [];
+  private trackExternalType(typeName: string, schemaKey: string): void {
+    // Don't track primitive types
+    const primitives = new Set(['string', 'number', 'boolean', 'unknown', 'any', 'void', 'null', 'undefined', 'never', 'object']);
+    if (primitives.has(typeName.toLowerCase())) {
+      return;
+    }
+    
+    const existing = this.externalTypes.get(schemaKey) ?? [];
     if (!existing.includes(typeName)) {
       existing.push(typeName);
-      this.externalTypes.set(namespace, existing);
+      this.externalTypes.set(schemaKey, existing);
     }
+  }
+  
+  /**
+   * Get schema key for tracking - prefers $filename over namespace
+   */
+  private getSchemaKey(schema: SchemaLike): string {
+    return (schema as { $filename?: string }).$filename 
+      ?? schema.targetNamespace 
+      ?? 'unknown';
   }
   
   generateInlineRootElement(elementName: string, complexType: ComplexTypeLike): string {
@@ -1655,8 +1676,8 @@ class InterfaceGeneratorWithDeps {
       // It's an imported type - track it but don't generate
       this.generatedTypes.add(interfaceName);
       const importedSchema = this.findImportedSchemaForType(typeName);
-      if (importedSchema?.targetNamespace) {
-        this.trackExternalType(interfaceName, importedSchema.targetNamespace);
+      if (importedSchema) {
+        this.trackExternalType(interfaceName, this.getSchemaKey(importedSchema));
       }
       return needsGeneric ? `${interfaceName}<T>` : interfaceName;
     }
@@ -1904,7 +1925,8 @@ class InterfaceGeneratorWithDeps {
     for (const el of elements) {
       if (el.ref) {
         const refName = stripNsPrefix(el.ref);
-        const refElement = this.findElement(refName);
+        // Use findElementWithTracking to track external types from imported schemas
+        const refElement = this.findElementWithTracking(refName);
         
         const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
         const isArray = forceArray || el.maxOccurs === 'unbounded' || 
@@ -1984,6 +2006,32 @@ class InterfaceGeneratorWithDeps {
   private findElement(name: string): ElementLike | undefined {
     const entry = walkerFindElement(name, this.schema);
     return entry?.element;
+  }
+  
+  /**
+   * Find element and track as external type if from imported schema.
+   * Uses $filename to identify the source schema since multiple schemas
+   * can share the same targetNamespace.
+   */
+  private findElementWithTracking(name: string): ElementLike | undefined {
+    const entry = walkerFindElement(name, this.schema);
+    if (!entry) return undefined;
+    
+    // If element is from a different schema (imported), track its type as external
+    // Use $filename as the key since multiple schemas can share the same namespace
+    if (entry.schema !== this.schema) {
+      const typeName = entry.element.type 
+        ? this.toInterfaceName(stripNsPrefix(entry.element.type))
+        : this.toInterfaceName(entry.element.name ?? name);
+      
+      // Use $filename if available, otherwise fall back to targetNamespace
+      const schemaKey = (entry.schema as { $filename?: string }).$filename 
+        ?? entry.schema.targetNamespace 
+        ?? 'unknown';
+      this.trackExternalType(typeName, schemaKey);
+    }
+    
+    return entry.element;
   }
   
   private collectAttributes(
@@ -2125,9 +2173,7 @@ class InterfaceGeneratorWithDeps {
     const importedSchema = this.findImportedSchemaForType(typeName);
     if (importedSchema) {
       const interfaceName = this.toInterfaceName(typeName);
-      if (importedSchema.targetNamespace) {
-        this.trackExternalType(interfaceName, importedSchema.targetNamespace);
-      }
+      this.trackExternalType(interfaceName, this.getSchemaKey(importedSchema));
       return interfaceName;
     }
     
@@ -2337,6 +2383,11 @@ class InterfaceGeneratorWithDeps {
   }
   
   private toInterfaceName(typeName: string): string {
+    // Don't PascalCase primitive types - keep them lowercase
+    const primitives = new Set(['string', 'number', 'boolean', 'unknown', 'any', 'void', 'null', 'undefined', 'never', 'object']);
+    if (primitives.has(typeName.toLowerCase())) {
+      return typeName.toLowerCase();
+    }
     return typeName.charAt(0).toUpperCase() + typeName.slice(1);
   }
   
@@ -2347,43 +2398,4 @@ class InterfaceGeneratorWithDeps {
     return element.abstract === true;
   }
   
-  /**
-   * Find all elements that substitute for an abstract element.
-   * This handles XSD substitution groups where concrete elements can
-   * substitute for an abstract element.
-   */
-  private findSubstitutes(abstractElementName: string): ElementLike[] {
-    const substitutes: ElementLike[] = [];
-    
-    // Search in current schema
-    const elements = this.schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.substitutionGroup) {
-          const subGroupName = stripNsPrefix(el.substitutionGroup);
-          if (subGroupName === abstractElementName) {
-            substitutes.push(el);
-          }
-        }
-      }
-    }
-    
-    // Search in all imports
-    for (const imported of this.allImports) {
-      const importedElements = imported.element;
-      if (importedElements && Array.isArray(importedElements)) {
-        for (const el of importedElements) {
-          const subGroup = el.substitutionGroup;
-          if (subGroup) {
-            const subGroupName = stripNsPrefix(subGroup);
-            if (subGroupName === abstractElementName) {
-              substitutes.push(el);
-            }
-          }
-        }
-      }
-    }
-    
-    return substitutes;
-  }
 }

@@ -13,7 +13,7 @@
     targetNamespace="http://www.sap.com/adt/http"
     elementFormDefault="qualified">
 
-  <xsd:import namespace="http://www.w3.org/2005/Atom" schemaLocation="atomExtended.xsd"/>
+  <xsd:import namespace="http://www.w3.org/2005/Atom" schemaLocation="../sap/atom.xsd"/>
 
   <!-- Root element -->
   <xsd:element name="session" type="http:SessionType"/>
