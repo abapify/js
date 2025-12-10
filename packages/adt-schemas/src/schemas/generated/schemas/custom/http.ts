@@ -5,7 +5,7 @@
  * Source: custom/http.xsd
  */
 
-import atomExtended from './atomExtended';
+import atom from '../sap/atom';
 
 export default {
   $xmlns: {
@@ -14,7 +14,7 @@ export default {
     atom: "http://www.w3.org/2005/Atom",
   },
   $imports: [
-    atomExtended,
+    atom,
   ],
   targetNamespace: "http://www.sap.com/adt/http",
   elementFormDefault: "qualified",

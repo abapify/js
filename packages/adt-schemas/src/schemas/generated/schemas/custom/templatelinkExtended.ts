@@ -5,11 +5,16 @@
  * Source: custom/templatelinkExtended.xsd
  */
 
+import templatelink from '../sap/templatelink';
+
 export default {
   $xmlns: {
     xsd: "http://www.w3.org/2001/XMLSchema",
     adtcomp: "http://www.sap.com/adt/compatibility",
   },
+  $imports: [
+    templatelink,
+  ],
   targetNamespace: "http://www.sap.com/adt/compatibility",
   elementFormDefault: "qualified",
   include: [
