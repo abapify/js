@@ -37,21 +37,14 @@ export interface Dd07vTabType {
     DD07V?: Dd07vType[];
 }
 
-
-// Substitution values types and specialized interfaces
-/** Values type for AbapGitDoma with element names as properties */
+/** Values type for substitution group elements */
 export interface DomaValuesType {
-    DD01V: Dd01vType;
+    DD01V?: Dd01vType;
     DD07V_TAB?: Dd07vTabType;
 }
 
-/** AbapGit specialized for doma object type */
-export interface AbapGitDoma {
-    abap: {
-        values: DomaValuesType;
-        version?: string;
-    };
-    version: string;
-    serializer: string;
-    serializer_version: string;
+/** Root type for doma - specialized AbapType with concrete values */
+export interface DomaType {
+    values: DomaValuesType;
+    version?: string;
 }

@@ -5,7 +5,7 @@
  * Source: abapgit/abapgit.xsd
  */
 
-import type { AbapType } from './asx.ts';
+import type { AbapType } from './asx';
 
 /** Generated from element: abapGit */
 export interface AbapGit<T = unknown> {

@@ -5,29 +5,53 @@
  * Source: abapgit/intf.xsd
  */
 
-import asx from './asx.ts';
-import abapgit from './abapgit.ts';
-
 export default {
   $xmlns: {
     xs: "http://www.w3.org/2001/XMLSchema",
     asx: "http://www.sap.com/abapxml",
   },
-  $imports: [
-    asx,
-    abapgit,
-  ],
-  elementFormDefault: "qualified",
-  include: [
-    {
-      schemaLocation: "abapgit.xsd",
-    },
-  ],
   element: [
     {
       name: "VSEOINTERF",
       type: "VseoInterfType",
       substitutionGroup: "asx:Schema",
+    },
+    {
+      name: "abapGit",
+      complexType: {
+        sequence: {
+          element: [
+            {
+              ref: "asx:abap",
+            },
+          ],
+        },
+        attribute: [
+          {
+            name: "version",
+            type: "xs:string",
+            use: "required",
+          },
+          {
+            name: "serializer",
+            type: "xs:string",
+            use: "required",
+          },
+          {
+            name: "serializer_version",
+            type: "xs:string",
+            use: "required",
+          },
+        ],
+      },
+    },
+    {
+      name: "Schema",
+      abstract: true,
+    },
+    {
+      name: "abap",
+      type: "asx:AbapType",
     },
   ],
   complexType: [
@@ -71,6 +95,37 @@ export default {
           },
         ],
       },
+    },
+    {
+      name: "AbapValuesType",
+      sequence: {
+        element: [
+          {
+            name: "VSEOINTERF",
+            type: "VseoInterfType",
+            minOccurs: "0",
+            maxOccurs: "unbounded",
+          },
+        ],
+      },
+    },
+    {
+      name: "AbapType",
+      sequence: {
+        element: [
+          {
+            name: "values",
+            type: "asx:AbapValuesType",
+          },
+        ],
+      },
+      attribute: [
+        {
+          name: "version",
+          type: "xs:string",
+          "default": "1.0",
+        },
+      ],
     },
   ],
 } as const;

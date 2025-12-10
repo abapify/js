@@ -5,17 +5,11 @@
  * Source: abapgit/abapgit.xsd
  */
 
-import asx from './asx.ts';
-
 export default {
   $xmlns: {
     xs: "http://www.w3.org/2001/XMLSchema",
     asx: "http://www.sap.com/abapxml",
   },
-  $imports: [
-    asx,
-  ],
-  elementFormDefault: "qualified",
   element: [
     {
       name: "abapGit",
@@ -45,6 +39,46 @@ export default {
           },
         ],
       },
+    },
+    {
+      name: "Schema",
+      abstract: true,
+    },
+    {
+      name: "abap",
+      type: "asx:AbapType",
+    },
+  ],
+  complexType: [
+    {
+      name: "AbapValuesType",
+      sequence: {
+        element: [
+          {
+            ref: "asx:Schema",
+            minOccurs: "0",
+            maxOccurs: "unbounded",
+          },
+        ],
+      },
+    },
+    {
+      name: "AbapType",
+      sequence: {
+        element: [
+          {
+            name: "values",
+            type: "asx:AbapValuesType",
+          },
+        ],
+      },
+      attribute: [
+        {
+          name: "version",
+          type: "xs:string",
+          "default": "1.0",
+        },
+      ],
     },
   ],
 } as const;

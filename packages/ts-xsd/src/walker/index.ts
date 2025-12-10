@@ -61,14 +61,21 @@ export type TopLevelElementEntry = {
   readonly schema: SchemaLike;
 };
 
+/** Options for schema-level walkers */
+export type WalkOptions = {
+  /** Only recurse into $includes, not $imports (default: false) */
+  readonly includesOnly?: boolean;
+};
+
 // =============================================================================
-// Schema-level Walkers (traverse $imports)
+// Schema-level Walkers (traverse $imports and $includes)
 // =============================================================================
 
 /**
- * Walk all complexTypes in a schema and its $imports (depth-first).
+ * Walk all complexTypes in a schema and its $imports/$includes (depth-first).
  * 
  * @param schema - Root schema to start from
+ * @param options - Walk options (e.g., includesOnly to skip $imports)
  * @yields ComplexType with the schema it was found in
  * 
  * @example
@@ -80,7 +87,7 @@ export type TopLevelElementEntry = {
  * }
  * ```
  */
-export function* walkComplexTypes(schema: SchemaLike): Generator<ComplexTypeEntry> {
+export function* walkComplexTypes(schema: SchemaLike, options: WalkOptions = {}): Generator<ComplexTypeEntry> {
   // Current schema's complexTypes
   const complexTypes = schema.complexType;
   if (complexTypes) {
@@ -96,18 +103,25 @@ export function* walkComplexTypes(schema: SchemaLike): Generator<ComplexTypeEntr
     }
   }
   
-  // Recurse into $imports
-  if (schema.$imports) {
+  // Recurse into $includes (same namespace - content is merged)
+  if (schema.$includes) {
+    for (const included of schema.$includes) {
+      yield* walkComplexTypes(included, options);
+    }
+  }
+  
+  // Recurse into $imports (different namespace) - skip if includesOnly
+  if (!options.includesOnly && schema.$imports) {
     for (const imported of schema.$imports) {
-      yield* walkComplexTypes(imported);
+      yield* walkComplexTypes(imported, options);
     }
   }
 }
 
 /**
- * Walk all simpleTypes in a schema and its $imports.
+ * Walk all simpleTypes in a schema and its $imports/$includes.
  */
-export function* walkSimpleTypes(schema: SchemaLike): Generator<SimpleTypeEntry> {
+export function* walkSimpleTypes(schema: SchemaLike, options: WalkOptions = {}): Generator<SimpleTypeEntry> {
   const simpleTypes = schema.simpleType;
   if (simpleTypes) {
     if (Array.isArray(simpleTypes)) {
@@ -121,26 +135,42 @@ export function* walkSimpleTypes(schema: SchemaLike): Generator<SimpleTypeEntry>
     }
   }
   
-  if (schema.$imports) {
+  // Recurse into $includes (same namespace)
+  if (schema.$includes) {
+    for (const included of schema.$includes) {
+      yield* walkSimpleTypes(included, options);
+    }
+  }
+  
+  // Recurse into $imports (different namespace) - skip if includesOnly
+  if (!options.includesOnly && schema.$imports) {
     for (const imported of schema.$imports) {
-      yield* walkSimpleTypes(imported);
+      yield* walkSimpleTypes(imported, options);
     }
   }
 }
 
 /**
- * Walk all top-level elements in a schema and its $imports.
+ * Walk all top-level elements in a schema and its $imports/$includes.
  */
-export function* walkTopLevelElements(schema: SchemaLike): Generator<TopLevelElementEntry> {
+export function* walkTopLevelElements(schema: SchemaLike, options: WalkOptions = {}): Generator<TopLevelElementEntry> {
   if (schema.element) {
     for (const element of schema.element) {
       yield { element, schema };
     }
   }
   
-  if (schema.$imports) {
+  // Recurse into $includes (same namespace)
+  if (schema.$includes) {
+    for (const included of schema.$includes) {
+      yield* walkTopLevelElements(included, options);
+    }
+  }
+  
+  // Recurse into $imports (different namespace) - skip if includesOnly
+  if (!options.includesOnly && schema.$imports) {
     for (const imported of schema.$imports) {
-      yield* walkTopLevelElements(imported);
+      yield* walkTopLevelElements(imported, options);
     }
   }
 }
@@ -465,7 +495,15 @@ function findGroup(
     }
   }
   
-  // Search in $imports
+  // Search in $includes (same namespace)
+  if (schema.$includes) {
+    for (const included of schema.$includes) {
+      const found = findGroup(name, included);
+      if (found) return found;
+    }
+  }
+  
+  // Search in $imports (different namespace)
   if (schema.$imports) {
     for (const imported of schema.$imports) {
       const found = findGroup(name, imported);
@@ -489,6 +527,15 @@ function findAttributeGroup(
     }
   }
   
+  // Search in $includes (same namespace)
+  if (schema.$includes) {
+    for (const included of schema.$includes) {
+      const found = findAttributeGroup(name, included);
+      if (found) return found;
+    }
+  }
+  
+  // Search in $imports (different namespace)
   if (schema.$imports) {
     for (const imported of schema.$imports) {
       const found = findAttributeGroup(name, imported);

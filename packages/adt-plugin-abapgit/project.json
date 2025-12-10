@@ -11,7 +11,7 @@
       "outputs": ["{projectRoot}/src/schemas/generated"]
     },
     "test": {
-      "command": "node --test tests/**/*.test.ts",
+      "command": "node --import tsx --test tests/**/*.test.ts",
       "options": {
         "cwd": "{projectRoot}"
       },

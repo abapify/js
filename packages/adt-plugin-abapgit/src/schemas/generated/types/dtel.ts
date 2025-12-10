@@ -27,20 +27,13 @@ export interface Dd04vType {
     ABAP_LANGUAGE_VERSION?: string;
 }
 
-
-// Substitution values types and specialized interfaces
-/** Values type for AbapGitDtel with element names as properties */
+/** Values type for substitution group elements */
 export interface DtelValuesType {
-    DD04V: Dd04vType;
+    DD04V?: Dd04vType;
 }
 
-/** AbapGit specialized for dtel object type */
-export interface AbapGitDtel {
-    abap: {
-        values: DtelValuesType;
-        version?: string;
-    };
-    version: string;
-    serializer: string;
-    serializer_version: string;
+/** Root type for dtel - specialized AbapType with concrete values */
+export interface DtelType {
+    values: DtelValuesType;
+    version?: string;
 }

@@ -16,3 +16,6 @@ export { buildXsd, type BuildOptions } from './build';
 
 // Helpers - Schema linking utilities
 export { resolveImports, linkSchemas } from './helpers';
+
+// Resolver - Resolve schema with all imports merged
+export { resolveSchema, getSubstitutes, type ResolveOptions } from './resolve';

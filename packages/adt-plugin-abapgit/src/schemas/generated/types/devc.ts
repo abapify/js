@@ -18,20 +18,7 @@ export interface DevcType {
     KORRFLAG?: string;
 }
 
-
-// Substitution values types and specialized interfaces
-/** Values type for AbapGitDevc with element names as properties */
+/** Values type for substitution group elements */
 export interface DevcValuesType {
-    DEVC: DevcType;
-}
-
-/** AbapGit specialized for devc object type */
-export interface AbapGitDevc {
-    abap: {
-        values: DevcValuesType;
-        version?: string;
-    };
-    version: string;
-    serializer: string;
-    serializer_version: string;
+    DEVC?: DevcType;
 }

@@ -5,7 +5,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join, dirname, relative } from 'node:path';
+import { join, dirname, relative, isAbsolute } from 'node:path';
 import { parseXsd } from '../xsd';
 import type {
   CodegenConfig,
@@ -57,8 +57,8 @@ export async function runCodegen(
   for (const [name, sourceConfig] of Object.entries(config.sources)) {
     sources[name] = {
       name,
-      xsdDir: join(rootDir, sourceConfig.xsdDir),
-      outputDir: join(rootDir, sourceConfig.outputDir),
+      xsdDir: isAbsolute(sourceConfig.xsdDir) ? sourceConfig.xsdDir : join(rootDir, sourceConfig.xsdDir),
+      outputDir: isAbsolute(sourceConfig.outputDir) ? sourceConfig.outputDir : join(rootDir, sourceConfig.outputDir),
       schemas: sourceConfig.schemas,
     };
   }
