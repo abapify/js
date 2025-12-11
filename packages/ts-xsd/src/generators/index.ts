@@ -47,7 +47,6 @@ export { defineConfig } from '../codegen/types';
 export { rawSchema, type RawSchemaOptions } from './raw-schema';
 export { inferredTypes, type InferredTypesOptions } from './inferred-types';
 export { interfaces, type InterfacesOptions } from './interfaces';
-export { simpleInterfaces, type SimpleInterfacesOptions } from './simple-interfaces';
 export { indexBarrel, type IndexBarrelOptions } from './index-barrel';
 export { typedSchemas, type TypedSchemasOptions } from './typed-schemas';
 
