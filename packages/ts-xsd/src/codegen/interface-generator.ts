@@ -1,34 +1,32 @@
 /**
- * Interface Generator - Compiles Schema to TypeScript interfaces using ts-morph
+ * Simplified Interface Generator - Uses resolved schemas
  * 
- * This solves the TS2589 "Type instantiation is excessively deep" problem
- * by generating interfaces at build time (JS runtime) instead of relying
- * on TypeScript's compile-time type inference.
+ * This generator works with pre-resolved schemas (via loadSchema with autoResolve: true).
+ * Since the schema is already flattened with all types merged and extensions expanded,
+ * the generator logic is dramatically simplified:
+ * 
+ * - No need to traverse $imports
+ * - No need to resolve QNames across namespaces
+ * - No need to expand extensions manually
+ * - All types are local to the single schema
+ * 
+ * Compare with interface-generator.ts (~2500 lines) vs this (~400 lines)
  */
 
 import { Project, SourceFile, InterfaceDeclarationStructure, PropertySignatureStructure, OptionalKind } from 'ts-morph';
-import type { SchemaLike, ComplexTypeLike, AttributeLike, ElementLike, SimpleTypeLike, GroupLike, GroupRefLike, AnyAttributeLike } from '../infer';
+import type { 
+  Schema, 
+  TopLevelComplexType, 
+  TopLevelSimpleType, 
+  TopLevelElement,
+  LocalElement,
+  LocalComplexType,
+  LocalAttribute,
+  NamedGroup,
+  ExplicitGroup,
+} from '../xsd/types';
 
-/**
- * Type for sources that can contain content model (sequence, choice, all, group)
- * Used by collectProperties methods
- */
-type ContentModelSource = {
-  readonly sequence?: GroupLike;
-  readonly choice?: GroupLike;
-  readonly all?: GroupLike;
-  readonly group?: GroupRefLike;
-  readonly attribute?: readonly AttributeLike[];
-  readonly attributeGroup?: readonly unknown[];
-  readonly anyAttribute?: AnyAttributeLike;
-  readonly base?: string;
-};
-import {
-  findElement as walkerFindElement,
-  stripNsPrefix,
-} from '../walker';
-
-export interface GeneratorOptions {
+export interface SimpleGeneratorOptions {
   /** Root element name to generate interface for */
   rootElement?: string;
   /** Generate all complex types as separate interfaces */
@@ -38,268 +36,171 @@ export interface GeneratorOptions {
 }
 
 /**
- * Element to type mapping for substitution groups
- */
-export interface SubstitutionElement {
-  /** Element name (e.g., 'DD01V', 'VSEOCLASS') */
-  elementName: string;
-  /** Type name (e.g., 'Dd01vType', 'VseoClassType') */
-  typeName: string;
-  /** Whether this element is required (based on minOccurs) */
-  required: boolean;
-}
-
-/**
- * Substitution type alias info
- */
-export interface SubstitutionTypeAlias {
-  /** Name of the type alias (e.g., 'AbapGitClas') */
-  aliasName: string;
-  /** Name of the values interface (e.g., 'ClasValuesType') */
-  valuesTypeName: string;
-  /** The generic type being specialized (e.g., 'AbapGit') */
-  genericType: string;
-  /** Elements that substitute the abstract element */
-  elements: SubstitutionElement[];
-  /** The abstract element being substituted (e.g., 'Schema') */
-  substitutedElement: string;
-}
-
-/**
- * Result of generating interfaces with dependency tracking
- */
-export interface GenerateResult {
-  /** Generated TypeScript code */
-  code: string;
-  /** Types defined in this schema (local types) */
-  localTypes: string[];
-  /** Types imported from other schemas (external dependencies) */
-  externalTypes: Map<string, string[]>; // schemaNamespace -> typeNames[]
-  /** Substitution type aliases for elements in substitution groups */
-  substitutionAliases: SubstitutionTypeAlias[];
-}
-
-/**
- * Generate TypeScript interfaces from a Schema
+ * Generate TypeScript interfaces from a RESOLVED schema.
+ * 
+ * The schema should be loaded with `autoResolve: true` to ensure:
+ * - All imports/includes are merged
+ * - Extensions are expanded
+ * - Substitution groups are resolved
+ * 
+ * @example
+ * ```typescript
+ * import { loadSchema } from '../xsd/loader';
+ * import { generateInterfaces } from './interface-generator';
+ * 
+ * const schema = loadSchema('main.xsd', { 
+ *   basePath: '/path/to/xsd',
+ *   autoResolve: true  // Key: pre-resolve the schema
+ * });
+ * 
+ * const code = generateInterfaces(schema, { generateAllTypes: true });
+ * ```
  */
 export function generateInterfaces(
-  schema: SchemaLike,
-  options: GeneratorOptions = {}
+  _schema: Schema,
+  options: SimpleGeneratorOptions = {}
 ): string {
   const project = new Project({ useInMemoryFileSystem: true });
   const sourceFile = project.createSourceFile('generated.ts', '');
   
-  const generator = new InterfaceGenerator(schema, sourceFile, options);
+  const generator = new SimpleInterfaceGenerator(_schema, sourceFile, options);
   
   if (options.rootElement) {
-    const entry = walkerFindElement(options.rootElement, schema);
-    const element = entry?.element;
+    const element = _schema.element?.find(el => el.name === options.rootElement);
     if (element?.type) {
       const typeName = stripNsPrefix(element.type);
-      generator.generateComplexType(typeName);
+      generator.generateType(typeName);
     } else if (element?.complexType) {
-      // Element has inline complexType - generate it with the element name
-      generator.generateInlineRootElement(options.rootElement, element.complexType);
+      generator.generateInlineElement(options.rootElement, element.complexType);
     }
   }
   
   if (options.generateAllTypes) {
-    // Generate interfaces for all elements with inline complexTypes
-    const elements = schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.name && el.complexType) {
-          generator.generateInlineRootElement(el.name, el.complexType);
-        }
+    // Generate all elements with inline types
+    for (const el of _schema.element ?? []) {
+      if (el.name && el.complexType) {
+        generator.generateInlineElement(el.name, el.complexType);
       }
     }
     
     // Generate all complex types
-    const complexTypes = getComplexTypes(schema);
-    for (const ct of complexTypes) {
+    for (const ct of _schema.complexType ?? []) {
       if (ct.name) {
-        generator.generateComplexType(ct.name);
+        generator.generateType(ct.name);
       }
     }
-    // Generate all simple types
-    const simpleTypes = getSimpleTypes(schema);
-    for (const st of simpleTypes) {
+    
+    // Generate all simple types (as type aliases)
+    for (const st of _schema.simpleType ?? []) {
       if (st.name) {
-        generator.generateComplexType(st.name); // Will be handled as simpleType
+        generator.generateSimpleType(st.name, st);
       }
     }
   }
+  
+  // Reverse the order: root/main types first, nested types after (top-down)
+  // Interfaces are generated in dependency order (nested first), so we reverse
+  const statements = sourceFile.getStatements();
+  // Use getFullText() to include JSDoc comments (leading trivia)
+  const textParts = statements.map(stmt => stmt.getFullText().trim());
+  const reversedText = textParts.reverse().join('\n\n');
+  
+  // Clear and rebuild with reversed order
+  sourceFile.removeStatements([0, statements.length]);
+  sourceFile.addStatements(reversedText);
   
   sourceFile.formatText();
   return sourceFile.getFullText();
 }
 
-/**
- * Generate TypeScript interfaces with dependency tracking.
- * 
- * This function generates interfaces for a single schema and tracks:
- * - localTypes: Types defined in this schema
- * - externalTypes: Types imported from other schemas (via $imports)
- * 
- * Use this for generating per-schema type files with proper imports.
- * 
- * @example
- * ```typescript
- * const result = generateInterfacesWithDeps(classesSchema, { generateAllTypes: true });
- * // result.localTypes = ['AbapClass', 'AbapClassInclude', ...]
- * // result.externalTypes = Map { 'http://www.sap.com/adt/oo' => ['AbapOoObject'] }
- * ```
- */
-export function generateInterfacesWithDeps(
-  schema: SchemaLike,
-  options: GeneratorOptions = {}
-): GenerateResult {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const sourceFile = project.createSourceFile('generated.ts', '');
-  
-  const generator = new InterfaceGeneratorWithDeps(schema, sourceFile, options);
-  
-  if (options.rootElement) {
-    const entry = walkerFindElement(options.rootElement, schema);
-    const element = entry?.element;
-    if (element?.type) {
-      const typeName = stripNsPrefix(element.type);
-      generator.generateComplexType(typeName);
-    } else if (element?.complexType) {
-      generator.generateInlineRootElement(options.rootElement, element.complexType);
-    }
-  }
-  
-  if (options.generateAllTypes) {
-    // Generate interfaces for all elements with inline complexTypes
-    const elements = schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.name && el.complexType) {
-          generator.generateInlineRootElement(el.name, el.complexType);
-        }
-      }
-    }
-    
-    // Generate all complex types
-    const complexTypes = getComplexTypes(schema);
-    for (const ct of complexTypes) {
-      if (ct.name) {
-        generator.generateComplexType(ct.name);
-      }
-    }
-    // Generate all simple types
-    const simpleTypes = getSimpleTypes(schema);
-    for (const st of simpleTypes) {
-      if (st.name) {
-        generator.generateComplexType(st.name);
-      }
-    }
-    
-    // Generate values interfaces for substitution groups
-    // This creates interfaces like DomaValuesType with DD01V and DD07V_TAB properties
-    generator.generateSubstitutionValuesInterfaces();
-  }
-  
-  sourceFile.formatText();
-  
-  return {
-    code: sourceFile.getFullText(),
-    localTypes: Array.from(generator.getLocalTypes()),
-    externalTypes: generator.getExternalTypes(),
-    substitutionAliases: generator.getSubstitutionAliases(),
-  };
-}
+/** Alias for backward compatibility */
+export const generateSimpleInterfaces = generateInterfaces;
 
-class InterfaceGenerator {
-  private generatedTypes: Set<string>;
-  private allImports: SchemaLike[];
+/** Alias for SimpleGeneratorOptions */
+export type GeneratorOptions = SimpleGeneratorOptions;
+
+/**
+ * Simplified interface generator that works with resolved schemas.
+ * 
+ * Key simplifications vs InterfaceGenerator:
+ * - No collectAllImports() - schema is already merged
+ * - No findComplexType() across imports - direct lookup
+ * - No namespace prefix resolution - types are local
+ * - No extension expansion - already done by resolver
+ */
+class SimpleInterfaceGenerator {
+  private generatedTypes = new Set<string>();
+  
+  // Quick lookup maps (built once from the flat schema)
+  private complexTypeMap: Map<string, TopLevelComplexType>;
+  private simpleTypeMap: Map<string, TopLevelSimpleType>;
+  private elementMap: Map<string, TopLevelElement>;
+  private groupMap: Map<string, NamedGroup>;
   
   constructor(
-    private schema: SchemaLike,
+    _schema: Schema,
     private sourceFile: SourceFile,
-    private options: GeneratorOptions,
-    generatedTypes?: Set<string>,
-    allImports?: SchemaLike[]
+    private options: SimpleGeneratorOptions
   ) {
-    this.generatedTypes = generatedTypes ?? new Set<string>();
-    // Collect all imports from the root schema for cross-reference
-    this.allImports = allImports ?? this.collectAllImports(schema);
-  }
-  
-  private collectAllImports(schema: SchemaLike, visited: Set<SchemaLike> = new Set()): SchemaLike[] {
-    const result: SchemaLike[] = [];
-    
-    // Prevent infinite recursion
-    if (visited.has(schema)) {
-      return result;
-    }
-    visited.add(schema);
-    
-    // Collect from $imports (non-W3C extension)
-    const imports = schema.$imports;
-    if (imports && Array.isArray(imports)) {
-      for (const imp of imports as SchemaLike[]) {
-        result.push(imp);
-        // Recursively collect nested imports
-        result.push(...this.collectAllImports(imp, visited));
-      }
-    }
-    
-    // Collect from include (W3C standard)
-    const includes = schema.include;
-    if (includes && Array.isArray(includes)) {
-      for (const inc of includes) {
-        // include can be a schema object or a reference with schemaLocation
-        if (typeof inc === 'object' && inc !== null) {
-          // If it's a resolved schema object, add it
-          if ('complexType' in inc || 'simpleType' in inc || 'element' in inc) {
-            const incSchema = inc as SchemaLike;
-            result.push(incSchema);
-            // Recursively collect nested imports
-            result.push(...this.collectAllImports(incSchema, visited));
-          }
-        }
-      }
-    }
-    
-    return result;
+    // Build lookup maps from the flat resolved schema
+    // Using type guards to avoid non-null assertions
+    this.complexTypeMap = new Map(
+      (_schema.complexType ?? [])
+        .filter((ct): ct is TopLevelComplexType & { name: string } => Boolean(ct.name))
+        .map(ct => [ct.name, ct])
+    );
+    this.simpleTypeMap = new Map(
+      (_schema.simpleType ?? [])
+        .filter((st): st is TopLevelSimpleType & { name: string } => Boolean(st.name))
+        .map(st => [st.name, st])
+    );
+    this.elementMap = new Map(
+      (_schema.element ?? [])
+        .filter((el): el is TopLevelElement & { name: string } => Boolean(el.name))
+        .map(el => [el.name, el])
+    );
+    this.groupMap = new Map(
+      (_schema.group ?? [])
+        .filter((g): g is NamedGroup & { name: string } => Boolean(g.name))
+        .map(g => [g.name, g])
+    );
   }
   
   /**
-   * Generate interface for an element with inline complexType (like xs:element name="schema")
+   * Generate interface for a named type.
+   * Since schema is resolved, this is a simple direct lookup.
    */
-  generateInlineRootElement(elementName: string, complexType: ComplexTypeLike): string {
-    const interfaceName = this.toInterfaceName(elementName);
+  generateType(typeName: string): string {
+    const interfaceName = toInterfaceName(typeName);
     
-    if (this.generatedTypes.has(elementName)) {
+    if (this.generatedTypes.has(interfaceName)) {
       return interfaceName;
     }
-    this.generatedTypes.add(elementName);
+    this.generatedTypes.add(interfaceName);
+    
+    // Check for simple type first
+    const simpleType = this.simpleTypeMap.get(typeName);
+    if (simpleType) {
+      return this.generateSimpleType(typeName, simpleType);
+    }
+    
+    // Look up complex type - direct map lookup, no import traversal needed!
+    const complexType = this.complexTypeMap.get(typeName);
+    if (!complexType) {
+      // Unknown type - map to primitive or return as-is
+      return mapBuiltInType(typeName);
+    }
     
     const properties: OptionalKind<PropertySignatureStructure>[] = [];
-    const extendsTypes: string[] = [];
     
-    // Handle complexContent extension
-    if (complexType.complexContent?.extension) {
-      const ext = complexType.complexContent.extension;
-      if (ext.base) {
-        const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveType(baseName);
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          extendsTypes.push(baseInterface);
-        }
-      }
-      this.collectProperties(ext, properties);
-    }
-    // Handle direct content
-    else {
-      this.collectProperties(complexType, properties);
-    }
+    // Since extensions are already expanded by resolver,
+    // we just need to collect direct properties
+    this.collectProperties(complexType, properties);
+    this.collectAttributes(complexType.attribute, properties);
     
-    // Collect attributes from complexType itself
-    if (!complexType.complexContent?.extension) {
-      this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
+    // Handle anyAttribute
+    if (complexType.anyAttribute) {
+      this.addIndexSignature(properties);
     }
     
     const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
@@ -308,9 +209,44 @@ class InterfaceGenerator {
       properties,
     };
     
-    if (extendsTypes.length > 0) {
-      interfaceStructure.extends = extendsTypes;
+    if (this.options.addJsDoc) {
+      interfaceStructure.docs = [{ description: `Generated from complexType: ${typeName}` }];
     }
+    
+    this.sourceFile.addInterface(interfaceStructure);
+    return interfaceName;
+  }
+  
+  /**
+   * Generate interface for an element with inline complexType.
+   */
+  generateInlineElement(elementName: string, complexType: LocalComplexType): string {
+    const interfaceName = toInterfaceName(elementName);
+    
+    if (this.generatedTypes.has(interfaceName)) {
+      return interfaceName;
+    }
+    this.generatedTypes.add(interfaceName);
+    
+    const properties: OptionalKind<PropertySignatureStructure>[] = [];
+    
+    // Handle mixed content
+    if (complexType.mixed) {
+      properties.push({
+        name: '_text',
+        type: 'string',
+        hasQuestionToken: true,
+      });
+    }
+    
+    this.collectProperties(complexType, properties);
+    this.collectAttributes(complexType.attribute, properties);
+    
+    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
+      name: interfaceName,
+      isExported: true,
+      properties,
+    };
     
     if (this.options.addJsDoc) {
       interfaceStructure.docs = [{ description: `Generated from element: ${elementName}` }];
@@ -320,2257 +256,466 @@ class InterfaceGenerator {
     return interfaceName;
   }
   
-  generateComplexType(typeName: string): string {
-    const interfaceName = this.toInterfaceName(typeName);
-    if (this.generatedTypes.has(interfaceName)) {
-      return interfaceName;
-    }
-    this.generatedTypes.add(interfaceName);
-    
-    // Check for simpleType first (enums, restrictions)
-    const simpleType = this.findSimpleType(typeName);
-    if (simpleType) {
-      return this.generateSimpleType(typeName, simpleType);
-    }
-    
-    const complexType = this.findComplexType(typeName);
-    if (!complexType) {
-      return this.mapSimpleType(typeName);
-    }
-    
-    const properties: OptionalKind<PropertySignatureStructure>[] = [];
-    const extendsTypes: string[] = [];
-    
-    // Handle complexContent extension (inheritance)
-    if (complexType.complexContent?.extension) {
-      const ext = complexType.complexContent.extension;
-      if (ext.base) {
-        const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveType(baseName);
-        // Don't extend primitive types like 'unknown'
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          extendsTypes.push(baseInterface);
-        }
-      }
-      this.collectProperties(ext, properties);
-    }
-    // Handle complexContent restriction
-    else if (complexType.complexContent?.restriction) {
-      const rest = complexType.complexContent.restriction;
-      this.collectPropertiesFromRestriction(rest, properties);
-      
-      if (rest.base) {
-        const baseName = stripNsPrefix(rest.base);
-        const baseInterface = this.resolveType(baseName);
-        // Don't extend primitive types
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          // Get property names that are being redefined in this restriction
-          const redefinedProps = properties.map(p => p.name).filter(Boolean);
-          if (redefinedProps.length > 0) {
-            // Use Omit to exclude redefined properties from base type
-            extendsTypes.push(`Omit<${baseInterface}, ${redefinedProps.map(p => `'${p}'`).join(' | ')}>`);
-          } else {
-            extendsTypes.push(baseInterface);
-          }
-        }
-      }
-    }
-    // Handle simpleContent extension (text content with attributes)
-    else if (complexType.simpleContent?.extension) {
-      const ext = complexType.simpleContent.extension;
-      // Add $value property for text content
-      if (ext.base) {
-        const baseType = this.mapSimpleType(stripNsPrefix(ext.base));
-        properties.push({
-          name: '$value',
-          type: baseType,
-          hasQuestionToken: false,
-        });
-      }
-      // Collect attributes from simpleContent extension
-      this.collectAttributes(ext.attribute, properties);
-    }
-    // Handle direct content (no complexContent/simpleContent)
-    else {
-      this.collectProperties(complexType, properties);
-    }
-    
-    // Collect attributes from complexType itself (for non-extension types)
-    if (!complexType.complexContent?.extension && !complexType.simpleContent?.extension) {
-      this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
-    }
-    
-    // Build interface structure
-    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-      name: interfaceName,
-      isExported: true,
-      extends: extendsTypes.length > 0 ? extendsTypes : undefined,
-      properties,
-    };
-    
-    // Add JSDoc if requested
-    if (this.options.addJsDoc) {
-      interfaceStructure.docs = [{ description: `Generated from complexType: ${typeName}` }];
-    }
-    
-    this.sourceFile.addInterface(interfaceStructure);
-    return interfaceName;
-  }
-  
-  private collectProperties(
-    source: ComplexTypeLike | ContentModelSource,
-    properties: OptionalKind<PropertySignatureStructure>[]
-  ): void {
-    if (source.sequence) this.collectFromGroup(source.sequence, properties, false, false);
-    if (source.all) this.collectFromGroup(source.all, properties, false, false);
-    
-    // Choice elements are always optional (only one is selected)
-    // But if choice has maxOccurs="unbounded", elements should be arrays
-    if (source.choice) {
-      const choice = source.choice;
-      const choiceIsArray = choice.maxOccurs === 'unbounded' || 
-                           (typeof choice.maxOccurs === 'string' && choice.maxOccurs !== '1' && choice.maxOccurs !== '0') ||
-                           (typeof choice.maxOccurs === 'number' && choice.maxOccurs > 1);
-      this.collectFromGroup(choice, properties, choiceIsArray, true);
-    }
-    
-    // Handle group reference
-    const groupRef = source.group;
-    if (groupRef?.ref) {
-      // Check if the group reference has maxOccurs="unbounded"
-      const groupIsArray = groupRef.maxOccurs === 'unbounded' || 
-                          (typeof groupRef.maxOccurs === 'string' && groupRef.maxOccurs !== '1' && groupRef.maxOccurs !== '0') ||
-                          (typeof groupRef.maxOccurs === 'number' && groupRef.maxOccurs > 1);
-      // Check if the group reference has minOccurs="0"
-      const groupIsOptional = groupRef.minOccurs === '0' || groupRef.minOccurs === 0;
-      this.collectFromGroupRef(groupRef.ref, properties, groupIsArray, groupIsOptional);
-    }
-    
-    // Only collect attributes from extension source (not from complexType - that's done separately)
-    if (source.attribute && 'base' in source) {
-      this.collectAttributes(source.attribute, properties);
-    }
-    
-    // Handle attributeGroup references
-    if (source.attributeGroup) {
-      for (const ag of source.attributeGroup) {
-        const agRef = ag as { ref?: string };
-        if (agRef.ref) {
-          this.collectFromAttributeGroupRef(agRef.ref, properties);
-        }
-      }
-    }
-  }
-  
   /**
-   * Collect properties from a restriction - handles attributes differently
-   * In restrictions, attributes with use="prohibited" should be skipped,
-   * and attributes without a type are just modifying parent's attribute
+   * Generate type alias for simple type.
    */
-  private collectPropertiesFromRestriction(
-    source: ContentModelSource,
-    properties: OptionalKind<PropertySignatureStructure>[]
-  ): void {
-    if (source.sequence) this.collectFromGroup(source.sequence, properties);
-    if (source.all) this.collectFromGroup(source.all, properties);
-    if (source.choice) this.collectFromGroup(source.choice, properties);
+  generateSimpleType(typeName: string, simpleType: TopLevelSimpleType): string {
+    const aliasName = toInterfaceName(typeName);
     
-    // Handle group reference
-    const groupRef = source.group;
-    if (groupRef?.ref) {
-      this.collectFromGroupRef(groupRef.ref, properties);
-    }
-    
-    // Collect attributes with restriction semantics
-    // Also handle anyAttribute for index signature
-    if (source.attribute) {
-      this.collectAttributes(source.attribute, properties, source.anyAttribute, true);
-    } else if (source.anyAttribute) {
-      // No attributes but has anyAttribute - add index signature
-      this.collectAttributes(undefined, properties, source.anyAttribute, true);
-    }
-    
-    // Handle attributeGroup references
-    if (source.attributeGroup) {
-      for (const ag of source.attributeGroup) {
-        const agRef = ag as { ref?: string };
-        if (agRef.ref) {
-          this.collectFromAttributeGroupRef(agRef.ref, properties);
-        }
-      }
-    }
-  }
-  
-  private collectFromGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[], forceArray = false, forceOptional = false): void {
-    const groupName = stripNsPrefix(ref);
-    const { group, isChoice } = this.findGroupWithMeta(groupName);
-    if (group) {
-      // If the group's direct content is a choice, elements are optional
-      this.collectFromGroup(group, properties, forceArray, forceOptional || isChoice);
-    }
-  }
-  
-  private collectFromAttributeGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[]): void {
-    const groupName = stripNsPrefix(ref);
-    const attrGroup = this.findAttributeGroup(groupName);
-    if (attrGroup?.attribute) {
-      this.collectAttributes(attrGroup.attribute as readonly AttributeLike[], properties);
-    }
-  }
-  
-  private collectFromGroup(
-    group: GroupLike,
-    properties: OptionalKind<PropertySignatureStructure>[],
-    forceArray = false,
-    forceOptional = false
-  ): void {
-    // Handle any wildcard
-    if (group.any && group.any.length > 0) {
-      // xs:any allows any element - represent as index signature
-      // Only add if not already present
-      const hasIndexSig = properties.some(p => p.name?.startsWith('['));
-      if (!hasIndexSig) {
-        properties.push({
-          name: '[key: string]',
-          type: 'unknown',
-          hasQuestionToken: false,
-        });
-      }
-    }
-    
-    // Handle nested group references within the group
-    if (group.group) {
-      for (const g of group.group) {
-        if (g.ref) {
-          // Check if the group reference has maxOccurs="unbounded"
-          const groupIsArray = g.maxOccurs === 'unbounded' || 
-                              (typeof g.maxOccurs === 'string' && g.maxOccurs !== '1' && g.maxOccurs !== '0') ||
-                              (typeof g.maxOccurs === 'number' && g.maxOccurs > 1);
-          // Check if the group reference has minOccurs="0"
-          const groupIsOptional = g.minOccurs === '0' || g.minOccurs === 0;
-          this.collectFromGroupRef(g.ref, properties, forceArray || groupIsArray, forceOptional || groupIsOptional);
-        }
-      }
-    }
-    
-    // Handle nested sequence within the group
-    if (group.sequence) {
-      for (const seq of group.sequence) {
-        // Check if the nested sequence has maxOccurs="unbounded"
-        const seqIsArray = seq.maxOccurs === 'unbounded' || 
-                          (typeof seq.maxOccurs === 'string' && seq.maxOccurs !== '1' && seq.maxOccurs !== '0') ||
-                          (typeof seq.maxOccurs === 'number' && seq.maxOccurs > 1);
-        // Check if the nested sequence has minOccurs="0"
-        const seqIsOptional = seq.minOccurs === '0' || seq.minOccurs === 0;
-        this.collectFromGroup(seq, properties, forceArray || seqIsArray, forceOptional || seqIsOptional);
-      }
-    }
-    
-    // Handle nested choice within the group - choices are always optional (only one is selected)
-    if (group.choice) {
-      for (const ch of group.choice) {
-        // Check if the choice has maxOccurs="unbounded" for array typing
-        const choiceIsArray = ch.maxOccurs === 'unbounded' || 
-                             (typeof ch.maxOccurs === 'string' && ch.maxOccurs !== '1' && ch.maxOccurs !== '0') ||
-                             (typeof ch.maxOccurs === 'number' && ch.maxOccurs > 1);
-        // Check if the choice has minOccurs="0" for optionality
-        const choiceIsOptional = ch.minOccurs === '0' || ch.minOccurs === 0;
-        this.collectFromGroup(ch, properties, forceArray || choiceIsArray, forceOptional || choiceIsOptional || true);
-      }
-    }
-    
-    const elements = group.element;
-    if (!elements) return;
-    
-    for (const el of elements) {
-      // Handle element reference (ref="xs:include")
-      if (el.ref) {
-        const refName = stripNsPrefix(el.ref);
-        const refElement = this.findElement(refName);
-        
-        // Use minOccurs/maxOccurs from the reference, not the target element
-        // Also consider forceArray/forceOptional from parent group
-        const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
-        const isArray = forceArray || el.maxOccurs === 'unbounded' || 
-                        (typeof el.maxOccurs === 'string' && el.maxOccurs !== '1' && el.maxOccurs !== '0') ||
-                        (typeof el.maxOccurs === 'number' && el.maxOccurs > 1);
-        
-        let typeName: string;
-        if (refElement?.type) {
-          typeName = this.resolveType(stripNsPrefix(refElement.type));
-        } else if (refElement?.complexType) {
-          typeName = this.generateInlineComplexType(refName, refElement.complexType);
-        } else if (refElement && this.isAbstractElement(refElement)) {
-          // Abstract element - expand to multiple properties, one for each substitute
-          // This is the correct XSD substitution group behavior: the abstract element
-          // is replaced by concrete element names in the XML
-          const substitutes = this.findSubstitutes(refName);
-          if (substitutes.length > 0) {
-            for (const sub of substitutes) {
-              if (!sub.name) continue;
-              
-              let subTypeName: string;
-              if (sub.type) {
-                subTypeName = this.resolveType(stripNsPrefix(sub.type));
-              } else if (sub.complexType) {
-                subTypeName = this.generateInlineComplexType(sub.name, sub.complexType);
-              } else {
-                subTypeName = this.toInterfaceName(sub.name);
-              }
-              
-              if (isArray) {
-                subTypeName = `${subTypeName}[]`;
-              }
-              
-              // Add property for each substitute element using its actual element name
-              if (!properties.some(p => p.name === sub.name)) {
-                properties.push({
-                  name: sub.name,
-                  type: subTypeName,
-                  hasQuestionToken: true, // All substitutes are optional
-                });
-              }
-            }
-            continue; // Skip adding the abstract element itself
-          }
-          // No substitutes found - fall through to add abstract element with unknown type
-          typeName = 'unknown';
-        } else {
-          // Element exists but has no type - use the element name as type
-          typeName = this.toInterfaceName(refName);
-        }
-        
-        if (isArray) {
-          // Only wrap in parentheses if it's a union type (contains |)
-          typeName = typeName.includes(' | ') ? `(${typeName})[]` : `${typeName}[]`;
-        }
-        
-        // Skip if property already exists (deduplication)
-        if (!properties.some(p => p.name === refName)) {
-          properties.push({
-            name: refName,
-            type: typeName,
-            hasQuestionToken: isOptional,
-          });
-        }
-        continue;
-      }
-      
-      if (!el.name) continue;
-      
-      const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
-      const isArray = forceArray || el.maxOccurs === 'unbounded' || 
-                      (typeof el.maxOccurs === 'string' && el.maxOccurs !== '1' && el.maxOccurs !== '0') ||
-                      (typeof el.maxOccurs === 'number' && el.maxOccurs > 1);
-      
-      let typeName: string;
-      if (el.type) {
-        const rawType = el.type;
-        const baseType = stripNsPrefix(rawType);
-        // Check for xsd:/xs: prefix types first (built-in XSD types)
-        if (rawType.startsWith('xsd:') || rawType.startsWith('xs:')) {
-          // Check if it's a built-in XSD type
-          if (this.isBuiltInXsdType(baseType)) {
-            typeName = this.mapSimpleType(baseType);
-          } else {
-            // It's a custom type defined in the schema (like xs:localSimpleType)
-            typeName = this.resolveType(baseType);
-          }
-        } else {
-          typeName = this.resolveType(baseType);
-        }
-      } else if (el.complexType) {
-        typeName = this.generateInlineComplexType(el.name, el.complexType);
-      } else {
-        typeName = 'unknown';
-      }
-      
-      if (isArray) {
-        typeName = `${typeName}[]`;
-      }
-      
-      // Skip if property already exists (deduplication)
-      if (!properties.some(p => p.name === el.name)) {
-        properties.push({
-          name: el.name,
-          type: typeName,
-          hasQuestionToken: isOptional,
-        });
-      }
-    }
-  }
-  
-  private findElement(name: string): ElementLike | undefined {
-    // Use walker's findElement which handles $imports traversal
-    const entry = walkerFindElement(name, this.schema);
-    return entry?.element;
-  }
-  
-  /**
-   * Find all elements that substitute for a given abstract element.
-   * This handles XSD substitution groups where concrete elements can
-   * substitute for an abstract element.
-   */
-  private findSubstitutes(abstractElementName: string): ElementLike[] {
-    const substitutes: ElementLike[] = [];
-    
-    // Search in current schema
-    const elements = this.schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.substitutionGroup) {
-          const subGroupName = stripNsPrefix(el.substitutionGroup);
-          if (subGroupName === abstractElementName) {
-            substitutes.push(el);
-          }
-        }
-      }
-    }
-    
-    // Search in all imports
-    for (const imported of this.allImports) {
-      const importedElements = imported.element;
-      if (importedElements && Array.isArray(importedElements)) {
-        for (const el of importedElements) {
-          const subGroup = el.substitutionGroup;
-          if (subGroup) {
-            const subGroupName = stripNsPrefix(subGroup);
-            if (subGroupName === abstractElementName) {
-              substitutes.push(el);
-            }
-          }
-        }
-      }
-    }
-    
-    return substitutes;
-  }
-  
-  /**
-   * Check if an element is abstract
-   */
-  private isAbstractElement(element: ElementLike): boolean {
-    return element.abstract === true;
-  }
-  
-  private collectAttributes(
-    attributes: readonly AttributeLike[] | undefined,
-    properties: OptionalKind<PropertySignatureStructure>[],
-    anyAttribute?: unknown,
-    isRestriction = false
-  ): void {
-    if (attributes) {
-      for (const attr of attributes) {
-        // Handle attribute reference (ref="atcfinding:location" -> "location")
-        if (attr.ref) {
-          const refName = attr.ref;
-          // Strip namespace prefix - the ref points to a global attribute by name
-          // e.g., ref="atcfinding:location" -> property name is "location"
-          // Exception: xml:lang and xml:base are special XML attributes that keep the prefix
-          const isXmlNamespace = refName.startsWith('xml:');
-          const propName = isXmlNamespace 
-            ? `'${refName}'`  // Keep xml:lang, xml:base as quoted properties
-            : stripNsPrefix(refName);  // Strip other namespace prefixes
-          const isOptional = attr.use !== 'required';
-          properties.push({
-            name: propName,
-            type: 'string',
-            hasQuestionToken: isOptional,
-          });
-          continue;
-        }
-        
-        if (!attr.name) continue;
-        
-        // In restrictions, use="prohibited" means skip this attribute
-        if (attr.use === 'prohibited') continue;
-        
-        // In restrictions, attributes without a type are just modifying parent's attribute
-        // Skip them to avoid type conflicts
-        if (isRestriction && !attr.type) continue;
-        
-        const isOptional = attr.use !== 'required';
-        let typeName: string;
-        if (attr.type) {
-          const rawType = attr.type;
-          const baseType = stripNsPrefix(rawType);
-          // Check for xsd:/xs: prefix types first (built-in XSD types)
-          if (rawType.startsWith('xsd:') || rawType.startsWith('xs:')) {
-            // Check if it's a built-in XSD type
-            if (this.isBuiltInXsdType(baseType)) {
-              typeName = this.mapSimpleType(baseType);
-            } else {
-              // It's a custom type defined in the schema
-              typeName = this.resolveType(baseType);
-            }
-          } else {
-            // Resolve custom types (will PascalCase them)
-            typeName = this.resolveType(baseType);
-          }
-        } else {
-          // No type specified = xs:anySimpleType, use unknown to allow narrowing in restrictions
-          typeName = 'unknown';
-        }
-        
-        properties.push({
-          name: attr.name,
-          type: typeName,
-          hasQuestionToken: isOptional,
-        });
-      }
-    }
-    
-    // Handle anyAttribute - allows any attribute
-    // Only add if no index signature already present
-    if (anyAttribute) {
-      const hasIndexSig = properties.some(p => p.name?.startsWith('['));
-      if (!hasIndexSig) {
-        properties.push({
-          name: '[key: string]',
-          type: 'unknown',
-          hasQuestionToken: false,
-        });
-      }
-    }
-  }
-  
-  private generateInlineComplexType(parentName: string, ct: ComplexTypeLike): string {
-    const baseName = this.toInterfaceName(parentName);
-    // Don't add Type suffix if name already ends with Type
-    const interfaceName = baseName.endsWith('Type') ? baseName : baseName + 'Type';
-    
-    // Check if already generated (deduplication)
-    if (this.generatedTypes.has(interfaceName)) {
-      return interfaceName;
-    }
-    this.generatedTypes.add(interfaceName);
-    
-    const properties: OptionalKind<PropertySignatureStructure>[] = [];
-    const extendsTypes: string[] = [];
-    
-    // Handle mixed content - add _text property
-    if (ct.mixed === true) {
-      properties.push({
-        name: '_text',
-        type: 'string',
-        hasQuestionToken: true,
-      });
-    }
-    
-    // Handle complexContent extension
-    if (ct.complexContent?.extension) {
-      const ext = ct.complexContent.extension;
-      if (ext.base) {
-        const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveType(baseName);
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          extendsTypes.push(baseInterface);
-        }
-      }
-      this.collectProperties(ext, properties);
-    } else {
-      this.collectProperties(ct, properties);
-      this.collectAttributes(ct.attribute, properties);
-    }
-    
-    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-      name: interfaceName,
-      isExported: true,
-      properties,
-    };
-    
-    if (extendsTypes.length > 0) {
-      interfaceStructure.extends = extendsTypes;
-    }
-    
-    this.sourceFile.addInterface(interfaceStructure);
-    
-    return interfaceName;
-  }
-  
-  private resolveType(typeName: string): string {
-    const builtIn = this.mapSimpleType(typeName);
-    if (builtIn !== typeName) {
-      return builtIn;
-    }
-    
-    // Check for simpleType first
-    const st = this.findSimpleType(typeName);
-    if (st) {
-      return this.generateSimpleType(typeName, st);
-    }
-    
-    const ct = this.findComplexType(typeName);
-    if (ct) {
-      return this.generateComplexType(typeName);
-    }
-    
-    // Check in all imports (from root schema)
-    for (const imported of this.allImports) {
-      // Check for simpleType in imports first
-      const importedSt = findSimpleTypeInSchema(imported, typeName);
-      if (importedSt) {
-        // Create generator for imported schema, sharing sourceFile, generatedTypes, and allImports
-        const importedGenerator = new InterfaceGenerator(
-          imported,
-          this.sourceFile,
-          this.options,
-          this.generatedTypes,
-          this.allImports
-        );
-        return importedGenerator.generateSimpleType(typeName, importedSt);
-      }
-      
-      // Check for complexType in imports
-      const importedCt = findComplexTypeInSchema(imported, typeName);
-      if (importedCt) {
-        // Create generator for imported schema, sharing sourceFile, generatedTypes, and allImports
-        const importedGenerator = new InterfaceGenerator(
-          imported,
-          this.sourceFile,
-          this.options,
-          this.generatedTypes,
-          this.allImports  // Pass all imports so nested schemas can resolve cross-references
-        );
-        return importedGenerator.generateComplexType(typeName);
-      }
-    }
-    
-    // For unknown types, still PascalCase them (they might be forward references)
-    return this.toInterfaceName(typeName);
-  }
-  
-  private findComplexType(name: string): ComplexTypeLike | undefined {
-    return findComplexTypeInSchema(this.schema, name);
-  }
-  
-  private findSimpleType(name: string): SimpleTypeLike | undefined {
-    return findSimpleTypeInSchema(this.schema, name);
-  }
-  
-  private findGroupWithMeta(name: string): { group: { element?: readonly ElementLike[] } | undefined; isChoice: boolean } {
-    // Search in current schema
-    const groups = this.schema.group;
-    if (groups && Array.isArray(groups)) {
-      const found = groups.find((g) => g.name === name);
-      if (found) {
-        // Group can have sequence/choice/all containing elements
-        const isChoice = !!found.choice && !found.sequence && !found.all;
-        const content = found.sequence || found.choice || found.all || found;
-        return { group: content, isChoice };
-      }
-    }
-    // Search in imports
-    for (const imported of this.allImports) {
-      const importedGroups = imported.group;
-      if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g) => g.name === name);
-        if (found) {
-          const isChoice = !!found.choice && !found.sequence && !found.all;
-          const content = found.sequence || found.choice || found.all || found;
-          return { group: content, isChoice };
-        }
-      }
-    }
-    return { group: undefined, isChoice: false };
-  }
-  
-  private findAttributeGroup(name: string): { attribute?: readonly AttributeLike[] } | undefined {
-    // Search in current schema
-    const groups = this.schema.attributeGroup;
-    if (groups && Array.isArray(groups)) {
-      const found = groups.find((g) => g.name === name);
-      if (found) return found;
-    }
-    // Search in imports
-    for (const imported of this.allImports) {
-      const importedGroups = imported.attributeGroup;
-      if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g) => g.name === name);
-        if (found) return found;
-      }
-    }
-    return undefined;
-  }
-  
-  /**
-   * Generate type alias for simpleType (enums, restrictions, unions)
-   */
-  private generateSimpleType(typeName: string, st: SimpleTypeLike): string {
-    const aliasName = this.toInterfaceName(typeName);
-    
-    // Check if already generated
-    if (this.generatedTypes.has(typeName)) {
+    if (this.generatedTypes.has(aliasName)) {
       return aliasName;
     }
-    this.generatedTypes.add(typeName);
+    this.generatedTypes.add(aliasName);
     
-    // Handle enumeration restriction
-    if (st.restriction?.enumeration && st.restriction.enumeration.length > 0) {
-      const enumValues = st.restriction.enumeration
-        .map(e => `'${e.value}'`)
-        .join(' | ');
+    let tsType = 'string'; // Default
+    
+    // Handle restriction with enumeration
+    if (simpleType.restriction) {
+      const restriction = simpleType.restriction;
       
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: enumValues,
-      });
-      return aliasName;
-    }
-    
-    // Handle union types
-    if (st.union) {
-      const memberTypes = st.union.memberTypes?.split(/\s+/) ?? [];
-      if (memberTypes.length > 0) {
-        const unionTypes = memberTypes
-          .map(t => {
-            const baseType = stripNsPrefix(t);
-            const mapped = this.mapSimpleType(baseType);
-            // If it's a built-in type, use the mapped value; otherwise resolve/generate it
-            if (mapped !== baseType) {
-              return mapped;
-            }
-            // Try to generate the member type first
-            return this.resolveType(baseType);
-          })
+      if (restriction.enumeration && restriction.enumeration.length > 0) {
+        // Generate union of literal types
+        const literals = restriction.enumeration
+          .map(e => `'${e.value}'`)
           .join(' | ');
-        
-        this.sourceFile.addTypeAlias({
-          name: aliasName,
-          isExported: true,
-          type: unionTypes || 'string',
-        });
-        return aliasName;
-      }
-      // Union with inline simpleTypes - fall back to string
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: 'string',
-      });
-      return aliasName;
-    }
-    
-    // Handle list types
-    if (st.list) {
-      const itemType = st.list.itemType 
-        ? this.mapSimpleType(stripNsPrefix(st.list.itemType))
-        : 'string';
-      
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: `${itemType}[]`,
-      });
-      return aliasName;
-    }
-    
-    // Handle restriction with base type (no enum)
-    if (st.restriction?.base) {
-      const baseType = this.mapSimpleType(stripNsPrefix(st.restriction.base));
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: baseType,
-      });
-      return aliasName;
-    }
-    
-    // Fallback to string
-    return 'string';
-  }
-  
-  private isBuiltInXsdType(typeName: string): boolean {
-    const builtInTypes = new Set([
-      'string', 'boolean', 'int', 'integer', 'long', 'short', 'decimal', 'float', 'double',
-      'byte', 'unsignedInt', 'unsignedLong', 'unsignedShort', 'unsignedByte',
-      'positiveInteger', 'negativeInteger', 'nonPositiveInteger', 'nonNegativeInteger',
-      'date', 'dateTime', 'time', 'duration', 'anyURI', 'base64Binary', 'hexBinary',
-      'QName', 'token', 'language', 'Name', 'NCName', 'ID', 'IDREF', 'NMTOKEN',
-      'normalizedString', 'anyType', 'anySimpleType'
-    ]);
-    return builtInTypes.has(typeName);
-  }
-  
-  private mapSimpleType(typeName: string): string {
-    const mapping: Record<string, string> = {
-      'string': 'string',
-      'boolean': 'boolean',
-      'int': 'number',
-      'integer': 'number',
-      'long': 'number',
-      'short': 'number',
-      'decimal': 'number',
-      'float': 'number',
-      'double': 'number',
-      'byte': 'number',
-      'unsignedInt': 'number',
-      'unsignedLong': 'number',
-      'unsignedShort': 'number',
-      'unsignedByte': 'number',
-      'positiveInteger': 'number',
-      'negativeInteger': 'number',
-      'nonPositiveInteger': 'number',
-      'nonNegativeInteger': 'number',
-      'date': 'string',
-      'dateTime': 'string',
-      'time': 'string',
-      'duration': 'string',
-      'anyURI': 'string',
-      'base64Binary': 'string',
-      'hexBinary': 'string',
-      'QName': 'string',
-      'token': 'string',
-      'language': 'string',
-      'Name': 'string',
-      'NCName': 'string',
-      'ID': 'string',
-      'IDREF': 'string',
-      'NMTOKEN': 'string',
-      'normalizedString': 'string',
-      'anyType': 'unknown',
-      'anySimpleType': 'unknown',
-    };
-    return mapping[typeName] ?? typeName;
-  }
-  
-  private toInterfaceName(typeName: string): string {
-    // Don't PascalCase primitive types - keep them lowercase
-    const primitives = new Set(['string', 'number', 'boolean', 'unknown', 'any', 'void', 'null', 'undefined', 'never', 'object']);
-    if (primitives.has(typeName.toLowerCase())) {
-      return typeName.toLowerCase();
-    }
-    // PascalCase the type name
-    return typeName.charAt(0).toUpperCase() + typeName.slice(1);
-  }
-}
-
-// Helper functions - using walker for findElement and stripNsPrefix
-
-function getComplexTypes(schema: SchemaLike): ComplexTypeLike[] {
-  const ct = schema.complexType;
-  if (!ct) return [];
-  if (Array.isArray(ct)) return ct as ComplexTypeLike[];
-  return Object.values(ct) as ComplexTypeLike[];
-}
-
-function findComplexTypeInSchema(schema: SchemaLike, name: string): ComplexTypeLike | undefined {
-  const types = getComplexTypes(schema);
-  return types.find((ct: ComplexTypeLike) => ct.name === name);
-}
-
-function getSimpleTypes(schema: SchemaLike): SimpleTypeLike[] {
-  const st = schema.simpleType;
-  if (!st) return [];
-  if (Array.isArray(st)) return st as SimpleTypeLike[];
-  return Object.values(st) as SimpleTypeLike[];
-}
-
-function findSimpleTypeInSchema(schema: SchemaLike, name: string): SimpleTypeLike | undefined {
-  const types = getSimpleTypes(schema);
-  return types.find((st: SimpleTypeLike) => st.name === name);
-}
-
-/**
- * Extended InterfaceGenerator that tracks local vs external types.
- * 
- * This generator only generates types defined in the current schema (localTypes),
- * and tracks references to types from imported schemas (externalTypes).
- */
-class InterfaceGeneratorWithDeps {
-  private generatedTypes: Set<string>;
-  private localTypes: Set<string>;
-  private externalTypes: Map<string, string[]>; // namespace -> typeNames[]
-  private allImports: SchemaLike[];
-  /** Types that need a generic parameter due to abstract element references */
-  private genericTypes: Set<string>;
-  /** Map from type name to the property that uses the generic */
-  private genericPropertyMap: Map<string, string>;
-  
-  constructor(
-    private schema: SchemaLike,
-    private sourceFile: SourceFile,
-    private options: GeneratorOptions,
-  ) {
-    this.generatedTypes = new Set<string>();
-    this.localTypes = new Set<string>();
-    this.externalTypes = new Map<string, string[]>();
-    this.allImports = this.collectAllImports(schema);
-    this.genericTypes = new Set<string>();
-    this.genericPropertyMap = new Map<string, string>();
-    
-    // Pre-scan to identify types that need generics
-    this.scanForAbstractElements();
-  }
-  
-  /**
-   * Pre-scan schema to identify types that reference abstract elements.
-   * These types will need generic type parameters.
-   */
-  private scanForAbstractElements(): void {
-    // Find all abstract elements in this schema and imports
-    const abstractElements = new Set<string>();
-    
-    const scanSchemaForAbstract = (schema: SchemaLike) => {
-      const elements = schema.element;
-      if (elements && Array.isArray(elements)) {
-        for (const el of elements) {
-          if (el.abstract === true && el.name) {
-            abstractElements.add(el.name);
-          }
-        }
-      }
-    };
-    
-    scanSchemaForAbstract(this.schema);
-    for (const imported of this.allImports) {
-      scanSchemaForAbstract(imported);
-    }
-    
-    if (abstractElements.size === 0) return;
-    
-    // Now scan complexTypes to find which ones reference abstract elements
-    const scanComplexType = (typeName: string, ct: ComplexTypeLike) => {
-      const checkGroup = (group: GroupLike | undefined) => {
-        if (!group?.element) return;
-        for (const el of group.element) {
-          if (el.ref) {
-            const refName = stripNsPrefix(el.ref);
-            if (abstractElements.has(refName)) {
-              // This type references an abstract element - needs generic
-              this.genericTypes.add(typeName);
-              this.genericPropertyMap.set(typeName, refName);
-              return;
-            }
-          }
-        }
-        // Check nested groups
-        if (group.sequence) {
-          const seqs = Array.isArray(group.sequence) ? group.sequence : [group.sequence];
-          for (const seq of seqs) checkGroup(seq);
-        }
-        if (group.choice) {
-          const choices = Array.isArray(group.choice) ? group.choice : [group.choice];
-          for (const ch of choices) checkGroup(ch);
-        }
-      };
-      
-      checkGroup(ct.sequence);
-      checkGroup(ct.choice);
-      checkGroup(ct.all);
-      if (ct.complexContent?.extension) {
-        checkGroup(ct.complexContent.extension.sequence);
-        checkGroup(ct.complexContent.extension.choice);
-      }
-    };
-    
-    // Scan all complex types in current schema
-    const complexTypes = getComplexTypes(this.schema);
-    for (const ct of complexTypes) {
-      if (ct.name) {
-        scanComplexType(ct.name, ct);
+        tsType = literals;
+      } else if (restriction.base) {
+        tsType = mapBuiltInType(stripNsPrefix(restriction.base));
       }
     }
     
-    // Also scan elements with inline complexTypes in current schema
-    const elements = this.schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.name && el.complexType) {
-          scanComplexType(el.name, el.complexType);
-        }
-      }
+    // Handle union
+    if (simpleType.union?.memberTypes) {
+      const members = simpleType.union.memberTypes
+        .split(/\s+/)
+        .map(m => mapBuiltInType(stripNsPrefix(m)));
+      tsType = members.join(' | ');
     }
     
-    // IMPORTANT: Also scan imported schemas' types to mark them as needing generics
-    // This is needed so that when we propagate, we know which imported types need generics
-    for (const imported of this.allImports) {
-      const importedComplexTypes = getComplexTypes(imported);
-      for (const ct of importedComplexTypes) {
-        if (ct.name) {
-          scanComplexType(ct.name, ct);
-        }
-      }
-      
-      const importedElements = imported.element;
-      if (importedElements && Array.isArray(importedElements)) {
-        for (const el of importedElements) {
-          if (el.name && el.complexType) {
-            scanComplexType(el.name, el.complexType);
-          }
-        }
-      }
+    // Handle list
+    if (simpleType.list?.itemType) {
+      const itemType = mapBuiltInType(stripNsPrefix(simpleType.list.itemType));
+      tsType = `${itemType}[]`;
     }
     
-    // Propagate generics: if type A uses type B which has a generic, A also needs generic
-    this.propagateGenerics();
-  }
-  
-  /**
-   * Propagate generic requirements through type hierarchy.
-   * If type A has a property of type B, and B needs a generic, then A also needs a generic.
-   */
-  private propagateGenerics(): void {
-    // Build a map of type dependencies
-    const typeDeps = new Map<string, Set<string>>();
-    
-    // Helper to resolve element ref to its type
-    const resolveElementType = (refName: string): string | undefined => {
-      // Search in current schema
-      const elements = this.schema.element;
-      if (elements && Array.isArray(elements)) {
-        const found = elements.find(e => e.name === refName);
-        if (found?.type) return stripNsPrefix(found.type);
-      }
-      // Search in imports
-      for (const imported of this.allImports) {
-        const importedElements = imported.element;
-        if (importedElements && Array.isArray(importedElements)) {
-          const found = importedElements.find(e => e.name === refName);
-          if (found?.type) return stripNsPrefix(found.type);
-        }
-      }
-      return undefined;
-    };
-    
-    const scanDeps = (typeName: string, ct: ComplexTypeLike) => {
-      const deps = new Set<string>();
-      
-      const checkGroup = (group: GroupLike | undefined) => {
-        if (!group?.element) return;
-        for (const el of group.element) {
-          if (el.type) {
-            const refType = stripNsPrefix(el.type);
-            deps.add(refType);
-          } else if (el.ref) {
-            // Handle element references - resolve to their type
-            const refName = stripNsPrefix(el.ref);
-            const refType = resolveElementType(refName);
-            if (refType) {
-              deps.add(refType);
-            }
-          }
-        }
-        if (group.sequence) {
-          const seqs = Array.isArray(group.sequence) ? group.sequence : [group.sequence];
-          for (const seq of seqs) checkGroup(seq);
-        }
-        if (group.choice) {
-          const choices = Array.isArray(group.choice) ? group.choice : [group.choice];
-          for (const ch of choices) checkGroup(ch);
-        }
-      };
-      
-      checkGroup(ct.sequence);
-      checkGroup(ct.choice);
-      checkGroup(ct.all);
-      if (ct.complexContent?.extension) {
-        checkGroup(ct.complexContent.extension.sequence);
-        checkGroup(ct.complexContent.extension.choice);
-      }
-      
-      typeDeps.set(typeName, deps);
-    };
-    
-    const complexTypes = getComplexTypes(this.schema);
-    for (const ct of complexTypes) {
-      if (ct.name) {
-        scanDeps(ct.name, ct);
-      }
-    }
-    
-    // Also scan elements with inline complexTypes
-    const elements = this.schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.name && el.complexType) {
-          scanDeps(el.name, el.complexType);
-        }
-      }
-    }
-    
-    // IMPORTANT: Also scan imported schemas' types for dependency tracking
-    for (const imported of this.allImports) {
-      const importedComplexTypes = getComplexTypes(imported);
-      for (const ct of importedComplexTypes) {
-        if (ct.name) {
-          scanDeps(ct.name, ct);
-        }
-      }
-      
-      const importedElements = imported.element;
-      if (importedElements && Array.isArray(importedElements)) {
-        for (const el of importedElements) {
-          if (el.name && el.complexType) {
-            scanDeps(el.name, el.complexType);
-          }
-        }
-      }
-    }
-    
-    // Iteratively propagate generics until no changes
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const [typeName, deps] of typeDeps) {
-        if (this.genericTypes.has(typeName)) continue;
-        
-        for (const dep of deps) {
-          if (this.genericTypes.has(dep)) {
-            this.genericTypes.add(typeName);
-            // Track which property causes the generic need
-            const depProp = this.genericPropertyMap.get(dep);
-            if (depProp) {
-              this.genericPropertyMap.set(typeName, depProp);
-            }
-            changed = true;
-            break;
-          }
-        }
-      }
-    }
-  }
-  
-  /**
-   * Check if a type needs a generic parameter
-   */
-  private needsGeneric(typeName: string): boolean {
-    return this.genericTypes.has(typeName);
-  }
-  
-  /**
-   * Find elements that substitute for a given abstract element in THIS schema only.
-   * Does NOT search in $imports - each schema should only include its own substitutes.
-   */
-  private findLocalSubstitutes(abstractElementName: string): ElementLike[] {
-    const substitutes: ElementLike[] = [];
-    
-    // Search in current schema only
-    const elements = this.schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.substitutionGroup) {
-          const subGroupName = stripNsPrefix(el.substitutionGroup);
-          if (subGroupName === abstractElementName) {
-            substitutes.push(el);
-          }
-        }
-      }
-    }
-    
-    return substitutes;
-  }
-  
-  /**
-   * Check if an element is abstract
-   */
-  private isAbstractElement(element: ElementLike): boolean {
-    return element.abstract === true;
-  }
-  
-  getLocalTypes(): Set<string> {
-    return this.localTypes;
-  }
-  
-  getExternalTypes(): Map<string, string[]> {
-    return this.externalTypes;
-  }
-  
-  /**
-   * Get substitution type aliases for elements in substitution groups.
-   * For each schema with substitution elements, we generate:
-   * 1. A values interface with element names as properties (e.g., DomaValuesType)
-   * 2. A type alias using AbapGit with that values type (e.g., AbapGitDoma)
-   */
-  getSubstitutionAliases(): SubstitutionTypeAlias[] {
-    const aliases: SubstitutionTypeAlias[] = [];
-    
-    const elements = this.schema.element;
-    if (!elements || !Array.isArray(elements)) return aliases;
-    
-    // Collect all elements that substitute the same abstract element
-    // Key: substitutedElement, Value: array of {elementName, typeName}
-    const substitutionsByAbstract = new Map<string, SubstitutionElement[]>();
-    
-    for (const el of elements) {
-      if (!el.substitutionGroup || !el.name || !el.type) continue;
-      
-      const substitutedElement = stripNsPrefix(el.substitutionGroup);
-      const elementName = el.name; // Keep original element name (e.g., 'DD01V')
-      const typeName = this.toInterfaceName(stripNsPrefix(el.type));
-      
-      // Find the abstract element to verify it exists
-      const abstractElement = this.findElement(substitutedElement);
-      if (!abstractElement) continue;
-      
-      const existing = substitutionsByAbstract.get(substitutedElement) ?? [];
-      existing.push({
-        elementName,
-        typeName,
-        required: true, // For now, assume first element is required, others optional
-      });
-      substitutionsByAbstract.set(substitutedElement, existing);
-    }
-    
-    // For each abstract element, create a single alias with values interface
-    for (const [substitutedElement, substitutionElements] of substitutionsByAbstract) {
-      const rootGenericTypes = this.findRootGenericTypes(substitutedElement);
-      
-      for (const genericType of rootGenericTypes) {
-        // Generate names from schema filename (4-letter object type)
-        let schemaSuffix = this.schema.$filename?.replace('.xsd', '') ?? '';
-        if (!schemaSuffix) {
-          // Fallback: use first element name
-          schemaSuffix = substitutionElements[0].elementName.toLowerCase();
-        }
-        const capitalizedSuffix = this.toInterfaceName(schemaSuffix);
-        const aliasName = `${genericType}${capitalizedSuffix}`;
-        const valuesTypeName = `${capitalizedSuffix}ValuesType`;
-        
-        // Mark first element as required, rest as optional
-        const elementsWithRequired = substitutionElements.map((el, index) => ({
-          ...el,
-          required: index === 0,
-        }));
-        
-        aliases.push({
-          aliasName,
-          valuesTypeName,
-          genericType,
-          elements: elementsWithRequired,
-          substitutedElement,
-        });
-      }
-    }
-    
-    return aliases;
-  }
-  
-  /**
-   * Generate interfaces for substitution group values.
-   * 
-   * When elements substitute an abstract element (like asx:Schema),
-   * we generate a values interface that includes all substituting elements
-   * as optional properties.
-   * 
-   * For example, doma.xsd has DD01V and DD07V_TAB substituting asx:Schema,
-   * so we generate:
-   * ```typescript
-   * export interface DomaValuesType {
-   *   DD01V?: Dd01vType;
-   *   DD07V_TAB?: Dd07vTabType;
-   * }
-   * ```
-   */
-  generateSubstitutionValuesInterfaces(): void {
-    const elements = this.schema.element;
-    if (!elements || !Array.isArray(elements)) return;
-    
-    // Collect all elements that substitute the same abstract element
-    // Key: substitutedElement, Value: array of {elementName, typeName}
-    const substitutionsByAbstract = new Map<string, Array<{ elementName: string; typeName: string }>>();
-    
-    for (const el of elements) {
-      if (!el.substitutionGroup || !el.name || !el.type) continue;
-      
-      const substitutedElement = stripNsPrefix(el.substitutionGroup);
-      const elementName = el.name; // Keep original element name (e.g., 'DD01V')
-      const typeName = this.toInterfaceName(stripNsPrefix(el.type));
-      
-      const existing = substitutionsByAbstract.get(substitutedElement) ?? [];
-      existing.push({ elementName, typeName });
-      substitutionsByAbstract.set(substitutedElement, existing);
-    }
-    
-    // For each abstract element group, generate a values interface
-    for (const [_substitutedElement, substitutionElements] of substitutionsByAbstract) {
-      // Generate interface name from schema filename
-      let schemaSuffix = (this.schema as { $filename?: string }).$filename?.replace('.xsd', '') ?? '';
-      if (!schemaSuffix) {
-        // Fallback: use first element name
-        schemaSuffix = substitutionElements[0].elementName.toLowerCase();
-      }
-      const valuesTypeName = `${this.toInterfaceName(schemaSuffix)}ValuesType`;
-      
-      // Skip if already generated
-      if (this.generatedTypes.has(valuesTypeName)) continue;
-      this.generatedTypes.add(valuesTypeName);
-      this.localTypes.add(valuesTypeName);
-      
-      // Build properties for each substituting element
-      const properties: OptionalKind<PropertySignatureStructure>[] = substitutionElements.map(el => ({
-        name: el.elementName,
-        type: el.typeName,
-        hasQuestionToken: true, // All optional since they can appear 0 or more times
-      }));
-      
-      // Add the interface
-      const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-        name: valuesTypeName,
-        isExported: true,
-        properties,
-      };
-      
-      if (this.options.addJsDoc) {
-        (interfaceStructure as InterfaceDeclarationStructure).docs = [{
-          description: `Values type for substitution group elements`,
-        }];
-      }
-      
-      this.sourceFile.addInterface(interfaceStructure);
-      
-      // Also generate the root type that wraps the values type
-      // This is the specialized version of AbapType for this schema
-      const rootTypeName = `${this.toInterfaceName(schemaSuffix)}Type`;
-      if (!this.generatedTypes.has(rootTypeName)) {
-        this.generatedTypes.add(rootTypeName);
-        this.localTypes.add(rootTypeName);
-        
-        const rootInterfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-          name: rootTypeName,
-          isExported: true,
-          properties: [
-            { name: 'values', type: valuesTypeName, hasQuestionToken: false },
-            { name: 'version', type: 'string', hasQuestionToken: true },
-          ],
-        };
-        
-        if (this.options.addJsDoc) {
-          (rootInterfaceStructure as InterfaceDeclarationStructure).docs = [{
-            description: `Root type for ${schemaSuffix} - specialized AbapType with concrete values`,
-          }];
-        }
-        
-        this.sourceFile.addInterface(rootInterfaceStructure);
-      }
-    }
-  }
-  
-  /**
-   * Find root types that have generics due to referencing the given abstract element.
-   * These are typically the top-level types like AbapGit that eventually reference the abstract element.
-   */
-  private findRootGenericTypes(_abstractElementName: string): string[] {
-    const rootTypes: string[] = [];
-    
-    // Look for types that need generics and are "root" types (not referenced by other generic types)
-    // For now, we'll look for elements with inline complexTypes that need generics
-    for (const imported of this.allImports) {
-      const elements = imported.element;
-      if (!elements || !Array.isArray(elements)) continue;
-      
-      for (const el of elements) {
-        if (el.name && el.complexType && this.genericTypes.has(el.name)) {
-          // Check if this is a "root" type (has no parent generic type referencing it)
-          // For simplicity, we'll include all generic element types
-          rootTypes.push(this.toInterfaceName(el.name));
-        }
-      }
-    }
-    
-    // Also check current schema
-    const elements = this.schema.element;
-    if (elements && Array.isArray(elements)) {
-      for (const el of elements) {
-        if (el.name && el.complexType && this.genericTypes.has(el.name)) {
-          rootTypes.push(this.toInterfaceName(el.name));
-        }
-      }
-    }
-    
-    return rootTypes;
-  }
-  
-  private collectAllImports(schema: SchemaLike, visited: Set<SchemaLike> = new Set()): SchemaLike[] {
-    const result: SchemaLike[] = [];
-    
-    if (visited.has(schema)) {
-      return result;
-    }
-    visited.add(schema);
-    
-    const imports = schema.$imports;
-    if (imports && Array.isArray(imports)) {
-      for (const imp of imports as SchemaLike[]) {
-        result.push(imp);
-        result.push(...this.collectAllImports(imp, visited));
-      }
-    }
-    
-    return result;
-  }
-  
-  /**
-   * Check if a type is defined locally in this schema (not in $imports)
-   */
-  private isLocalType(typeName: string): boolean {
-    // Check complexTypes
-    const complexTypes = getComplexTypes(this.schema);
-    if (complexTypes.some(ct => ct.name === typeName)) {
-      return true;
-    }
-    
-    // Check simpleTypes
-    const simpleTypes = getSimpleTypes(this.schema);
-    if (simpleTypes.some(st => st.name === typeName)) {
-      return true;
-    }
-    
-    return false;
-  }
-  
-  /**
-   * Find which imported schema contains a type
-   */
-  private findImportedSchemaForType(typeName: string): SchemaLike | undefined {
-    for (const imported of this.allImports) {
-      const ct = findComplexTypeInSchema(imported, typeName);
-      if (ct) return imported;
-      
-      const st = findSimpleTypeInSchema(imported, typeName);
-      if (st) return imported;
-    }
-    return undefined;
-  }
-  
-  /**
-   * Track an external type reference
-   * Uses $filename as key (from schemaLocation), falling back to namespace
-   */
-  private trackExternalType(typeName: string, schemaKey: string): void {
-    // Don't track primitive types
-    const primitives = new Set(['string', 'number', 'boolean', 'unknown', 'any', 'void', 'null', 'undefined', 'never', 'object']);
-    if (primitives.has(typeName.toLowerCase())) {
-      return;
-    }
-    
-    const existing = this.externalTypes.get(schemaKey) ?? [];
-    if (!existing.includes(typeName)) {
-      existing.push(typeName);
-      this.externalTypes.set(schemaKey, existing);
-    }
-  }
-  
-  /**
-   * Get schema key for tracking - prefers $filename over namespace
-   */
-  private getSchemaKey(schema: SchemaLike): string {
-    return (schema as { $filename?: string }).$filename 
-      ?? schema.targetNamespace 
-      ?? 'unknown';
-  }
-  
-  generateInlineRootElement(elementName: string, complexType: ComplexTypeLike): string {
-    const interfaceName = this.toInterfaceName(elementName);
-    const needsGeneric = this.needsGeneric(elementName);
-    
-    if (this.generatedTypes.has(elementName)) {
-      return needsGeneric ? `${interfaceName}<T>` : interfaceName;
-    }
-    this.generatedTypes.add(elementName);
-    this.localTypes.add(interfaceName);
-    
-    const properties: OptionalKind<PropertySignatureStructure>[] = [];
-    const extendsTypes: string[] = [];
-    
-    // Handle complexContent extension
-    if (complexType.complexContent?.extension) {
-      const ext = complexType.complexContent.extension;
-      if (ext.base) {
-        const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveTypeWithGeneric(baseName);
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          extendsTypes.push(baseInterface);
-        }
-      }
-      this.collectProperties(ext, properties);
-    } else {
-      this.collectProperties(complexType, properties);
-    }
-    
-    // Collect attributes from complexType itself
-    if (!complexType.complexContent?.extension) {
-      this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
-    }
-    
-    // Build interface name with generic if needed
-    const fullInterfaceName = needsGeneric ? `${interfaceName}<T = unknown>` : interfaceName;
-    
-    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-      name: fullInterfaceName,
-      isExported: true,
-      properties,
-    };
-    
-    if (extendsTypes.length > 0) {
-      interfaceStructure.extends = extendsTypes;
-    }
-    
-    if (this.options.addJsDoc) {
-      interfaceStructure.docs = [{ description: `Generated from element: ${elementName}` }];
-    }
-    
-    this.sourceFile.addInterface(interfaceStructure);
-    return needsGeneric ? `${interfaceName}<T>` : interfaceName;
-  }
-  
-  generateComplexType(typeName: string): string {
-    const interfaceName = this.toInterfaceName(typeName);
-    const needsGeneric = this.needsGeneric(typeName);
-    
-    if (this.generatedTypes.has(interfaceName)) {
-      return needsGeneric ? `${interfaceName}<T>` : interfaceName;
-    }
-    
-    // Check if this is a local type or imported
-    if (!this.isLocalType(typeName)) {
-      // It's an imported type - track it but don't generate
-      this.generatedTypes.add(interfaceName);
-      const importedSchema = this.findImportedSchemaForType(typeName);
-      if (importedSchema) {
-        this.trackExternalType(interfaceName, this.getSchemaKey(importedSchema));
-      }
-      return needsGeneric ? `${interfaceName}<T>` : interfaceName;
-    }
-    
-    // Check for simpleType first (enums, restrictions)
-    // Don't add to generatedTypes yet - let generateSimpleType handle it
-    const simpleType = this.findSimpleType(typeName);
-    if (simpleType) {
-      return this.generateSimpleType(typeName, simpleType);
-    }
-    
-    // It's a local complexType - mark as generated and add to localTypes
-    this.generatedTypes.add(interfaceName);
-    this.localTypes.add(interfaceName);
-    
-    const complexType = this.findComplexType(typeName);
-    if (!complexType) {
-      return this.mapSimpleType(typeName);
-    }
-    
-    const properties: OptionalKind<PropertySignatureStructure>[] = [];
-    const extendsTypes: string[] = [];
-    
-    // Handle complexContent extension (inheritance)
-    if (complexType.complexContent?.extension) {
-      const ext = complexType.complexContent.extension;
-      if (ext.base) {
-        const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveTypeWithGeneric(baseName);
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          extendsTypes.push(baseInterface);
-        }
-      }
-      this.collectProperties(ext, properties);
-    }
-    // Handle complexContent restriction
-    else if (complexType.complexContent?.restriction) {
-      const rest = complexType.complexContent.restriction;
-      this.collectPropertiesFromRestriction(rest, properties);
-      
-      if (rest.base) {
-        const baseName = stripNsPrefix(rest.base);
-        const baseInterface = this.resolveType(baseName);
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          const redefinedProps = properties.map(p => p.name).filter(Boolean);
-          if (redefinedProps.length > 0) {
-            extendsTypes.push(`Omit<${baseInterface}, ${redefinedProps.map(p => `'${p}'`).join(' | ')}>`);
-          } else {
-            extendsTypes.push(baseInterface);
-          }
-        }
-      }
-    }
-    // Handle simpleContent extension (text content with attributes)
-    else if (complexType.simpleContent?.extension) {
-      const ext = complexType.simpleContent.extension;
-      if (ext.base) {
-        const baseType = this.mapSimpleType(stripNsPrefix(ext.base));
-        properties.push({
-          name: '$value',
-          type: baseType,
-          hasQuestionToken: false,
-        });
-      }
-      this.collectAttributes(ext.attribute, properties);
-    }
-    // Handle direct content (no complexContent/simpleContent)
-    else {
-      this.collectProperties(complexType, properties);
-    }
-    
-    // Collect attributes from complexType itself
-    if (!complexType.complexContent?.extension && !complexType.simpleContent?.extension) {
-      this.collectAttributes(complexType.attribute, properties, complexType.anyAttribute);
-    }
-    
-    // Build interface structure with generic if needed
-    const fullInterfaceName = needsGeneric ? `${interfaceName}<T = unknown>` : interfaceName;
-    
-    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-      name: fullInterfaceName,
-      isExported: true,
-      extends: extendsTypes.length > 0 ? extendsTypes : undefined,
-      properties,
-    };
-    
-    if (this.options.addJsDoc) {
-      interfaceStructure.docs = [{ description: `Generated from complexType: ${typeName}` }];
-    }
-    
-    this.sourceFile.addInterface(interfaceStructure);
-    return needsGeneric ? `${interfaceName}<T>` : interfaceName;
-  }
-  
-  private collectProperties(
-    source: ComplexTypeLike | ContentModelSource,
-    properties: OptionalKind<PropertySignatureStructure>[]
-  ): void {
-    const seq = source.sequence;
-    if (seq) this.collectFromGroup(seq, properties, false, false);
-    
-    const all = source.all;
-    if (all) this.collectFromGroup(all, properties, false, false);
-    
-    const choice = source.choice;
-    if (choice) {
-      const choiceIsArray = choice.maxOccurs === 'unbounded' || 
-                           (typeof choice.maxOccurs === 'string' && choice.maxOccurs !== '1' && choice.maxOccurs !== '0') ||
-                           (typeof choice.maxOccurs === 'number' && choice.maxOccurs > 1);
-      this.collectFromGroup(choice, properties, choiceIsArray, true);
-    }
-    
-    const groupRef = source.group;
-    if (groupRef?.ref) {
-      const groupIsArray = groupRef.maxOccurs === 'unbounded' || 
-                          (typeof groupRef.maxOccurs === 'string' && groupRef.maxOccurs !== '1' && groupRef.maxOccurs !== '0') ||
-                          (typeof groupRef.maxOccurs === 'number' && groupRef.maxOccurs > 1);
-      const groupIsOptional = groupRef.minOccurs === '0' || groupRef.minOccurs === 0;
-      this.collectFromGroupRef(groupRef.ref, properties, groupIsArray, groupIsOptional);
-    }
-    
-    if ('attribute' in source && source.attribute && 'base' in source) {
-      this.collectAttributes(source.attribute, properties);
-    }
-    
-    const attrGroups = source.attributeGroup;
-    if (attrGroups && Array.isArray(attrGroups)) {
-      for (const ag of attrGroups) {
-        if (ag.ref) {
-          this.collectFromAttributeGroupRef(ag.ref, properties);
-        }
-      }
-    }
-  }
-  
-  private collectPropertiesFromRestriction(
-    source: ContentModelSource,
-    properties: OptionalKind<PropertySignatureStructure>[]
-  ): void {
-    const seq = source.sequence;
-    if (seq) this.collectFromGroup(seq, properties);
-    
-    const all = source.all;
-    if (all) this.collectFromGroup(all, properties);
-    
-    const choice = source.choice;
-    if (choice) this.collectFromGroup(choice, properties);
-    
-    const groupRef = source.group;
-    if (groupRef?.ref) {
-      this.collectFromGroupRef(groupRef.ref, properties);
-    }
-    
-    const anyAttr = source.anyAttribute;
-    if ('attribute' in source && source.attribute) {
-      this.collectAttributes(source.attribute, properties, anyAttr, true);
-    } else if (anyAttr) {
-      this.collectAttributes(undefined, properties, anyAttr, true);
-    }
-    
-    const attrGroups = source.attributeGroup;
-    if (attrGroups && Array.isArray(attrGroups)) {
-      for (const ag of attrGroups) {
-        if (ag.ref) {
-          this.collectFromAttributeGroupRef(ag.ref, properties);
-        }
-      }
-    }
-  }
-  
-  private collectFromGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[], forceArray = false, forceOptional = false): void {
-    const groupName = stripNsPrefix(ref);
-    const { group, isChoice } = this.findGroupWithMeta(groupName);
-    if (group) {
-      this.collectFromGroup(group, properties, forceArray, forceOptional || isChoice);
-    }
-  }
-  
-  private collectFromAttributeGroupRef(ref: string, properties: OptionalKind<PropertySignatureStructure>[]): void {
-    const groupName = stripNsPrefix(ref);
-    const attrGroup = this.findAttributeGroup(groupName);
-    if (attrGroup?.attribute) {
-      this.collectAttributes(attrGroup.attribute as readonly AttributeLike[], properties);
-    }
-  }
-  
-  private collectFromGroup(
-    group: GroupLike,
-    properties: OptionalKind<PropertySignatureStructure>[],
-    forceArray = false,
-    forceOptional = false
-  ): void {
-    const anyElements = group.any;
-    if (anyElements && Array.isArray(anyElements) && anyElements.length > 0) {
-      const hasIndexSig = properties.some(p => p.name?.startsWith('['));
-      if (!hasIndexSig) {
-        properties.push({
-          name: '[key: string]',
-          type: 'unknown',
-          hasQuestionToken: false,
-        });
-      }
-    }
-    
-    const nestedGroups = group.group;
-    if (nestedGroups) {
-      const groupArray = Array.isArray(nestedGroups) ? nestedGroups : [nestedGroups];
-      for (const g of groupArray) {
-        if (g.ref) {
-          const groupIsArray = g.maxOccurs === 'unbounded' || 
-                              (typeof g.maxOccurs === 'string' && g.maxOccurs !== '1' && g.maxOccurs !== '0') ||
-                              (typeof g.maxOccurs === 'number' && g.maxOccurs > 1);
-          const groupIsOptional = g.minOccurs === '0' || g.minOccurs === 0;
-          this.collectFromGroupRef(g.ref, properties, forceArray || groupIsArray, forceOptional || groupIsOptional);
-        }
-      }
-    }
-    
-    const nestedSeq = group.sequence;
-    if (nestedSeq) {
-      const seqArray = Array.isArray(nestedSeq) ? nestedSeq : [nestedSeq];
-      for (const seq of seqArray) {
-        const seqIsArray = seq.maxOccurs === 'unbounded' || 
-                          (typeof seq.maxOccurs === 'string' && seq.maxOccurs !== '1' && seq.maxOccurs !== '0') ||
-                          (typeof seq.maxOccurs === 'number' && seq.maxOccurs > 1);
-        const seqIsOptional = seq.minOccurs === '0' || seq.minOccurs === 0;
-        this.collectFromGroup(seq, properties, forceArray || seqIsArray, forceOptional || seqIsOptional);
-      }
-    }
-    
-    const nestedChoice = group.choice;
-    if (nestedChoice) {
-      const choiceArray = Array.isArray(nestedChoice) ? nestedChoice : [nestedChoice];
-      for (const ch of choiceArray) {
-        const choiceIsArray = ch.maxOccurs === 'unbounded' || 
-                             (typeof ch.maxOccurs === 'string' && ch.maxOccurs !== '1' && ch.maxOccurs !== '0') ||
-                             (typeof ch.maxOccurs === 'number' && ch.maxOccurs > 1);
-        this.collectFromGroup(ch, properties, forceArray || choiceIsArray, true);
-      }
-    }
-    
-    const elements = group.element;
-    if (!elements) return;
-    
-    for (const el of elements) {
-      if (el.ref) {
-        const refName = stripNsPrefix(el.ref);
-        // Use findElementWithTracking to track external types from imported schemas
-        const refElement = this.findElementWithTracking(refName);
-        
-        const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
-        const isArray = forceArray || el.maxOccurs === 'unbounded' || 
-                        (typeof el.maxOccurs === 'string' && el.maxOccurs !== '1' && el.maxOccurs !== '0') ||
-                        (typeof el.maxOccurs === 'number' && el.maxOccurs > 1);
-        
-        let typeName: string;
-        if (refElement?.type) {
-          // Use resolveTypeWithGeneric to add <T> if the type needs it
-          typeName = this.resolveTypeWithGeneric(stripNsPrefix(refElement.type));
-        } else if (refElement && refElement.complexType) {
-          typeName = this.generateInlineComplexType(refName, refElement.complexType);
-        } else if (refElement && this.isAbstractElement(refElement)) {
-          // Abstract element - expand to properties for substitutes defined in THIS schema only
-          // Each schema should only include its own substitutes, not from all imports
-          const localSubstitutes = this.findLocalSubstitutes(refName);
-          if (localSubstitutes.length > 0) {
-            for (const sub of localSubstitutes) {
-              if (!sub.name) continue;
-              
-              let subTypeName: string;
-              if (sub.type) {
-                subTypeName = this.resolveTypeWithGeneric(stripNsPrefix(sub.type));
-              } else if (sub.complexType) {
-                subTypeName = this.generateInlineComplexType(sub.name, sub.complexType);
-              } else {
-                subTypeName = this.toInterfaceName(sub.name);
-              }
-              
-              if (isArray) {
-                subTypeName = `${subTypeName}[]`;
-              }
-              
-              // Add property for each substitute element using its actual element name
-              if (!properties.some(p => p.name === sub.name)) {
-                properties.push({
-                  name: sub.name,
-                  type: subTypeName,
-                  hasQuestionToken: true, // All substitutes are optional
-                });
-              }
-            }
-            continue; // Skip adding the abstract element itself
-          }
-          // No local substitutes found - fall back to generic T
-          typeName = 'T';
-        } else {
-          typeName = this.toInterfaceName(refName);
-        }
-        
-        if (isArray) {
-          typeName = `${typeName}[]`;
-        }
-        
-        if (!properties.some(p => p.name === refName)) {
-          properties.push({
-            name: refName,
-            type: typeName,
-            hasQuestionToken: isOptional,
-          });
-        }
-        continue;
-      }
-      
-      if (!el.name) continue;
-      
-      const isOptional = forceOptional || el.minOccurs === '0' || el.minOccurs === 0;
-      const isArray = forceArray || el.maxOccurs === 'unbounded' || 
-                      (typeof el.maxOccurs === 'string' && el.maxOccurs !== '1' && el.maxOccurs !== '0') ||
-                      (typeof el.maxOccurs === 'number' && el.maxOccurs > 1);
-      
-      let typeName: string;
-      if (el.type) {
-        const rawType = el.type;
-        const baseType = stripNsPrefix(rawType);
-        if (rawType.startsWith('xsd:') || rawType.startsWith('xs:')) {
-          if (this.isBuiltInXsdType(baseType)) {
-            typeName = this.mapSimpleType(baseType);
-          } else {
-            // Use resolveTypeWithGeneric to add <T> if the type needs it
-            typeName = this.resolveTypeWithGeneric(baseType);
-          }
-        } else {
-          // Use resolveTypeWithGeneric to add <T> if the type needs it
-          typeName = this.resolveTypeWithGeneric(baseType);
-        }
-      } else if (el.complexType) {
-        typeName = this.generateInlineComplexType(el.name, el.complexType);
-      } else {
-        typeName = 'unknown';
-      }
-      
-      if (isArray) {
-        typeName = `${typeName}[]`;
-      }
-      
-      if (!properties.some(p => p.name === el.name)) {
-        properties.push({
-          name: el.name,
-          type: typeName,
-          hasQuestionToken: isOptional,
-        });
-      }
-    }
-  }
-  
-  private findElement(name: string): ElementLike | undefined {
-    const entry = walkerFindElement(name, this.schema);
-    return entry?.element;
-  }
-  
-  /**
-   * Find element and track as external type if from imported schema.
-   * Uses $filename to identify the source schema since multiple schemas
-   * can share the same targetNamespace.
-   */
-  private findElementWithTracking(name: string): ElementLike | undefined {
-    const entry = walkerFindElement(name, this.schema);
-    if (!entry) return undefined;
-    
-    // If element is from a different schema (imported), track its type as external
-    // Use $filename as the key since multiple schemas can share the same namespace
-    if (entry.schema !== this.schema) {
-      const typeName = entry.element.type 
-        ? this.toInterfaceName(stripNsPrefix(entry.element.type))
-        : this.toInterfaceName(entry.element.name ?? name);
-      
-      // Use $filename if available, otherwise fall back to targetNamespace
-      const schemaKey = (entry.schema as { $filename?: string }).$filename 
-        ?? entry.schema.targetNamespace 
-        ?? 'unknown';
-      this.trackExternalType(typeName, schemaKey);
-    }
-    
-    return entry.element;
-  }
-  
-  private collectAttributes(
-    attributes: readonly AttributeLike[] | undefined,
-    properties: OptionalKind<PropertySignatureStructure>[],
-    anyAttribute?: unknown,
-    isRestriction = false
-  ): void {
-    if (attributes) {
-      for (const attr of attributes) {
-        if (attr.ref) {
-          const refName = attr.ref;
-          const isXmlNamespace = refName.startsWith('xml:');
-          const propName = isXmlNamespace 
-            ? `'${refName}'`
-            : stripNsPrefix(refName);
-          const isOptional = attr.use !== 'required';
-          properties.push({
-            name: propName,
-            type: 'string',
-            hasQuestionToken: isOptional,
-          });
-          continue;
-        }
-        
-        if (!attr.name) continue;
-        if (attr.use === 'prohibited') continue;
-        if (isRestriction && !attr.type) continue;
-        
-        const isOptional = attr.use !== 'required';
-        let typeName: string;
-        if (attr.type) {
-          const rawType = attr.type;
-          const baseType = stripNsPrefix(rawType);
-          if (rawType.startsWith('xsd:') || rawType.startsWith('xs:')) {
-            if (this.isBuiltInXsdType(baseType)) {
-              typeName = this.mapSimpleType(baseType);
-            } else {
-              typeName = this.resolveType(baseType);
-            }
-          } else {
-            typeName = this.resolveType(baseType);
-          }
-        } else {
-          typeName = 'unknown';
-        }
-        
-        properties.push({
-          name: attr.name,
-          type: typeName,
-          hasQuestionToken: isOptional,
-        });
-      }
-    }
-    
-    if (anyAttribute) {
-      const hasIndexSig = properties.some(p => p.name?.startsWith('['));
-      if (!hasIndexSig) {
-        properties.push({
-          name: '[key: string]',
-          type: 'unknown',
-          hasQuestionToken: false,
-        });
-      }
-    }
-  }
-  
-  private generateInlineComplexType(parentName: string, ct: ComplexTypeLike): string {
-    const baseName = this.toInterfaceName(parentName);
-    const interfaceName = baseName.endsWith('Type') ? baseName : baseName + 'Type';
-    
-    if (this.generatedTypes.has(interfaceName)) {
-      return interfaceName;
-    }
-    this.generatedTypes.add(interfaceName);
-    this.localTypes.add(interfaceName);
-    
-    const properties: OptionalKind<PropertySignatureStructure>[] = [];
-    const extendsTypes: string[] = [];
-    
-    if (ct.mixed === true) {
-      properties.push({
-        name: '_text',
-        type: 'string',
-        hasQuestionToken: true,
-      });
-    }
-    
-    if (ct.complexContent?.extension) {
-      const ext = ct.complexContent.extension;
-      if (ext.base) {
-        const baseName = stripNsPrefix(ext.base);
-        const baseInterface = this.resolveType(baseName);
-        if (baseInterface !== 'unknown' && baseInterface !== 'string' && baseInterface !== 'number' && baseInterface !== 'boolean') {
-          extendsTypes.push(baseInterface);
-        }
-      }
-      this.collectProperties(ext, properties);
-    } else {
-      this.collectProperties(ct, properties);
-      this.collectAttributes(ct.attribute, properties);
-    }
-    
-    const interfaceStructure: OptionalKind<InterfaceDeclarationStructure> = {
-      name: interfaceName,
-      isExported: true,
-      properties,
-    };
-    
-    if (extendsTypes.length > 0) {
-      interfaceStructure.extends = extendsTypes;
-    }
-    
-    this.sourceFile.addInterface(interfaceStructure);
-    
-    return interfaceName;
-  }
-  
-  private resolveType(typeName: string): string {
-    const builtIn = this.mapSimpleType(typeName);
-    if (builtIn !== typeName) {
-      return builtIn;
-    }
-    
-    // Check if it's a local type
-    if (this.isLocalType(typeName)) {
-      const st = this.findSimpleType(typeName);
-      if (st) {
-        return this.generateSimpleType(typeName, st);
-      }
-      
-      const ct = this.findComplexType(typeName);
-      if (ct) {
-        return this.generateComplexType(typeName);
-      }
-    }
-    
-    // Check in imports - track as external dependency
-    const importedSchema = this.findImportedSchemaForType(typeName);
-    if (importedSchema) {
-      const interfaceName = this.toInterfaceName(typeName);
-      this.trackExternalType(interfaceName, this.getSchemaKey(importedSchema));
-      return interfaceName;
-    }
-    
-    // Unknown type - still PascalCase it
-    return this.toInterfaceName(typeName);
-  }
-  
-  /**
-   * Resolve a type name, adding generic parameter <T> if the type needs it
-   */
-  private resolveTypeWithGeneric(typeName: string): string {
-    const baseType = this.resolveType(typeName);
-    
-    // Check if this type needs a generic parameter
-    // But don't add <T> if it already has it (from generateComplexType)
-    if (this.needsGeneric(typeName) && !baseType.includes('<T>')) {
-      return `${baseType}<T>`;
-    }
-    
-    return baseType;
-  }
-  
-  private findComplexType(name: string): ComplexTypeLike | undefined {
-    return findComplexTypeInSchema(this.schema, name);
-  }
-  
-  private findSimpleType(name: string): SimpleTypeLike | undefined {
-    return findSimpleTypeInSchema(this.schema, name);
-  }
-  
-  private findGroupWithMeta(name: string): { group: { element?: readonly ElementLike[] } | undefined; isChoice: boolean } {
-    const groups = this.schema.group;
-    if (groups && Array.isArray(groups)) {
-      const found = groups.find((g) => g.name === name);
-      if (found) {
-        const isChoice = !!found.choice && !found.sequence && !found.all;
-        const content = found.sequence || found.choice || found.all || found;
-        return { group: content, isChoice };
-      }
-    }
-    for (const imported of this.allImports) {
-      const importedGroups = imported.group;
-      if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g) => g.name === name);
-        if (found) {
-          const isChoice = !!found.choice && !found.sequence && !found.all;
-          const content = found.sequence || found.choice || found.all || found;
-          return { group: content, isChoice };
-        }
-      }
-    }
-    return { group: undefined, isChoice: false };
-  }
-  
-  private findAttributeGroup(name: string): { attribute?: readonly AttributeLike[] } | undefined {
-    const groups = this.schema.attributeGroup;
-    if (groups && Array.isArray(groups)) {
-      const found = groups.find((g) => g.name === name);
-      if (found) return found;
-    }
-    for (const imported of this.allImports) {
-      const importedGroups = imported.attributeGroup;
-      if (importedGroups && Array.isArray(importedGroups)) {
-        const found = importedGroups.find((g) => g.name === name);
-        if (found) return found;
-      }
-    }
-    return undefined;
-  }
-  
-  private generateSimpleType(typeName: string, st: SimpleTypeLike): string {
-    const aliasName = this.toInterfaceName(typeName);
-    
-    if (this.generatedTypes.has(typeName)) {
-      return aliasName;
-    }
-    this.generatedTypes.add(typeName);
-    this.localTypes.add(aliasName);
-    
-    if (st.restriction?.enumeration && st.restriction.enumeration.length > 0) {
-      const enumValues = st.restriction.enumeration
-        .map(e => `'${e.value}'`)
-        .join(' | ');
-      
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: enumValues,
-      });
-      return aliasName;
-    }
-    
-    if (st.union) {
-      const memberTypes = st.union.memberTypes?.split(/\s+/) ?? [];
-      if (memberTypes.length > 0) {
-        const unionTypes = memberTypes
-          .map(t => {
-            const baseType = stripNsPrefix(t);
-            const mapped = this.mapSimpleType(baseType);
-            if (mapped !== baseType) {
-              return mapped;
-            }
-            return this.resolveType(baseType);
-          })
-          .join(' | ');
-        
-        this.sourceFile.addTypeAlias({
-          name: aliasName,
-          isExported: true,
-          type: unionTypes || 'string',
-        });
-        return aliasName;
-      }
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: 'string',
-      });
-      return aliasName;
-    }
-    
-    if (st.list) {
-      const itemType = st.list.itemType 
-        ? this.mapSimpleType(stripNsPrefix(st.list.itemType))
-        : 'string';
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: `${itemType}[]`,
-      });
-      return aliasName;
-    }
-    
-    // Simple restriction - use base type
-    if (st.restriction?.base) {
-      const baseType = this.mapSimpleType(stripNsPrefix(st.restriction.base));
-      this.sourceFile.addTypeAlias({
-        name: aliasName,
-        isExported: true,
-        type: baseType,
-      });
-      return aliasName;
-    }
-    
-    // Default to string
     this.sourceFile.addTypeAlias({
       name: aliasName,
       isExported: true,
-      type: 'string',
+      type: tsType,
     });
+    
     return aliasName;
   }
   
-  private isBuiltInXsdType(typeName: string): boolean {
-    const builtInTypes = [
-      'string', 'boolean', 'int', 'integer', 'long', 'short', 'byte',
-      'decimal', 'float', 'double', 'positiveInteger', 'nonNegativeInteger',
-      'negativeInteger', 'nonPositiveInteger', 'unsignedLong', 'unsignedInt',
-      'unsignedShort', 'unsignedByte', 'date', 'dateTime', 'time', 'duration',
-      'anyURI', 'base64Binary', 'hexBinary', 'QName', 'token', 'language',
-      'Name', 'NCName', 'ID', 'IDREF', 'NMTOKEN', 'normalizedString',
-      'anyType', 'anySimpleType',
-    ];
-    return builtInTypes.includes(typeName);
-  }
-  
-  private mapSimpleType(typeName: string): string {
-    const mapping: Record<string, string> = {
-      'string': 'string',
-      'boolean': 'boolean',
-      'int': 'number',
-      'integer': 'number',
-      'long': 'number',
-      'short': 'number',
-      'byte': 'number',
-      'decimal': 'number',
-      'float': 'number',
-      'double': 'number',
-      'positiveInteger': 'number',
-      'nonNegativeInteger': 'number',
-      'negativeInteger': 'number',
-      'nonPositiveInteger': 'number',
-      'unsignedLong': 'number',
-      'unsignedInt': 'number',
-      'unsignedShort': 'number',
-      'unsignedByte': 'number',
-      'date': 'string',
-      'dateTime': 'string',
-      'time': 'string',
-      'duration': 'string',
-      'anyURI': 'string',
-      'base64Binary': 'string',
-      'hexBinary': 'string',
-      'QName': 'string',
-      'token': 'string',
-      'language': 'string',
-      'Name': 'string',
-      'NCName': 'string',
-      'ID': 'string',
-      'IDREF': 'string',
-      'NMTOKEN': 'string',
-      'normalizedString': 'string',
-      'anyType': 'unknown',
-      'anySimpleType': 'unknown',
-    };
-    return mapping[typeName] ?? typeName;
-  }
-  
-  private toInterfaceName(typeName: string): string {
-    // Don't PascalCase primitive types - keep them lowercase
-    const primitives = new Set(['string', 'number', 'boolean', 'unknown', 'any', 'void', 'null', 'undefined', 'never', 'object']);
-    if (primitives.has(typeName.toLowerCase())) {
-      return typeName.toLowerCase();
+  /**
+   * Collect properties from content model (sequence, choice, all, group ref, complexContent).
+   */
+  private collectProperties(
+    source: TopLevelComplexType | LocalComplexType,
+    properties: OptionalKind<PropertySignatureStructure>[],
+    visited: Set<string> = new Set()
+  ): void {
+    // Handle complexContent with extension - inherit from base type and add extension elements
+    if (source.complexContent?.extension) {
+      const ext = source.complexContent.extension;
+      
+      // First, collect properties from base type (with cycle detection)
+      if (ext.base) {
+        const baseName = stripNsPrefix(ext.base);
+        
+        // Prevent infinite recursion on self-referencing types
+        if (!visited.has(baseName)) {
+          visited.add(baseName);
+          const baseType = this.complexTypeMap.get(baseName);
+          if (baseType) {
+            this.collectProperties(baseType, properties, visited);
+            this.collectAttributes(baseType.attribute, properties);
+          }
+        }
+      }
+      
+      // Then add extension's own elements
+      if (ext.sequence) this.collectFromGroup(ext.sequence, properties, false);
+      if (ext.choice) this.collectFromGroup(ext.choice, properties, false, true);
+      if (ext.all) this.collectFromGroup(ext.all, properties, false);
+      
+      // Add extension's attributes
+      this.collectAttributes(ext.attribute, properties);
+      return;
     }
-    return typeName.charAt(0).toUpperCase() + typeName.slice(1);
+    
+    // Handle complexContent with restriction
+    if (source.complexContent?.restriction) {
+      const rest = source.complexContent.restriction;
+      
+      // For restriction, we use the restricted content (not base type)
+      if (rest.sequence) this.collectFromGroup(rest.sequence, properties, false);
+      if (rest.choice) this.collectFromGroup(rest.choice, properties, false, true);
+      if (rest.all) this.collectFromGroup(rest.all, properties, false);
+      
+      this.collectAttributes(rest.attribute, properties);
+      return;
+    }
+    
+    // Handle simpleContent with extension (adds attributes to simple type)
+    if (source.simpleContent?.extension) {
+      const ext = source.simpleContent.extension;
+      // Add _text property for the simple content value
+      properties.push({
+        name: '_text',
+        type: ext.base ? mapBuiltInType(stripNsPrefix(ext.base)) : 'string',
+        hasQuestionToken: true,
+      });
+      this.collectAttributes(ext.attribute, properties);
+      return;
+    }
+    
+    // Handle sequence
+    if (source.sequence) {
+      this.collectFromGroup(source.sequence, properties, false);
+    }
+    
+    // Handle all
+    if (source.all) {
+      this.collectFromGroup(source.all, properties, false);
+    }
+    
+    // Handle choice - elements are optional
+    if (source.choice) {
+      const isArray = source.choice.maxOccurs === 'unbounded';
+      this.collectFromGroup(source.choice, properties, isArray, true);
+    }
+    
+    // Handle group reference
+    if (source.group?.ref) {
+      const groupName = stripNsPrefix(source.group.ref);
+      const group = this.groupMap.get(groupName);
+      if (group) {
+        const isArray = source.group.maxOccurs === 'unbounded';
+        const isOptional = source.group.minOccurs === '0' || source.group.minOccurs === 0;
+        
+        // Collect from the group's content
+        if (group.sequence) this.collectFromGroup(group.sequence, properties, isArray, isOptional);
+        if (group.choice) this.collectFromGroup(group.choice, properties, isArray, true);
+        if (group.all) this.collectFromGroup(group.all, properties, isArray, isOptional);
+      }
+    }
   }
   
+  /**
+   * Collect properties from a group (sequence/choice/all).
+   */
+  private collectFromGroup(
+    group: ExplicitGroup,
+    properties: OptionalKind<PropertySignatureStructure>[],
+    forceArray = false,
+    forceOptional = false
+  ): void {
+    // Handle elements
+    for (const el of group.element ?? []) {
+      this.addElementProperty(el, properties, forceArray, forceOptional);
+    }
+    
+    // Handle nested sequences (array in ExplicitGroup)
+    for (const seq of group.sequence ?? []) {
+      this.collectFromGroup(seq, properties, forceArray, forceOptional);
+    }
+    
+    // Handle nested choices (array in ExplicitGroup)
+    for (const ch of group.choice ?? []) {
+      this.collectFromGroup(ch, properties, forceArray, true);
+    }
+    
+    // Note: ExplicitGroup doesn't have nested 'all' - only NamedGroup does
+    // All is handled separately in collectProperties
+    
+    // Handle group references within the group
+    for (const g of group.group ?? []) {
+      if (g.ref) {
+        const groupName = stripNsPrefix(g.ref);
+        const namedGroup = this.groupMap.get(groupName);
+        if (namedGroup) {
+          const isArray = g.maxOccurs === 'unbounded' || forceArray;
+          const isOptional = g.minOccurs === '0' || g.minOccurs === 0 || forceOptional;
+          
+          if (namedGroup.sequence) this.collectFromGroup(namedGroup.sequence, properties, isArray, isOptional);
+          if (namedGroup.choice) this.collectFromGroup(namedGroup.choice, properties, isArray, true);
+          if (namedGroup.all) this.collectFromGroup(namedGroup.all, properties, isArray, isOptional);
+        }
+      }
+    }
+    
+    // Handle xs:any
+    if (group.any && group.any.length > 0) {
+      this.addIndexSignature(properties);
+    }
+  }
+  
+  /**
+   * Add a property for an element.
+   */
+  private addElementProperty(
+    element: LocalElement,
+    properties: OptionalKind<PropertySignatureStructure>[],
+    forceArray = false,
+    forceOptional = false
+  ): void {
+    // Handle element reference
+    if (element.ref) {
+      const refName = stripNsPrefix(element.ref);
+      const refElement = this.elementMap.get(refName);
+      if (refElement) {
+        // Create a merged element with the ref's properties but local occurrence constraints
+        const mergedElement: LocalElement = {
+          name: refElement.name,
+          type: refElement.type,
+          complexType: refElement.complexType,
+          simpleType: refElement.simpleType,
+          minOccurs: element.minOccurs,
+          maxOccurs: element.maxOccurs,
+        };
+        this.addElementProperty(mergedElement, properties, forceArray, forceOptional);
+      }
+      return;
+    }
+    
+    if (!element.name) return;
+    
+    // Determine if array
+    const isArray = forceArray || 
+      element.maxOccurs === 'unbounded' ||
+      (typeof element.maxOccurs === 'number' && element.maxOccurs > 1);
+    
+    // Determine if optional
+    const isOptional = forceOptional ||
+      element.minOccurs === '0' ||
+      element.minOccurs === 0;
+    
+    // Determine type
+    let tsType: string;
+    if (element.type) {
+      const typeName = stripNsPrefix(element.type);
+      if (isBuiltInType(typeName)) {
+        tsType = mapBuiltInType(typeName);
+      } else {
+        // Generate the referenced type
+        tsType = this.generateType(typeName);
+      }
+    } else if (element.complexType) {
+      // Inline complex type
+      tsType = this.generateInlineElement(element.name + 'Type', element.complexType);
+    } else if (element.simpleType) {
+      // Inline simple type - use restriction base or string
+      const st = element.simpleType;
+      if (st.restriction?.base) {
+        tsType = mapBuiltInType(stripNsPrefix(st.restriction.base));
+      } else {
+        tsType = 'string';
+      }
+    } else {
+      tsType = 'unknown';
+    }
+    
+    // Apply array modifier
+    if (isArray) {
+      tsType = `${tsType}[]`;
+    }
+    
+    // Skip if property already exists (from base type inheritance)
+    if (properties.some(p => p.name === element.name)) {
+      return;
+    }
+    
+    properties.push({
+      name: element.name,
+      type: tsType,
+      hasQuestionToken: isOptional,
+    });
+  }
+  
+  /**
+   * Collect attributes.
+   */
+  private collectAttributes(
+    attributes: readonly LocalAttribute[] | undefined,
+    properties: OptionalKind<PropertySignatureStructure>[]
+  ): void {
+    if (!attributes) return;
+    
+    for (const attr of attributes) {
+      // Handle attribute reference
+      if (attr.ref) {
+        const refName = stripNsPrefix(attr.ref);
+        // For xml:lang etc, keep as string
+        properties.push({
+          name: attr.ref.startsWith('xml:') ? `'${attr.ref}'` : refName,
+          type: 'string',
+          hasQuestionToken: attr.use !== 'required',
+        });
+        continue;
+      }
+      
+      if (!attr.name) continue;
+      if (attr.use === 'prohibited') continue;
+      
+      const isOptional = attr.use !== 'required';
+      let tsType = 'string';
+      
+      if (attr.type) {
+        const typeName = stripNsPrefix(attr.type);
+        if (isBuiltInType(typeName)) {
+          tsType = mapBuiltInType(typeName);
+        } else {
+          // Check if it's a simple type
+          const st = this.simpleTypeMap.get(typeName);
+          if (st) {
+            tsType = this.generateSimpleType(typeName, st);
+          } else {
+            tsType = toInterfaceName(typeName);
+          }
+        }
+      }
+      
+      properties.push({
+        name: attr.name,
+        type: tsType,
+        hasQuestionToken: isOptional,
+      });
+    }
+  }
+  
+  /**
+   * Add index signature for xs:any or xs:anyAttribute.
+   */
+  private addIndexSignature(properties: OptionalKind<PropertySignatureStructure>[]): void {
+    const hasIndexSig = properties.some(p => p.name?.startsWith('['));
+    if (!hasIndexSig) {
+      properties.push({
+        name: '[key: string]',
+        type: 'unknown',
+        hasQuestionToken: false,
+      });
+    }
+  }
+}
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
+
+/**
+ * Strip namespace prefix from QName.
+ * e.g., "xs:string" -> "string", "adtcore:AdtObject" -> "AdtObject"
+ */
+function stripNsPrefix(qname: string): string {
+  const colonIndex = qname.indexOf(':');
+  return colonIndex >= 0 ? qname.slice(colonIndex + 1) : qname;
+}
+
+/**
+ * Convert type name to PascalCase interface name.
+ */
+function toInterfaceName(name: string): string {
+  // Already PascalCase or has Type suffix
+  if (name.endsWith('Type')) return name;
+  
+  // Convert first char to uppercase
+  const pascal = name.charAt(0).toUpperCase() + name.slice(1);
+  
+  // Add Type suffix if not present
+  return pascal.endsWith('Type') ? pascal : pascal + 'Type';
+}
+
+/** Set of all XSD built-in type names */
+const XSD_BUILT_IN_TYPES = new Set([
+  // String types
+  'string', 'normalizedString', 'token', 'language', 'Name', 'NCName',
+  'ID', 'IDREF', 'IDREFS', 'ENTITY', 'ENTITIES', 'NMTOKEN', 'NMTOKENS',
+  'anyURI', 'QName', 'NOTATION',
+  // Numeric types
+  'integer', 'int', 'long', 'short', 'byte', 'decimal', 'float', 'double',
+  'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
+  'unsignedLong', 'unsignedInt', 'unsignedShort', 'unsignedByte',
+  // Boolean
+  'boolean',
+  // Date/time
+  'date', 'time', 'dateTime', 'duration', 'gYear', 'gYearMonth', 'gMonth', 'gMonthDay', 'gDay',
+  // Binary
+  'base64Binary', 'hexBinary',
+  // Any
+  'anyType', 'anySimpleType',
+]);
+
+/**
+ * Check if a type name is an XSD built-in type.
+ */
+function isBuiltInType(typeName: string): boolean {
+  return XSD_BUILT_IN_TYPES.has(typeName);
+}
+
+/**
+ * Map XSD built-in types to TypeScript types.
+ */
+function mapBuiltInType(typeName: string): string {
+  const mapping: Record<string, string> = {
+    // String types
+    string: 'string',
+    normalizedString: 'string',
+    token: 'string',
+    language: 'string',
+    Name: 'string',
+    NCName: 'string',
+    ID: 'string',
+    IDREF: 'string',
+    IDREFS: 'string',
+    ENTITY: 'string',
+    ENTITIES: 'string',
+    NMTOKEN: 'string',
+    NMTOKENS: 'string',
+    anyURI: 'string',
+    QName: 'string',
+    NOTATION: 'string',
+    
+    // Numeric types
+    integer: 'number',
+    int: 'number',
+    long: 'number',
+    short: 'number',
+    byte: 'number',
+    decimal: 'number',
+    float: 'number',
+    double: 'number',
+    nonNegativeInteger: 'number',
+    positiveInteger: 'number',
+    nonPositiveInteger: 'number',
+    negativeInteger: 'number',
+    unsignedLong: 'number',
+    unsignedInt: 'number',
+    unsignedShort: 'number',
+    unsignedByte: 'number',
+    
+    // Boolean
+    boolean: 'boolean',
+    
+    // Date/time (as string in TS)
+    date: 'string',
+    time: 'string',
+    dateTime: 'string',
+    duration: 'string',
+    gYear: 'string',
+    gYearMonth: 'string',
+    gMonth: 'string',
+    gMonthDay: 'string',
+    gDay: 'string',
+    
+    // Binary (as string in TS)
+    base64Binary: 'string',
+    hexBinary: 'string',
+    
+    // Any
+    anyType: 'unknown',
+    anySimpleType: 'unknown',
+  };
+  
+  return mapping[typeName] ?? typeName;
 }

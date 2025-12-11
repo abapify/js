@@ -8,7 +8,7 @@
 
 import type { GeneratorPlugin, TransformContext, GeneratedFile, SchemaInfo } from '../codegen/types';
 import type { Schema, Import } from '../xsd/types';
-import { resolveSchema, mergeIncludes, mergeAll, type ResolveOptions } from '../xsd/resolve';
+import { resolveSchema, type ResolveOptions } from '../xsd/resolve';
 
 // ============================================================================
 // Options
@@ -108,12 +108,12 @@ export function rawSchema(options: RawSchemaOptions = {}): GeneratorPlugin {
       // This creates a fully self-contained schema with all elements and types
       if (resolveAll) {
         const linkedSchema = linkSchemaImports(schema.schema, ctx.allSchemas);
-        schemaToProcess = mergeAll(linkedSchema) as Record<string, unknown>;
+        schemaToProcess = resolveSchema(linkedSchema, { filterToRootElements: true }) as Record<string, unknown>;
       }
       // Resolve includes only - merge included schema content recursively
       else if (resolveIncludes) {
         const linkedSchema = linkSchemaImports(schema.schema, ctx.allSchemas);
-        schemaToProcess = mergeIncludes(linkedSchema) as Record<string, unknown>;
+        schemaToProcess = resolveSchema(linkedSchema, { resolveImports: false, keepImportsRef: true }) as Record<string, unknown>;
       }
       
       // When resolving all, disable both $includes and $imports in output

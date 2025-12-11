@@ -37,6 +37,8 @@ export interface ResolveOptions {
   expandExtensions?: boolean;
   /** Expand substitutionGroup - replace abstract refs with concrete elements (default: true) */
   expandSubstitutions?: boolean;
+  /** Filter to root elements only - exclude abstract and referenced elements (default: false) */
+  filterToRootElements?: boolean;
   /** Keep original $imports array for reference (default: false) */
   keepImportsRef?: boolean;
 }
@@ -121,6 +123,7 @@ export function resolveSchema(schema: Schema, options: ResolveOptions = {}): Sch
     resolveIncludes = true,
     expandExtensions = true,
     expandSubstitutions = true,
+    filterToRootElements = false,
     keepImportsRef = false,
   } = options;
 
@@ -130,6 +133,27 @@ export function resolveSchema(schema: Schema, options: ResolveOptions = {}): Sch
     includeImports: resolveImports,
     includeIncludes: resolveIncludes,
   });
+
+  // Determine which elements to include
+  let elements: TopLevelElement[];
+  if (filterToRootElements) {
+    // Filter to only root elements (not abstract, not referenced)
+    const referencedElements = new Set<string>();
+    for (const el of collector.elements.values()) {
+      collectElementRefs(el, referencedElements);
+    }
+    for (const ct of collector.complexTypes.values()) {
+      collectElementRefsFromType(ct, referencedElements);
+    }
+    elements = Array.from(collector.elements.values()).filter(el => {
+      if ((el as Record<string, unknown>).abstract === true) return false;
+      if (referencedElements.has(el.name)) return false;
+      return true;
+    });
+  } else {
+    // Keep ALL elements (including abstract and referenced)
+    elements = Array.from(collector.elements.values());
+  }
 
   // Expand extensions if requested
   let resolvedComplexTypes = Array.from(collector.complexTypes.values());
@@ -155,9 +179,9 @@ export function resolveSchema(schema: Schema, options: ResolveOptions = {}): Sch
       : schema.$xmlns,
   };
   
-  // Add collected content (only if non-empty)
-  if (collector.elements.size > 0) {
-    resolved.element = Array.from(collector.elements.values());
+  // Add elements
+  if (elements.length > 0) {
+    resolved.element = elements;
   }
   if (resolvedComplexTypes.length > 0) {
     resolved.complexType = resolvedComplexTypes;
@@ -186,13 +210,21 @@ export function resolveSchema(schema: Schema, options: ResolveOptions = {}): Sch
 
 /**
  * Expand complexContent/extension by merging base type properties.
+ * Uses a visited set to prevent infinite recursion on circular inheritance.
  */
 function expandComplexTypeExtension(
   ct: TopLevelComplexType,
-  allTypes: Map<string, TopLevelComplexType>
+  allTypes: Map<string, TopLevelComplexType>,
+  visited: Set<string> = new Set()
 ): TopLevelComplexType {
   const extension = ct.complexContent?.extension;
   if (!extension?.base) return ct;
+
+  // Prevent circular inheritance
+  if (visited.has(ct.name)) {
+    return ct;
+  }
+  visited.add(ct.name);
 
   // Collect elements from base type and extension
   const mergedElements: LocalElement[] = [];
@@ -201,9 +233,9 @@ function expandComplexTypeExtension(
   // Get base type elements
   const baseName = stripNsPrefix(extension.base);
   const baseType = allTypes.get(baseName);
-  if (baseType) {
+  if (baseType && !visited.has(baseName)) {
     // Recursively expand base type first
-    const expandedBase = expandComplexTypeExtension(baseType, allTypes);
+    const expandedBase = expandComplexTypeExtension(baseType, allTypes, visited);
     
     // Collect elements from base
     collectElementsFromType(expandedBase, mergedElements);
@@ -376,133 +408,6 @@ export function getSubstitutes(
   return collector.substitutionGroups.get(abstractElementName) ?? [];
 }
 
-/**
- * Merge included schema content recursively into the main schema.
- * This resolves xs:include by merging element, complexType, simpleType, group, attributeGroup
- * from $includes schemas directly into the main schema.
- * 
- * @param schema - Schema with $includes array of linked schemas
- * @returns New schema with included content merged, no $includes or include properties
- */
-export function mergeIncludes(schema: Schema): Schema {
-  if (!schema.$includes || schema.$includes.length === 0) {
-    // No includes, return schema without include property
-    const { include: _, ...rest } = schema as Record<string, unknown>;
-    return rest as Schema;
-  }
-
-  // Use traverser to collect all content from schema + $includes only (not $imports)
-  const collector = new SchemaCollector();
-  collector.traverse(schema, {
-    includeImports: false,
-    includeIncludes: true,
-  });
-
-  // Build result without include/$includes
-  const result: Record<string, unknown> = {
-    targetNamespace: schema.targetNamespace,
-    $filename: schema.$filename,
-    $xmlns: collector.xmlns.size > 0 
-      ? Object.fromEntries(collector.xmlns) 
-      : schema.$xmlns,
-  };
-  
-  // Add collected content (only if non-empty)
-  if (collector.elements.size > 0) {
-    result.element = Array.from(collector.elements.values());
-  }
-  if (collector.complexTypes.size > 0) {
-    result.complexType = Array.from(collector.complexTypes.values());
-  }
-  if (collector.simpleTypes.size > 0) {
-    result.simpleType = Array.from(collector.simpleTypes.values());
-  }
-  if (collector.groups.size > 0) {
-    result.group = Array.from(collector.groups.values());
-  }
-  if (collector.attributeGroups.size > 0) {
-    result.attributeGroup = Array.from(collector.attributeGroups.values());
-  }
-  
-  // Preserve $imports if present
-  if (schema.$imports) {
-    result.$imports = schema.$imports;
-  }
-
-  return result as Schema;
-}
-
-/**
- * Merge ALL schema content recursively - both $includes AND $imports.
- * Creates a fully resolved, self-contained schema with all elements and types
- * from the entire dependency tree.
- * 
- * This is useful for generating a single schema that can validate/parse
- * the complete XML document structure (e.g., abapGit root element + asx:abap + values).
- * 
- * @param schema - Schema with $includes and/or $imports arrays of linked schemas
- * @returns New schema with all content merged, no external references
- */
-export function mergeAll(schema: Schema): Schema {
-  // Use traverser to collect all content from schema + $includes + $imports
-  const collector = new SchemaCollector();
-  collector.traverse(schema, {
-    includeImports: true,
-    includeIncludes: true,
-  });
-
-  // Collect all element refs used in the schema (these are NOT root elements)
-  const referencedElements = new Set<string>();
-  for (const el of collector.elements.values()) {
-    collectElementRefs(el, referencedElements);
-  }
-  for (const ct of collector.complexTypes.values()) {
-    collectElementRefsFromType(ct, referencedElements);
-  }
-
-  // Filter elements to only include root elements:
-  // - Not abstract
-  // - Not referenced by other elements via ref
-  const rootElements = Array.from(collector.elements.values()).filter(el => {
-    // Exclude abstract elements
-    if ((el as Record<string, unknown>).abstract === true) {
-      return false;
-    }
-    // Exclude elements that are referenced by other elements
-    if (referencedElements.has(el.name)) {
-      return false;
-    }
-    return true;
-  });
-
-  // Build result without include/$includes/import/$imports
-  const result: Record<string, unknown> = {
-    $filename: schema.$filename,
-    $xmlns: collector.xmlns.size > 0 
-      ? Object.fromEntries(collector.xmlns) 
-      : schema.$xmlns,
-  };
-  
-  // Add filtered root elements
-  if (rootElements.length > 0) {
-    result.element = rootElements;
-  }
-  // Add all types (they may be referenced by root elements)
-  if (collector.complexTypes.size > 0) {
-    result.complexType = Array.from(collector.complexTypes.values());
-  }
-  if (collector.simpleTypes.size > 0) {
-    result.simpleType = Array.from(collector.simpleTypes.values());
-  }
-  if (collector.groups.size > 0) {
-    result.group = Array.from(collector.groups.values());
-  }
-  if (collector.attributeGroups.size > 0) {
-    result.attributeGroup = Array.from(collector.attributeGroups.values());
-  }
-
-  return result as Schema;
-}
 
 /**
  * Collect element refs from an element's nested structure
