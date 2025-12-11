@@ -3,7 +3,7 @@
  */
 
 import { AdkPackage } from '../adk';
-import { devc } from '../schemas';
+import { devc } from '../../../schemas/generated';
 import { createHandler } from '../base';
 
 /**

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { fixtures } from 'adt-fixtures';
 import { Scenario, runScenario, type SchemaType } from './base/scenario';
-import { adtcore, type AdtObject } from '../../src/schemas/index';
+import { adtcore } from '../../src/schemas/index';
 
 /**
  * Test for Repository Search (Object References) - GET /sap/bc/adt/repository/informationsystem/search

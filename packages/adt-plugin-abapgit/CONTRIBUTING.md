@@ -15,125 +15,248 @@ This guide explains how to add support for new ABAP object types and maintain ex
 
 ---
 
+## Architecture Overview
+
+### XSD Schema Hierarchy
+
+The XSD schemas use a layered architecture with inheritance:
+
+```
+xsd/
+├── abapgit.xsd          # Root element: <abapGit version="..." serializer="...">
+├── asx.xsd              # SAP ABAP XML envelope: <asx:abap><asx:values>...</asx:values></asx:abap>
+├── types/               # Reusable type definitions
+│   ├── vseointerf.xsd   # VseoInterfType for interfaces
+│   ├── vseoclass.xsd    # VseoClassType for classes
+│   ├── dd01v.xsd        # DD01V for domains
+│   └── ...
+└── {type}.xsd           # Object-specific schemas (intf.xsd, clas.xsd, etc.)
+```
+
+**Key concept:** Object schemas use `xs:redefine` to extend `AbapValuesType` with object-specific elements. This ensures proper XML structure validation.
+
+### Generated Code Structure
+
+After running `npx nx codegen adt-plugin-abapgit`:
+
+```
+src/schemas/generated/
+├── index.ts             # Main entry - typed AbapGitSchema instances
+├── schemas/
+│   ├── index.ts         # Raw schema exports
+│   ├── intf.ts          # Raw schema literal with `as const`
+│   ├── clas.ts
+│   └── ...
+└── types/
+    ├── index.ts         # Type exports with aliases
+    ├── intf.ts          # AbapGitType, AbapValuesType, VseoInterfType
+    ├── clas.ts
+    └── ...
+```
+
+### Type Inference System
+
+The codegen produces **two type levels** for each schema:
+
+1. **`AbapGitType`** - Full XML structure including envelope
+2. **`AbapValuesType`** - Inner values wrapper (what handlers return from `toAbapGit()`)
+
+```typescript
+// Generated types/intf.ts
+export interface AbapGitType {
+    abap: AbapType;           // asx:abap envelope
+    version: string;          // abapGit attributes
+    serializer: string;
+    serializer_version: string;
+}
+
+export interface AbapValuesType {
+    VSEOINTERF?: VseoInterfType;  // Object-specific content
+}
+
+export interface VseoInterfType {
+    CLSNAME: string;
+    LANGU?: string;
+    DESCRIPT?: string;
+    // ... all fields from XSD
+}
+```
+
+The `abapGitSchema<TFull, TValues>()` wrapper provides both types:
+
+```typescript
+// Usage in handler
+import { intf } from '../../../schemas/generated';
+
+// intf._type → AbapGitType (full XML)
+// intf._values → AbapValuesType (handler return type)
+// intf.parse(xml) → AbapGitType
+// intf.build(data) → string
+```
+
+---
+
 ## Adding a New Object Type
 
-### Step 1: Create the XSD Schema
+### Step 1: Create Type Definition (if needed)
+
+If your object uses a new SAP structure, create the type XSD first.
+
+**Location:** `xsd/types/{typename}.xsd`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  {TYPENAME} Type Definition
+  
+  Defines the {TYPENAME} structure used in {type}.xsd
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sap.com/abapxml"
+           xmlns:asx="http://www.sap.com/abapxml"
+           elementFormDefault="unqualified">
+
+  <xs:complexType name="{TypeName}Type">
+    <xs:sequence>
+      <xs:element name="FIELD1" type="xs:string"/>
+      <xs:element name="FIELD2" type="xs:string" minOccurs="0"/>
+      <!-- Add all fields from SAP structure -->
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>
+```
+
+### Step 2: Create the Object Schema
 
 **Location:** `xsd/{type}.xsd`
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-  <!-- Define the abapGit XML structure for your object type -->
-  <xs:element name="abapGit">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element name="asx:abap" ...>
-          <!-- Your object-specific structure -->
-        </xs:element>
-      </xs:sequence>
-      <xs:attribute name="version" type="xs:string"/>
-      <xs:attribute name="serializer" type="xs:string"/>
-      <xs:attribute name="serializer_version" type="xs:string"/>
+<!--
+  abapGit {TYPE} ({Description}) Schema
+
+  Defines {STRUCTNAME} structure for *.{type}.xml files.
+
+  Uses xs:redefine to extend AbapValuesType with {TYPE}-specific elements.
+  This ensures {STRUCTNAME} can only appear inside asx:values, not as root.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sap.com/abapxml"
+           xmlns:asx="http://www.sap.com/abapxml"
+           elementFormDefault="unqualified">
+
+  <!-- Include types (brought into asx namespace) -->
+  <xs:include schemaLocation="types/{typename}.xsd"/>
+
+  <!-- Redefine AbapValuesType to include {TYPE}-specific elements -->
+  <xs:redefine schemaLocation="asx.xsd">
+    <xs:complexType name="AbapValuesType">
+      <xs:complexContent>
+        <xs:extension base="asx:AbapValuesType">
+          <xs:sequence>
+            <xs:element name="{STRUCTNAME}" type="asx:{TypeName}Type" minOccurs="0"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
     </xs:complexType>
-  </xs:element>
+  </xs:redefine>
+
+  <!-- Import abapGit root element -->
+  <xs:import schemaLocation="abapgit.xsd"/>
+
 </xs:schema>
 ```
 
-**Why XSD?**
+**Key points:**
+- Use `xs:include` for type definitions (same namespace)
+- Use `xs:redefine` to extend `AbapValuesType`
+- Use `xs:import` for the abapGit root element
 
-| Alternative | Problem |
-|-------------|---------|
-| Manual XML strings | No validation, typos cause runtime errors |
-| TypeScript interfaces only | Can't validate external XML files |
-| JSON Schema | XML ≠ JSON, wrong tool for the job |
-
-XSD provides:
-- **External validation**: `xmllint --schema xsd/mytype.xsd file.xml`
-- **Industry standard**: Works with any XML tooling
-- **Single source of truth**: Types, parser, and builder all generated from one file
-
-### Step 2: Register Schema in ts-xsd Config
+### Step 3: Register Schema in ts-xsd Config
 
 **File:** `ts-xsd.config.ts`
 
 ```typescript
-export default defineConfig({
-  schemas: [
-    // ... existing schemas
-    {
-      input: 'xsd/mytype.xsd',
-      output: 'src/schemas/generated',
-      name: 'mytype',
-    },
-  ],
-});
+sources: {
+  abapgit: {
+    xsdDir: 'xsd',
+    outputDir: 'src/schemas/generated/schemas',
+    schemas: [
+      'clas',
+      'devc',
+      'doma',
+      'dtel',
+      'intf',
+      'mytype',  // ← Add your new type
+    ],
+  },
+},
 ```
 
-### Step 3: Generate TypeScript Types
+### Step 4: Generate TypeScript Types
 
 ```bash
 npx nx codegen adt-plugin-abapgit
 ```
 
-This generates in `src/schemas/generated/`:
-- `types/mytype.ts` - TypeScript interfaces
-- `schemas/mytype.ts` - Schema object with `.parse()` and `.build()`
+This generates:
+- `src/schemas/generated/schemas/mytype.ts` - Raw schema literal
+- `src/schemas/generated/types/mytype.ts` - TypeScript interfaces
+- Updates `src/schemas/generated/index.ts` - Adds typed schema export
 
-### Step 4: Create the Handler
+### Step 5: Create the Handler
 
 **Location:** `src/lib/handlers/objects/{type}.ts`
 
 ```typescript
 /**
- * {TYPE} object handler for abapGit format
+ * {TYPE} ({Description}) object handler for abapGit format
  */
 
 import { Adk{Type} } from '../adk';
-import { mytype } from '../schemas';
+import { mytype } from '../../../schemas/generated';
 import { createHandler } from '../base';
 
 export const {type}Handler = createHandler(Adk{Type}, {
-  // Required: Schema for XML parsing/building
+  // Schema provides type inference for toAbapGit return value
   schema: mytype,
+  
+  // abapGit metadata
+  version: 'v1.0.0',
+  serializer: 'LCL_OBJECT_{TYPE}',
+  serializer_version: 'v1.0.0',
 
-  // Required: Map ADK data → abapGit XML structure
+  // Map ADK object → AbapValuesType (inner values)
+  // Return type is inferred from schema._values
   toAbapGit: (obj) => ({
-    FIELD1: obj.name ?? '',
-    FIELD2: obj.description ?? '',
-    // ... map all required fields
+    {STRUCTNAME}: {
+      FIELD1: obj.name ?? '',
+      FIELD2: obj.description ?? '',
+      // ... map all required fields
+    },
   }),
 
-  // Optional: For objects with source code (single file)
+  // Optional: For objects with source code
   getSource: (obj) => obj.getSource(),
-
-  // Optional: For objects with multiple source files (like CLAS)
-  getSources: (obj) => obj.includes.map((inc) => ({
-    suffix: SUFFIX_MAP[inc.type],
-    content: obj.getIncludeSource(inc.type),
-  })),
-
-  // Optional: Override default filename (e.g., DEVC uses 'package.devc.xml')
-  xmlFileName: 'custom.mytype.xml',
-
-  // Optional: Completely custom serialization (rarely needed)
-  serialize: async (object, ctx) => {
-    // Only use if default behavior doesn't work
-    return [ctx.createFile('custom.xml', customContent)];
-  },
 });
 ```
 
-### Step 5: Register the Handler
+**Type inference flow:**
+1. `schema: mytype` → TypeScript knows `mytype._values` is `MytypeValuesType`
+2. `toAbapGit` return type is automatically inferred as `MytypeValuesType`
+3. IDE provides autocomplete for all valid fields
+4. Compile-time error if you return wrong structure
+
+### Step 6: Register the Handler
 
 **File:** `src/lib/handlers/registry.ts`
 
 ```typescript
-// Add import
 export { mytypeHandler } from './objects/mytype';
 ```
 
-### Step 6: Add ADK Type to Re-exports (if needed)
+### Step 7: Add ADK Type to Re-exports (if needed)
 
 **File:** `src/lib/handlers/adk.ts`
 
@@ -145,13 +268,29 @@ export { AdkMyType } from '@abapify/adk';
 export type { AdkMyType } from '@abapify/adk';
 ```
 
-### Step 7: Add Tests
+### Step 8: Add Tests
 
-**Location:** `tests/fixtures/{type}/` and `tests/schemas/{type}.test.ts`
+**Fixtures:** `tests/fixtures/{type}/example.{type}.xml`
 
-1. Add real abapGit XML fixture files
-2. Create schema test following existing pattern
-3. Run tests: `npx nx test adt-plugin-abapgit`
+Add real abapGit XML files exported from SAP.
+
+**Schema test:** `tests/schemas/{type}.test.ts`
+
+```typescript
+import { describe, it } from 'node:test';
+import { runSchemaScenario } from './helpers.ts';
+
+describe('{TYPE} Schema', () => {
+  runSchemaScenario({
+    name: '{TYPE}',
+    xsdPath: 'xsd/{type}.xsd',
+    fixtures: ['tests/fixtures/{type}/example.{type}.xml'],
+    validate: (data) => {
+      // Add assertions for parsed data
+    },
+  });
+});
+```
 
 ---
 
@@ -166,23 +305,28 @@ Factory function that creates and auto-registers a handler.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `type` | `string \| AdkClass` | Object type code (e.g., 'CLAS') or ADK class |
-| `definition.schema` | `Schema` | Generated ts-xsd schema |
-| `definition.toAbapGit` | `(obj) => Record` | Maps ADK object to abapGit XML values |
+| `definition.schema` | `AbapGitSchema` | Generated typed schema |
+| `definition.version` | `string` | abapGit version attribute |
+| `definition.serializer` | `string` | Serializer class name |
+| `definition.serializer_version` | `string` | Serializer version |
+| `definition.toAbapGit` | `(obj) => TValues` | Maps ADK object to abapGit XML values |
 | `definition.getSource?` | `(obj) => Promise<string>` | Returns single source file content |
 | `definition.getSources?` | `(obj) => Array<{suffix?, content}>` | Returns multiple source files |
 | `definition.xmlFileName?` | `string` | Override default XML filename |
-| `definition.serialize?` | `(obj, ctx) => Promise<File[]>` | Custom serialization (rarely needed) |
 
-### Handler Context (`ctx`)
+### Type Inference
 
-Available in custom `serialize` functions:
+The `toAbapGit` function return type is **automatically inferred** from the schema:
 
 ```typescript
-ctx.getObjectName(obj)           // → 'zcl_myclass'
-ctx.getData(obj)                 // → ADK dataSync object
-ctx.toAbapGitXml(obj)            // → Full XML string with envelope
-ctx.createFile(path, content)    // → { path, content }
-ctx.createAbapFile(name, src, suffix?)  // → ABAP file with correct naming
+// schema._values is AbapValuesType from generated types
+// toAbapGit must return exactly that type
+toAbapGit: (obj) => ({
+  VSEOINTERF: {        // ← IDE autocomplete works
+    CLSNAME: obj.name, // ← Type checking on fields
+    INVALID: 'x',      // ← Compile error: unknown field
+  },
+}),
 ```
 
 ---
@@ -194,12 +338,17 @@ ctx.createAbapFile(name, src, suffix?)  // → ABAP file with correct naming
 ```typescript
 export const dtelHandler = createHandler('DTEL', {
   schema: dtel,
+  version: 'v1.0.0',
+  serializer: 'LCL_OBJECT_DTEL',
+  serializer_version: 'v1.0.0',
+  
   toAbapGit: (obj) => ({
-    ROLLNAME: obj.name ?? '',
-    DDTEXT: obj.description ?? '',
-    // ... metadata fields only
+    DD04V: {
+      ROLLNAME: obj.name ?? '',
+      DDTEXT: obj.description ?? '',
+    },
   }),
-  // No getSource/getSources - only XML file generated
+  // No getSource - only XML file generated
 });
 ```
 
@@ -208,28 +357,45 @@ export const dtelHandler = createHandler('DTEL', {
 ```typescript
 export const intfHandler = createHandler(AdkInterface, {
   schema: intf,
-  toAbapGit: (obj) => ({ /* ... */ }),
-  getSource: (obj) => obj.getSource(),  // Returns Promise<string>
+  version: 'v1.0.0',
+  serializer: 'LCL_OBJECT_INTF',
+  serializer_version: 'v1.0.0',
+  
+  toAbapGit: (obj) => ({
+    VSEOINTERF: {
+      CLSNAME: obj.name ?? '',
+      DESCRIPT: obj.description ?? '',
+    },
+  }),
+  
+  getSource: (obj) => obj.getSource(),
 });
 ```
 
 ### Objects With Multiple Sources (CLAS)
 
 ```typescript
-const SUFFIX_MAP: Record<IncludeType, string | undefined> = {
-  main: undefined,           // → .clas.abap
-  locals_def: 'locals_def',  // → .clas.locals_def.abap
-  locals_imp: 'locals_imp',  // → .clas.locals_imp.abap
+const SUFFIX_MAP: Record<ClassIncludeType, string | undefined> = {
+  main: undefined,
+  definitions: 'locals_def',
+  implementations: 'locals_imp',
   testclasses: 'testclasses',
   macros: 'macros',
 };
 
 export const classHandler = createHandler(AdkClass, {
   schema: clas,
-  toAbapGit: (obj) => ({ /* ... */ }),
+  version: 'v1.0.0',
+  serializer: 'LCL_OBJECT_CLAS',
+  serializer_version: 'v1.0.0',
+  
+  toAbapGit: (obj) => ({
+    VSEOCLASS: { /* ... */ },
+  }),
+  
   getSources: (cls) => cls.includes.map((inc) => ({
     suffix: SUFFIX_MAP[inc.includeType],
-    content: cls.getIncludeSource(inc.includeType),  // Can be Promise
+    content: cls.getIncludeSource(inc.includeType),
   })),
 });
 ```
@@ -240,8 +406,14 @@ export const classHandler = createHandler(AdkClass, {
 export const packageHandler = createHandler(AdkPackage, {
   schema: devc,
   xmlFileName: 'package.devc.xml',  // Not '{name}.devc.xml'
+  version: 'v1.0.0',
+  serializer: 'LCL_OBJECT_DEVC',
+  serializer_version: 'v1.0.0',
+  
   toAbapGit: (pkg) => ({
-    CTEXT: pkg.description ?? '',
+    DEVC: {
+      CTEXT: pkg.description ?? '',
+    },
   }),
 });
 ```
@@ -260,7 +432,9 @@ toAbapGit: (obj) => `<CLSNAME>${obj.name}</CLSNAME>`
 ```typescript
 // CORRECT - Type-safe, validated
 toAbapGit: (obj) => ({
-  CLSNAME: obj.name ?? '',
+  VSEOCLASS: {
+    CLSNAME: obj.name ?? '',
+  },
 })
 ```
 
@@ -268,31 +442,15 @@ toAbapGit: (obj) => ({
 
 ```typescript
 // WRONG - Handler shouldn't know about ADT
-serialize: async (obj, ctx) => {
+getSource: async (obj) => {
   const source = await adtClient.getSource(obj.uri);  // NO!
-  // ...
+  return source;
 }
 ```
 
 ```typescript
 // CORRECT - Use ADK facade
 getSource: (obj) => obj.getSource()  // ADK handles ADT calls
-```
-
-### ❌ Direct File System Access
-
-```typescript
-// WRONG - Handler shouldn't touch fs
-serialize: async (obj) => {
-  fs.writeFileSync('output.xml', xml);  // NO!
-}
-```
-
-```typescript
-// CORRECT - Return file descriptors
-serialize: async (obj, ctx) => {
-  return [ctx.createFile('output.xml', xml)];
-}
 ```
 
 ### ❌ Skipping XSD Schema
@@ -307,70 +465,42 @@ const mySchema = { parse: ..., build: ... };  // Hand-written
 // 1. Create xsd/mytype.xsd
 // 2. Run codegen
 // 3. Import generated schema
-import { mytype } from '../schemas';
-```
-
----
-
-## Testing
-
-### Schema Tests
-
-Test XML parsing, building, and round-trip:
-
-```typescript
-// tests/schemas/mytype.test.ts
-const scenario: SchemaScenario<AbapGitMyType> = {
-  name: 'MYTYPE',
-  xsdName: 'mytype',
-  schema: createTypedSchema<AbapGitMyType>(mytype),
-  fixtures: [
-    {
-      path: 'mytype/example.mytype.xml',
-      validate: (data) => {
-        assert.strictEqual(data.abap.values.FIELD, 'expected');
-      },
-    },
-  ],
-};
-
-runSchemaTests(scenario);
-```
-
-### Handler Tests
-
-Test handler registration and serialization:
-
-```typescript
-// tests/handlers/base.test.ts
-it('creates correct files', async () => {
-  const handler = getHandler('MYTYPE');
-  const files = await handler.serialize(mockObject);
-  
-  assert.ok(files.some(f => f.path.endsWith('.mytype.xml')));
-});
+import { mytype } from '../../../schemas/generated';
 ```
 
 ---
 
 ## Checklist for New Object Types
 
-- [ ] XSD schema created in `xsd/`
+- [ ] Type XSD created in `xsd/types/` (if new structure)
+- [ ] Object XSD created in `xsd/` using `xs:redefine`
 - [ ] Schema registered in `ts-xsd.config.ts`
 - [ ] Codegen run: `npx nx codegen adt-plugin-abapgit`
 - [ ] Handler created in `src/lib/handlers/objects/`
-- [ ] Handler registered in `src/lib/handlers/registry.ts`
+- [ ] Handler exported in `src/lib/handlers/registry.ts`
 - [ ] ADK types added to `src/lib/handlers/adk.ts` (if needed)
 - [ ] Test fixtures added in `tests/fixtures/`
 - [ ] Schema tests added in `tests/schemas/`
 - [ ] Build passes: `npx nx build adt-plugin-abapgit`
 - [ ] Tests pass: `npx nx test adt-plugin-abapgit`
-- [ ] README updated with new object type
+- [ ] XSD validates fixtures: `xmllint --schema xsd/{type}.xsd tests/fixtures/{type}/*.xml --noout`
 
 ---
 
-## TODO / Known Issues
+## Build Commands
 
-- [ ] **ADK ClassIncludeType**: The `ClassIncludeType` in ADK needs to include all abapGit include types (`testclasses`, `localtypes`, etc.). Currently some types are missing.
-- [ ] **Integration tests**: Handler tests that import actual handlers fail due to bundler vs Node.js import incompatibility. Consider using vitest or testing built output.
-- [ ] **Export (Git → SAP)**: Currently only import (SAP → Git) is implemented. Export would require ADK write operations.
+```bash
+npx nx codegen adt-plugin-abapgit  # Generate schemas and types
+npx nx build adt-plugin-abapgit    # Build package
+npx nx test adt-plugin-abapgit     # Run tests
+```
+
+## Debugging
+
+```bash
+# Validate XML against schema
+xmllint --schema xsd/intf.xsd tests/fixtures/intf/example.intf.xml --noout
+
+# Check generated types match XSD
+npx nx codegen adt-plugin-abapgit
+```
