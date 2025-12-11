@@ -7,11 +7,11 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { devc as devcSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitDevc } from '../../src/schemas/generated/types/index.ts';
+import type { AbapGitType } from '../../src/schemas/generated/types/devc.ts';
 
-const schema = createTypedSchema<AbapGitDevc>(devcSchema);
+const schema = createTypedSchema<AbapGitType>(devcSchema);
 
-const scenario: SchemaScenario<AbapGitDevc> = {
+const scenario: SchemaScenario<AbapGitType> = {
   name: 'DEVC',
   xsdName: 'devc',
   schema,
@@ -28,7 +28,7 @@ const scenario: SchemaScenario<AbapGitDevc> = {
         assert.strictEqual(data.abap.version, '1.0');
         
         // DEVC content
-        const devc = data.abap.values.DEVC;
+        const devc = data.abap.values.DEVC!;
         assert.strictEqual(devc.CTEXT, 'Classes');
       },
     },

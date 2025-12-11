@@ -7,5 +7,4 @@
 export { classHandler } from './clas';
 export { interfaceHandler } from './intf';
 export { packageHandler } from './devc';
-export { domainHandler } from './doma';
-export { dataElementHandler } from './dtel';
+// TODO: Add domainHandler and dataElementHandler when ADK v2 support is ready

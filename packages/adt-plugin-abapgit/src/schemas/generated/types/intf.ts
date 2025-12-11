@@ -5,6 +5,25 @@
  * Source: abapgit/intf.xsd
  */
 
+/** Generated from element: abapGit */
+export interface AbapGitType {
+    abap: AbapType;
+    version: string;
+    serializer: string;
+    serializer_version: string;
+}
+
+/** Generated from complexType: AbapType */
+export interface AbapType {
+    values: AbapValuesType;
+    version?: string;
+}
+
+/** Generated from complexType: AbapValuesType */
+export interface AbapValuesType {
+    VSEOINTERF?: VseoInterfType;
+}
+
 /** Generated from complexType: VseoInterfType */
 export interface VseoInterfType {
     CLSNAME: string;
@@ -14,15 +33,4 @@ export interface VseoInterfType {
     STATE?: string;
     UNICODE?: string;
     ABAP_LANGUAGE_VERSION?: string;
-}
-
-/** Values type for substitution group elements */
-export interface IntfValuesType {
-    VSEOINTERF?: VseoInterfType;
-}
-
-/** Root type for intf - specialized AbapType with concrete values */
-export interface IntfType {
-    values: IntfValuesType;
-    version?: string;
 }

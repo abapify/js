@@ -7,11 +7,11 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { dtel as dtelSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitDtel } from '../../src/schemas/generated/types/index.ts';
+import type { AbapGitType } from '../../src/schemas/generated/types/dtel.ts';
 
-const schema = createTypedSchema<AbapGitDtel>(dtelSchema);
+const schema = createTypedSchema<AbapGitType>(dtelSchema);
 
-const scenario: SchemaScenario<AbapGitDtel> = {
+const scenario: SchemaScenario<AbapGitType> = {
   name: 'DTEL',
   xsdName: 'dtel',
   schema,
@@ -26,7 +26,7 @@ const scenario: SchemaScenario<AbapGitDtel> = {
         assert.strictEqual(data.abap.version, '1.0');
         
         // DD04V content (data element)
-        const dd04v = data.abap.values.DD04V;
+        const dd04v = data.abap.values.DD04V!;
         assert.strictEqual(dd04v.ROLLNAME, 'ZAGE_DTEL_WITH_DOMAIN');
         assert.strictEqual(dd04v.DDLANGUAGE, 'E');
         assert.strictEqual(dd04v.DOMNAME, 'ZAGE_CHAR_WITH_LENGTH');

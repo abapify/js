@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "rootDir": ".",
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],

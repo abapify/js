@@ -5,6 +5,41 @@
  * Source: abapgit/doma.xsd
  */
 
+/** Generated from element: abapGit */
+export interface AbapGitType {
+    abap: AbapType;
+    version: string;
+    serializer: string;
+    serializer_version: string;
+}
+
+/** Generated from complexType: AbapType */
+export interface AbapType {
+    values: AbapValuesType;
+    version?: string;
+}
+
+/** Generated from complexType: AbapValuesType */
+export interface AbapValuesType {
+    DD01V?: Dd01vType;
+    DD07V_TAB?: Dd07vTabType;
+}
+
+/** Generated from complexType: Dd07vTabType */
+export interface Dd07vTabType {
+    DD07V?: Dd07vType[];
+}
+
+/** Generated from complexType: Dd07vType */
+export interface Dd07vType {
+    DOMNAME?: string;
+    VALPOS?: string;
+    DDLANGUAGE?: string;
+    DOMVALUE_L?: string;
+    DOMVALUE_H?: string;
+    DDTEXT?: string;
+}
+
 /** Generated from complexType: Dd01vType */
 export interface Dd01vType {
     DOMNAME: string;
@@ -20,19 +55,4 @@ export interface Dd01vType {
     CONVEXIT?: string;
     DDTEXT?: string;
     DOMMASTER?: string;
-}
-
-/** Generated from complexType: Dd07vType */
-export interface Dd07vType {
-    DOMNAME?: string;
-    VALPOS?: string;
-    DDLANGUAGE?: string;
-    DOMVALUE_L?: string;
-    DOMVALUE_H?: string;
-    DDTEXT?: string;
-}
-
-/** Generated from complexType: Dd07vTabType */
-export interface Dd07vTabType {
-    DD07V?: Dd07vType[];
 }
