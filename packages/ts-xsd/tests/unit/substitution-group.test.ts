@@ -8,9 +8,20 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { generateInterfacesWithDeps } from '../../src/codegen/interface-generator.ts';
-import type { Schema } from '../../src/xsd/types.ts';
+import { generateInterfaces } from '../../src/codegen/interface-generator';
+import { resolveSchema } from '../../src/xsd/resolve';
+import type { Schema } from '../../src/xsd/types';
 
+/**
+ * Substitution group support is implemented in the resolver (resolveSchema).
+ * 
+ * The simplified generator expects pre-resolved schemas. Substitution group expansion
+ * happens in src/xsd/resolve.ts (resolveSchema function).
+ * 
+ * When an element has substitutionGroup="ns:AbstractElement", the resolver:
+ * 1. Collects all elements that substitute for the abstract element
+ * 2. In types that reference the abstract element (via ref), expands to include all substitutes
+ */
 describe('substitution group interface generation', () => {
   // Simulates asx.xsd - defines abstract Schema element
   const asxSchema: Schema = {
@@ -87,39 +98,31 @@ describe('substitution group interface generation', () => {
   };
 
   it('should generate types for all complexTypes', () => {
-    const result = generateInterfacesWithDeps(domaSchema, { generateAllTypes: true });
+    // Merge schemas to resolve substitution groups
+    const merged = resolveSchema(domaSchema);
+    const result = generateInterfaces(merged, { generateAllTypes: true });
     
     // Should have Dd01vType
-    assert.ok(result.code.includes('export interface Dd01vType'), 'Should have Dd01vType');
-    assert.ok(result.code.includes('DOMNAME: string'), 'Should have DOMNAME property');
+    assert.ok(result.includes('export interface Dd01vType'), 'Should have Dd01vType');
+    assert.ok(result.includes('DOMNAME: string'), 'Should have DOMNAME property');
     
     // Should have Dd07vTabType
-    assert.ok(result.code.includes('export interface Dd07vTabType'), 'Should have Dd07vTabType');
-    assert.ok(result.code.includes('DD07V?: Dd07vType[]'), 'Should have DD07V array property');
+    assert.ok(result.includes('export interface Dd07vTabType'), 'Should have Dd07vTabType');
+    assert.ok(result.includes('DD07V?: Dd07vType[]'), 'Should have DD07V array property');
     
     // Should have Dd07vType
-    assert.ok(result.code.includes('export interface Dd07vType'), 'Should have Dd07vType');
+    assert.ok(result.includes('export interface Dd07vType'), 'Should have Dd07vType');
   });
 
-  it('should generate a values type with local substitutes only', () => {
-    // Each schema should only include substitutes defined IN THAT SCHEMA.
-    // asx.xsd has no substitutes (it defines the abstract Schema element)
-    // doma.xsd has DD01V and DD07V_TAB as substitutes
+  it('should expand substitution groups in AbapValuesType', () => {
+    // Merge schemas to resolve substitution groups
+    const merged = resolveSchema(domaSchema);
+    const result = generateInterfaces(merged, { generateAllTypes: true });
     
-    // When generating asx.xsd alone, AbapValuesType should use generic T
-    // because there are no local substitutes
-    const asxResult = generateInterfacesWithDeps(asxSchema, { generateAllTypes: true });
-    console.log('asx.xsd generated:\n', asxResult.code);
-    
-    // asx should have Schema?: T[] (generic, no local substitutes)
-    assert.ok(asxResult.code.includes('Schema?: T[]'), 'asx should have generic Schema?: T[]');
-    
-    // When generating doma.xsd, it should have its own values type with DD01V and DD07V_TAB
-    const domaResult = generateInterfacesWithDeps(domaSchema, { generateAllTypes: true });
-    console.log('doma.xsd generated:\n', domaResult.code);
-    
-    // doma should have its types
-    assert.ok(domaResult.code.includes('export interface Dd01vType'), 'Should have Dd01vType');
-    assert.ok(domaResult.code.includes('export interface Dd07vTabType'), 'Should have Dd07vTabType');
+    // AbapValuesType should have DD01V and DD07V_TAB (substitutes for abstract Schema)
+    // instead of the abstract Schema element
+    assert.ok(result.includes('export interface AbapValuesType'), 'Should have AbapValuesType');
+    assert.ok(result.includes('DD01V?: Dd01vType[]'), 'Should have DD01V substitute');
+    assert.ok(result.includes('DD07V_TAB?: Dd07vTabType[]'), 'Should have DD07V_TAB substitute');
   });
 });

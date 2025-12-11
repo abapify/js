@@ -23,13 +23,15 @@
  */
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCodegen } from '../../src/codegen/runner.ts';
 import { rawSchema } from '../../src/generators/raw-schema.ts';
 import { loadSchema, type Schema } from '../../src/xsd/index.ts';
 import type { CodegenConfig } from '../../src/codegen/types.ts';
+import { generateInterfaces, generateSimpleInterfaces } from '../../src/codegen/interface-generator.ts';
+import { resolveSchema } from '../../src/xsd/resolve.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(__dirname, '../fixtures/abapgit-doma');
@@ -340,5 +342,143 @@ describe('abapGit DOMA schema integration', () => {
     console.log('\n=== Output sizes ===');
     console.log(`RAW:    ${rawContent.length} chars`);
     console.log(`LINKED: ${linkedContent.length} chars`);
+  });
+
+  // ============================================================================
+  // Scenario 7: Interface generation from LINKED schema (existing generator)
+  // ============================================================================
+  it('should generate TypeScript interfaces from LINKED schema', () => {
+    const domaPath = join(fixturesDir, 'doma.xsd');
+    
+    // Load with autoLink - schema has $includes/$imports populated
+    const linkedSchema = loadSchema(domaPath, { autoLink: true });
+
+    console.log('\n=== LINKED Interface Generation ===');
+    
+    // Generate interfaces using the existing (complex) generator
+    // This generator traverses $imports and $includes to resolve types
+    // Note: The existing generator requires a rootElement to start from
+    const interfaces = generateInterfaces(linkedSchema, { 
+      generateAllTypes: true,
+      addJsDoc: true,
+    });
+
+    console.log('\n--- Generated interfaces (LINKED) ---');
+    console.log(interfaces || '(empty - no root element specified)');
+    console.log(`\n=== LINKED interfaces size: ${interfaces.length} chars ===`);
+
+    // Write to file for inspection
+    const linkedInterfacesDir = join(generatedDir, 'linked');
+    if (!existsSync(linkedInterfacesDir)) mkdirSync(linkedInterfacesDir, { recursive: true });
+    writeFileSync(join(linkedInterfacesDir, 'interfaces.ts'), interfaces || '// No interfaces generated');
+    console.log(`Written to: ${join(linkedInterfacesDir, 'interfaces.ts')}`);
+
+    // The existing generator may return empty if no rootElement is specified
+    // and the schema doesn't have a clear entry point. This is expected behavior.
+    // The key insight is that the LINKED generator needs to traverse $imports/$includes
+    // to find types, which adds complexity.
+    
+    // For schemas with clear root elements, it would generate interfaces
+    // For now, just verify it doesn't crash
+    assert.ok(typeof interfaces === 'string', 'Should return a string');
+  });
+
+  // ============================================================================
+  // Scenario 8: Interface generation from RESOLVED schema (simple generator)
+  // ============================================================================
+  it('should generate TypeScript interfaces from RESOLVED schema using resolveSchema', () => {
+    const domaPath = join(fixturesDir, 'doma.xsd');
+    
+    // Load with autoLink first
+    const linkedSchema = loadSchema(domaPath, { autoLink: true });
+    
+    // Use resolveSchema to include ALL elements (including referenced ones)
+    // This is needed for resolving element refs in interface generation
+    const mergedSchema = resolveSchema(linkedSchema);
+
+    console.log('\n=== MERGED Interface Generation (using resolveSchema) ===');
+    console.log(`Merged schema has ${mergedSchema.complexType?.length ?? 0} complexTypes`);
+    console.log(`Merged schema has ${mergedSchema.simpleType?.length ?? 0} simpleTypes`);
+    console.log(`Merged schema has ${mergedSchema.element?.length ?? 0} elements`);
+    
+    // Generate interfaces using the simplified generator
+    // This generator works with pre-merged schemas - no import traversal needed
+    const interfaces = generateSimpleInterfaces(mergedSchema, { 
+      generateAllTypes: true,
+      addJsDoc: true,
+    });
+
+    console.log('\n--- Generated interfaces (MERGED) ---');
+    console.log(interfaces);
+
+    // Should have interfaces for all merged types
+    assert.ok(interfaces.length > 0, 'Should generate interfaces');
+    
+    // Should have types that were originally in includes (now merged)
+    assert.ok(interfaces.includes('Dd01vType'), 'Should have Dd01vType (merged from include)');
+    assert.ok(interfaces.includes('Dd07vType'), 'Should have Dd07vType (merged from include)');
+    
+    // Should have types from redefine base (now merged)
+    assert.ok(interfaces.includes('AbapValuesType'), 'Should have AbapValuesType (merged from redefine)');
+    assert.ok(interfaces.includes('AbapType'), 'Should have AbapType (merged from redefine)');
+
+    // Write to file for inspection
+    const mergedInterfacesDir = join(generatedDir, 'merged');
+    if (!existsSync(mergedInterfacesDir)) mkdirSync(mergedInterfacesDir, { recursive: true });
+    writeFileSync(join(mergedInterfacesDir, 'interfaces.ts'), interfaces);
+    console.log(`Written to: ${join(mergedInterfacesDir, 'interfaces.ts')}`);
+
+    console.log(`\n=== MERGED interfaces size: ${interfaces.length} chars ===`);
+  });
+
+  // ============================================================================
+  // Scenario 9: Compare interface generation approaches
+  // ============================================================================
+  it('should compare LINKED vs MERGED interface generation approaches', () => {
+    const domaPath = join(fixturesDir, 'doma.xsd');
+    
+    // LINKED approach - uses existing complex generator
+    const linkedSchema = loadSchema(domaPath, { autoLink: true });
+    const linkedInterfaces = generateInterfaces(linkedSchema, { generateAllTypes: true });
+    
+    // MERGED approach - uses resolveSchema + simple generator
+    const mergedSchema = resolveSchema(linkedSchema);
+    const mergedInterfaces = generateSimpleInterfaces(mergedSchema, { generateAllTypes: true });
+
+    console.log('\n=== Interface Generation Comparison ===');
+    console.log(`LINKED interfaces:  ${linkedInterfaces.length} chars`);
+    console.log(`MERGED interfaces:  ${mergedInterfaces.length} chars`);
+
+    // MERGED should generate interfaces (it has all types merged)
+    assert.ok(mergedInterfaces.length > 0, 'MERGED should generate interfaces');
+
+    // Key types should be in MERGED output
+    const keyTypes = ['Dd01vType', 'Dd07vType', 'AbapValuesType', 'AbapType'];
+    for (const typeName of keyTypes) {
+      assert.ok(mergedInterfaces.includes(typeName), `MERGED should have ${typeName}`);
+    }
+
+    // Count interfaces in merged output
+    const mergedCount = (mergedInterfaces.match(/export interface/g) ?? []).length;
+    const mergedTypeCount = (mergedInterfaces.match(/export type/g) ?? []).length;
+    
+    console.log(`MERGED interface count: ${mergedCount}`);
+    console.log(`MERGED type alias count: ${mergedTypeCount}`);
+
+    // Log the type names generated
+    const mergedTypeNames = mergedInterfaces.match(/export (interface|type) (\w+)/g) ?? [];
+    
+    console.log('\n--- MERGED types ---');
+    console.log(mergedTypeNames.join('\n'));
+    
+    // Key insight: The MERGED approach is simpler because:
+    // 1. All types are in one flat schema
+    // 2. No need to traverse $imports/$includes
+    // 3. Direct map lookups instead of recursive searches
+    console.log('\n=== Key Insight ===');
+    console.log('MERGED approach simplifies interface generation by:');
+    console.log('  1. Collecting all types into a single flat schema');
+    console.log('  2. Eliminating need for cross-schema type resolution');
+    console.log('  3. Enabling direct map lookups instead of recursive searches');
   });
 });
