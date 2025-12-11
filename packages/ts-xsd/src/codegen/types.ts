@@ -184,6 +184,8 @@ export interface CodegenConfig {
   generators: GeneratorPlugin[];
   /** Import extension for generated files: '.ts' for Node.js native, '' for bundlers (default: '' for bundler compatibility) */
   importExtension?: '.ts' | '';
+  /** Clean output directories before generation (default: false) */
+  clean?: boolean;
   /** Features to enable for all generators */
   features?: {
     /** Include $xmlns in output */

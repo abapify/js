@@ -20,19 +20,24 @@ const ABAPGIT_SUFFIX: Record<ClassIncludeType, string | undefined> = {
 
 export const classHandler = createHandler(AdkClass, {
   schema: clas,
+  version: 'v1.0.0',
+  serializer: 'LCL_OBJECT_CLAS',
+  serializer_version: 'v1.0.0',
 
   toAbapGit: (cls) => {
     const hasTestClasses = cls.includes.some((inc) => inc.includeType === 'testclasses');
 
     return {
-      CLSNAME: cls.name ?? '',
-      LANGU: 'E',
-      DESCRIPT: cls.description ?? '',
-      STATE: '1',
-      CLSCCINCL: 'X',
-      FIXPT: 'X',
-      UNICODE: 'X',
-      ...(hasTestClasses ? { WITH_UNIT_TESTS: 'X' } : {}),
+      VSEOCLASS: {
+        CLSNAME: cls.name ?? '',
+        LANGU: 'E',
+        DESCRIPT: cls.description ?? '',
+        STATE: '1',
+        CLSCCINCL: 'X',
+        FIXPT: 'X',
+        UNICODE: 'X',
+        ...(hasTestClasses ? { WITH_UNIT_TESTS: 'X' } : {}),
+      },
     };
   },
 

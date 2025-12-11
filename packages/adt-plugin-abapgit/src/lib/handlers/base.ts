@@ -7,6 +7,7 @@
 
 import type { AdkObject, AdkKind } from '@abapify/adk';
 import { getTypeForKind } from '@abapify/adk';
+import type { AbapGitSchema, InferAbapGitType, InferValuesType } from './abapgit-schema';
 
 /**
  * ADK object class type
@@ -55,14 +56,9 @@ export interface ObjectHandler<T extends AdkObject = AdkObject> {
 }
 
 /**
- * ts-xsd schema interface
- * 
- * TODO: Generated schemas are raw XSD definitions without build().
- * The build() is provided by ts-xsd runtime. For now, we use `any`
- * until we properly integrate ts-xsd runtime wrapper.
+ * Re-export AbapGitSchema types for handler definitions
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type XsdSchema<TData = unknown> = any;
+export type { AbapGitSchema, InferAbapGitType, InferValuesType } from './abapgit-schema';
 
 // ============================================
 // Global Handler Registry
@@ -97,13 +93,28 @@ export function getSupportedTypes(): AbapObjectType[] {
 
 /**
  * Handler definition passed to createHandler
+ * 
+ * @typeParam T - ADK object type
+ * @typeParam TSchema - The AbapGit schema (provides both full type and values type)
  */
-export interface HandlerDefinition<T extends AdkObject, TAbapGit = unknown> {
-  /** ts-xsd schema for XML generation */
-  schema: XsdSchema<TAbapGit>;
+export interface HandlerDefinition<T extends AdkObject, TSchema extends AbapGitSchema<unknown, unknown> = AbapGitSchema<unknown, unknown>> {
+  /** AbapGit typed schema for XML generation */
+  schema: TSchema;
   
-  /** Convert ADK object to abapGit schema format */
-  toAbapGit(object: T): TAbapGit;
+  /** abapGit format version */
+  version: string;
+  
+  /** Serializer class name (e.g., 'LCL_OBJECT_DEVC') */
+  serializer: string;
+  
+  /** Serializer version */
+  serializer_version: string;
+  
+  /** 
+   * Map ADK object to abapGit values (inner content only)
+   * The base class wraps this in the full AbapGitType structure
+   */
+  toAbapGit(object: T): InferValuesType<TSchema>;
   
   /** 
    * Custom filename for XML file (optional)
@@ -111,7 +122,7 @@ export interface HandlerDefinition<T extends AdkObject, TAbapGit = unknown> {
    * 
    * @example 'package.devc.xml' for DEVC which doesn't use object name
    */
-  xmlFileName?: string | ((object: T, ctx: HandlerContext<T, TAbapGit>) => string);
+  xmlFileName?: string | ((object: T, ctx: HandlerContext<T, InferAbapGitType<TSchema>>) => string);
   
   /**
    * Get source code from object (optional)
@@ -142,13 +153,13 @@ export interface HandlerDefinition<T extends AdkObject, TAbapGit = unknown> {
    * 
    * Override only for very custom serialization logic
    */
-  serialize?(object: T, ctx: HandlerContext<T, TAbapGit>): Promise<SerializedFile[]>;
+  serialize?(object: T, ctx: HandlerContext<T, InferAbapGitType<TSchema>>): Promise<SerializedFile[]>;
 }
 
 /**
  * Context passed to serialize function with helper utilities
  */
-export interface HandlerContext<T extends AdkObject, TAbapGit = unknown> {
+export interface HandlerContext<T extends AdkObject, TData = unknown> {
   /** ABAP object type */
   readonly type: AbapObjectType;
   /** File extension (lowercase type) */
@@ -175,18 +186,18 @@ export interface HandlerContext<T extends AdkObject, TAbapGit = unknown> {
 /**
  * Create an object handler from ADK class
  */
-export function createHandler<T extends AdkObject, TAbapGit = unknown>(
+export function createHandler<T extends AdkObject, TSchema extends AbapGitSchema<unknown, unknown> = AbapGitSchema<unknown, unknown>>(
   adkClass: AdkObjectClass<T>,
-  definition: HandlerDefinition<T, TAbapGit>
+  definition: HandlerDefinition<T, TSchema>
 ): ObjectHandler<T>;
 
 /**
  * Create an object handler from ABAP type string
  * Use this for object types without ADK class (e.g., DTEL, DOMA)
  */
-export function createHandler<T extends AdkObject = AdkObject, TAbapGit = unknown>(
+export function createHandler<T extends AdkObject = AdkObject, TSchema extends AbapGitSchema<unknown, unknown> = AbapGitSchema<unknown, unknown>>(
   type: AbapObjectType,
-  definition: HandlerDefinition<T, TAbapGit>
+  definition: HandlerDefinition<T, TSchema>
 ): ObjectHandler<T>;
 
 /**
@@ -206,9 +217,9 @@ export function createHandler<T extends AdkObject = AdkObject, TAbapGit = unknow
  * export const dataElementHandler = createHandler('DTEL', { ... });
  * ```
  */
-export function createHandler<T extends AdkObject, TAbapGit = unknown>(
+export function createHandler<T extends AdkObject, TSchema extends AbapGitSchema<unknown, unknown> = AbapGitSchema<unknown, unknown>>(
   adkClassOrType: AdkObjectClass<T> | AbapObjectType,
-  definition: HandlerDefinition<T, TAbapGit>
+  definition: HandlerDefinition<T, TSchema>
 ): ObjectHandler<T> {
   // Determine ABAP type
   let type: AbapObjectType;
@@ -229,7 +240,7 @@ export function createHandler<T extends AdkObject, TAbapGit = unknown>(
   const fileExtension = type.toLowerCase();
   
   // Create handler context with utilities
-  const ctx: HandlerContext<T, TAbapGit> = {
+  const ctx: HandlerContext<T, InferAbapGitType<TSchema>> = {
     type,
     fileExtension,
     
@@ -249,8 +260,20 @@ export function createHandler<T extends AdkObject, TAbapGit = unknown>(
     },
     
     toAbapGitXml(object: T): string {
-      const data = definition.toAbapGit(object);
-      return definition.schema.build(data);
+      // Get values from handler
+      const values = definition.toAbapGit(object);
+      
+      // Construct full AbapGitType payload
+      const fullPayload = {
+        abap: {
+          values,
+        },
+        version: definition.version,
+        serializer: definition.serializer,
+        serializer_version: definition.serializer_version,
+      } as InferAbapGitType<TSchema>;
+      
+      return definition.schema.build(fullPayload);
     },
     
     createFile(path: string, content: string, encoding?: BufferEncoding): SerializedFile {

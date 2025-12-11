@@ -7,11 +7,11 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { doma as domaSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitDoma } from '../../src/schemas/generated/types/doma.ts';
+import type { AbapGitType } from '../../src/schemas/generated/types/doma.ts';
 
-const schema = createTypedSchema<AbapGitDoma>(domaSchema);
+const schema = createTypedSchema<AbapGitType>(domaSchema);
 
-const scenario: SchemaScenario<AbapGitDoma> = {
+const scenario: SchemaScenario<AbapGitType> = {
   name: 'DOMA',
   xsdName: 'doma',
   schema,
@@ -26,7 +26,7 @@ const scenario: SchemaScenario<AbapGitDoma> = {
         assert.strictEqual(data.abap.version, '1.0');
         
         // DD01V content (domain header)
-        const dd01v = data.abap.values.DD01V;
+        const dd01v = data.abap.values.DD01V!;
         assert.strictEqual(dd01v.DOMNAME, 'ZAGE_FIXED_VALUES');
         assert.strictEqual(dd01v.DDLANGUAGE, 'E');
         assert.strictEqual(dd01v.DATATYPE, 'CHAR');

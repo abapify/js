@@ -5,6 +5,25 @@
  * Source: abapgit/dtel.xsd
  */
 
+/** Generated from element: abapGit */
+export interface AbapGitType {
+    abap: AbapType;
+    version: string;
+    serializer: string;
+    serializer_version: string;
+}
+
+/** Generated from complexType: AbapType */
+export interface AbapType {
+    values: AbapValuesType;
+    version?: string;
+}
+
+/** Generated from complexType: AbapValuesType */
+export interface AbapValuesType {
+    DD04V?: Dd04vType;
+}
+
 /** Generated from complexType: Dd04vType */
 export interface Dd04vType {
     ROLLNAME: string;
@@ -25,15 +44,4 @@ export interface Dd04vType {
     DTELMASTER?: string;
     REFKIND?: string;
     ABAP_LANGUAGE_VERSION?: string;
-}
-
-/** Values type for substitution group elements */
-export interface DtelValuesType {
-    DD04V?: Dd04vType;
-}
-
-/** Root type for dtel - specialized AbapType with concrete values */
-export interface DtelType {
-    values: DtelValuesType;
-    version?: string;
 }

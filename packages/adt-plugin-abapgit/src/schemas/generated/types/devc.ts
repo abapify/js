@@ -5,20 +5,26 @@
  * Source: abapgit/devc.xsd
  */
 
-/** Generated from complexType: DevcType */
-export interface DevcType {
-    CTEXT?: string;
-    PARENTCL?: string;
-    PDEVCLASS?: string;
-    DLVUNIT?: string;
-    COMPONENT?: string;
-    NAMESPACE?: string;
-    TPCLASS?: string;
-    SRV_CHECK?: string;
-    KORRFLAG?: string;
+/** Generated from element: abapGit */
+export interface AbapGitType {
+    abap: AbapType;
+    version: string;
+    serializer: string;
+    serializer_version: string;
 }
 
-/** Values type for substitution group elements */
-export interface DevcValuesType {
+/** Generated from complexType: AbapType */
+export interface AbapType {
+    values: AbapValuesType;
+    version?: string;
+}
+
+/** Generated from complexType: AbapValuesType */
+export interface AbapValuesType {
     DEVC?: DevcType;
+}
+
+/** Generated from complexType: DevcType */
+export interface DevcType {
+    CTEXT: string;
 }

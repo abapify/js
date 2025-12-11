@@ -5,6 +5,25 @@
  * Source: abapgit/clas.xsd
  */
 
+/** Generated from element: abapGit */
+export interface AbapGitType {
+    abap: AbapType;
+    version: string;
+    serializer: string;
+    serializer_version: string;
+}
+
+/** Generated from complexType: AbapType */
+export interface AbapType {
+    values: AbapValuesType;
+    version?: string;
+}
+
+/** Generated from complexType: AbapValuesType */
+export interface AbapValuesType {
+    VSEOCLASS?: VseoClassType;
+}
+
 /** Generated from complexType: VseoClassType */
 export interface VseoClassType {
     CLSNAME: string;
@@ -25,15 +44,4 @@ export interface VseoClassType {
     REFCLSNAME?: string;
     SHRM_ENABLED?: string;
     ABAP_LANGUAGE_VERSION?: string;
-}
-
-/** Values type for substitution group elements */
-export interface ClasValuesType {
-    VSEOCLASS?: VseoClassType;
-}
-
-/** Root type for clas - specialized AbapType with concrete values */
-export interface ClasType {
-    values: ClasValuesType;
-    version?: string;
 }

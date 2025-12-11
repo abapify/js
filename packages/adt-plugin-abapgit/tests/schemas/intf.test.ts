@@ -7,11 +7,11 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { intf as intfSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitIntf } from '../../src/schemas/generated/types/index.ts';
+import type { AbapGitType } from '../../src/schemas/generated/types/intf.ts';
 
-const schema = createTypedSchema<AbapGitIntf>(intfSchema);
+const schema = createTypedSchema<AbapGitType>(intfSchema);
 
-const scenario: SchemaScenario<AbapGitIntf> = {
+const scenario: SchemaScenario<AbapGitType> = {
   name: 'INTF',
   xsdName: 'intf',
   schema,
@@ -26,7 +26,7 @@ const scenario: SchemaScenario<AbapGitIntf> = {
         assert.strictEqual(data.abap.version, '1.0');
         
         // VSEOINTERF content (interface)
-        const intf = data.abap.values.VSEOINTERF;
+        const intf = data.abap.values.VSEOINTERF!;
         assert.strictEqual(intf.CLSNAME, 'ZIF_AGE_TEST');
         assert.strictEqual(intf.LANGU, 'E');
         assert.strictEqual(intf.DESCRIPT, 'Test interface');

@@ -10,12 +10,8 @@ export default {
     xs: "http://www.w3.org/2001/XMLSchema",
     asx: "http://www.sap.com/abapxml",
   },
+  targetNamespace: "http://www.sap.com/abapxml",
   element: [
-    {
-      name: "VSEOCLASS",
-      type: "VseoClassType",
-      substitutionGroup: "asx:Schema",
-    },
     {
       name: "abapGit",
       complexType: {
@@ -55,6 +51,18 @@ export default {
     },
   ],
   complexType: [
+    {
+      name: "AbapValuesType",
+      all: {
+        element: [
+          {
+            name: "VSEOCLASS",
+            type: "asx:VseoClassType",
+            minOccurs: "0",
+          },
+        ],
+      },
+    },
     {
       name: "VseoClassType",
       all: {
@@ -147,19 +155,6 @@ export default {
             name: "ABAP_LANGUAGE_VERSION",
             type: "xs:string",
             minOccurs: "0",
-          },
-        ],
-      },
-    },
-    {
-      name: "AbapValuesType",
-      sequence: {
-        element: [
-          {
-            name: "VSEOCLASS",
-            type: "VseoClassType",
-            minOccurs: "0",
-            maxOccurs: "unbounded",
           },
         ],
       },

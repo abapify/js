@@ -10,12 +10,8 @@ export default {
     xs: "http://www.w3.org/2001/XMLSchema",
     asx: "http://www.sap.com/abapxml",
   },
+  targetNamespace: "http://www.sap.com/abapxml",
   element: [
-    {
-      name: "VSEOINTERF",
-      type: "VseoInterfType",
-      substitutionGroup: "asx:Schema",
-    },
     {
       name: "abapGit",
       complexType: {
@@ -56,6 +52,18 @@ export default {
   ],
   complexType: [
     {
+      name: "AbapValuesType",
+      all: {
+        element: [
+          {
+            name: "VSEOINTERF",
+            type: "asx:VseoInterfType",
+            minOccurs: "0",
+          },
+        ],
+      },
+    },
+    {
       name: "VseoInterfType",
       all: {
         element: [
@@ -92,19 +100,6 @@ export default {
             name: "ABAP_LANGUAGE_VERSION",
             type: "xs:string",
             minOccurs: "0",
-          },
-        ],
-      },
-    },
-    {
-      name: "AbapValuesType",
-      sequence: {
-        element: [
-          {
-            name: "VSEOINTERF",
-            type: "VseoInterfType",
-            minOccurs: "0",
-            maxOccurs: "unbounded",
           },
         ],
       },

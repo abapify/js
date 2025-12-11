@@ -10,12 +10,8 @@ export default {
     xs: "http://www.w3.org/2001/XMLSchema",
     asx: "http://www.sap.com/abapxml",
   },
+  targetNamespace: "http://www.sap.com/abapxml",
   element: [
-    {
-      name: "DEVC",
-      type: "DevcType",
-      substitutionGroup: "asx:Schema",
-    },
     {
       name: "abapGit",
       complexType: {
@@ -56,66 +52,24 @@ export default {
   ],
   complexType: [
     {
-      name: "DevcType",
+      name: "AbapValuesType",
       all: {
         element: [
           {
-            name: "CTEXT",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "PARENTCL",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "PDEVCLASS",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "DLVUNIT",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "COMPONENT",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "NAMESPACE",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "TPCLASS",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "SRV_CHECK",
-            type: "xs:string",
-            minOccurs: "0",
-          },
-          {
-            name: "KORRFLAG",
-            type: "xs:string",
+            name: "DEVC",
+            type: "asx:DevcType",
             minOccurs: "0",
           },
         ],
       },
     },
     {
-      name: "AbapValuesType",
-      sequence: {
+      name: "DevcType",
+      all: {
         element: [
           {
-            name: "DEVC",
-            type: "DevcType",
-            minOccurs: "0",
-            maxOccurs: "unbounded",
+            name: "CTEXT",
+            type: "xs:string",
           },
         ],
       },

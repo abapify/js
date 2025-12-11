@@ -4,9 +4,10 @@
  * Executes the generator pipeline based on configuration.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { parseXsd } from '../xsd';
+import { linkSchema } from '../xsd/loader';
 import type {
   CodegenConfig,
   SchemaInfo,
@@ -74,6 +75,17 @@ export async function runCodegen(
   // Setup context
   const setupCtx: SetupContext = { sources, rootDir };
 
+  // Clean output directories if requested
+  if (config.clean) {
+    log(`\n🧹 Cleaning output directories...`);
+    for (const source of Object.values(sources)) {
+      if (existsSync(source.outputDir)) {
+        rmSync(source.outputDir, { recursive: true, force: true });
+        log(`  ✅ Cleaned ${relative(rootDir, source.outputDir)}`);
+      }
+    }
+  }
+
   // Run beforeAll hook
   if (config.beforeAll) {
     log(`\n🔧 Running beforeAll hook...`);
@@ -92,6 +104,68 @@ export async function runCodegen(
   // This is needed for cross-source type resolution (e.g., custom schemas importing SAP schemas)
   const processedSchemas = new Map<string, SchemaInfo[]>();
   const globalAllSchemas = new Map<string, SchemaInfo>();
+
+  /**
+   * Recursively discover and parse schemas referenced via xs:include or xs:redefine.
+   * This ensures schemas like types/devc.xsd are in globalAllSchemas when devc.xsd references them.
+   */
+  function discoverReferencedSchemas(
+    schema: Record<string, unknown>,
+    xsdDir: string,
+    sourceName: string,
+    discovered: Set<string> = new Set()
+  ): void {
+    // Get includes and redefines from schema
+    const includes = schema.include as Array<{ schemaLocation?: string }> | undefined;
+    const redefines = schema.redefine as Array<{ schemaLocation?: string }> | undefined;
+    const refs = [...(includes ?? []), ...(redefines ?? [])];
+    
+    for (const ref of refs) {
+      if (!ref.schemaLocation) continue;
+      
+      // Get schema name with path (e.g., "types/devc" from "types/devc.xsd")
+      const schemaNameWithPath = ref.schemaLocation.replace(/\.xsd$/, '');
+      
+      // Skip if already discovered or already in global map
+      if (discovered.has(schemaNameWithPath) || globalAllSchemas.has(schemaNameWithPath)) {
+        continue;
+      }
+      discovered.add(schemaNameWithPath);
+      
+      // Try to load the referenced schema
+      const refXsdPath = join(xsdDir, ref.schemaLocation);
+      if (!existsSync(refXsdPath)) {
+        log(`    ⚠️  Referenced schema not found: ${ref.schemaLocation}`);
+        continue;
+      }
+      
+      try {
+        const refXsdContent = readFileSync(refXsdPath, 'utf-8');
+        const refSchema = parseXsd(refXsdContent);
+        
+        // Set $filename with path for proper identification
+        (refSchema as { $filename?: string }).$filename = ref.schemaLocation;
+        
+        const refSchemaInfo: SchemaInfo = {
+          name: schemaNameWithPath,
+          xsdContent: refXsdContent,
+          schema: refSchema,
+          sourceName,
+          xsdPath: refXsdPath,
+        };
+        
+        // Add to global map with path-qualified name
+        globalAllSchemas.set(schemaNameWithPath, refSchemaInfo);
+        log(`    📎 Auto-discovered: ${schemaNameWithPath}`);
+        
+        // Recursively discover schemas referenced by this one
+        discoverReferencedSchemas(refSchema as Record<string, unknown>, xsdDir, sourceName, discovered);
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        log(`    ⚠️  Failed to parse referenced schema ${ref.schemaLocation}: ${err.message}`);
+      }
+    }
+  }
 
   for (const [sourceName, source] of Object.entries(sources)) {
     log(`\n📦 Processing source: ${sourceName}`);
@@ -112,6 +186,11 @@ export async function runCodegen(
         // Set $filename for schema identification (used by linkSchemas and interface generator)
         (schema as { $filename?: string }).$filename = `${schemaName}.xsd`;
         
+        // Link schema - populates $imports/$includes from schemaLocation references
+        // This is done once here so generators receive pre-linked schemas
+        const basePath = dirname(xsdPath);
+        linkSchema(schema, { basePath, throwOnMissing: false });
+        
         const schemaInfo: SchemaInfo = {
           name: schemaName,
           xsdContent,
@@ -124,6 +203,9 @@ export async function runCodegen(
         // Add to global map with unique key (sourceName/schemaName to avoid collisions)
         globalAllSchemas.set(schemaName, schemaInfo);
         result.schemas.push({ name: schemaName, source: sourceName });
+        
+        // Auto-discover schemas referenced via xs:include or xs:redefine
+        discoverReferencedSchemas(schema as Record<string, unknown>, source.xsdDir, sourceName);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         log(`  ❌ Failed to parse ${schemaName}: ${err.message}`);

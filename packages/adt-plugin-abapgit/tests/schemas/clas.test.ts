@@ -7,11 +7,11 @@
 import assert from 'node:assert';
 import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
 import { clas as clasSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitClas } from '../../src/schemas/generated/types/index.ts';
+import type { AbapGitType } from '../../src/schemas/generated/types/clas.ts';
 
-const schema = createTypedSchema<AbapGitClas>(clasSchema);
+const schema = createTypedSchema<AbapGitType>(clasSchema);
 
-const scenario: SchemaScenario<AbapGitClas> = {
+const scenario: SchemaScenario<AbapGitType> = {
   name: 'CLAS',
   xsdName: 'clas',
   schema,
@@ -26,7 +26,7 @@ const scenario: SchemaScenario<AbapGitClas> = {
         assert.strictEqual(data.abap.version, '1.0');
         
         // VSEOCLASS content
-        const clas = data.abap.values.VSEOCLASS;
+        const clas = data.abap.values.VSEOCLASS!;
         assert.strictEqual(clas.CLSNAME, 'ZCL_AGE_SAMPLE_CLASS');
         assert.strictEqual(clas.LANGU, 'E');
         assert.strictEqual(clas.DESCRIPT, 'Sample class');
@@ -35,6 +35,7 @@ const scenario: SchemaScenario<AbapGitClas> = {
         assert.strictEqual(clas.FIXPT, 'X');
         assert.strictEqual(clas.UNICODE, 'X');
         assert.strictEqual(clas.WITH_UNIT_TESTS, 'X');
+        
       },
     },
   ],
