@@ -15,6 +15,7 @@
     "@abapify/adt-auth": "*",
     "@abapify/adt-client": "*",
     "@abapify/adt-config": "*",
+    "@abapify/adt-plugin-abapgit": "*",
     "@abapify/adt-tui": "*",
     "@abapify/logger": "*",
     "@inquirer/prompts": "^7.9.0",

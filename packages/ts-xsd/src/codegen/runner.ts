@@ -5,7 +5,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
-import { join, dirname, relative, isAbsolute } from 'node:path';
+import { join, dirname, relative, isAbsolute, basename } from 'node:path';
 import { parseXsd } from '../xsd';
 import { linkSchema } from '../xsd/loader';
 import type {
@@ -337,7 +337,36 @@ function createImportResolver(
     // Also try just the base name for backward compatibility
     const schemaBaseName = schemaPath.replace(/^.*\//, '');
     
-    // Check if it's in the current source (try full path first, then base name)
+    // Get the directory of the current schema (for resolving relative paths)
+    // e.g., "sap/classes" -> "sap", "custom/discovery" -> "custom"
+    const currentSchemaDir = dirname(currentSchema.name);
+    
+    // Resolve the schemaLocation relative to the current schema's directory
+    // e.g., if current is "sap/classes" and schemaLocation is "adtcore.xsd" -> "sap/adtcore"
+    // e.g., if current is "custom/discovery" and schemaLocation is "../sap/atom.xsd" -> "sap/atom"
+    const resolvedPath = currentSchemaDir !== '.' 
+      ? join(currentSchemaDir, schemaPath).replace(/\\/g, '/')
+      : schemaPath;
+    
+    // Normalize the path (handle ../ etc.)
+    const normalizedPath = resolvedPath.split('/').reduce((acc: string[], part) => {
+      if (part === '..') acc.pop();
+      else if (part !== '.') acc.push(part);
+      return acc;
+    }, []).join('/');
+    
+    // Check if the resolved path is in the current source
+    if (currentSource.schemas.includes(normalizedPath)) {
+      // Calculate relative import path from current schema to target
+      const fromDir = dirname(currentSchema.name);
+      const toPath = normalizedPath;
+      const relImport = fromDir === dirname(toPath)
+        ? `./${basename(toPath)}${ext}`
+        : relative(fromDir || '.', toPath).replace(/\\/g, '/') || `./${basename(toPath)}`;
+      return relImport.startsWith('.') ? `${relImport}${ext}` : `./${relImport}${ext}`;
+    }
+    
+    // Try the original schemaPath (for backward compatibility with flat structures)
     if (currentSource.schemas.includes(schemaPath)) {
       return `./${schemaPath}${ext}`;
     }
@@ -349,8 +378,11 @@ function createImportResolver(
     for (const [sourceName, source] of Object.entries(allSources)) {
       if (sourceName === currentSource.name) continue;
       
+      if (source.schemas.includes(normalizedPath)) {
+        const relPath = relative(currentSource.outputDir, source.outputDir);
+        return `${relPath}/${normalizedPath}${ext}`.replace(/\\/g, '/');
+      }
       if (source.schemas.includes(schemaPath)) {
-        // Calculate relative path from current output to other source output
         const relPath = relative(currentSource.outputDir, source.outputDir);
         return `${relPath}/${schemaPath}${ext}`.replace(/\\/g, '/');
       }

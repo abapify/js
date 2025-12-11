@@ -18,8 +18,8 @@ export const importTransportCommand = new Command('transport')
   )
   .option(
     '--format <format>',
-    'Output format: oat | abapgit | @abapify/oat | @abapify/abapgit',
-    'oat'
+    'Output format: abapgit | oat | @abapify/abapgit | @abapify/oat',
+    'abapgit'
   )
   .option('--debug', 'Enable debug output', false)
   .action(async (transportNumber, targetFolder, options) => {
@@ -33,7 +33,7 @@ export const importTransportCommand = new Command('transport')
       const outputPath =
         options.output ||
         targetFolder ||
-        `./oat-${transportNumber.toLowerCase()}`;
+        `./${options.format}-${transportNumber.toLowerCase()}`;
 
       // Show start message
       console.log(`🚀 Starting import of transport: ${transportNumber}`);
