@@ -87,3 +87,7 @@ export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceX
 // Backward compatibility alias (deprecated)
 /** @deprecated Use AdkInterface instead */
 export const AbapInterfaceModel = AdkInterface;
+
+// Self-register with ADK registry
+import { registerObjectType } from '../../../base/registry';
+registerObjectType('INTF', InterfaceKind, AdkInterface);

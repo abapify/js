@@ -5,8 +5,6 @@
 
 export { default as atom } from './atom';
 export { default as adtcore } from './adtcore';
-export { default as abapsource } from './abapsource';
-export { default as abapoo } from './abapoo';
 export { default as classes } from './classes';
 export { default as interfaces } from './interfaces';
 export { default as packagesV1 } from './packagesV1';
@@ -31,3 +29,7 @@ export { default as traces } from './traces';
 export { default as quickfixes } from './quickfixes';
 export { default as log } from './log';
 export { default as templatelink } from './templatelink';
+export { default as xml } from './xml';
+export { default as abapoo } from './abapoo';
+export { default as abapsource } from './abapsource';
+export { default as Ecore } from './Ecore';

@@ -5,7 +5,6 @@
 
 export { default as atomExtended } from './atomExtended';
 export { default as discovery } from './discovery';
-export { default as Ecore } from './Ecore';
 export { default as http } from './http';
 export { default as templatelinkExtended } from './templatelinkExtended';
 export { default as transportfind } from './transportfind';

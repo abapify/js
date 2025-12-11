@@ -3,7 +3,7 @@
  */
 
 import { AdkInterface } from '../adk';
-import { intf } from '../schemas';
+import { intf } from '../../../schemas/generated';
 import { createHandler } from '../base';
 
 export const interfaceHandler = createHandler(AdkInterface, {

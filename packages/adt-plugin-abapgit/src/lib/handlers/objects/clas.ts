@@ -3,7 +3,7 @@
  */
 
 import { AdkClass, type ClassIncludeType } from '../adk';
-import { clas } from '../schemas';
+import { clas } from '../../../schemas/generated';
 import { createHandler } from '../base';
 
 /**

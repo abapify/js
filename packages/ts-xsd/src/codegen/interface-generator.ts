@@ -33,6 +33,23 @@ export interface SimpleGeneratorOptions {
   generateAllTypes?: boolean;
   /** Add JSDoc comments */
   addJsDoc?: boolean;
+  /** 
+   * Import path pattern for types from imported schemas.
+   * Use {name} for schema name. e.g., './{name}.types'
+   * If not provided, inheritance is flattened (all properties copied).
+   */
+  importPattern?: string;
+  /**
+   * Generate a root schema type that contains all root elements.
+   * The type name will be derived from the schema filename (e.g., PackagesV1Schema).
+   * This is useful for typing the result of parse() calls.
+   */
+  generateRootType?: boolean;
+  /**
+   * Custom name for the root schema type.
+   * If not provided, derived from $filename (e.g., packagesV1.xsd -> PackagesV1Schema).
+   */
+  rootTypeName?: string;
 }
 
 /**
@@ -57,16 +74,16 @@ export interface SimpleGeneratorOptions {
  * ```
  */
 export function generateInterfaces(
-  _schema: Schema,
+  schema: Schema,
   options: SimpleGeneratorOptions = {}
 ): string {
   const project = new Project({ useInMemoryFileSystem: true });
   const sourceFile = project.createSourceFile('generated.ts', '');
   
-  const generator = new SimpleInterfaceGenerator(_schema, sourceFile, options);
+  const generator = new SimpleInterfaceGenerator(schema, sourceFile, options);
   
   if (options.rootElement) {
-    const element = _schema.element?.find(el => el.name === options.rootElement);
+    const element = schema.element?.find(el => el.name === options.rootElement);
     if (element?.type) {
       const typeName = stripNsPrefix(element.type);
       generator.generateType(typeName);
@@ -77,24 +94,32 @@ export function generateInterfaces(
   
   if (options.generateAllTypes) {
     // Generate all elements with inline types
-    for (const el of _schema.element ?? []) {
+    for (const el of schema.element ?? []) {
       if (el.name && el.complexType) {
         generator.generateInlineElement(el.name, el.complexType);
       }
     }
     
     // Generate all complex types
-    for (const ct of _schema.complexType ?? []) {
+    for (const ct of schema.complexType ?? []) {
       if (ct.name) {
         generator.generateType(ct.name);
       }
     }
     
     // Generate all simple types (as type aliases)
-    for (const st of _schema.simpleType ?? []) {
+    for (const st of schema.simpleType ?? []) {
       if (st.name) {
         generator.generateSimpleType(st.name, st);
       }
+    }
+  }
+  
+  // Generate root schema type if requested
+  if (options.generateRootType) {
+    const rootTypeName = options.rootTypeName || deriveRootTypeName(schema.$filename);
+    if (rootTypeName) {
+      generator.generateRootSchemaType(rootTypeName);
     }
   }
   
@@ -110,6 +135,13 @@ export function generateInterfaces(
   sourceFile.addStatements(reversedText);
   
   sourceFile.formatText();
+  
+  // Prepend import statements if any
+  const importStatements = generator.getImportStatements();
+  if (importStatements.length > 0) {
+    return importStatements.join('\n') + '\n\n' + sourceFile.getFullText();
+  }
+  
   return sourceFile.getFullText();
 }
 
@@ -127,6 +159,11 @@ export type GeneratorOptions = SimpleGeneratorOptions;
  * - No findComplexType() across imports - direct lookup
  * - No namespace prefix resolution - types are local
  * - No extension expansion - already done by resolver
+ * 
+ * With importPattern option:
+ * - Tracks which types come from imported schemas
+ * - Generates `extends` clauses instead of flattening
+ * - Adds import statements for types from other schemas
  */
 class SimpleInterfaceGenerator {
   private generatedTypes = new Set<string>();
@@ -137,33 +174,171 @@ class SimpleInterfaceGenerator {
   private elementMap: Map<string, TopLevelElement>;
   private groupMap: Map<string, NamedGroup>;
   
+  // Track which types come from which imported schema (by $filename)
+  private typeToSchemaMap: Map<string, string> = new Map();
+  
+  // Track imports needed for extends clauses
+  private requiredImports: Map<string, Set<string>> = new Map(); // schemaName -> Set<typeName>
+  
+  // Local types (from the main schema, not imports)
+  private localTypes: Set<string>;
+  
   constructor(
-    _schema: Schema,
+    private schema: Schema,
     private sourceFile: SourceFile,
     private options: SimpleGeneratorOptions
   ) {
     // Build lookup maps from the flat resolved schema
     // Using type guards to avoid non-null assertions
     this.complexTypeMap = new Map(
-      (_schema.complexType ?? [])
+      (this.schema.complexType ?? [])
         .filter((ct): ct is TopLevelComplexType & { name: string } => Boolean(ct.name))
         .map(ct => [ct.name, ct])
     );
     this.simpleTypeMap = new Map(
-      (_schema.simpleType ?? [])
+      (this.schema.simpleType ?? [])
         .filter((st): st is TopLevelSimpleType & { name: string } => Boolean(st.name))
         .map(st => [st.name, st])
     );
+    
+    // Also add simple types from $imports (for resolving imported simple types)
+    const addSimpleTypesFromImports = (schemas: readonly Schema[] | undefined): void => {
+      if (!schemas) return;
+      for (const importedSchema of schemas) {
+        for (const st of importedSchema.simpleType ?? []) {
+          if (st.name && !this.simpleTypeMap.has(st.name)) {
+            this.simpleTypeMap.set(st.name, st);
+          }
+        }
+        // Recursively add from nested imports
+        addSimpleTypesFromImports(importedSchema.$imports);
+      }
+    };
+    addSimpleTypesFromImports(this.schema.$imports);
     this.elementMap = new Map(
-      (_schema.element ?? [])
+      (this.schema.element ?? [])
         .filter((el): el is TopLevelElement & { name: string } => Boolean(el.name))
         .map(el => [el.name, el])
     );
     this.groupMap = new Map(
-      (_schema.group ?? [])
+      (this.schema.group ?? [])
         .filter((g): g is NamedGroup & { name: string } => Boolean(g.name))
         .map(g => [g.name, g])
     );
+    
+    // Track local types (from main schema, before resolution merged imports)
+    this.localTypes = new Set<string>();
+    
+    // If importPattern is provided, build type-to-schema mapping from $imports
+    if (options.importPattern && this.schema.$imports) {
+      this.buildTypeToSchemaMap(this.schema);
+    }
+  }
+  
+  /**
+   * Build a map of type names to their source schema filename.
+   * This allows us to know which types need to be imported.
+   */
+  private buildTypeToSchemaMap(schema: Schema): void {
+    // First, mark all types in the main schema as local
+    for (const ct of schema.complexType ?? []) {
+      if (ct.name) this.localTypes.add(ct.name);
+    }
+    for (const st of schema.simpleType ?? []) {
+      if (st.name) this.localTypes.add(st.name);
+    }
+    
+    // Then, map types from imported schemas to their source
+    for (const importedSchema of schema.$imports ?? []) {
+      const schemaName = this.getSchemaName(importedSchema);
+      if (!schemaName) continue;
+      
+      for (const ct of importedSchema.complexType ?? []) {
+        if (ct.name && !this.localTypes.has(ct.name)) {
+          this.typeToSchemaMap.set(ct.name, schemaName);
+        }
+      }
+      for (const st of importedSchema.simpleType ?? []) {
+        if (st.name && !this.localTypes.has(st.name)) {
+          this.typeToSchemaMap.set(st.name, schemaName);
+        }
+      }
+      
+      // Recursively process nested imports
+      if (importedSchema.$imports) {
+        for (const nestedSchema of importedSchema.$imports) {
+          this.buildTypeToSchemaMapRecursive(nestedSchema);
+        }
+      }
+    }
+  }
+  
+  private buildTypeToSchemaMapRecursive(importedSchema: Schema): void {
+    const schemaName = this.getSchemaName(importedSchema);
+    if (!schemaName) return;
+    
+    for (const ct of importedSchema.complexType ?? []) {
+      if (ct.name && !this.localTypes.has(ct.name) && !this.typeToSchemaMap.has(ct.name)) {
+        this.typeToSchemaMap.set(ct.name, schemaName);
+      }
+    }
+    for (const st of importedSchema.simpleType ?? []) {
+      if (st.name && !this.localTypes.has(st.name) && !this.typeToSchemaMap.has(st.name)) {
+        this.typeToSchemaMap.set(st.name, schemaName);
+      }
+    }
+    
+    if (importedSchema.$imports) {
+      for (const nestedSchema of importedSchema.$imports) {
+        this.buildTypeToSchemaMapRecursive(nestedSchema);
+      }
+    }
+  }
+  
+  private getSchemaName(schema: Schema): string | undefined {
+    if (schema.$filename) {
+      // Extract name from filename: "adtcore.xsd" -> "adtcore"
+      return schema.$filename.replace(/\.xsd$/, '');
+    }
+    return undefined;
+  }
+  
+  /**
+   * Check if a type is from an imported schema (not local).
+   */
+  private isImportedType(typeName: string): boolean {
+    return this.typeToSchemaMap.has(typeName);
+  }
+  
+  
+  /**
+   * Track that we need to import a type from another schema.
+   */
+  private trackImport(typeName: string): void {
+    const schemaName = this.typeToSchemaMap.get(typeName);
+    if (schemaName) {
+      let typeSet = this.requiredImports.get(schemaName);
+      if (!typeSet) {
+        typeSet = new Set();
+        this.requiredImports.set(schemaName, typeSet);
+      }
+      typeSet.add(toInterfaceName(typeName));
+    }
+  }
+  
+  /**
+   * Get all required imports as import statements.
+   */
+  getImportStatements(): string[] {
+    if (!this.options.importPattern) return [];
+    
+    const statements: string[] = [];
+    for (const [schemaName, types] of this.requiredImports) {
+      const importPath = this.options.importPattern.replace('{name}', schemaName);
+      const typeList = Array.from(types).sort().join(', ');
+      statements.push(`import type { ${typeList} } from '${importPath}';`);
+    }
+    return statements.sort();
   }
   
   /**
@@ -192,11 +367,31 @@ class SimpleInterfaceGenerator {
     }
     
     const properties: OptionalKind<PropertySignatureStructure>[] = [];
+    let extendsClause: string | undefined;
     
-    // Since extensions are already expanded by resolver,
-    // we just need to collect direct properties
-    this.collectProperties(complexType, properties);
-    this.collectAttributes(complexType.attribute, properties);
+    // Check if this type extends a base type
+    if (complexType.complexContent?.extension?.base) {
+      const baseName = stripNsPrefix(complexType.complexContent.extension.base);
+      
+      // If importPattern is set and base type is from an imported schema, use extends
+      if (this.options.importPattern && this.isImportedType(baseName)) {
+        const baseInterfaceName = toInterfaceName(baseName);
+        extendsClause = baseInterfaceName;
+        this.trackImport(baseName);
+        
+        // Only collect extension's own properties (not base type's)
+        this.collectExtensionProperties(complexType.complexContent.extension, properties);
+        this.collectAttributes(complexType.complexContent.extension.attribute, properties);
+      } else {
+        // Flatten: collect all properties including base type's
+        this.collectProperties(complexType, properties);
+        this.collectAttributes(complexType.attribute, properties);
+      }
+    } else {
+      // No extension - collect direct properties
+      this.collectProperties(complexType, properties);
+      this.collectAttributes(complexType.attribute, properties);
+    }
     
     // Handle anyAttribute
     if (complexType.anyAttribute) {
@@ -209,12 +404,33 @@ class SimpleInterfaceGenerator {
       properties,
     };
     
+    // Add extends clause if we have a base type from import
+    if (extendsClause) {
+      interfaceStructure.extends = [extendsClause];
+    }
+    
     if (this.options.addJsDoc) {
       interfaceStructure.docs = [{ description: `Generated from complexType: ${typeName}` }];
     }
     
     this.sourceFile.addInterface(interfaceStructure);
     return interfaceName;
+  }
+  
+  /**
+   * Collect only the extension's own properties (not base type's).
+   * Used when generating extends clause.
+   */
+  private collectExtensionProperties(
+    extension: NonNullable<TopLevelComplexType['complexContent']>['extension'],
+    properties: OptionalKind<PropertySignatureStructure>[]
+  ): void {
+    if (!extension) return;
+    
+    // Collect extension's own elements
+    if (extension.sequence) this.collectFromGroup(extension.sequence, properties, false);
+    if (extension.choice) this.collectFromGroup(extension.choice, properties, false, true);
+    if (extension.all) this.collectFromGroup(extension.all, properties, false);
   }
   
   /**
@@ -254,6 +470,61 @@ class SimpleInterfaceGenerator {
     
     this.sourceFile.addInterface(interfaceStructure);
     return interfaceName;
+  }
+  
+  /**
+   * Generate a root schema type as a union of possible root elements.
+   * Each XML document has exactly one root element, so we use a discriminated union.
+   * 
+   * Example output:
+   * ```typescript
+   * export type PackagesV1Schema = 
+   *   | { package: PackageType }
+   *   | { packageTree: PackageTreeType };
+   * ```
+   */
+  generateRootSchemaType(typeName: string): void {
+    const unionMembers: string[] = [];
+    
+    // Build a union member for each root element
+    for (const el of this.schema.element ?? []) {
+      if (!el.name) continue;
+      
+      let elementType: string;
+      if (el.type) {
+        const baseTypeName = stripNsPrefix(el.type);
+        // Check if it's a built-in XSD type first
+        if (isBuiltInType(baseTypeName)) {
+          elementType = mapBuiltInType(baseTypeName);
+        } else {
+          // Element references a named type
+          elementType = toInterfaceName(baseTypeName);
+        }
+      } else if (el.complexType) {
+        // Element has inline type - generate it
+        elementType = this.generateInlineElement(el.name, el.complexType);
+      } else {
+        // Simple element without type - default to string
+        elementType = 'string';
+      }
+      
+      // Each union member is an object with exactly one property
+      unionMembers.push(`{ ${el.name}: ${elementType} }`);
+    }
+    
+    if (unionMembers.length === 0) return;
+    
+    // Generate type alias with union
+    const typeAlias = unionMembers.length === 1
+      ? unionMembers[0]  // Single element - no union needed
+      : unionMembers.join('\n  | ');
+    
+    this.sourceFile.addTypeAlias({
+      name: typeName,
+      isExported: true,
+      type: typeAlias,
+      docs: this.options.addJsDoc ? [{ description: 'Root schema type - exactly one of these root elements' }] : undefined,
+    });
   }
   
   /**
@@ -498,8 +769,23 @@ class SimpleInterfaceGenerator {
       if (isBuiltInType(typeName)) {
         tsType = mapBuiltInType(typeName);
       } else {
-        // Generate the referenced type
-        tsType = this.generateType(typeName);
+        // Check if it's a simple type that should resolve to a primitive
+        const st = this.simpleTypeMap.get(typeName);
+        if (st && st.restriction?.base && !st.restriction.enumeration?.length) {
+          const baseName = stripNsPrefix(st.restriction.base);
+          if (isBuiltInType(baseName)) {
+            tsType = mapBuiltInType(baseName);
+          } else {
+            tsType = this.generateType(typeName);
+          }
+        } else if (this.options.importPattern && this.isImportedType(typeName)) {
+          // Track import and use the interface name directly (don't generate locally)
+          this.trackImport(typeName);
+          tsType = toInterfaceName(typeName);
+        } else {
+          // Generate the referenced type locally
+          tsType = this.generateType(typeName);
+        }
       }
     } else if (element.complexType) {
       // Inline complex type
@@ -566,10 +852,25 @@ class SimpleInterfaceGenerator {
         if (isBuiltInType(typeName)) {
           tsType = mapBuiltInType(typeName);
         } else {
-          // Check if it's a simple type
+          // Check if it's a simple type (local or from imports)
           const st = this.simpleTypeMap.get(typeName);
           if (st) {
-            tsType = this.generateSimpleType(typeName, st);
+            // Check if this simple type should be resolved to a primitive
+            // (i.e., it's just a restriction on a built-in with no enumerations)
+            if (st.restriction?.base && !st.restriction.enumeration?.length) {
+              const baseName = stripNsPrefix(st.restriction.base);
+              if (isBuiltInType(baseName)) {
+                tsType = mapBuiltInType(baseName);
+              } else {
+                tsType = this.generateSimpleType(typeName, st);
+              }
+            } else {
+              tsType = this.generateSimpleType(typeName, st);
+            }
+          } else if (this.options.importPattern && this.isImportedType(typeName)) {
+            // Track import for complex types from imported schemas
+            this.trackImport(typeName);
+            tsType = toInterfaceName(typeName);
           } else {
             tsType = toInterfaceName(typeName);
           }
@@ -718,4 +1019,18 @@ function mapBuiltInType(typeName: string): string {
   };
   
   return mapping[typeName] ?? typeName;
+}
+
+/**
+ * Derive a root type name from a schema filename or name.
+ * e.g., "packagesV1.xsd" -> "PackagesV1Schema"
+ *       "packagesV1" -> "PackagesV1Schema"
+ */
+export function deriveRootTypeName(filename: string | undefined): string | undefined {
+  if (!filename) return undefined;
+  // Remove .xsd extension and path
+  const baseName = filename.replace(/\.xsd$/, '').replace(/^.*\//, '');
+  // Convert to PascalCase and add Schema suffix
+  const pascalCase = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+  return `${pascalCase}Schema`;
 }
