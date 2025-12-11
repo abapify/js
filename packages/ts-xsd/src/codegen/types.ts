@@ -145,6 +145,13 @@ export interface SourceConfig {
   outputDir: string;
   /** List of schema names to process (without .xsd extension) */
   schemas: string[];
+  /**
+   * Automatically discover and include all dependent schemas referenced via
+   * xs:import, xs:include, xs:redefine schemaLocation attributes.
+   * When enabled, you only need to list entry-point schemas - all dependencies
+   * will be discovered and generated automatically.
+   */
+  autoLink?: boolean;
 }
 
 /**
