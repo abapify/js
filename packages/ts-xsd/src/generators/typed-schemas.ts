@@ -26,8 +26,8 @@ import type { GeneratorPlugin, FinalizeContext, GeneratedFile, SchemaInfo } from
 export interface TypedSchemasOptions {
   /** Output file path relative to package root (default: 'src/schemas/generated/index.ts') */
   outputPath?: string;
-  /** Path to speci module from output file (default: '../../speci') */
-  speciPath?: string;
+  /** Path to ts-xsd module from output file (default: 'ts-xsd') */
+  tsXsdPath?: string;
   /** Path prefix to schemas from output file (default: './schemas') */
   schemasPath?: string;
   /** Path prefix to types from output file (default: './types') */
@@ -62,7 +62,7 @@ export interface TypedSchemasOptions {
 export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin {
   const {
     outputPath = 'src/schemas/generated/index.ts',
-    speciPath = '../../speci',
+    tsXsdPath = 'ts-xsd',
     schemasPath = './schemas',
     typesPath = './types',
     header = true,
@@ -93,8 +93,8 @@ export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin
         );
       }
 
-      // Import typed helper
-      lines.push(`import { typed } from '${speciPath}';`);
+      // Import typedSchema helper
+      lines.push(`import { typedSchema } from '${tsXsdPath}';`);
       lines.push('');
 
       // Collect all schemas with their root types
@@ -153,11 +153,11 @@ export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin
         
         if (rootTypes.length === 1) {
           // Single root type
-          lines.push(`export const ${exportName} = typed<${rootTypes[0]}>(_${exportName});`);
+          lines.push(`export const ${exportName} = typedSchema<${rootTypes[0]}>(_${exportName});`);
         } else {
           // Multiple root types - use union
           const unionType = rootTypes.join(' | ');
-          lines.push(`export const ${exportName} = typed<${unionType}>(_${exportName});`);
+          lines.push(`export const ${exportName} = typedSchema<${unionType}>(_${exportName});`);
         }
       }
 

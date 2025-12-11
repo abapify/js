@@ -52,6 +52,23 @@ export default {
   ],
   complexType: [
     {
+      name: "AbapValuesType",
+      all: {
+        element: [
+          {
+            name: "DD01V",
+            type: "asx:Dd01vType",
+            minOccurs: "0",
+          },
+          {
+            name: "DD07V_TAB",
+            type: "asx:Dd07vTabType",
+            minOccurs: "0",
+          },
+        ],
+      },
+    },
+    {
       name: "Dd01vType",
       all: {
         element: [
@@ -123,19 +140,6 @@ export default {
       },
     },
     {
-      name: "Dd07vTabType",
-      sequence: {
-        element: [
-          {
-            name: "DD07V",
-            type: "asx:Dd07vType",
-            minOccurs: "0",
-            maxOccurs: "unbounded",
-          },
-        ],
-      },
-    },
-    {
       name: "Dd07vType",
       all: {
         element: [
@@ -173,11 +177,12 @@ export default {
       },
     },
     {
-      name: "AbapValuesType",
+      name: "Dd07vTabType",
       sequence: {
         element: [
           {
-            ref: "asx:Schema",
+            name: "DD07V",
+            type: "Dd07vType",
             minOccurs: "0",
             maxOccurs: "unbounded",
           },

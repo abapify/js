@@ -60,8 +60,7 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
     transform(ctx: TransformContext): GeneratedFile[] {
       const { schema, source } = ctx;
       
-      // Merge all includes/imports into a single flat schema with ALL elements
-      // This includes referenced elements needed for resolving element refs
+      // Schema is already linked by runner.ts - just resolve to merge all types
       const mergedSchema = resolveSchema(schema.schema);
 
       // Generate interfaces using the simplified generator
