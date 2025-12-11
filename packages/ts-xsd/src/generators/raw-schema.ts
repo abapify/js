@@ -6,8 +6,7 @@
  * Output: `export default { ... } as const;`
  */
 
-import type { GeneratorPlugin, TransformContext, GeneratedFile, SchemaInfo } from '../codegen/types';
-import type { Schema, Import } from '../xsd/types';
+import type { GeneratorPlugin, TransformContext, GeneratedFile } from '../codegen/types';
 import { resolveSchema, type ResolveOptions } from '../xsd/resolve';
 
 // ============================================================================
@@ -93,27 +92,24 @@ export function rawSchema(options: RawSchemaOptions = {}): GeneratorPlugin {
     transform(ctx: TransformContext): GeneratedFile[] {
       const { schema, source } = ctx;
       
+      // Schema is already linked by runner.ts
       // Apply schema resolution if enabled
       let schemaToProcess = schema.schema as Record<string, unknown>;
       if (options.resolve) {
-        // Link schemas before resolution - resolver needs $imports to be actual schema objects
-        const linkedSchema = linkSchemaImports(schema.schema, ctx.allSchemas);
         const resolveOpts: ResolveOptions = options.resolve === true 
           ? {} 
           : options.resolve;
-        schemaToProcess = resolveSchema(linkedSchema, resolveOpts) as Record<string, unknown>;
+        schemaToProcess = resolveSchema(schema.schema, resolveOpts) as Record<string, unknown>;
       }
       
       // Resolve ALL - merge both $includes AND $imports into a single schema
       // This creates a fully self-contained schema with all elements and types
       if (resolveAll) {
-        const linkedSchema = linkSchemaImports(schema.schema, ctx.allSchemas);
-        schemaToProcess = resolveSchema(linkedSchema, { filterToRootElements: true }) as Record<string, unknown>;
+        schemaToProcess = resolveSchema(schema.schema, { filterToRootElements: true }) as Record<string, unknown>;
       }
       // Resolve includes only - merge included schema content recursively
       else if (resolveIncludes) {
-        const linkedSchema = linkSchemaImports(schema.schema, ctx.allSchemas);
-        schemaToProcess = resolveSchema(linkedSchema, { resolveImports: false, keepImportsRef: true }) as Record<string, unknown>;
+        schemaToProcess = resolveSchema(schema.schema, { resolveImports: false, keepImportsRef: true }) as Record<string, unknown>;
       }
       
       // When resolving all, disable both $includes and $imports in output
@@ -405,60 +401,3 @@ function isValidIdentifier(str: string): boolean {
   return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(str) && !RESERVED_WORDS.has(str);
 }
 
-/**
- * Link schema imports and includes.
- * - xs:import -> adds to $imports (different namespace)
- * - xs:include -> adds to $includes (same namespace, walker traverses them)
- */
-function linkSchemaImports(
-  schema: Schema,
-  allSchemas: Map<string, SchemaInfo>
-): Schema {
-  const imports = schema.import as Import[] | undefined;
-  const includes = (schema as Record<string, unknown>).include as Array<{ schemaLocation?: string }> | undefined;
-  
-  let result = { ...schema };
-  
-  // Handle xs:include - add to $includes (same namespace)
-  if (includes && includes.length > 0) {
-    const linkedIncludes: Schema[] = [];
-    for (const inc of includes) {
-      if (inc.schemaLocation) {
-        // Try with path first (types/dd01v), then without path (dd01v)
-        const schemaNameWithPath = inc.schemaLocation.replace(/\.xsd$/, '');
-        const schemaNameWithoutPath = schemaNameWithPath.replace(/^.*\//, '');
-        const includedSchemaInfo = allSchemas.get(schemaNameWithPath) ?? allSchemas.get(schemaNameWithoutPath);
-        if (includedSchemaInfo) {
-          // Recursively process the included schema first
-          const linkedIncluded = linkSchemaImports(includedSchemaInfo.schema, allSchemas);
-          linkedIncludes.push(linkedIncluded);
-        }
-      }
-    }
-    if (linkedIncludes.length > 0) {
-      (result as Record<string, unknown>).$includes = linkedIncludes;
-    }
-  }
-  
-  // Handle xs:import - add to $imports (different namespace)
-  if (imports && imports.length > 0) {
-    const linkedImports: Schema[] = [];
-    for (const imp of imports) {
-      if (imp.schemaLocation) {
-        // Try with path first, then without path
-        const schemaNameWithPath = imp.schemaLocation.replace(/\.xsd$/, '');
-        const schemaNameWithoutPath = schemaNameWithPath.replace(/^.*\//, '');
-        const importedSchemaInfo = allSchemas.get(schemaNameWithPath) ?? allSchemas.get(schemaNameWithoutPath);
-        if (importedSchemaInfo) {
-          const linkedImportedSchema = linkSchemaImports(importedSchemaInfo.schema, allSchemas);
-          linkedImports.push(linkedImportedSchema);
-        }
-      }
-    }
-    if (linkedImports.length > 0) {
-      result = { ...result, $imports: linkedImports };
-    }
-  }
-
-  return result;
-}
