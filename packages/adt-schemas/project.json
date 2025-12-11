@@ -2,7 +2,7 @@
   "name": "adt-schemas",
   "targets": {
     "download": {
-      "command": "npx p2 download https://tools.hana.ondemand.com/latest -o .cache -f 'com.sap.adt.*' --extract --extract-output .xsd/sap --extract-patterns 'model/*.xsd' && npx tsx scripts/normalize-xsd.ts .xsd/sap",
+      "command": "npx p2 download https://tools.hana.ondemand.com/latest -o .cache -f 'com.sap.adt.*' --extract --extract-output .xsd/sap --extract-patterns 'model/*.xsd' && npx tsx scripts/normalize-xsd.ts .xsd/sap && cp .xsd/custom/Ecore.xsd .xsd/sap/",
       "options": {
         "cwd": "{projectRoot}"
       },

@@ -97,7 +97,7 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implemen
   // Includes
   get includes(): ClassInclude[] {
     const rawIncludes = this.dataSync.include ?? [];
-    return rawIncludes.map(inc => ({
+    return rawIncludes.map((inc: ClassResponse['include'][number]) => ({
       includeType: (inc.includeType ?? 'main') as ClassIncludeType,
       sourceUri: inc.sourceUri ?? '',
       name: inc.name ?? '',
@@ -127,8 +127,14 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implemen
           return this.ctx.client.adt.oo.classes.includes.implementations.get(this.name);
         case 'macros':
           return this.ctx.client.adt.oo.classes.includes.macros.get(this.name);
+        case 'main':
+          return this.ctx.client.adt.oo.classes.source.main.get(this.name);
+        case 'testclasses':
+        case 'localtypes':
         default:
-          return this.ctx.client.adt.oo.classes.includes.get(this.name, includeType);
+          // These include types exist in SAP but don't have dedicated contract endpoints
+          // Use generic include fetch with type assertion
+          return this.ctx.client.adt.oo.classes.includes.get(this.name, includeType as 'definitions');
       }
     });
   }
@@ -179,3 +185,7 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implemen
 // Backward compatibility alias (deprecated)
 /** @deprecated Use AdkClass instead */
 export const AbapClassModel = AdkClass;
+
+// Self-register with ADK registry
+import { registerObjectType } from '../../../base/registry';
+registerObjectType('CLAS', ClassKind, AdkClass);

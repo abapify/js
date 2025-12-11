@@ -40,4 +40,10 @@
     <xsd:restriction base="xsd:dateTime"/>
   </xsd:simpleType>
 
+  <!-- EStringToStringMapEntry - represents a key-value pair in EMF EMap -->
+  <xsd:complexType name="EStringToStringMapEntry">
+    <xsd:attribute name="key" type="xsd:string"/>
+    <xsd:attribute name="value" type="xsd:string"/>
+  </xsd:complexType>
+
 </xsd:schema>

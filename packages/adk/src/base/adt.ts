@@ -27,9 +27,6 @@
 // Client type (return type of createAdtClient)
 export type { AdtClient } from '@abapify/adt-client';
 
-// Service types
-export type { TransportService } from '@abapify/adt-client';
-
 // Response types (inferred from contracts/schemas)
 export type { 
   ClassResponse,

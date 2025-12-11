@@ -159,3 +159,7 @@ export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> im
 // Backward compatibility alias (deprecated)
 /** @deprecated Use AdkPackage instead */
 export const AbapPackageModel = AdkPackage;
+
+// Self-register with ADK registry
+import { registerObjectType } from '../../../base/registry';
+registerObjectType('DEVC', PackageKind, AdkPackage);

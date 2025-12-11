@@ -155,7 +155,8 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     if (!this._data) {
       await this.load();
     }
-    return this._data!;
+    // After load(), _data is guaranteed to be set
+    return this._data as D;
   }
 
   /** 
@@ -270,7 +271,7 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     
     // Parse lock handle from response
     // Lock handle is typically in X-sap-adt-lock header or response body
-    this._lockHandle = { handle: response };
+    this._lockHandle = { handle: String(response) };
     return this._lockHandle;
   }
   

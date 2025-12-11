@@ -2,7 +2,10 @@
  * Interfaces Generator
  * 
  * Generates TypeScript interfaces from XSD schemas using ts-morph.
- * Uses the simplified interface generator with resolveSchema for schema resolution.
+ * 
+ * Two modes:
+ * 1. Without importPattern: Uses resolveSchema to flatten all types (no imports/extends)
+ * 2. With importPattern: Preserves inheritance with proper imports and extends clauses
  * 
  * Output: `export interface TypeName { ... }`
  */
@@ -41,8 +44,21 @@ export interface InterfacesOptions extends GeneratorOptions {
  * export default defineConfig({
  *   generators: [
  *     rawSchema(),
- *     interfaces({ generateAllTypes: true }),  // Generate all complex types
+ *     interfaces({ generateAllTypes: true }),  // Flattened (no imports)
  *     indexBarrel(),
+ *   ],
+ * });
+ * ```
+ * 
+ * @example With imports and extends
+ * ```ts
+ * export default defineConfig({
+ *   generators: [
+ *     rawSchema(),
+ *     interfaces({ 
+ *       generateAllTypes: true,
+ *       importPattern: './{name}.types',  // Enables imports + extends
+ *     }),
  *   ],
  * });
  * ```
@@ -60,11 +76,18 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
     transform(ctx: TransformContext): GeneratedFile[] {
       const { schema, source } = ctx;
       
-      // Schema is already linked by runner.ts - just resolve to merge all types
-      const mergedSchema = resolveSchema(schema.schema);
+      // When importPattern is set, use the original unresolved schema
+      // This preserves the distinction between local and imported types
+      // The generator will use $imports to look up types from other schemas
+      //
+      // When importPattern is NOT set, resolve the schema to flatten all types
+      // This generates all types inline without imports/extends
+      const targetSchema = generatorOptions.importPattern
+        ? schema.schema  // Original schema with $imports for extends/import generation
+        : resolveSchema(schema.schema);  // Flattened schema for inline generation
 
       // Generate interfaces using the simplified generator
-      const code = generateSimpleInterfaces(mergedSchema, {
+      const code = generateSimpleInterfaces(targetSchema, {
         generateAllTypes: true,
         addJsDoc: true,
         ...generatorOptions,

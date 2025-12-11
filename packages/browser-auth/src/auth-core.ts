@@ -94,6 +94,12 @@ export async function authenticate(
         reject(new Error(`Timeout waiting for cookies: ${cookiesToWait.join(', ')}`));
       }, timeout);
 
+      // Handle browser close during cookie wait
+      adapter.onPageClose(() => {
+        clearTimeout(cookieTimeout);
+        reject(new Error('Authentication cancelled - browser was closed'));
+      });
+
       // Check cookies on every response
       adapter.onResponse(async () => {
         try {

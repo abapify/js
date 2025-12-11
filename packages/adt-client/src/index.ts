@@ -64,10 +64,6 @@ export type { RestEndpointDescriptor, Serializable, RestContract } from '@abapif
 export type { ClassResponse, InterfaceResponse } from '@abapify/adt-contracts';
 export type { Package as PackageResponse } from '@abapify/adt-contracts';
 
-// Transport response type - inferred from contract
+// Transport response type - exported directly from contracts
 // Note: Transport business logic has moved to @abapify/adk (AdkTransportRequest)
-import type { AdtContract } from '@abapify/adt-contracts';
-type CtsContract = AdtContract['cts'];
-type TransportRequestsContract = CtsContract['transportrequests'];
-/** Response type from cts.transportrequests.get() */
-export type TransportGetResponse = Awaited<ReturnType<TransportRequestsContract['get']>>;
+export type { TransportResponse as TransportGetResponse } from '@abapify/adt-contracts';

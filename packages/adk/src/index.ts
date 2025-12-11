@@ -29,7 +29,6 @@ export type {
   AdtClient,
   AdtContracts,
   AdkContract,
-  TransportService,
   ClassResponse,
   InterfaceResponse,
   PackageResponse,
