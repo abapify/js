@@ -23,8 +23,8 @@
 export { generateSchemaLiteral, generateSchemaFile } from './generate';
 
 // Interface generation
-export { generateInterfaces, generateInterfacesWithDeps } from './interface-generator';
-export type { GeneratorOptions, GenerateResult } from './interface-generator';
+export { generateInterfaces, generateSimpleInterfaces } from './interface-generator';
+export type { GeneratorOptions, SimpleGeneratorOptions } from './interface-generator';
 
 // Types - config, hooks, generator plugin interface
 export * from './types';
