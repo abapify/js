@@ -14,6 +14,12 @@
  *   - xs:import abapgit.xsd (abapGit root element)
  * - asx.xsd (SAP ABAP XML envelope with asx:abap)
  * - abapgit.xsd (abapGit root element wrapper)
+ * 
+ * Test scenarios:
+ * 1. RAW - No linking, preserves XSD directives as-is
+ * 2. LINKED - With $includes/$imports, auto-discovers dependencies
+ * 3. loadSchema autoLink - Tests loader directly with autoLink
+ * 4. Type availability - Verifies all types accessible from dependencies
  */
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert';
@@ -22,6 +28,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCodegen } from '../../src/codegen/runner.ts';
 import { rawSchema } from '../../src/generators/raw-schema.ts';
+import { loadSchema, type Schema } from '../../src/xsd/index.ts';
 import type { CodegenConfig } from '../../src/codegen/types.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -30,8 +37,9 @@ const generatedDir = join(__dirname, 'generated/abapgit-doma');
 
 // Output directories for each variant
 const outputDirs = {
-  raw: 'raw',
-  linked: 'linked',
+  raw: 'raw',           // No $includes/$imports in output, all 5 files
+  linked: 'linked',     // With $includes/$imports and TS imports, all 5 files
+  resolved: 'resolved', // Single file with all dependencies inlined
 };
 
 describe('abapGit DOMA schema integration', () => {
@@ -45,22 +53,33 @@ describe('abapGit DOMA schema integration', () => {
     }
   });
 
+  // ============================================================================
+  // Scenario 1: RAW output - preserves XSD directives as-is
+  // ============================================================================
   it('should generate RAW output - preserves include/import/redefine directives as-is', async () => {
     const config: CodegenConfig = {
       sources: {
         'abapgit-doma': {
           xsdDir: '.',
           outputDir: join(generatedDir, outputDirs.raw),
-          schemas: ['doma', 'abapgit', 'asx'],
+          schemas: ['doma'],
+          autoLink: true,  // Discover all schemas but don't link them
         },
       },
       generators: [
-        rawSchema({ $includes: false, $imports: false }),  // Disable linking
+        rawSchema({ $includes: false, $imports: false }),  // Disable linking in output
       ],
     };
 
     const result = await runCodegen(config, { rootDir: fixturesDir });
     assert.strictEqual(result.errors.length, 0, `Errors: ${JSON.stringify(result.errors)}`);
+
+    // Should generate ALL 5 schema files
+    const generatedFiles = result.files.filter(f => !f.path.includes('index'));
+    console.log('\n=== RAW: Generated files ===');
+    generatedFiles.forEach(f => console.log(`  ${f.path}`));
+    
+    assert.strictEqual(generatedFiles.length, 5, 'RAW should generate 5 schema files');
 
     const domaFile = result.files.find(f => f.path.includes('doma') && !f.path.includes('index'));
     assert.ok(domaFile, 'Should generate doma.ts');
@@ -68,10 +87,8 @@ describe('abapGit DOMA schema integration', () => {
     const content = readFileSync(domaFile.path, 'utf-8');
 
     // RAW: Should have raw XSD directives
-    // doma.xsd has: xs:include (types), xs:redefine (asx.xsd), xs:import (abapgit.xsd)
     assert.ok(content.includes('include'), 'RAW should have include directive');
     assert.ok(content.includes('redefine'), 'RAW should have redefine directive');
-    assert.ok(content.includes('"import"') || content.includes("'import'"), 'RAW should have import property');
     assert.ok(content.includes('schemaLocation'), 'RAW should have schemaLocation');
     assert.ok(content.includes('types/dd01v.xsd'), 'RAW should reference types/dd01v.xsd');
     assert.ok(content.includes('types/dd07v.xsd'), 'RAW should reference types/dd07v.xsd');
@@ -81,40 +98,230 @@ describe('abapGit DOMA schema integration', () => {
     assert.ok(!content.includes('$imports'), 'RAW should NOT have $imports');
   });
 
+  // ============================================================================
+  // Scenario 2: LINKED output - $includes/$imports with TypeScript imports
+  // ============================================================================
   it('should generate LINKED output - $includes/$imports with TypeScript imports', async () => {
     const config: CodegenConfig = {
       sources: {
         'abapgit-doma': {
           xsdDir: '.',
           outputDir: join(generatedDir, outputDirs.linked),
-          schemas: ['doma', 'abapgit', 'asx'],
+          schemas: ['doma'],
+          autoLink: true,  // Auto-discover all dependencies
         },
       },
       generators: [
-        rawSchema({ $includes: true, $imports: true }),  // Enable linking (default)
+        rawSchema({ $includes: true, $imports: true }),  // Enable linking
       ],
     };
 
     const result = await runCodegen(config, { rootDir: fixturesDir });
     assert.strictEqual(result.errors.length, 0, `Errors: ${JSON.stringify(result.errors)}`);
 
+    // Should generate ALL 5 schema files
+    const generatedFiles = result.files.filter(f => !f.path.includes('index'));
+    console.log('\n=== LINKED: Generated files ===');
+    generatedFiles.forEach(f => console.log(`  ${f.path}`));
+    
+    assert.strictEqual(generatedFiles.length, 5, 'LINKED should generate 5 schema files');
+
     const domaFile = result.files.find(f => f.path.includes('doma') && !f.path.includes('index'));
     assert.ok(domaFile, 'Should generate doma.ts');
 
     const content = readFileSync(domaFile.path, 'utf-8');
 
-    // LINKED: Should have $imports for abapgit.xsd (xs:import)
-    // Note: xs:include and xs:redefine reference same-namespace schemas
-    // so they may appear as $includes or be handled differently
+    // LINKED: Should have $imports and $includes
     assert.ok(content.includes('$imports'), 'LINKED should have $imports');
+    assert.ok(content.includes('$includes'), 'LINKED should have $includes');
     assert.ok(content.includes("import abapgit from './abapgit'"), 'LINKED should have abapgit import');
+    assert.ok(content.includes("import dd01v from './types/dd01v'"), 'LINKED should have dd01v import');
+    assert.ok(content.includes("import dd07v from './types/dd07v'"), 'LINKED should have dd07v import');
 
     // Should have redefine content (AbapValuesType extension)
     assert.ok(content.includes('redefine'), 'LINKED should have redefine (extends AbapValuesType)');
     assert.ok(content.includes('AbapValuesType'), 'LINKED should have AbapValuesType');
   });
 
-  it('should produce different outputs for RAW vs LINKED', async () => {
+  // ============================================================================
+  // Scenario 3: RESOLVED output - ALL dependencies merged into single schema
+  // ============================================================================
+  it('should generate RESOLVED output - all dependencies merged inline', async () => {
+    // RESOLVED mode: Use resolveAll to merge ALL schema content (includes AND imports)
+    // into a single self-contained schema. The result should have:
+    // - element declarations (abapGit from abapgit.xsd, abap from asx.xsd)
+    // - complexTypes from all schemas (AbapType, AbapValuesType, Dd01vType, etc.)
+    const config: CodegenConfig = {
+      sources: {
+        'abapgit-doma': {
+          xsdDir: '.',
+          outputDir: join(generatedDir, outputDirs.resolved),
+          schemas: ['doma'],  // Only entry point
+          autoLink: true,     // Discover all schemas for linking
+        },
+      },
+      generators: [
+        rawSchema({ 
+          resolveAll: true,  // Merge ALL dependencies (includes + imports)!
+        }),
+      ],
+    };
+
+    const result = await runCodegen(config, { rootDir: fixturesDir });
+    assert.strictEqual(result.errors.length, 0, `Errors: ${JSON.stringify(result.errors)}`);
+
+    // Still generates all 5 files (autoLink discovers them)
+    // but doma.ts should have merged content from ALL dependencies
+    const generatedFiles = result.files.filter(f => !f.path.includes('index'));
+    console.log('\n=== RESOLVED: Generated files ===');
+    generatedFiles.forEach(f => console.log(`  ${f.path}`));
+
+    const domaFile = result.files.find(f => f.path.includes('doma.ts') && !f.path.includes('index'));
+    assert.ok(domaFile, 'Should generate doma.ts');
+
+    const content = readFileSync(domaFile.path, 'utf-8');
+    console.log('\n=== RESOLVED doma.ts content ===');
+    console.log(content);
+
+    // RESOLVED: Should NOT have $includes/$imports arrays or TypeScript imports
+    assert.ok(!content.includes('$includes'), 'RESOLVED should NOT have $includes');
+    assert.ok(!content.includes('$imports'), 'RESOLVED should NOT have $imports');
+    assert.ok(!content.includes('import '), 'RESOLVED should NOT have TypeScript imports');
+
+    // RESOLVED: Should have inlined types from includes (merged from dd01v, dd07v)
+    assert.ok(content.includes('Dd01vType'), 'RESOLVED should have Dd01vType inlined');
+    assert.ok(content.includes('Dd07vType'), 'RESOLVED should have Dd07vType inlined');
+
+    // RESOLVED: Should have ONLY abapGit as root element (not abstract Schema, not referenced abap)
+    assert.ok(content.includes('element:'), 'RESOLVED should have element declarations');
+    assert.ok(content.includes('name: "abapGit"'), 'RESOLVED should have abapGit element');
+    
+    // Extract root element section (between first element: [ and complexType: [)
+    const rootElementSection = content.split('complexType:')[0];
+    
+    // Should NOT have abstract Schema element or referenced abap element at root level
+    assert.ok(!rootElementSection.includes('name: "Schema"'), 'RESOLVED should NOT have abstract Schema element');
+    assert.ok(!rootElementSection.includes('name: "abap"'), 'RESOLVED should NOT have abap as root element');
+    
+    // Count root-level element names (should be exactly 1: abapGit)
+    const rootElementNames = rootElementSection.match(/name:\s*"[^"]+"/g) ?? [];
+    assert.strictEqual(rootElementNames.length, 1, `RESOLVED should have exactly 1 root element, found: ${rootElementNames.join(', ')}`);
+
+    // RESOLVED: Should have types from asx.xsd (AbapType, AbapValuesType)
+    assert.ok(content.includes('AbapType'), 'RESOLVED should have AbapType from asx.xsd');
+
+    // RESOLVED: Should NOT have include/import/redefine directives (content is merged)
+    assert.ok(!content.includes('include:'), 'RESOLVED should NOT have include directive');
+    assert.ok(!content.includes('"import":'), 'RESOLVED should NOT have import directive');
+
+    console.log(`\n=== RESOLVED file size: ${content.length} chars ===`);
+  });
+
+  // ============================================================================
+  // Scenario 4: loadSchema with autoLink - tests loader API directly
+  // ============================================================================
+  it('should automatically load all dependent schemas with loadSchema autoLink', () => {
+    const domaPath = join(fixturesDir, 'doma.xsd');
+    
+    // Load with autoLink - should automatically load all dependencies
+    const schema = loadSchema(domaPath, { autoLink: true });
+
+    // Verify $filename is set
+    assert.ok(schema.$filename, 'Should have $filename');
+    assert.ok(schema.$filename.endsWith('doma.xsd'), `$filename should be doma.xsd, got: ${schema.$filename}`);
+
+    // Verify targetNamespace
+    assert.strictEqual(schema.targetNamespace, 'http://www.sap.com/abapxml');
+
+    // Verify $includes populated from xs:include (dd01v.xsd, dd07v.xsd)
+    assert.ok(schema.$includes, '$includes should be populated');
+    assert.strictEqual(schema.$includes.length, 2, 'Should have 2 includes (dd01v, dd07v)');
+
+    // Verify included schemas have their types
+    const includeFilenames = schema.$includes.map((s: Schema) => s.$filename);
+    console.log('\n=== loadSchema autoLink: Included schemas ===');
+    console.log(`  ${includeFilenames.join(', ')}`);
+    
+    // Check dd01v types
+    const dd01vSchema = schema.$includes.find((s: Schema) => s.$filename?.includes('dd01v'));
+    assert.ok(dd01vSchema, 'Should have dd01v.xsd in $includes');
+    assert.ok(dd01vSchema.complexType?.some(ct => ct.name === 'Dd01vType'), 'dd01v should have Dd01vType');
+
+    // Check dd07v types
+    const dd07vSchema = schema.$includes.find((s: Schema) => s.$filename?.includes('dd07v'));
+    assert.ok(dd07vSchema, 'Should have dd07v.xsd in $includes');
+
+    // Verify $imports populated from xs:import (abapgit.xsd)
+    assert.ok(schema.$imports, '$imports should be populated');
+    assert.strictEqual(schema.$imports.length, 1, 'Should have 1 import (abapgit)');
+    
+    const abapgitSchema = schema.$imports[0];
+    assert.ok(abapgitSchema.$filename?.includes('abapgit'), 'Should have abapgit.xsd in $imports');
+
+    // Verify redefine has $schema populated (asx.xsd)
+    assert.ok(schema.redefine, 'Should have redefine');
+    assert.strictEqual(schema.redefine.length, 1, 'Should have 1 redefine');
+    
+    const redefine = schema.redefine[0];
+    const redefineSchema = (redefine as { $schema?: Schema }).$schema;
+    assert.ok(redefineSchema, 'redefine should have $schema populated');
+    assert.ok(redefineSchema.$filename?.includes('asx'), 'redefine.$schema should be asx.xsd');
+    assert.ok(redefineSchema.complexType?.some(ct => ct.name === 'AbapValuesType'), 
+      'asx.xsd should have AbapValuesType');
+
+    console.log('\n=== Schema dependency tree ===');
+    console.log(`doma.xsd (${schema.targetNamespace})`);
+    console.log(`  $includes: [${schema.$includes.map((s: Schema) => s.$filename).join(', ')}]`);
+    console.log(`  $imports: [${schema.$imports.map((s: Schema) => s.$filename).join(', ')}]`);
+    console.log(`  redefine.$schema: ${redefineSchema.$filename}`);
+  });
+
+  // ============================================================================
+  // Scenario 5: Type availability - all types accessible from dependencies
+  // ============================================================================
+  it('should have all types available for type inference', () => {
+    const domaPath = join(fixturesDir, 'doma.xsd');
+    const schema = loadSchema(domaPath, { autoLink: true });
+
+    // Collect all available types from schema + dependencies
+    const allTypes: string[] = [];
+
+    // Types from main schema
+    schema.complexType?.forEach(ct => allTypes.push(`doma:${ct.name}`));
+    schema.simpleType?.forEach(st => allTypes.push(`doma:${st.name}`));
+
+    // Types from includes
+    schema.$includes?.forEach((inc: Schema) => {
+      inc.complexType?.forEach(ct => allTypes.push(`include:${ct.name}`));
+      inc.simpleType?.forEach(st => allTypes.push(`include:${st.name}`));
+    });
+
+    // Types from imports
+    schema.$imports?.forEach((imp: Schema) => {
+      imp.complexType?.forEach(ct => allTypes.push(`import:${ct.name}`));
+      imp.simpleType?.forEach(st => allTypes.push(`import:${st.name}`));
+    });
+
+    // Types from redefine base schema
+    schema.redefine?.forEach(red => {
+      const redefineSchema = (red as { $schema?: Schema }).$schema;
+      redefineSchema?.complexType?.forEach(ct => allTypes.push(`redefine-base:${ct.name}`));
+      redefineSchema?.simpleType?.forEach(st => allTypes.push(`redefine-base:${st.name}`));
+    });
+
+    console.log('\n=== All available types ===');
+    console.log(allTypes.join('\n'));
+
+    // Verify key types are available
+    assert.ok(allTypes.includes('include:Dd01vType'), 'Should have Dd01vType from include');
+    assert.ok(allTypes.includes('redefine-base:AbapValuesType'), 'Should have AbapValuesType from redefine base');
+    assert.ok(allTypes.includes('redefine-base:AbapType'), 'Should have AbapType from redefine base');
+  });
+
+  // ============================================================================
+  // Scenario 6: Compare RAW vs LINKED vs RESOLVED outputs
+  // ============================================================================
+  it('should produce different outputs for RAW vs LINKED vs RESOLVED', async () => {
     // Read both generated files
     const rawContent = readFileSync(join(generatedDir, outputDirs.raw, 'doma.ts'), 'utf-8');
     const linkedContent = readFileSync(join(generatedDir, outputDirs.linked, 'doma.ts'), 'utf-8');
@@ -127,6 +334,7 @@ describe('abapGit DOMA schema integration', () => {
     
     // LINKED has $imports with TypeScript import
     assert.ok(linkedContent.includes('$imports'), 'LINKED should have $imports');
+    assert.ok(linkedContent.includes('$includes'), 'LINKED should have $includes');
     assert.ok(linkedContent.includes("import abapgit from"), 'LINKED should have TypeScript import');
 
     console.log('\n=== Output sizes ===');

@@ -29,8 +29,11 @@ export {
   parseSchemaContent,
   createSchemaLoader,
   defaultLoader,
+  linkSchema,
+  loadAndLinkSchema,
   type XsdLoader,
   type LoaderOptions,
+  type LinkOptions,
 } from './loader';
 
 // Traverser - OO pattern for schema traversal (uses real W3C types)
