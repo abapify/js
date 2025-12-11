@@ -431,3 +431,119 @@ export function mergeIncludes(schema: Schema): Schema {
 
   return result as Schema;
 }
+
+/**
+ * Merge ALL schema content recursively - both $includes AND $imports.
+ * Creates a fully resolved, self-contained schema with all elements and types
+ * from the entire dependency tree.
+ * 
+ * This is useful for generating a single schema that can validate/parse
+ * the complete XML document structure (e.g., abapGit root element + asx:abap + values).
+ * 
+ * @param schema - Schema with $includes and/or $imports arrays of linked schemas
+ * @returns New schema with all content merged, no external references
+ */
+export function mergeAll(schema: Schema): Schema {
+  // Use traverser to collect all content from schema + $includes + $imports
+  const collector = new SchemaCollector();
+  collector.traverse(schema, {
+    includeImports: true,
+    includeIncludes: true,
+  });
+
+  // Collect all element refs used in the schema (these are NOT root elements)
+  const referencedElements = new Set<string>();
+  for (const el of collector.elements.values()) {
+    collectElementRefs(el, referencedElements);
+  }
+  for (const ct of collector.complexTypes.values()) {
+    collectElementRefsFromType(ct, referencedElements);
+  }
+
+  // Filter elements to only include root elements:
+  // - Not abstract
+  // - Not referenced by other elements via ref
+  const rootElements = Array.from(collector.elements.values()).filter(el => {
+    // Exclude abstract elements
+    if ((el as Record<string, unknown>).abstract === true) {
+      return false;
+    }
+    // Exclude elements that are referenced by other elements
+    if (referencedElements.has(el.name)) {
+      return false;
+    }
+    return true;
+  });
+
+  // Build result without include/$includes/import/$imports
+  const result: Record<string, unknown> = {
+    $filename: schema.$filename,
+    $xmlns: collector.xmlns.size > 0 
+      ? Object.fromEntries(collector.xmlns) 
+      : schema.$xmlns,
+  };
+  
+  // Add filtered root elements
+  if (rootElements.length > 0) {
+    result.element = rootElements;
+  }
+  // Add all types (they may be referenced by root elements)
+  if (collector.complexTypes.size > 0) {
+    result.complexType = Array.from(collector.complexTypes.values());
+  }
+  if (collector.simpleTypes.size > 0) {
+    result.simpleType = Array.from(collector.simpleTypes.values());
+  }
+  if (collector.groups.size > 0) {
+    result.group = Array.from(collector.groups.values());
+  }
+  if (collector.attributeGroups.size > 0) {
+    result.attributeGroup = Array.from(collector.attributeGroups.values());
+  }
+
+  return result as Schema;
+}
+
+/**
+ * Collect element refs from an element's nested structure
+ */
+function collectElementRefs(el: TopLevelElement, refs: Set<string>): void {
+  const record = el as Record<string, unknown>;
+  if (record.complexType) {
+    collectElementRefsFromType(record.complexType as TopLevelComplexType, refs);
+  }
+}
+
+/**
+ * Recursively collect element refs from a complex type
+ */
+function collectElementRefsFromType(ct: TopLevelComplexType, refs: Set<string>): void {
+  const record = ct as Record<string, unknown>;
+  
+  // Check sequence/all/choice for element refs
+  for (const groupKey of ['sequence', 'all', 'choice']) {
+    const group = record[groupKey] as Record<string, unknown> | undefined;
+    if (group?.element) {
+      const elements = group.element as Array<Record<string, unknown>>;
+      for (const el of elements) {
+        if (el.ref) {
+          // Strip namespace prefix and add to refs
+          const refName = stripNsPrefix(el.ref as string);
+          refs.add(refName);
+        }
+        // Recurse into nested complexType
+        if (el.complexType) {
+          collectElementRefsFromType(el.complexType as TopLevelComplexType, refs);
+        }
+      }
+    }
+  }
+  
+  // Check complexContent/extension
+  if (record.complexContent) {
+    const cc = record.complexContent as Record<string, unknown>;
+    if (cc.extension) {
+      collectElementRefsFromType(cc.extension as TopLevelComplexType, refs);
+    }
+  }
+}

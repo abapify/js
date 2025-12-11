@@ -16,6 +16,7 @@ import type {
   TopLevelComplexType,
   TopLevelSimpleType,
   TopLevelElement,
+  TopLevelAttribute,
   NamedGroup,
   NamedAttributeGroup,
 } from '../../src/xsd/types';
@@ -393,5 +394,167 @@ describe('context access in traverser', () => {
     const importedTypes = contexts.filter(c => c.schema === 'http://example.com/base');
     assert.ok(importedTypes.every(c => c.depth === 1));
     assert.ok(importedTypes.every(c => c.source === 'import'));
+  });
+});
+
+describe('SchemaTraverser additional coverage', () => {
+  it('calls onLeaveSchema after processing', () => {
+    const leaveOrder: string[] = [];
+    
+    class LeaveTracker extends SchemaTraverser {
+      protected override onLeaveSchema(schema: Schema): void {
+        leaveOrder.push(schema.targetNamespace ?? 'unknown');
+      }
+    }
+    
+    const tracker = new LeaveTracker();
+    tracker.traverse(mainSchema);
+    
+    // Should have called onLeaveSchema for both schemas
+    assert.ok(leaveOrder.includes('http://example.com'));
+    assert.ok(leaveOrder.includes('http://example.com/base'));
+  });
+
+  it('visits top-level attributes', () => {
+    const schemaWithAttrs: Schema = {
+      targetNamespace: 'http://example.com',
+      attribute: [
+        { name: 'globalAttr1', type: 'xs:string' },
+        { name: 'globalAttr2', type: 'xs:int' },
+      ],
+    };
+    
+    const attrs: string[] = [];
+    
+    class AttrCollector extends SchemaTraverser {
+      protected override onAttribute(attr: TopLevelAttribute): void {
+        attrs.push(attr.name);
+      }
+    }
+    
+    const collector = new AttrCollector();
+    collector.traverse(schemaWithAttrs);
+    
+    assert.deepEqual(attrs.sort(), ['globalAttr1', 'globalAttr2']);
+  });
+
+  it('visits simpleTypes from redefine blocks', () => {
+    const simpleTypes: string[] = [];
+    
+    class SimpleTypeCollector extends SchemaTraverser {
+      protected override onSimpleType(st: TopLevelSimpleType): void {
+        simpleTypes.push(st.name);
+      }
+    }
+    
+    const collector = new SimpleTypeCollector();
+    collector.traverse(schemaWithRedefine);
+    
+    assert.ok(simpleTypes.includes('RedefinedSimple'));
+  });
+
+  it('visits groups from override blocks', () => {
+    const schemaWithOverrideGroups: Schema = {
+      targetNamespace: 'http://example.com',
+      override: [
+        {
+          schemaLocation: 'base.xsd',
+          group: [{ name: 'OverriddenGroup', sequence: { element: [] } }],
+          attributeGroup: [{ name: 'OverriddenAttrGroup', attribute: [] }],
+          simpleType: [{ name: 'OverriddenSimple', restriction: { base: 'xs:string' } }],
+        },
+      ],
+    };
+    
+    const groups: string[] = [];
+    const attrGroups: string[] = [];
+    const simpleTypes: string[] = [];
+    
+    class OverrideCollector extends SchemaTraverser {
+      protected override onGroup(group: NamedGroup): void {
+        groups.push(group.name);
+      }
+      protected override onAttributeGroup(group: NamedAttributeGroup): void {
+        attrGroups.push(group.name);
+      }
+      protected override onSimpleType(st: TopLevelSimpleType): void {
+        simpleTypes.push(st.name);
+      }
+    }
+    
+    const collector = new OverrideCollector();
+    collector.traverse(schemaWithOverrideGroups);
+    
+    assert.ok(groups.includes('OverriddenGroup'));
+    assert.ok(attrGroups.includes('OverriddenAttrGroup'));
+    assert.ok(simpleTypes.includes('OverriddenSimple'));
+  });
+
+  it('visits groups from redefine blocks', () => {
+    const schemaWithRedefineGroups: Schema = {
+      targetNamespace: 'http://example.com',
+      redefine: [
+        {
+          schemaLocation: 'base.xsd',
+          group: [{ name: 'RedefinedGroup', sequence: { element: [] } }],
+          attributeGroup: [{ name: 'RedefinedAttrGroup', attribute: [] }],
+        },
+      ],
+    };
+    
+    const groups: string[] = [];
+    const attrGroups: string[] = [];
+    
+    class RedefineGroupCollector extends SchemaTraverser {
+      protected override onGroup(group: NamedGroup): void {
+        groups.push(group.name);
+      }
+      protected override onAttributeGroup(group: NamedAttributeGroup): void {
+        attrGroups.push(group.name);
+      }
+    }
+    
+    const collector = new RedefineGroupCollector();
+    collector.traverse(schemaWithRedefineGroups);
+    
+    assert.ok(groups.includes('RedefinedGroup'));
+    assert.ok(attrGroups.includes('RedefinedAttrGroup'));
+  });
+
+  it('calls onRedefine callback', () => {
+    const redefines: string[] = [];
+    
+    class RedefineTracker extends SchemaTraverser {
+      protected override onRedefine(redefine: { schemaLocation?: string }): void {
+        redefines.push(redefine.schemaLocation ?? 'unknown');
+      }
+    }
+    
+    const tracker = new RedefineTracker();
+    tracker.traverse(schemaWithRedefine);
+    
+    assert.ok(redefines.includes('base.xsd'));
+  });
+
+  it('calls onOverride callback', () => {
+    const overrides: string[] = [];
+    
+    class OverrideTracker extends SchemaTraverser {
+      protected override onOverride(override: { schemaLocation?: string }): void {
+        overrides.push(override.schemaLocation ?? 'unknown');
+      }
+    }
+    
+    const tracker = new OverrideTracker();
+    tracker.traverse(schemaWithOverride);
+    
+    assert.ok(overrides.includes('base.xsd'));
+  });
+
+  it('returns this from traverse for chaining', () => {
+    const collector = new TestCollector();
+    const result = collector.traverse(mainSchema);
+    
+    assert.strictEqual(result, collector);
   });
 });
