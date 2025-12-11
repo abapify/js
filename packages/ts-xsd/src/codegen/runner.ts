@@ -52,14 +52,22 @@ export async function runCodegen(
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   const log = verbose ? console.log.bind(console) : () => {};
 
-  // Build source info map
+  // Build source info map - expand schemas if autoLink is enabled
   const sources: Record<string, SourceInfo> = {};
   for (const [name, sourceConfig] of Object.entries(config.sources)) {
+    const xsdDir = isAbsolute(sourceConfig.xsdDir) ? sourceConfig.xsdDir : join(rootDir, sourceConfig.xsdDir);
+    
+    // If autoLink is enabled, discover all dependent schemas
+    let schemas = sourceConfig.schemas;
+    if (sourceConfig.autoLink) {
+      schemas = discoverDependentSchemas(sourceConfig.schemas, xsdDir, log);
+    }
+    
     sources[name] = {
       name,
-      xsdDir: isAbsolute(sourceConfig.xsdDir) ? sourceConfig.xsdDir : join(rootDir, sourceConfig.xsdDir),
+      xsdDir,
       outputDir: isAbsolute(sourceConfig.outputDir) ? sourceConfig.outputDir : join(rootDir, sourceConfig.outputDir),
-      schemas: sourceConfig.schemas,
+      schemas,
     };
   }
 
@@ -242,25 +250,158 @@ function createImportResolver(
   const ext = config.importExtension ?? '';  // Default to extensionless for bundler compatibility
   
   return (schemaLocation: string) => {
-    // Extract schema name from location (e.g., "../sap/adtcore.xsd" -> "adtcore")
-    const schemaName = schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+    // Remove .xsd extension but preserve path (e.g., "types/dd01v.xsd" -> "types/dd01v")
+    const schemaPath = schemaLocation.replace(/\.xsd$/, '');
+    // Also try just the base name for backward compatibility
+    const schemaBaseName = schemaPath.replace(/^.*\//, '');
     
-    // Check if it's in the current source
-    if (currentSource.schemas.includes(schemaName)) {
-      return `./${schemaName}${ext}`;
+    // Check if it's in the current source (try full path first, then base name)
+    if (currentSource.schemas.includes(schemaPath)) {
+      return `./${schemaPath}${ext}`;
+    }
+    if (currentSource.schemas.includes(schemaBaseName)) {
+      return `./${schemaBaseName}${ext}`;
     }
     
     // Check other sources
     for (const [sourceName, source] of Object.entries(allSources)) {
       if (sourceName === currentSource.name) continue;
       
-      if (source.schemas.includes(schemaName)) {
+      if (source.schemas.includes(schemaPath)) {
         // Calculate relative path from current output to other source output
         const relPath = relative(currentSource.outputDir, source.outputDir);
-        return `${relPath}/${schemaName}${ext}`.replace(/\\/g, '/');
+        return `${relPath}/${schemaPath}${ext}`.replace(/\\/g, '/');
+      }
+      if (source.schemas.includes(schemaBaseName)) {
+        const relPath = relative(currentSource.outputDir, source.outputDir);
+        return `${relPath}/${schemaBaseName}${ext}`.replace(/\\/g, '/');
       }
     }
     
     return null;
   };
+}
+
+// ============================================================================
+// Schema Discovery
+// ============================================================================
+
+/**
+ * Discover all dependent schemas by recursively parsing XSD files
+ * and extracting schemaLocation from xs:import, xs:include, xs:redefine
+ */
+function discoverDependentSchemas(
+  entrySchemas: string[],
+  xsdDir: string,
+  log: (...args: unknown[]) => void
+): string[] {
+  const discovered = new Set<string>();
+  const queue = [...entrySchemas];
+  
+  while (queue.length > 0) {
+    const schemaName = queue.shift();
+    if (!schemaName) continue;
+    
+    // Skip if already processed
+    if (discovered.has(schemaName)) continue;
+    
+    // Try to find and parse the XSD file
+    const xsdPath = join(xsdDir, `${schemaName}.xsd`);
+    if (!existsSync(xsdPath)) {
+      throw new Error(`Schema not found: ${schemaName}.xsd (resolved: ${xsdPath})`);
+    }
+    
+    discovered.add(schemaName);
+    
+    try {
+      const xsdContent = readFileSync(xsdPath, 'utf-8');
+      const schema = parseXsd(xsdContent);
+      
+      // Extract schemaLocation from import, include, redefine
+      const deps = extractSchemaLocations(schema, xsdDir, schemaName);
+      
+      for (const dep of deps) {
+        if (!discovered.has(dep)) {
+          queue.push(dep);
+          log(`  🔗 Discovered dependency: ${dep} (from ${schemaName})`);
+        }
+      }
+    } catch {
+      log(`  ❌ Failed to parse ${schemaName} for dependency discovery`);
+    }
+  }
+  
+  return Array.from(discovered);
+}
+
+/**
+ * Extract schema names from schemaLocation attributes
+ */
+function extractSchemaLocations(
+  schema: Record<string, unknown>,
+  xsdDir: string,
+  currentSchema: string
+): string[] {
+  const locations: string[] = [];
+  const currentDir = dirname(join(xsdDir, `${currentSchema}.xsd`));
+  
+  // xs:import
+  const imports = schema.import as Array<{ schemaLocation?: string }> | undefined;
+  if (imports) {
+    for (const imp of imports) {
+      if (imp.schemaLocation) {
+        const name = resolveSchemaName(imp.schemaLocation, currentDir, xsdDir);
+        if (name) locations.push(name);
+      }
+    }
+  }
+  
+  // xs:include
+  const includes = schema.include as Array<{ schemaLocation?: string }> | undefined;
+  if (includes) {
+    for (const inc of includes) {
+      if (inc.schemaLocation) {
+        const name = resolveSchemaName(inc.schemaLocation, currentDir, xsdDir);
+        if (name) locations.push(name);
+      }
+    }
+  }
+  
+  // xs:redefine
+  const redefines = schema.redefine as Array<{ schemaLocation?: string }> | undefined;
+  if (redefines) {
+    for (const red of redefines) {
+      if (red.schemaLocation) {
+        const name = resolveSchemaName(red.schemaLocation, currentDir, xsdDir);
+        if (name) locations.push(name);
+      }
+    }
+  }
+  
+  return locations;
+}
+
+/**
+ * Resolve schemaLocation to a schema name relative to xsdDir
+ */
+function resolveSchemaName(
+  schemaLocation: string,
+  currentDir: string,
+  xsdDir: string
+): string | null {
+  // Resolve the full path
+  const fullPath = join(currentDir, schemaLocation);
+  
+  // Make it relative to xsdDir
+  const relativePath = relative(xsdDir, fullPath);
+  
+  // Remove .xsd extension
+  const name = relativePath.replace(/\.xsd$/, '');
+  
+  // Check if file exists
+  if (existsSync(fullPath)) {
+    return name;
+  }
+  
+  return null;
 }
