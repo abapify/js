@@ -97,21 +97,45 @@ const classes = {
 ```
 src/
 ├── index.ts           # Main exports
-├── xsd/               # XSD parsing/building (W3C 1:1)
-│   ├── types.ts       # 630 lines - W3C type definitions
-│   ├── parse.ts       # XSD XML → Schema
-│   ├── build.ts       # Schema → XSD XML
-│   └── helpers.ts     # resolveImports, linkSchemas
-├── infer/             # Type inference (compile-time)
-│   └── types.ts       # 811 lines - InferSchema<T>
-├── xml/               # XML parsing/building
-│   ├── parse.ts       # XML → Object (using schema)
-│   └── build.ts       # Object → XML (using schema)
-└── codegen/           # Code generation
-    ├── generate.ts    # Schema literal generator
-    ├── interface-generator.ts  # Interface generator
-    └── presets.ts     # Generation presets
+├── xsd/               # XSD parsing, building, resolution
+│   ├── types.ts       # W3C 1:1 type definitions
+│   ├── parse.ts       # XSD XML → Schema parser
+│   ├── build.ts       # Schema → XSD XML builder
+│   ├── resolve.ts     # Schema resolver (merges imports, expands inheritance)
+│   ├── traverser.ts   # OO schema traversal with W3C types
+│   ├── loader.ts      # XSD file loading with import resolution
+│   ├── schema-like.ts # Runtime schema type guards
+│   └── helpers.ts     # Utility functions
+├── infer/             # Compile-time type inference
+│   └── types.ts       # InferSchema<T>, InferElement<T>
+├── xml/               # XML parsing/building with schemas
+│   ├── parse.ts       # XML → Object parser
+│   ├── build.ts       # Object → XML builder
+│   ├── typed.ts       # Typed schema wrapper
+│   └── dom-utils.ts   # DOM manipulation utilities
+├── walker/            # Schema traversal utilities
+│   └── index.ts       # walkElements, walkComplexTypes, findSubstitutes
+├── codegen/           # Code generation
+│   ├── generate.ts    # Schema literal generator
+│   ├── interface-generator.ts  # Interface generator API
+│   ├── ts-morph.ts    # TypeScript AST manipulation
+│   ├── runner.ts      # Config-based codegen runner
+│   └── cli.ts         # CLI interface
+└── generators/        # Generator plugins
+    ├── raw-schema.ts  # Schema literal generator
+    ├── interfaces.ts  # TypeScript interfaces generator
+    ├── typed-schemas.ts # Typed schema exports
+    └── index-barrel.ts # Index file generator
 ```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| **Resolver** | Merges `$imports`, expands `complexContent/extension`, handles `substitutionGroup` |
+| **Traverser** | OO traversal with real W3C XSD types (SchemaTraverser class) |
+| **Walker** | Functional iteration over schema elements, types, groups |
+| **Loader** | File-based XSD loading with automatic import resolution |
 
 ## Key Type Definitions
 
@@ -222,6 +246,7 @@ npx vitest run tests/unit/parse.test.ts
 | Simplifying structures | Loses XSD semantics | Keep nested structure |
 | Missing `as const` | Type inference fails | Always use `as const` |
 | Circular type refs | TypeScript errors | Use `$imports` linking |
+| Stack overflow in codegen | Infinite recursion | Cycle detection in `expandTypeToString` |
 
 ## Dependencies
 
