@@ -1,21 +1,23 @@
 /**
  * ADT OO Interfaces Contract
- * 
+ *
  * Endpoint: /sap/bc/adt/oo/interfaces
  * Full CRUD operations for ABAP interfaces including source code management.
  */
 
 import { http, contract } from '../../base';
-import { interfaces as interfacesSchema } from '../../schemas';
-import type { IntfAbapInterface } from '../../schemas';
+import {
+  interfaces as interfacesSchema,
+  type InferTypedSchema,
+} from '../../schemas';
 
 /**
  * Interface response type - exported for consumers (ADK, etc.)
- * 
+ *
  * This is the canonical type for interface metadata.
  * Uses pre-generated type from adt-schemas.
  */
-export type InterfaceResponse = IntfAbapInterface;
+export type InterfaceResponse = InferTypedSchema<typeof interfacesSchema>;
 
 /**
  * /sap/bc/adt/oo/interfaces
@@ -80,20 +82,26 @@ const _interfacesContract = contract({
      */
     main: {
       get: (name: string) =>
-        http.get(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`, {
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain' },
-        }),
+        http.get(
+          `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`,
+          {
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain' },
+          }
+        ),
 
       put: (name: string, source: string) =>
-        http.put(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`, {
-          body: source,
-          responses: { 200: undefined as unknown as string },
-          headers: {
-            Accept: 'text/plain',
-            'Content-Type': 'text/plain',
-          },
-        }),
+        http.put(
+          `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`,
+          {
+            body: source,
+            responses: { 200: undefined as unknown as string },
+            headers: {
+              Accept: 'text/plain',
+              'Content-Type': 'text/plain',
+            },
+          }
+        ),
     },
   },
 });
