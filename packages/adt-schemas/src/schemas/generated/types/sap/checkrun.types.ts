@@ -5,188 +5,24 @@
  * Mode: Flattened
  */
 
-export type CheckrunSchema =
-  | {
-      checkObjectList: {
+export type CheckrunSchema = {
+    checkObjectList: {
         checkObject?: {
-          extension?: unknown;
-          artifacts?: {
-            artifact?: {
-              content?: string;
-              uri?: string;
-              contentType?: string;
+            extension?: unknown;
+            artifacts?: {
+                artifact?: {
+                    content?: string;
+                    uri?: string;
+                    contentType?: string;
+                }[];
             }[];
-          }[];
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-          version?:
-            | ''
-            | 'active'
-            | 'inactive'
-            | 'workingArea'
-            | 'new'
-            | 'partlyActive'
-            | 'activeWithInactiveVersion';
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+            version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
         }[];
-      };
-    }
-  | {
-      checkRunReports: {
-        checkReport?: {
-          checkMessageList?: {
-            checkMessage?: {
-              t100Key?: {
-                msgno?: number;
-                msgid?: string;
-                msgv1?: string;
-                msgv2?: string;
-                msgv3?: string;
-                msgv4?: string;
-              };
-              correctionHint?: {
-                number?: number;
-                kind?: string;
-                line?: number;
-                column?: number;
-                word?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              uri?: string;
-              type?: 'S' | 'I' | 'W' | 'B' | 'E' | 'C' | '-' | ' ';
-              shortText?: string;
-              category?: string;
-              code?: string;
-            }[];
-          };
-          reporter?: string;
-          triggeringUri?: string;
-          status?: string;
-          statusText?: string;
-        }[];
-      };
-    }
-  | {
-      checkReporters: {
-        reporter?: {
-          supportedType?: string[];
-          name?: string;
-        }[];
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
-    }
-  | {
-      mainObject: {
-        containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        packageRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        name: string;
-        type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-      };
-    }
-  | {
-      objectReferences: {
-        objectReference: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-        name?: string;
-      };
-    }
-  | {
-      objectReference: {
-        extension?: unknown;
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-      };
-    }
-  | {
-      content: {
-        _text?: string;
-        type?: string;
-        encoding?: string;
-      };
     };
+};

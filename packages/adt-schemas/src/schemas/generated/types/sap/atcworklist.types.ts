@@ -5,44 +5,68 @@
  * Mode: Flattened
  */
 
-export type AtcworklistSchema =
-  | {
-      worklist: {
+export type AtcworklistSchema = {
+    worklist: {
         objectSets: {
-          objectSet?: {
-            name?: string;
-            title?: string;
-            kind?: string;
-          }[];
+            objectSet?: {
+                name?: string;
+                title?: string;
+                kind?: string;
+            }[];
         };
         objects: {
-          object?: {
-            extension?: unknown;
-            findings: {
-              finding?: {
+            object?: {
                 extension?: unknown;
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                quickfixes: {
-                  manual?: boolean;
-                  automatic?: boolean;
-                  pseudo?: boolean;
-                  ai_enabled?: boolean;
-                  aiBasedQF?: boolean;
-                };
-                tags?: {
-                  tag?: {
-                    name?: string;
-                    value?: string;
-                  }[];
+                findings: {
+                    finding?: {
+                        extension?: unknown;
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        quickfixes: {
+                            manual?: boolean;
+                            automatic?: boolean;
+                            pseudo?: boolean;
+                            ai_enabled?: boolean;
+                            aiBasedQF?: boolean;
+                        };
+                        tags?: {
+                            tag?: {
+                                name?: string;
+                                value?: string;
+                            }[];
+                        };
+                        uri?: string;
+                        parentUri?: string;
+                        type?: string;
+                        name?: string;
+                        packageName?: string;
+                        description?: string;
+                        location?: string;
+                        effectOnTransports?: string;
+                        priority?: string;
+                        checkTitle?: string;
+                        checkId?: string;
+                        messageTitle?: string;
+                        messageId?: string;
+                        exemptionKind?: string;
+                        exemptionApproval?: string;
+                        noExemption?: string;
+                        quickfixInfo?: string;
+                        contactPerson?: string;
+                        lastChangedBy?: string;
+                        processor?: string;
+                        checksum?: number;
+                        remarkText?: string;
+                        remarkLink?: string;
+                    }[];
                 };
                 uri?: string;
                 parentUri?: string;
@@ -50,350 +74,30 @@ export type AtcworklistSchema =
                 name?: string;
                 packageName?: string;
                 description?: string;
-                location?: string;
-                effectOnTransports?: string;
-                priority?: string;
-                checkTitle?: string;
-                checkId?: string;
-                messageTitle?: string;
-                messageId?: string;
-                exemptionKind?: string;
-                exemptionApproval?: string;
-                noExemption?: string;
-                quickfixInfo?: string;
-                contactPerson?: string;
-                lastChangedBy?: string;
-                processor?: string;
-                checksum?: number;
-                remarkText?: string;
-                remarkLink?: string;
-              }[];
-            };
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
-            author?: string;
-            objectTypeId?: string;
-          }[];
+                author?: string;
+                objectTypeId?: string;
+            }[];
         };
         descriptionTags: {
-          tagWithDescription?: {
-            name: string;
-            descriptions: {
-              description?: {
-                value?: string;
-                description?: string;
-              }[];
-            };
-          }[];
+            tagWithDescription?: {
+                name: string;
+                descriptions: {
+                    description?: {
+                        value?: string;
+                        description?: string;
+                    }[];
+                };
+            }[];
         };
         infos: {
-          info?: {
-            type: string;
-            description: string;
-          }[];
+            info?: {
+                type: string;
+                description: string;
+            }[];
         };
         id: string;
         timestamp: string;
         usedObjectSet?: string;
         objectSetIsComplete?: boolean;
-      };
-    }
-  | {
-      worklistRun: {
-        worklistId: string;
-        worklistTimestamp: string;
-        infos: {
-          info?: {
-            type: string;
-            description: string;
-          }[];
-        };
-      };
-    }
-  | {
-      info: {
-        type: string;
-        description: string;
-      };
-    }
-  | {
-      object: {
-        extension?: unknown;
-        findings: {
-          finding?: {
-            extension?: unknown;
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-            quickfixes: {
-              manual?: boolean;
-              automatic?: boolean;
-              pseudo?: boolean;
-              ai_enabled?: boolean;
-              aiBasedQF?: boolean;
-            };
-            tags?: {
-              tag?: {
-                name?: string;
-                value?: string;
-              }[];
-            };
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
-            location?: string;
-            effectOnTransports?: string;
-            priority?: string;
-            checkTitle?: string;
-            checkId?: string;
-            messageTitle?: string;
-            messageId?: string;
-            exemptionKind?: string;
-            exemptionApproval?: string;
-            noExemption?: string;
-            quickfixInfo?: string;
-            contactPerson?: string;
-            lastChangedBy?: string;
-            processor?: string;
-            checksum?: number;
-            remarkText?: string;
-            remarkLink?: string;
-          }[];
-        };
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-        author?: string;
-        objectTypeId?: string;
-      };
-    }
-  | {
-      mainObject: {
-        containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        packageRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        name: string;
-        type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-      };
-    }
-  | {
-      objectReferences: {
-        objectReference: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-        name?: string;
-      };
-    }
-  | {
-      objectReference: {
-        extension?: unknown;
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-      };
-    }
-  | {
-      content: {
-        _text?: string;
-        type?: string;
-        encoding?: string;
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
-    }
-  | {
-      finding: {
-        extension?: unknown;
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        quickfixes: {
-          manual?: boolean;
-          automatic?: boolean;
-          pseudo?: boolean;
-          ai_enabled?: boolean;
-          aiBasedQF?: boolean;
-        };
-        tags?: {
-          tag?: {
-            name?: string;
-            value?: string;
-          }[];
-        };
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-        location?: string;
-        effectOnTransports?: string;
-        priority?: string;
-        checkTitle?: string;
-        checkId?: string;
-        messageTitle?: string;
-        messageId?: string;
-        exemptionKind?: string;
-        exemptionApproval?: string;
-        noExemption?: string;
-        quickfixInfo?: string;
-        contactPerson?: string;
-        lastChangedBy?: string;
-        processor?: string;
-        checksum?: number;
-        remarkText?: string;
-        remarkLink?: string;
-      };
-    }
-  | {
-      findingReferences: {
-        findingReference?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-      };
-    }
-  | {
-      items: {
-        item?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-          processor?: string;
-          status?: number;
-          remarkText?: string;
-          remarkLink?: string;
-        }[];
-      };
-    }
-  | {
-      remarks: {
-        remark?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-          remarkText?: string;
-          remarkLink?: string;
-        }[];
-      };
-    }
-  | {
-      descriptionTags: {
-        tagWithDescription?: {
-          name: string;
-          descriptions: {
-            description?: {
-              value?: string;
-              description?: string;
-            }[];
-          };
-        }[];
-      };
     };
+};

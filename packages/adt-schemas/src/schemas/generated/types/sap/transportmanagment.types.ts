@@ -5,748 +5,747 @@
  * Mode: Flattened
  */
 
-export type TransportmanagmentSchema =
-  | {
-      root: {
+export type TransportmanagmentSchema = {
+    root: {
         workbench: {
-          target?: {
-            modifiable: {
-              request?: {
-                task?: {
-                  abap_object?: {
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
-                    uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                  }[];
-                  link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                  }[];
-                  number?: string;
-                  owner?: string;
-                  desc?: string;
-                  status?: string;
-                  uri?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                number?: string;
-                owner?: string;
+            target?: {
+                modifiable: {
+                    request?: {
+                        task?: {
+                            abap_object?: {
+                                pgmid?: string;
+                                type?: string;
+                                name?: string;
+                                wbtype?: string;
+                                uri?: string;
+                                dummy_uri?: string;
+                                obj_info?: string;
+                                obj_desc?: string;
+                            }[];
+                            link?: {
+                                href: string;
+                                rel?: string;
+                                type?: string;
+                                hreflang?: string;
+                                title?: string;
+                                length?: number;
+                                etag?: string;
+                                _text?: string;
+                            }[];
+                            number?: string;
+                            owner?: string;
+                            desc?: string;
+                            status?: string;
+                            uri?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    status?: string;
+                };
+                relstarted: {
+                    request?: {
+                        task?: {
+                            abap_object?: {
+                                pgmid?: string;
+                                type?: string;
+                                name?: string;
+                                wbtype?: string;
+                                uri?: string;
+                                dummy_uri?: string;
+                                obj_info?: string;
+                                obj_desc?: string;
+                            }[];
+                            link?: {
+                                href: string;
+                                rel?: string;
+                                type?: string;
+                                hreflang?: string;
+                                title?: string;
+                                length?: number;
+                                etag?: string;
+                                _text?: string;
+                            }[];
+                            number?: string;
+                            owner?: string;
+                            desc?: string;
+                            status?: string;
+                            uri?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    status?: string;
+                };
+                released: {
+                    request?: {
+                        task?: {
+                            abap_object?: {
+                                pgmid?: string;
+                                type?: string;
+                                name?: string;
+                                wbtype?: string;
+                                uri?: string;
+                                dummy_uri?: string;
+                                obj_info?: string;
+                                obj_desc?: string;
+                            }[];
+                            link?: {
+                                href: string;
+                                rel?: string;
+                                type?: string;
+                                hreflang?: string;
+                                title?: string;
+                                length?: number;
+                                etag?: string;
+                                _text?: string;
+                            }[];
+                            number?: string;
+                            owner?: string;
+                            desc?: string;
+                            status?: string;
+                            uri?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    status?: string;
+                };
+                name?: string;
                 desc?: string;
+            }[];
+            modifiable: {
+                request?: {
+                    task?: {
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    link?: {
+                        href: string;
+                        rel?: string;
+                        type?: string;
+                        hreflang?: string;
+                        title?: string;
+                        length?: number;
+                        etag?: string;
+                        _text?: string;
+                    }[];
+                    abap_object?: {
+                        pgmid?: string;
+                        type?: string;
+                        name?: string;
+                        wbtype?: string;
+                        uri?: string;
+                        dummy_uri?: string;
+                        obj_info?: string;
+                        obj_desc?: string;
+                    }[];
+                    number?: string;
+                    owner?: string;
+                    desc?: string;
+                    status?: string;
+                    uri?: string;
+                }[];
                 status?: string;
-                uri?: string;
-              }[];
-              status?: string;
             };
             relstarted: {
-              request?: {
-                task?: {
-                  abap_object?: {
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
+                request?: {
+                    task?: {
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    link?: {
+                        href: string;
+                        rel?: string;
+                        type?: string;
+                        hreflang?: string;
+                        title?: string;
+                        length?: number;
+                        etag?: string;
+                        _text?: string;
+                    }[];
+                    abap_object?: {
+                        pgmid?: string;
+                        type?: string;
+                        name?: string;
+                        wbtype?: string;
+                        uri?: string;
+                        dummy_uri?: string;
+                        obj_info?: string;
+                        obj_desc?: string;
+                    }[];
+                    number?: string;
+                    owner?: string;
+                    desc?: string;
+                    status?: string;
                     uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                  }[];
-                  link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                  }[];
-                  number?: string;
-                  owner?: string;
-                  desc?: string;
-                  status?: string;
-                  uri?: string;
                 }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
                 status?: string;
-                uri?: string;
-              }[];
-              status?: string;
             };
             released: {
-              request?: {
-                task?: {
-                  abap_object?: {
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
+                request?: {
+                    task?: {
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    link?: {
+                        href: string;
+                        rel?: string;
+                        type?: string;
+                        hreflang?: string;
+                        title?: string;
+                        length?: number;
+                        etag?: string;
+                        _text?: string;
+                    }[];
+                    abap_object?: {
+                        pgmid?: string;
+                        type?: string;
+                        name?: string;
+                        wbtype?: string;
+                        uri?: string;
+                        dummy_uri?: string;
+                        obj_info?: string;
+                        obj_desc?: string;
+                    }[];
+                    number?: string;
+                    owner?: string;
+                    desc?: string;
+                    status?: string;
                     uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                  }[];
-                  link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                  }[];
-                  number?: string;
-                  owner?: string;
-                  desc?: string;
-                  status?: string;
-                  uri?: string;
                 }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
                 status?: string;
-                uri?: string;
-              }[];
-              status?: string;
             };
-            name?: string;
-            desc?: string;
-          }[];
-          modifiable: {
-            request?: {
-              task?: {
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
-                status?: string;
-                uri?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              abap_object?: {
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-              }[];
-              number?: string;
-              owner?: string;
-              desc?: string;
-              status?: string;
-              uri?: string;
-            }[];
-            status?: string;
-          };
-          relstarted: {
-            request?: {
-              task?: {
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
-                status?: string;
-                uri?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              abap_object?: {
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-              }[];
-              number?: string;
-              owner?: string;
-              desc?: string;
-              status?: string;
-              uri?: string;
-            }[];
-            status?: string;
-          };
-          released: {
-            request?: {
-              task?: {
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
-                status?: string;
-                uri?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              abap_object?: {
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-              }[];
-              number?: string;
-              owner?: string;
-              desc?: string;
-              status?: string;
-              uri?: string;
-            }[];
-            status?: string;
-          };
-          category?: string;
+            category?: string;
         };
         customizing: {
-          target?: {
-            modifiable: {
-              request?: {
-                task?: {
-                  abap_object?: {
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
-                    uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                  }[];
-                  link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                  }[];
-                  number?: string;
-                  owner?: string;
-                  desc?: string;
-                  status?: string;
-                  uri?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                number?: string;
-                owner?: string;
+            target?: {
+                modifiable: {
+                    request?: {
+                        task?: {
+                            abap_object?: {
+                                pgmid?: string;
+                                type?: string;
+                                name?: string;
+                                wbtype?: string;
+                                uri?: string;
+                                dummy_uri?: string;
+                                obj_info?: string;
+                                obj_desc?: string;
+                            }[];
+                            link?: {
+                                href: string;
+                                rel?: string;
+                                type?: string;
+                                hreflang?: string;
+                                title?: string;
+                                length?: number;
+                                etag?: string;
+                                _text?: string;
+                            }[];
+                            number?: string;
+                            owner?: string;
+                            desc?: string;
+                            status?: string;
+                            uri?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    status?: string;
+                };
+                relstarted: {
+                    request?: {
+                        task?: {
+                            abap_object?: {
+                                pgmid?: string;
+                                type?: string;
+                                name?: string;
+                                wbtype?: string;
+                                uri?: string;
+                                dummy_uri?: string;
+                                obj_info?: string;
+                                obj_desc?: string;
+                            }[];
+                            link?: {
+                                href: string;
+                                rel?: string;
+                                type?: string;
+                                hreflang?: string;
+                                title?: string;
+                                length?: number;
+                                etag?: string;
+                                _text?: string;
+                            }[];
+                            number?: string;
+                            owner?: string;
+                            desc?: string;
+                            status?: string;
+                            uri?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    status?: string;
+                };
+                released: {
+                    request?: {
+                        task?: {
+                            abap_object?: {
+                                pgmid?: string;
+                                type?: string;
+                                name?: string;
+                                wbtype?: string;
+                                uri?: string;
+                                dummy_uri?: string;
+                                obj_info?: string;
+                                obj_desc?: string;
+                            }[];
+                            link?: {
+                                href: string;
+                                rel?: string;
+                                type?: string;
+                                hreflang?: string;
+                                title?: string;
+                                length?: number;
+                                etag?: string;
+                                _text?: string;
+                            }[];
+                            number?: string;
+                            owner?: string;
+                            desc?: string;
+                            status?: string;
+                            uri?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    status?: string;
+                };
+                name?: string;
                 desc?: string;
+            }[];
+            modifiable: {
+                request?: {
+                    task?: {
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    link?: {
+                        href: string;
+                        rel?: string;
+                        type?: string;
+                        hreflang?: string;
+                        title?: string;
+                        length?: number;
+                        etag?: string;
+                        _text?: string;
+                    }[];
+                    abap_object?: {
+                        pgmid?: string;
+                        type?: string;
+                        name?: string;
+                        wbtype?: string;
+                        uri?: string;
+                        dummy_uri?: string;
+                        obj_info?: string;
+                        obj_desc?: string;
+                    }[];
+                    number?: string;
+                    owner?: string;
+                    desc?: string;
+                    status?: string;
+                    uri?: string;
+                }[];
                 status?: string;
-                uri?: string;
-              }[];
-              status?: string;
             };
             relstarted: {
-              request?: {
-                task?: {
-                  abap_object?: {
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
+                request?: {
+                    task?: {
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    link?: {
+                        href: string;
+                        rel?: string;
+                        type?: string;
+                        hreflang?: string;
+                        title?: string;
+                        length?: number;
+                        etag?: string;
+                        _text?: string;
+                    }[];
+                    abap_object?: {
+                        pgmid?: string;
+                        type?: string;
+                        name?: string;
+                        wbtype?: string;
+                        uri?: string;
+                        dummy_uri?: string;
+                        obj_info?: string;
+                        obj_desc?: string;
+                    }[];
+                    number?: string;
+                    owner?: string;
+                    desc?: string;
+                    status?: string;
                     uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                  }[];
-                  link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                  }[];
-                  number?: string;
-                  owner?: string;
-                  desc?: string;
-                  status?: string;
-                  uri?: string;
                 }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
                 status?: string;
-                uri?: string;
-              }[];
-              status?: string;
             };
             released: {
-              request?: {
-                task?: {
-                  abap_object?: {
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
+                request?: {
+                    task?: {
+                        abap_object?: {
+                            pgmid?: string;
+                            type?: string;
+                            name?: string;
+                            wbtype?: string;
+                            uri?: string;
+                            dummy_uri?: string;
+                            obj_info?: string;
+                            obj_desc?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        number?: string;
+                        owner?: string;
+                        desc?: string;
+                        status?: string;
+                        uri?: string;
+                    }[];
+                    link?: {
+                        href: string;
+                        rel?: string;
+                        type?: string;
+                        hreflang?: string;
+                        title?: string;
+                        length?: number;
+                        etag?: string;
+                        _text?: string;
+                    }[];
+                    abap_object?: {
+                        pgmid?: string;
+                        type?: string;
+                        name?: string;
+                        wbtype?: string;
+                        uri?: string;
+                        dummy_uri?: string;
+                        obj_info?: string;
+                        obj_desc?: string;
+                    }[];
+                    number?: string;
+                    owner?: string;
+                    desc?: string;
+                    status?: string;
                     uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                  }[];
-                  link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                  }[];
-                  number?: string;
-                  owner?: string;
-                  desc?: string;
-                  status?: string;
-                  uri?: string;
                 }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
                 status?: string;
-                uri?: string;
-              }[];
-              status?: string;
             };
-            name?: string;
-            desc?: string;
-          }[];
-          modifiable: {
-            request?: {
-              task?: {
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
-                status?: string;
-                uri?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              abap_object?: {
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-              }[];
-              number?: string;
-              owner?: string;
-              desc?: string;
-              status?: string;
-              uri?: string;
-            }[];
-            status?: string;
-          };
-          relstarted: {
-            request?: {
-              task?: {
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
-                status?: string;
-                uri?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              abap_object?: {
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-              }[];
-              number?: string;
-              owner?: string;
-              desc?: string;
-              status?: string;
-              uri?: string;
-            }[];
-            status?: string;
-          };
-          released: {
-            request?: {
-              task?: {
-                abap_object?: {
-                  pgmid?: string;
-                  type?: string;
-                  name?: string;
-                  wbtype?: string;
-                  uri?: string;
-                  dummy_uri?: string;
-                  obj_info?: string;
-                  obj_desc?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
-                status?: string;
-                uri?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              abap_object?: {
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-              }[];
-              number?: string;
-              owner?: string;
-              desc?: string;
-              status?: string;
-              uri?: string;
-            }[];
-            status?: string;
-          };
-          category?: string;
+            category?: string;
         };
         releasereports: {
-          checkReport?: {
-            checkMessageList?: {
-              checkMessage?: {
-                t100Key?: {
-                  msgno?: number;
-                  msgid?: string;
-                  msgv1?: string;
-                  msgv2?: string;
-                  msgv3?: string;
-                  msgv4?: string;
+            checkReport?: {
+                checkMessageList?: {
+                    checkMessage?: {
+                        t100Key?: {
+                            msgno?: number;
+                            msgid?: string;
+                            msgv1?: string;
+                            msgv2?: string;
+                            msgv3?: string;
+                            msgv4?: string;
+                        };
+                        correctionHint?: {
+                            number?: number;
+                            kind?: string;
+                            line?: number;
+                            column?: number;
+                            word?: string;
+                        }[];
+                        link?: {
+                            href: string;
+                            rel?: string;
+                            type?: string;
+                            hreflang?: string;
+                            title?: string;
+                            length?: number;
+                            etag?: string;
+                            _text?: string;
+                        }[];
+                        uri?: string;
+                        type?: unknown;
+                        shortText?: string;
+                        category?: string;
+                        code?: string;
+                    }[];
                 };
-                correctionHint?: {
-                  number?: number;
-                  kind?: string;
-                  line?: number;
-                  column?: number;
-                  word?: string;
-                }[];
-                link?: {
-                  href: string;
-                  rel?: string;
-                  type?: string;
-                  hreflang?: string;
-                  title?: string;
-                  length?: number;
-                  etag?: string;
-                  _text?: string;
-                }[];
-                uri?: string;
-                type?: 'S' | 'I' | 'W' | 'B' | 'E' | 'C' | '-' | ' ';
-                shortText?: string;
-                category?: string;
-                code?: string;
-              }[];
-            };
-            reporter?: string;
-            triggeringUri?: string;
-            status?: string;
-            statusText?: string;
-          }[];
+                reporter?: string;
+                triggeringUri?: string;
+                status?: string;
+                statusText?: string;
+            }[];
         };
         targetuser?: string;
         useraction?: string;
@@ -755,189 +754,5 @@ export type TransportmanagmentSchema =
         number?: string;
         desc?: string;
         uri?: string;
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
-    }
-  | {
-      mainObject: {
-        containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        packageRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        name: string;
-        type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-      };
-    }
-  | {
-      objectReferences: {
-        objectReference: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-        name?: string;
-      };
-    }
-  | {
-      objectReference: {
-        extension?: unknown;
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-      };
-    }
-  | {
-      content: {
-        _text?: string;
-        type?: string;
-        encoding?: string;
-      };
-    }
-  | {
-      checkObjectList: {
-        checkObject?: {
-          extension?: unknown;
-          artifacts?: {
-            artifact?: {
-              content?: string;
-              uri?: string;
-              contentType?: string;
-            }[];
-          }[];
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-          version?:
-            | ''
-            | 'active'
-            | 'inactive'
-            | 'workingArea'
-            | 'new'
-            | 'partlyActive'
-            | 'activeWithInactiveVersion';
-        }[];
-      };
-    }
-  | {
-      checkRunReports: {
-        checkReport?: {
-          checkMessageList?: {
-            checkMessage?: {
-              t100Key?: {
-                msgno?: number;
-                msgid?: string;
-                msgv1?: string;
-                msgv2?: string;
-                msgv3?: string;
-                msgv4?: string;
-              };
-              correctionHint?: {
-                number?: number;
-                kind?: string;
-                line?: number;
-                column?: number;
-                word?: string;
-              }[];
-              link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-              }[];
-              uri?: string;
-              type?: 'S' | 'I' | 'W' | 'B' | 'E' | 'C' | '-' | ' ';
-              shortText?: string;
-              category?: string;
-              code?: string;
-            }[];
-          };
-          reporter?: string;
-          triggeringUri?: string;
-          status?: string;
-          statusText?: string;
-        }[];
-      };
-    }
-  | {
-      checkReporters: {
-        reporter?: {
-          supportedType?: string[];
-          name?: string;
-        }[];
-      };
     };
+};

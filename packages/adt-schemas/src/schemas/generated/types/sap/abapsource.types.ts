@@ -5,172 +5,36 @@
  * Mode: Flattened
  */
 
-export type AbapsourceSchema =
-  | {
-      syntaxConfigurations: {
+export type AbapsourceSchema = {
+    syntaxConfigurations: {
         syntaxConfiguration?: {
-          language?: {
-            version?: string;
-            description?: string;
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-          };
-          objectUsage?: {
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-            restricted?: boolean;
-          };
+            language?: {
+                version?: string;
+                description?: string;
+                link?: {
+                    href: string;
+                    rel?: string;
+                    type?: string;
+                    hreflang?: string;
+                    title?: string;
+                    length?: number;
+                    etag?: string;
+                    _text?: string;
+                }[];
+            };
+            objectUsage?: {
+                link?: {
+                    href: string;
+                    rel?: string;
+                    type?: string;
+                    hreflang?: string;
+                    title?: string;
+                    length?: number;
+                    etag?: string;
+                    _text?: string;
+                }[];
+                restricted?: boolean;
+            };
         }[];
-      };
-    }
-  | {
-      syntaxConfiguration: {
-        language?: {
-          version?: string;
-          description?: string;
-          link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-          }[];
-        };
-        objectUsage?: {
-          link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-          }[];
-          restricted?: boolean;
-        };
-      };
-    }
-  | {
-      mainObject: {
-        containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        packageRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        name: string;
-        type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-      };
-    }
-  | {
-      objectReferences: {
-        objectReference: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-        name?: string;
-      };
-    }
-  | {
-      objectReference: {
-        extension?: unknown;
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-      };
-    }
-  | {
-      content: {
-        _text?: string;
-        type?: string;
-        encoding?: string;
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
     };
+};
