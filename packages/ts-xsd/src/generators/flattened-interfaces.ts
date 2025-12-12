@@ -91,9 +91,15 @@ export function flattenedInterfaces(
     transform(ctx: TransformContext): GeneratedFile[] {
       const { schema, source } = ctx;
 
-      // Check if schema has root elements
+      const rootTypeName = deriveRootTypeName(schema.name, rootTypePattern);
+
+      // Always resolve the schema to merge all imports into one flat schema
+      // This ensures all types are available in a single source file
+      const targetSchema = resolveSchema(schema.schema);
+
+      // Check if resolved schema has root elements (check AFTER resolution for imported elements)
       const hasRootElements =
-        schema.schema.element && schema.schema.element.length > 0;
+        targetSchema.element && targetSchema.element.length > 0;
 
       // When flatten=true, skip dependency schemas (no root elements)
       // Their types are already inlined into the schemas that use them
@@ -101,17 +107,11 @@ export function flattenedInterfaces(
         return []; // Skip - no file generated
       }
 
-      const rootTypeName = deriveRootTypeName(schema.name, rootTypePattern);
-
-      // When flattening, resolve the schema first to merge all imports into one flat schema
-      // This ensures all types are in a single source file - no cross-file import() references
-      const targetSchema = flatten
-        ? resolveSchema(schema.schema)
-        : schema.schema;
-
       // Generate interfaces
+      // When flatten=false, disable root type generation (just interfaces)
+      // When flatten=true, generate root type for the primary element
       const { code } = generateInterfacesFromSchema(targetSchema, {
-        rootTypeName: hasRootElements ? rootTypeName : undefined,
+        rootTypeName: flatten && hasRootElements ? rootTypeName : null,
         addJsDoc,
         flatten,
       });

@@ -8,7 +8,6 @@
 // Export factory and types
 export { createHandler } from './base';
 export type { 
-  XsdSchema, 
   SerializedFile, 
   ObjectHandler, 
   AbapObjectType,

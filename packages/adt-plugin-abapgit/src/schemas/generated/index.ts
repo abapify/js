@@ -20,19 +20,19 @@ import _doma from './schemas/doma';
 import _dtel from './schemas/dtel';
 import _intf from './schemas/intf';
 
-// Full AbapGit types and AbapValuesType (the values wrapper)
-import type { AbapGitType as ClasAbapGitType, AbapValuesType as ClasValuesType } from './types/clas';
-import type { AbapGitType as DevcAbapGitType, AbapValuesType as DevcValuesType } from './types/devc';
-import type { AbapGitType as DomaAbapGitType, AbapValuesType as DomaValuesType } from './types/doma';
-import type { AbapGitType as DtelAbapGitType, AbapValuesType as DtelValuesType } from './types/dtel';
-import type { AbapGitType as IntfAbapGitType, AbapValuesType as IntfValuesType } from './types/intf';
+// Full AbapGit types - using flattened root types
+import type { ClasSchema as ClasAbapGitType } from './types/clas';
+import type { DevcSchema as DevcAbapGitType } from './types/devc';
+import type { DomaSchema as DomaAbapGitType } from './types/doma';
+import type { DtelSchema as DtelAbapGitType } from './types/dtel';
+import type { IntfSchema as IntfAbapGitType } from './types/intf';
 
-// AbapGit schema instances - TValues is AbapValuesType (the values wrapper)
-export const clas = abapGitSchema<ClasAbapGitType, ClasValuesType>(_clas);
-export const devc = abapGitSchema<DevcAbapGitType, DevcValuesType>(_devc);
-export const doma = abapGitSchema<DomaAbapGitType, DomaValuesType>(_doma);
-export const dtel = abapGitSchema<DtelAbapGitType, DtelValuesType>(_dtel);
-export const intf = abapGitSchema<IntfAbapGitType, IntfValuesType>(_intf);
+// AbapGit schema instances - using flattened types with values extracted from abapGit.abap.values
+export const clas = abapGitSchema<ClasAbapGitType, ClasAbapGitType['abapGit']['abap']['values']>(_clas);
+export const devc = abapGitSchema<DevcAbapGitType, DevcAbapGitType['abapGit']['abap']['values']>(_devc);
+export const doma = abapGitSchema<DomaAbapGitType, DomaAbapGitType['abapGit']['abap']['values']>(_doma);
+export const dtel = abapGitSchema<DtelAbapGitType, DtelAbapGitType['abapGit']['abap']['values']>(_dtel);
+export const intf = abapGitSchema<IntfAbapGitType, IntfAbapGitType['abapGit']['abap']['values']>(_intf);
 
 // Re-export types and utilities
 export { abapGitSchema, type AbapGitSchema, type InferAbapGitType, type InferValuesType } from '../../lib/handlers/abapgit-schema';
