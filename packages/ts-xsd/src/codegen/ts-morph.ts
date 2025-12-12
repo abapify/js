@@ -36,8 +36,8 @@ export type SchemaLocationResolver = (
 ) => Schema | undefined;
 
 export interface SchemaToSourceFileOptions {
-  /** Custom root type name */
-  rootTypeName?: string;
+  /** Custom root type name. Pass null to disable root type generation. */
+  rootTypeName?: string | null;
   /** Add JSDoc comments */
   addJsDoc?: boolean;
   /** Existing project to use */
@@ -101,8 +101,12 @@ export function schemaToSourceFile(
 ): SchemaSourceFileResult {
   const project =
     options.project ?? new Project({ useInMemoryFileSystem: true });
+  // Only derive rootTypeName if explicitly requested or not explicitly disabled
+  // Pass rootTypeName: undefined to disable, or omit to auto-derive
   const rootTypeName =
-    options.rootTypeName ?? deriveRootTypeName(schema.$filename);
+    options.rootTypeName === undefined
+      ? deriveRootTypeName(schema.$filename)
+      : options.rootTypeName; // null or explicit name
   const filename = `${
     schema.$filename?.replace('.xsd', '') || 'schema'
   }.types.ts`;
@@ -149,6 +153,15 @@ export function schemaToSourceFile(
     }
   }
 
+  // Generate interfaces for root elements with inline complexType
+  for (const el of schema.element ?? []) {
+    if (el.name && el.complexType) {
+      // Generate interface for inline complexType (e.g., AbapGitType from abapGit element)
+      const interfaceName = toInterfaceName(el.name);
+      generateInterface(interfaceName, el.complexType, ctx);
+    }
+  }
+
   // Generate type aliases for all simple types
   for (const st of schema.simpleType ?? []) {
     if (st.name) {
@@ -169,7 +182,7 @@ export function schemaToSourceFile(
   return {
     project,
     sourceFile,
-    rootTypeName,
+    rootTypeName: rootTypeName ?? undefined,
   };
 }
 
@@ -898,32 +911,33 @@ function generateSimpleType(
 // =============================================================================
 
 function generateRootType(rootTypeName: string, ctx: GeneratorContext): void {
-  const unionMembers: string[] = [];
+  // Find the primary root element - prefer elements with inline complexType
+  // (like abapGit, abapClass) over abstract elements (Schema) or typed refs (abap)
+  const elements = ctx.schema.element ?? [];
+  
+  // Priority: elements with inline complexType > elements with type ref > others
+  const primaryElement = elements.find(el => el.name && el.complexType)
+    ?? elements.find(el => el.name && el.type && !el.abstract)
+    ?? elements.find(el => el.name && !el.abstract);
+  
+  if (!primaryElement?.name) return;
 
-  for (const el of ctx.schema.element ?? []) {
-    if (!el.name) continue;
-
-    let elementType: string;
-    if (el.type) {
-      elementType = resolveTypeName(el.type, ctx);
-    } else if (el.complexType) {
-      elementType = 'unknown';
-    } else {
-      elementType = 'string';
-    }
-
-    unionMembers.push(`{ ${el.name}: ${elementType} }`);
+  // Determine the type for this element
+  let elementType: string;
+  if (primaryElement.type) {
+    elementType = resolveTypeName(primaryElement.type, ctx);
+  } else if (primaryElement.complexType) {
+    // For inline complexType, use the generated interface name
+    const interfaceName = toInterfaceName(primaryElement.name);
+    elementType = ctx.generatedTypes.has(interfaceName) ? interfaceName : 'unknown';
+  } else {
+    elementType = 'string';
   }
-
-  if (unionMembers.length === 0) return;
-
-  const typeAlias =
-    unionMembers.length === 1 ? unionMembers[0] : unionMembers.join('\n  | ');
 
   ctx.sourceFile.addTypeAlias({
     name: rootTypeName,
     isExported: true,
-    type: typeAlias,
-    docs: ctx.addJsDoc ? [{ description: 'Root schema type' }] : undefined,
+    type: `{ ${primaryElement.name}: ${elementType} }`,
+    docs: ctx.addJsDoc ? [{ description: `Root schema type (${primaryElement.name} element)` }] : undefined,
   });
 }
