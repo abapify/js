@@ -1,13 +1,13 @@
 /**
  * ts-xsd Generators
- * 
+ *
  * Composable generator plugins for XSD codegen.
- * 
+ *
  * @example
  * ```ts
  * import { defineConfig } from 'ts-xsd/generators';
  * import { rawSchema, inferredTypes, indexBarrel } from 'ts-xsd/generators';
- * 
+ *
  * export default defineConfig({
  *   sources: {
  *     abapgit: {
@@ -47,6 +47,10 @@ export { defineConfig } from '../codegen/types';
 export { rawSchema, type RawSchemaOptions } from './raw-schema';
 export { inferredTypes, type InferredTypesOptions } from './inferred-types';
 export { interfaces, type InterfacesOptions } from './interfaces';
+export {
+  flattenedInterfaces,
+  type FlattenedInterfacesOptions,
+} from './flattened-interfaces';
 export { indexBarrel, type IndexBarrelOptions } from './index-barrel';
 export { typedSchemas, type TypedSchemasOptions } from './typed-schemas';
 
@@ -59,4 +63,8 @@ export type {
 } from '../codegen/presets';
 
 // Runner - re-exported from codegen
-export { runCodegen, type RunnerOptions, type RunnerResult } from '../codegen/runner';
+export {
+  runCodegen,
+  type RunnerOptions,
+  type RunnerResult,
+} from '../codegen/runner';

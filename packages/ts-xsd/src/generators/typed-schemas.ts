@@ -1,23 +1,28 @@
 /**
  * Typed Schemas Generator
- * 
+ *
  * Generates typed schema wrappers that combine raw schemas with pre-computed types.
  * This enables full type inference without runtime overhead.
- * 
+ *
  * Output: A single index file that exports typed schemas ready for use.
- * 
+ *
  * @example
  * ```ts
  * // Generated output
  * import { typed } from '../../speci';
  * import _atom from './schemas/sap/atom';
  * import type { LinkType } from './types/sap/atom.types';
- * 
+ *
  * export const atom = typed<LinkType>(_atom);
  * ```
  */
 
-import type { GeneratorPlugin, FinalizeContext, GeneratedFile, SchemaInfo } from '../codegen/types';
+import type {
+  GeneratorPlugin,
+  FinalizeContext,
+  GeneratedFile,
+  SchemaInfo,
+} from '../codegen/types';
 
 // ============================================================================
 // Options
@@ -42,14 +47,14 @@ export interface TypedSchemasOptions {
 
 /**
  * Create a typed schemas generator plugin
- * 
+ *
  * This generator runs in finalize() after all schemas are processed.
  * It generates a single index file that exports typed schema wrappers.
- * 
+ *
  * @example
  * ```ts
  * import { rawSchema, interfaces, typedSchemas } from 'ts-xsd/generators';
- * 
+ *
  * export default defineConfig({
  *   generators: [
  *     rawSchema(),
@@ -59,7 +64,9 @@ export interface TypedSchemasOptions {
  * });
  * ```
  */
-export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin {
+export function typedSchemas(
+  options: TypedSchemasOptions = {}
+): GeneratorPlugin {
   const {
     outputPath = 'src/schemas/generated/index.ts',
     tsXsdPath = 'ts-xsd',
@@ -86,15 +93,17 @@ export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin
           ' * Use these instead of raw schemas for type-safe parsing/building.',
           ' * ',
           ' * @example',
-          ' * import { classes } from \'@abapify/adt-schemas\';',
+          " * import { classes } from '@abapify/adt-schemas';",
           ' * const data = classes.parse(xml);  // data is fully typed!',
           ' */',
-          '',
+          ''
         );
       }
 
-      // Import typedSchema helper
-      lines.push(`import { typedSchema } from '${tsXsdPath}';`);
+      // Import typedSchema helper and TypedSchema type
+      lines.push(
+        `import { typedSchema, type TypedSchema } from '${tsXsdPath}';`
+      );
       lines.push('');
 
       // Collect all schemas with their root types
@@ -110,10 +119,12 @@ export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin
 
         for (const schema of schemas) {
           const rootTypes = extractRootTypes(schema);
-          
+
           if (rootTypes.length === 0) {
             // No root elements - skip or export raw
-            lines.push(`// ${schema.name}: No root elements found, skipping typed export`);
+            lines.push(
+              `// ${schema.name}: No root elements found, skipping typed export`
+            );
             continue;
           }
 
@@ -132,10 +143,14 @@ export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin
 
           // Import type(s)
           if (rootTypes.length === 1) {
-            lines.push(`import type { ${rootTypes[0]} } from '${typesImport}';`);
+            lines.push(
+              `import type { ${rootTypes[0]} } from '${typesImport}';`
+            );
           } else {
             // Multiple root types - import all
-            lines.push(`import type { ${rootTypes.join(', ')} } from '${typesImport}';`);
+            lines.push(
+              `import type { ${rootTypes.join(', ')} } from '${typesImport}';`
+            );
           }
         }
 
@@ -143,21 +158,29 @@ export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin
       }
 
       // Generate typed exports
-      lines.push('// ============================================================================');
+      lines.push(
+        '// ============================================================================'
+      );
       lines.push('// TYPED SCHEMA EXPORTS');
-      lines.push('// ============================================================================');
+      lines.push(
+        '// ============================================================================'
+      );
       lines.push('');
 
       for (const { name, rootTypes } of schemaExports) {
         const exportName = toValidIdentifier(name);
-        
+
         if (rootTypes.length === 1) {
-          // Single root type
-          lines.push(`export const ${exportName} = typedSchema<${rootTypes[0]}>(_${exportName});`);
+          // Single root type - explicit type annotation for isolatedDeclarations
+          lines.push(
+            `export const ${exportName}: TypedSchema<${rootTypes[0]}> = typedSchema<${rootTypes[0]}>(_${exportName});`
+          );
         } else {
-          // Multiple root types - use union
+          // Multiple root types - use union with explicit type annotation
           const unionType = rootTypes.join(' | ');
-          lines.push(`export const ${exportName} = typedSchema<${unionType}>(_${exportName});`);
+          lines.push(
+            `export const ${exportName}: TypedSchema<${unionType}> = typedSchema<${unionType}>(_${exportName});`
+          );
         }
       }
 
@@ -167,13 +190,17 @@ export function typedSchemas(options: TypedSchemasOptions = {}): GeneratorPlugin
       // Types are internal to each schema file and used for typed wrappers.
       // If you need a specific type, import it directly from the types file:
       //   import type { AbapClass } from './types/sap/classes.types';
-      lines.push('// Types are internal - import directly from types/{source}/{schema}.types if needed');
+      lines.push(
+        '// Types are internal - import directly from types/{source}/{schema}.types if needed'
+      );
       lines.push('');
 
-      return [{
-        path: outputPath,
-        content: lines.join('\n'),
-      }];
+      return [
+        {
+          path: outputPath,
+          content: lines.join('\n'),
+        },
+      ];
     },
   };
 }
@@ -221,16 +248,56 @@ function stripNamespacePrefix(qname: string): string {
 function toPascalCase(str: string): string {
   return str
     .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
-    .replace(/^./, s => s.toUpperCase());
+    .replace(/^./, (s) => s.toUpperCase());
 }
 
 const RESERVED_WORDS = new Set([
-  'break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete',
-  'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof',
-  'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var',
-  'void', 'while', 'with', 'class', 'const', 'enum', 'export', 'extends',
-  'import', 'super', 'implements', 'interface', 'let', 'package', 'private',
-  'protected', 'public', 'static', 'yield', 'await', 'null', 'true', 'false',
+  'break',
+  'case',
+  'catch',
+  'continue',
+  'debugger',
+  'default',
+  'delete',
+  'do',
+  'else',
+  'finally',
+  'for',
+  'function',
+  'if',
+  'in',
+  'instanceof',
+  'new',
+  'return',
+  'switch',
+  'this',
+  'throw',
+  'try',
+  'typeof',
+  'var',
+  'void',
+  'while',
+  'with',
+  'class',
+  'const',
+  'enum',
+  'export',
+  'extends',
+  'import',
+  'super',
+  'implements',
+  'interface',
+  'let',
+  'package',
+  'private',
+  'protected',
+  'public',
+  'static',
+  'yield',
+  'await',
+  'null',
+  'true',
+  'false',
 ]);
 
 function toValidIdentifier(name: string): string {

@@ -10,6 +10,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "speci": "*",
     "@abapify/adt-schemas": "*"
   },
   "devDependencies": {

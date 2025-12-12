@@ -5,14 +5,12 @@
     "rootDir": "src",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "isolatedDeclarations": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", ".cache", ".xsd"],
   "references": [
-    {
-      "path": "../speci"
-    },
     {
       "path": "../ts-xsd"
     },

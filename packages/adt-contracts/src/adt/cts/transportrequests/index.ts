@@ -4,19 +4,25 @@
  */
 
 import { http } from '../../../base';
-import { transportmanagment, transportmanagmentSingle, transportmanagmentCreate } from '../../../schemas';
-import type { TmSingleRoot } from '../../../schemas';
+import {
+  transportmanagment,
+  transportmanagmentSingle,
+  transportmanagmentCreate,
+  type InferTypedSchema,
+} from '../../../schemas';
 import { valuehelp } from './valuehelp';
 import { reference } from './reference';
 import { searchconfiguration } from './searchconfiguration';
 
 /**
  * Transport response type - exported for consumers (ADK, etc.)
- * 
+ *
  * This is the canonical type for transport request data.
- * Uses pre-generated type from adt-schemas.
+ * Inferred from the typed schema.
  */
-export type TransportResponse = TmSingleRoot;
+export type TransportResponse = InferTypedSchema<
+  typeof transportmanagmentSingle
+>;
 
 /** Re-export schema for consumers that need direct parsing */
 export { transportmanagmentSingle };

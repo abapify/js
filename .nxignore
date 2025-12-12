@@ -1,0 +1,11 @@
+# Ignore scripts directory from Nx source file analysis
+# This prevents scripts that import workspace packages from creating
+# false dependencies in the project graph
+scripts/
+
+# Ignore e2e tests at root level (they have their own project)
+e2e/
+
+# NOTE: Do NOT ignore *.config.ts files here!
+# The nx-tsdown and nx-vitest plugins need to detect tsdown.config.ts and vitest.config.ts
+# False circular dependencies from config imports are handled via namedInputs in nx.json
