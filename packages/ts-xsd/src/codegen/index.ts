@@ -1,30 +1,25 @@
 /**
  * XSD Schema Codegen
  * 
- * Generate TypeScript literal types from XSD files.
- * Uses the existing parseXsd() parser and transforms the result
- * into a TypeScript literal that can be used with InferSchema<T>.
+ * Code generation utilities for XSD schemas.
  * 
- * ## Recommended: Use the new generators module
+ * ## Schema Literal Generation
+ * - `generateSchemaLiteral` - XSD → TypeScript literal object (for InferSchema<T>)
+ * - `generateSchemaFile` - XSD → TypeScript file with schema literal
  * 
- * ```typescript
- * import { defineConfig, rawSchema, inferredTypes, indexBarrel } from 'ts-xsd/generators';
+ * ## Interface Generation  
+ * - `generateInterfaces` - XSD → TypeScript interfaces
  * 
- * export default defineConfig({
- *   sources: { ... },
- *   generators: [rawSchema(), inferredTypes(), indexBarrel()],
- * });
- * ```
- * 
- * See `ts-xsd/src/generators/` for the new composable generator system.
+ * ## Config-based Generation (for multi-file projects)
+ * See `ts-xsd/generators` for the composable generator system with config files.
  */
 
-// Legacy API - still works but prefer generators module for new projects
+// Schema literal generation (XSD → TypeScript literal for InferSchema<T>)
 export { generateSchemaLiteral, generateSchemaFile } from './generate';
 
 // Interface generation
-export { generateInterfaces, generateSimpleInterfaces, deriveRootTypeName } from './interface-generator';
-export type { GeneratorOptions, SimpleGeneratorOptions } from './interface-generator';
+export { generateInterfaces, deriveRootTypeName } from './interface-generator';
+export type { GenerateInterfacesOptions, GenerateInterfacesResult } from './interface-generator';
 
 // Types - config, hooks, generator plugin interface
 export * from './types';
@@ -32,10 +27,3 @@ export * from './types';
 // Runner - codegen engine
 export { runCodegen, type RunnerOptions, type RunnerResult } from './runner';
 
-// Presets - pre-configured generator combinations
-export { presets } from './presets';
-export type {
-  SimpleSchemaPresetOptions,
-  TypedSchemaPresetOptions,
-  FullSchemaPresetOptions,
-} from './presets';
