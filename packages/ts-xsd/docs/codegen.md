@@ -155,19 +155,20 @@ export type ClassesType = typeof classes;
 
 ### `generateInterfaces(schema, options)`
 
-Generates TypeScript interfaces from a parsed schema. Uses `ts-morph` for AST manipulation.
+Generates TypeScript interfaces from a parsed schema. Uses `ts-morph` for AST manipulation. Returns an object with `code` property.
 
 ```typescript
 import { parseXsd, generateInterfaces } from '@abapify/ts-xsd';
 
 const schema = parseXsd(xsdContent);
-const interfaces = generateInterfaces(schema, {
-  generateAllTypes: true,
-  addJsDoc: true,
+const { code } = generateInterfaces(schema, {
+  flatten: true,      // Inline all nested types
+  addJsDoc: true,     // Add JSDoc comments
+  rootTypeName: 'PersonSchema',  // Custom root type name
 });
 ```
 
-**Output:**
+**Output (flatten: false - default):**
 ```typescript
 /** Generated from complexType: PersonType */
 export interface PersonType {
@@ -181,15 +182,40 @@ export interface AddressType {
   city: string;
   country?: string;
 }
+
+export type PersonSchema = {
+  person: PersonType;
+};
+```
+
+**Output (flatten: true):**
+```typescript
+export type PersonSchema = {
+  person: {
+    name: string;
+    age?: number;
+  };
+};
 ```
 
 ### Options
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `rootElement` | `string` | Generate interface for specific element |
-| `generateAllTypes` | `boolean` | Generate all complex/simple types |
+| `flatten` | `boolean` | Inline all nested types into single type (default: `false`) |
 | `addJsDoc` | `boolean` | Add JSDoc comments |
+| `rootTypeName` | `string` | Custom name for root type |
+| `comment` | `string` | Header comment for generated file |
+
+### Flatten Mode
+
+The `flatten: true` option inlines all type references, producing a single self-contained type. This is useful for:
+
+- **Simpler types** - No separate interface definitions
+- **Better IDE tooltips** - Full type visible on hover
+- **Avoiding import issues** - No cross-file type dependencies
+
+**Cycle Detection:** The flattener includes cycle detection to prevent stack overflow on circular type references. When a cycle is detected, it outputs `unknown` for the recursive reference.
 
 ### Cross-Schema Type Resolution
 
@@ -211,47 +237,59 @@ const interfaces = generateInterfaces(schema, { generateAllTypes: true });
 // Generates: interface AbapClass extends AbapOoObject { ... }
 ```
 
-## Generator Presets
+## Config-Based Generator System
 
-The `presets.ts` module provides composable generators for different output formats.
+The `generators/` module provides a config-based approach for batch schema generation.
 
-### Preset Architecture
+### Configuration File (`ts-xsd.config.ts`)
 
 ```typescript
-interface GeneratorContext {
-  xsdContent: string;
-  schema: Schema;
-  name: string;
-  tsImports: string[];
-  importedSchemas: string[];
-  outputSchema: Record<string, unknown>;
-  options: PresetOptions;
-}
+import { defineConfig, rawSchema, interfaces } from '@abapify/ts-xsd/generators';
 
-type GeneratorFn = (ctx: GeneratorContext) => GeneratorContext;
+export default defineConfig({
+  schemas: [
+    { name: 'adtcore', xsd: '.xsd/sap/adtcore.xsd' },
+    { name: 'classes', xsd: '.xsd/sap/classes.xsd', imports: ['adtcore'] },
+  ],
+  generators: [
+    rawSchema({
+      outputDir: 'src/schemas/generated/schemas',
+      features: { $xmlns: true, $imports: true, $filename: true },
+    }),
+    interfaces({
+      outputDir: 'src/schemas/generated/types',
+      flatten: true,  // Inline all types
+    }),
+  ],
+});
 ```
 
-### Built-in Transforms
+### Built-in Generators
 
-| Transform | Description |
-|-----------|-------------|
-| `applyXmlns` | Include/exclude `$xmlns` |
-| `applyImports` | Convert imports to schema references |
-| `applyFilename` | Add `$filename` property |
-| `applyExclude` | Filter excluded properties |
+| Generator | Output | Description |
+|-----------|--------|-------------|
+| `rawSchema` | `schema.ts` | Schema literal with `as const` |
+| `interfaces` | `schema.types.ts` | TypeScript interfaces/types |
 
-### Creating Custom Presets
+### Generator Lifecycle
 
 ```typescript
-import { initContext, applyXmlns, applyImports } from '@abapify/ts-xsd/codegen/presets';
-
-function myPreset(xsd: string, options: PresetOptions): string {
-  let ctx = initContext(xsd, options);
-  ctx = applyXmlns(ctx);
-  ctx = applyImports(ctx);
-  // Custom transforms...
-  return generateOutput(ctx);
+interface Generator {
+  name: string;
+  generate(schema: Schema, ctx: GeneratorContext): Promise<GeneratorResult>;
+  finalize?(ctx: FinalizeContext): Promise<void>;  // Optional afterAll hook
 }
+```
+
+### Running Generators
+
+```bash
+# Via Nx target
+npx nx codegen my-package
+
+# Programmatically
+import { runGenerators } from '@abapify/ts-xsd/generators';
+await runGenerators(config);
 ```
 
 ## Usage in adt-schemas

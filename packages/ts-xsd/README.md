@@ -199,9 +199,17 @@ const code = generateSchemaLiteral(xsdContent, {
 // export default { ... } as const;
 ```
 
-#### `generateInterfaces(schema: Schema, options?: InterfaceOptions): string`
+#### `generateInterfaces(schema: Schema, options?: GenerateInterfacesOptions): GenerateInterfacesResult`
 
-Generate TypeScript interfaces from parsed schema.
+Generate TypeScript interfaces from parsed schema. Returns an object with `code` property containing the generated TypeScript code.
+
+```typescript
+const { code } = generateInterfaces(schema, {
+  flatten: true,      // Inline all nested types (default: false)
+  addJsDoc: true,     // Add JSDoc comments
+  rootTypeName: 'MySchema',  // Custom root type name
+});
+```
 
 ## Schema Structure
 
@@ -308,20 +316,45 @@ type Order = InferSchema<typeof schema>;
 @abapify/ts-xsd
 ├── src/
 │   ├── index.ts           # Main exports
-│   ├── xsd/               # XSD parsing and building
-│   │   ├── types.ts       # W3C 1:1 type definitions (630 lines)
-│   │   ├── parse.ts       # XSD → Schema parser
-│   │   ├── build.ts       # Schema → XSD builder
-│   │   └── helpers.ts     # Schema linking utilities
-│   ├── infer/             # Type inference
-│   │   └── types.ts       # InferSchema<T> and helpers (811 lines)
-│   ├── xml/               # XML parsing/building
+│   ├── xsd/               # XSD parsing, building, resolution
+│   │   ├── types.ts       # W3C 1:1 type definitions
+│   │   ├── parse.ts       # XSD XML → Schema parser
+│   │   ├── build.ts       # Schema → XSD XML builder
+│   │   ├── resolve.ts     # Schema resolver (merges imports, expands inheritance)
+│   │   ├── traverser.ts   # OO schema traversal with W3C types
+│   │   ├── loader.ts      # XSD file loading with import resolution
+│   │   ├── schema-like.ts # Runtime schema type guards
+│   │   └── helpers.ts     # Utility functions
+│   ├── infer/             # Compile-time type inference
+│   │   └── types.ts       # InferSchema<T>, InferElement<T>
+│   ├── xml/               # XML parsing/building with schemas
 │   │   ├── parse.ts       # XML → Object parser
-│   │   └── build.ts       # Object → XML builder
-│   └── codegen/           # Code generation
-│       ├── generate.ts    # Schema literal generator
-│       └── interface-generator.ts  # Interface generator
+│   │   ├── build.ts       # Object → XML builder
+│   │   ├── typed.ts       # Typed schema wrapper
+│   │   └── dom-utils.ts   # DOM manipulation utilities
+│   ├── walker/            # Schema traversal utilities
+│   │   └── index.ts       # walkElements, walkComplexTypes, findSubstitutes
+│   ├── codegen/           # Code generation
+│   │   ├── generate.ts    # Schema literal generator
+│   │   ├── interface-generator.ts  # Interface generator API
+│   │   ├── ts-morph.ts    # TypeScript AST manipulation
+│   │   ├── runner.ts      # Config-based codegen runner
+│   │   └── cli.ts         # CLI interface
+│   └── generators/        # Generator plugins
+│       ├── raw-schema.ts  # Schema literal generator
+│       ├── interfaces.ts  # TypeScript interfaces generator
+│       ├── typed-schemas.ts # Typed schema exports
+│       └── index-barrel.ts # Index file generator
 ```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| **Resolver** | Merges `$imports`, expands `complexContent/extension`, handles `substitutionGroup` |
+| **Traverser** | OO traversal with real W3C XSD types (SchemaTraverser class) |
+| **Walker** | Functional iteration over schema elements, types, groups |
+| **Loader** | File-based XSD loading with automatic import resolution |
 
 ## Design Principles
 
@@ -349,7 +382,8 @@ Tests include:
 ## Related Packages
 
 - **[@abapify/adt-schemas](../adt-schemas)** - SAP ADT schemas using ts-xsd
-- **[speci](../speci)** - REST contract library with schema integration
+- **[@abapify/adt-contracts](../adt-contracts)** - REST contracts for SAP ADT APIs
+- **[@abapify/adt-plugin-abapgit](../adt-plugin-abapgit)** - abapGit plugin schemas
 
 ## Documentation
 
