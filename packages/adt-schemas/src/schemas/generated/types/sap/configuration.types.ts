@@ -5,25 +5,24 @@
  * Mode: Flattened
  */
 
-export type ConfigurationSchema =
-  | {
-      configuration: {
+export type ConfigurationSchema = {
+    configuration: {
         properties: {
-          property: {
-            _text?: string;
-            key?: string;
-            isMandatory?: boolean;
-          }[];
+            property: {
+                _text?: string;
+                key?: string;
+                isMandatory?: boolean;
+            }[];
         };
         link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
+            href: string;
+            rel?: string;
+            type?: string;
+            hreflang?: string;
+            title?: string;
+            length?: number;
+            etag?: string;
+            _text?: string;
         };
         client?: string;
         configName?: string;
@@ -31,17 +30,5 @@ export type ConfigurationSchema =
         createdAt?: string;
         changedBy?: string;
         changedAt?: string;
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
     };
+};

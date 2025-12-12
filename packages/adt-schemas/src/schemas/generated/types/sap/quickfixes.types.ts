@@ -5,273 +5,31 @@
  * Mode: Flattened
  */
 
-export type QuickfixesSchema =
-  | {
-      evaluationRequest: {
+export type QuickfixesSchema = {
+    evaluationRequest: {
         affectedObjects?: {
-          unit?: {
-            content: string;
-            objectReference: {
-              extension?: unknown;
-              uri?: string;
-              parentUri?: string;
-              type?: string;
-              name?: string;
-              packageName?: string;
-              description?: string;
-            };
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
+            unit?: {
+                content: string;
+                objectReference: {
+                    extension?: unknown;
+                    uri?: string;
+                    parentUri?: string;
+                    type?: string;
+                    name?: string;
+                    packageName?: string;
+                    description?: string;
+                };
+                link?: {
+                    href: string;
+                    rel?: string;
+                    type?: string;
+                    hreflang?: string;
+                    title?: string;
+                    length?: number;
+                    etag?: string;
+                    _text?: string;
+                }[];
             }[];
-          }[];
         };
-      };
-    }
-  | {
-      evaluationResults: {
-        evaluationResult?: {
-          objectReference: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
-          };
-          userContent?: string;
-          affectedObjects?: {
-            objectReference?: {
-              extension?: unknown;
-              uri?: string;
-              parentUri?: string;
-              type?: string;
-              name?: string;
-              packageName?: string;
-              description?: string;
-            }[];
-          };
-        }[];
-      };
-    }
-  | {
-      proposalRequest: {
-        input: {
-          content: string;
-          objectReference: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
-          };
-          link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-          }[];
-        };
-        affectedObjects?: {
-          unit?: {
-            content: string;
-            objectReference: {
-              extension?: unknown;
-              uri?: string;
-              parentUri?: string;
-              type?: string;
-              name?: string;
-              packageName?: string;
-              description?: string;
-            };
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-          }[];
-        };
-        userContent?: string;
-      };
-    }
-  | {
-      proposalResult: {
-        deltas: {
-          unit?: {
-            content: string;
-            objectReference: {
-              extension?: unknown;
-              uri?: string;
-              parentUri?: string;
-              type?: string;
-              name?: string;
-              packageName?: string;
-              description?: string;
-            };
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-          }[];
-        };
-        selection?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        variableSourceStates?: {
-          objectReferences?: {
-            objectReference: {
-              extension?: unknown;
-              uri?: string;
-              parentUri?: string;
-              type?: string;
-              name?: string;
-              packageName?: string;
-              description?: string;
-            }[];
-            name?: string;
-          }[];
-          keepCursor?: boolean;
-        };
-        statusMessages?: {
-          statusMessage?: {
-            severity: 'info' | 'warning';
-            message: string;
-            id?: string;
-          }[];
-        };
-      };
-    }
-  | {
-      mainObject: {
-        containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        packageRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        name: string;
-        type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-      };
-    }
-  | {
-      objectReferences: {
-        objectReference: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-        name?: string;
-      };
-    }
-  | {
-      objectReference: {
-        extension?: unknown;
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-      };
-    }
-  | {
-      content: {
-        _text?: string;
-        type?: string;
-        encoding?: string;
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
     };
+};
