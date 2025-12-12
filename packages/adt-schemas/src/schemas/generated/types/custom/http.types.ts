@@ -5,36 +5,23 @@
  * Mode: Flattened
  */
 
-export type HttpSchema =
-  | {
-      session: {
+export type HttpSchema = {
+    session: {
         link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
+            href: string;
+            rel?: string;
+            type?: string;
+            hreflang?: string;
+            title?: string;
+            length?: number;
+            etag?: string;
+            _text?: string;
         }[];
         properties?: {
-          property?: {
-            _text?: string;
-            name: string;
-          }[];
+            property?: {
+                _text?: string;
+                name: string;
+            }[];
         };
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
     };
+};

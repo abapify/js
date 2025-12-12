@@ -387,22 +387,30 @@ export function expandTypeToString(
         // Also check interfaces
         const iface = sf.getInterface(typeName);
         if (iface) {
-          // For interfaces, expand their properties
+          // Check for cycles before expanding interface
+          if (visited.has(typeName)) {
+            return 'unknown';
+          }
+          // For interfaces, expand their properties with cycle tracking
           const ifaceType = iface.getType();
-          return expandTypeToString(ifaceType, checker, context, indent, visited);
+          const newVisited = new Set(visited);
+          newVisited.add(typeName);
+          return expandTypeToString(ifaceType, checker, context, indent, newVisited);
         }
       }
     }
 
-    // Try base types as fallback
+    // Try base types as fallback - but track the type text to prevent cycles
     const baseTypes = type.getBaseTypes();
     if (baseTypes.length > 0) {
+      const newVisited = new Set(visited);
+      newVisited.add(textRepr); // Use textRepr as cycle key
       return expandTypeToString(
         baseTypes[0],
         checker,
         context,
         indent,
-        visited
+        newVisited
       );
     }
     // If still no properties, return unknown to avoid import() in output

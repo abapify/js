@@ -5,91 +5,9 @@
  * Mode: Flattened
  */
 
-export type ClassesSchema =
-  | {
-      abapClass: {
+export type ClassesSchema = {
+    abapClass: {
         containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        packageRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        template?: {
-          property?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        syntaxConfiguration?: {
-          language?: {
-            version?: string;
-            description?: string;
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-          };
-          objectUsage?: {
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-            restricted?: boolean;
-          };
-        };
-        interfaceRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-        include?: {
-          containerRef?: {
             extension?: unknown;
             uri?: string;
             parentUri?: string;
@@ -97,8 +15,8 @@ export type ClassesSchema =
             name?: string;
             packageName?: string;
             description?: string;
-          };
-          link?: {
+        };
+        link?: {
             href: string;
             rel?: string;
             type?: string;
@@ -107,66 +25,134 @@ export type ClassesSchema =
             length?: number;
             etag?: string;
             _text?: string;
-          }[];
-          adtTemplate?: {
+        }[];
+        adtTemplate?: {
             adtProperty?: {
-              _text?: string;
-              key?: string;
+                _text?: string;
+                key?: string;
             }[];
             name?: string;
-          };
-          name: string;
-          type: string;
-          changedBy?: string;
-          changedAt?: string;
-          createdAt?: string;
-          createdBy?: string;
-          version?:
-            | ''
-            | 'active'
-            | 'inactive'
-            | 'workingArea'
-            | 'new'
-            | 'partlyActive'
-            | 'activeWithInactiveVersion';
-          description?: string;
-          descriptionTextLimit?: number;
-          language?: string;
-          sourceUri?: string;
-          includeType?:
-            | 'main'
-            | 'definitions'
-            | 'implementations'
-            | 'macros'
-            | 'testclasses'
-            | 'localtypes';
+        };
+        packageRef?: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+        };
+        template?: {
+            property?: {
+                _text?: string;
+                key?: string;
+            }[];
+            name?: string;
+        };
+        syntaxConfiguration?: {
+            language?: {
+                version?: string;
+                description?: string;
+                link?: {
+                    href: string;
+                    rel?: string;
+                    type?: string;
+                    hreflang?: string;
+                    title?: string;
+                    length?: number;
+                    etag?: string;
+                    _text?: string;
+                }[];
+            };
+            objectUsage?: {
+                link?: {
+                    href: string;
+                    rel?: string;
+                    type?: string;
+                    hreflang?: string;
+                    title?: string;
+                    length?: number;
+                    etag?: string;
+                    _text?: string;
+                }[];
+                restricted?: boolean;
+            };
+        };
+        interfaceRef?: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+        }[];
+        include?: {
+            containerRef?: {
+                extension?: unknown;
+                uri?: string;
+                parentUri?: string;
+                type?: string;
+                name?: string;
+                packageName?: string;
+                description?: string;
+            };
+            link?: {
+                href: string;
+                rel?: string;
+                type?: string;
+                hreflang?: string;
+                title?: string;
+                length?: number;
+                etag?: string;
+                _text?: string;
+            }[];
+            adtTemplate?: {
+                adtProperty?: {
+                    _text?: string;
+                    key?: string;
+                }[];
+                name?: string;
+            };
+            name: string;
+            type: string;
+            changedBy?: string;
+            changedAt?: string;
+            createdAt?: string;
+            createdBy?: string;
+            version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+            description?: string;
+            descriptionTextLimit?: number;
+            language?: string;
+            sourceUri?: string;
+            includeType?: unknown;
         }[];
         superClassRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
         };
         messageClassRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
         };
         rootEntityRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
         };
         name: string;
         type: string;
@@ -174,14 +160,7 @@ export type ClassesSchema =
         changedAt?: string;
         createdAt?: string;
         createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
+        version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
         description?: string;
         descriptionTextLimit?: number;
         language?: string;
@@ -190,11 +169,7 @@ export type ClassesSchema =
         responsible?: string;
         abapLanguageVersion?: string;
         sourceUri?: string;
-        sourceObjectStatus?:
-          | 'SAPStandardProduction'
-          | 'customerProduction'
-          | 'system'
-          | 'test';
+        sourceObjectStatus?: "SAPStandardProduction" | "customerProduction" | "system" | "test";
         fixPointArithmetic?: boolean;
         activeUnicodeCheck?: boolean;
         modeled?: boolean;
@@ -202,232 +177,9 @@ export type ClassesSchema =
         final?: boolean;
         state?: string;
         abstract?: boolean;
-        visibility?: 'private' | 'protected' | 'package' | 'public';
+        visibility?: "private" | "protected" | "package" | "public";
         sharedMemoryEnabled?: boolean;
         constructorGenerated?: boolean;
         hasTests?: boolean;
-      };
-    }
-  | {
-      abapClassInclude: {
-        containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        name: string;
-        type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        sourceUri?: string;
-        includeType?:
-          | 'main'
-          | 'definitions'
-          | 'implementations'
-          | 'macros'
-          | 'testclasses'
-          | 'localtypes';
-      };
-    }
-  | {
-      mainObject: {
-        containerRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        link?: {
-          href: string;
-          rel?: string;
-          type?: string;
-          hreflang?: string;
-          title?: string;
-          length?: number;
-          etag?: string;
-          _text?: string;
-        }[];
-        adtTemplate?: {
-          adtProperty?: {
-            _text?: string;
-            key?: string;
-          }[];
-          name?: string;
-        };
-        packageRef?: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        };
-        name: string;
-        type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?:
-          | ''
-          | 'active'
-          | 'inactive'
-          | 'workingArea'
-          | 'new'
-          | 'partlyActive'
-          | 'activeWithInactiveVersion';
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-      };
-    }
-  | {
-      objectReferences: {
-        objectReference: {
-          extension?: unknown;
-          uri?: string;
-          parentUri?: string;
-          type?: string;
-          name?: string;
-          packageName?: string;
-          description?: string;
-        }[];
-        name?: string;
-      };
-    }
-  | {
-      objectReference: {
-        extension?: unknown;
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-      };
-    }
-  | {
-      content: {
-        _text?: string;
-        type?: string;
-        encoding?: string;
-      };
-    }
-  | {
-      link: {
-        href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
-      };
-    }
-  | {
-      syntaxConfigurations: {
-        syntaxConfiguration?: {
-          language?: {
-            version?: string;
-            description?: string;
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-          };
-          objectUsage?: {
-            link?: {
-              href: string;
-              rel?: string;
-              type?: string;
-              hreflang?: string;
-              title?: string;
-              length?: number;
-              etag?: string;
-              _text?: string;
-            }[];
-            restricted?: boolean;
-          };
-        }[];
-      };
-    }
-  | {
-      syntaxConfiguration: {
-        language?: {
-          version?: string;
-          description?: string;
-          link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-          }[];
-        };
-        objectUsage?: {
-          link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-          }[];
-          restricted?: boolean;
-        };
-      };
     };
+};
