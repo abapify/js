@@ -31,6 +31,9 @@ export default [
       '**/dist',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
+      // Exclude scripts from dependency analysis to prevent false circular dependencies
+      'scripts/**',
+      'e2e/**',
     ],
   },
   {

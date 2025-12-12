@@ -1,6 +1,6 @@
 /**
  * Schema Literal Generator
- * 
+ *
  * Transforms a parsed Schema object into a TypeScript literal string
  * that preserves type information for InferSchema<T>.
  */
@@ -22,7 +22,7 @@ export interface GenerateOptions {
    * - `$xmlns`: Keep `$xmlns` in output (already parsed as $xmlns)
    * - `$imports`: Rename `import` → `$imports` for schema linking
    * - `$filename`: Include `$filename` (uses `name` option + '.xsd')
-   * 
+   *
    * @example
    * ```typescript
    * features: { $xmlns: true, $imports: true, $filename: true }
@@ -39,7 +39,7 @@ export interface GenerateOptions {
   /**
    * Property names to exclude from output.
    * Useful for removing annotations, documentation, etc.
-   * 
+   *
    * @example
    * ```typescript
    * exclude: ['annotation']  // Remove all annotation elements
@@ -48,15 +48,20 @@ export interface GenerateOptions {
   exclude?: string[];
   /** Resolver for import paths (schemaLocation -> module path) */
   importResolver?: (schemaLocation: string) => string | null;
+  /**
+   * Generate isolatedDeclarations-compatible output.
+   * Uses `satisfies Schema as const` instead of just `as const`.
+   */
+  isolatedDeclarations?: boolean;
 }
 
 /**
  * Generate a TypeScript literal string from XSD content.
- * 
+ *
  * @param xsdContent - XSD file content as string
  * @param options - Generation options
  * @returns TypeScript code with schema as const literal
- * 
+ *
  * @example
  * ```typescript
  * const xsd = `<xs:schema>...</xs:schema>`;
@@ -64,22 +69,25 @@ export interface GenerateOptions {
  * // export const PersonSchema = { ... } as const;
  * ```
  */
-export function generateSchemaLiteral(xsdContent: string, options: GenerateOptions = {}): string {
+export function generateSchemaLiteral(
+  xsdContent: string,
+  options: GenerateOptions = {}
+): string {
   const schema = parseXsd(xsdContent);
   const features = options.features ?? {};
   const exclude = new Set(options.exclude ?? []);
-  
+
   // Transform schema
   let outputSchema: Record<string, unknown> = { ...schema };
-  
+
   // Add $filename when enabled (uses name option)
   if (features.$filename && options.name) {
     outputSchema = { $filename: `${options.name}.xsd`, ...outputSchema };
   }
-  
+
   // Apply transformations (features + exclude)
   outputSchema = applyTransforms(outputSchema, features, exclude);
-  
+
   return schemaToLiteral(outputSchema as Schema, options);
 }
 
@@ -112,13 +120,13 @@ function applyTransformsWithImports(
   importedSchemaNames: string[]
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  
+
   for (const [key, value] of Object.entries(schema)) {
     // Skip excluded properties
     if (exclude.has(key)) {
       continue;
     }
-    
+
     if (key === '$xmlns') {
       // $xmlns is already parsed - keep only if feature enabled
       if (features.$xmlns) {
@@ -127,7 +135,9 @@ function applyTransformsWithImports(
     } else if (key === 'import') {
       // Convert import to $imports with schema references
       if (features.$imports && importedSchemaNames.length > 0) {
-        result['$imports'] = importedSchemaNames.map(name => new SchemaRef(name));
+        result['$imports'] = importedSchemaNames.map(
+          (name) => new SchemaRef(name)
+        );
       }
       // If no imports resolved, skip the import property entirely
     } else {
@@ -135,7 +145,7 @@ function applyTransformsWithImports(
       result[key] = filterDeep(value, exclude);
     }
   }
-  
+
   return result;
 }
 
@@ -144,9 +154,9 @@ function applyTransformsWithImports(
  */
 function filterDeep(value: unknown, exclude: Set<string>): unknown {
   if (Array.isArray(value)) {
-    return value.map(item => filterDeep(item, exclude));
+    return value.map((item) => filterDeep(item, exclude));
   }
-  
+
   if (value !== null && typeof value === 'object') {
     const result: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
@@ -156,40 +166,54 @@ function filterDeep(value: unknown, exclude: Set<string>): unknown {
     }
     return result;
   }
-  
+
   return value;
 }
 
 /**
  * Generate a complete TypeScript file from XSD content.
- * 
+ *
  * @param xsdContent - XSD file content as string
  * @param options - Generation options
  * @returns Complete TypeScript file content
  */
-export function generateSchemaFile(xsdContent: string, options: GenerateOptions = {}): string {
+export function generateSchemaFile(
+  xsdContent: string,
+  options: GenerateOptions = {}
+): string {
   const {
     name = 'schema',
     comment,
     features = {},
     importResolver,
+    isolatedDeclarations = false,
   } = options;
 
   // Parse to extract imports
   const schema = parseXsd(xsdContent);
-  const xsdImports = (schema.import ?? []) as Array<{ schemaLocation?: string; namespace?: string }>;
-  
+  const xsdImports = (schema.import ?? []) as Array<{
+    schemaLocation?: string;
+    namespace?: string;
+  }>;
+
   // Generate TypeScript import statements if $imports feature enabled
   const tsImports: string[] = [];
   const importedSchemaNames: string[] = [];
-  
+
+  // Add Schema type import for isolatedDeclarations mode
+  if (isolatedDeclarations) {
+    tsImports.push("import type { Schema } from '@abapify/ts-xsd';");
+  }
+
   if (features.$imports && importResolver) {
     for (const imp of xsdImports) {
       if (imp.schemaLocation) {
         const modulePath = importResolver(imp.schemaLocation);
         if (modulePath) {
           // Derive schema name from schemaLocation basename (e.g., "../sap/adtcore.xsd" → "adtcore")
-          const schemaName = imp.schemaLocation.replace(/\.xsd$/, '').replace(/^.*\//, '');
+          const schemaName = imp.schemaLocation
+            .replace(/\.xsd$/, '')
+            .replace(/^.*\//, '');
           tsImports.push(`import ${schemaName} from '${modulePath}';`);
           importedSchemaNames.push(schemaName);
         }
@@ -222,25 +246,30 @@ export function generateSchemaFile(xsdContent: string, options: GenerateOptions 
  * Generate schema literal with $imports as schema references.
  */
 function generateSchemaLiteralWithImports(
-  xsdContent: string, 
+  xsdContent: string,
   options: GenerateOptions,
   importedSchemaNames: string[]
 ): string {
   const schema = parseXsd(xsdContent);
   const features = options.features ?? {};
   const exclude = new Set(options.exclude ?? []);
-  
+
   // Transform schema
   let outputSchema: Record<string, unknown> = { ...schema };
-  
+
   // Add $filename when enabled (uses name option)
   if (features.$filename && options.name) {
     outputSchema = { $filename: `${options.name}.xsd`, ...outputSchema };
   }
-  
+
   // Apply transformations (features + exclude), passing imported schema names
-  outputSchema = applyTransformsWithImports(outputSchema, features, exclude, importedSchemaNames);
-  
+  outputSchema = applyTransformsWithImports(
+    outputSchema,
+    features,
+    exclude,
+    importedSchemaNames
+  );
+
   return schemaToLiteral(outputSchema as Schema, options);
 }
 
@@ -254,16 +283,27 @@ function escapeReservedWord(name: string): string {
 /**
  * Convert a Schema object to a TypeScript literal string.
  */
-function schemaToLiteral(schema: Schema, options: GenerateOptions = {}): string {
+function schemaToLiteral(
+  schema: Schema,
+  options: GenerateOptions = {}
+): string {
   const {
     name = 'schema',
     pretty = true,
     indent = '  ',
+    isolatedDeclarations = false,
   } = options;
 
   const safeName = escapeReservedWord(name);
   const literal = objectToLiteral(schema, pretty, indent, 0);
-  return `export const ${safeName} = ${literal} as const;`;
+
+  // For isolatedDeclarations compatibility, use `satisfies Schema as const`
+  // This makes the type explicit so TypeScript can emit declarations
+  const typeAssertion = isolatedDeclarations
+    ? 'satisfies Schema as const'
+    : 'as const';
+
+  return `export const ${safeName} = ${literal} ${typeAssertion};`;
 }
 
 /**
@@ -297,21 +337,25 @@ function objectToLiteral(
       return '[]';
     }
 
-    const items = value.map(item => objectToLiteral(item, pretty, indent, depth + 1));
-    
+    const items = value.map((item) =>
+      objectToLiteral(item, pretty, indent, depth + 1)
+    );
+
     if (pretty) {
       const itemIndent = indent.repeat(depth + 1);
       const closeIndent = indent.repeat(depth);
-      return `[\n${items.map(item => `${itemIndent}${item}`).join(',\n')},\n${closeIndent}]`;
+      return `[\n${items
+        .map((item) => `${itemIndent}${item}`)
+        .join(',\n')},\n${closeIndent}]`;
     }
-    
+
     return `[${items.join(', ')}]`;
   }
 
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
     const entries = Object.entries(obj).filter(([, v]) => v !== undefined);
-    
+
     if (entries.length === 0) {
       return '{}';
     }
@@ -325,7 +369,9 @@ function objectToLiteral(
     if (pretty) {
       const propIndent = indent.repeat(depth + 1);
       const closeIndent = indent.repeat(depth);
-      return `{\n${props.map(prop => `${propIndent}${prop}`).join(',\n')},\n${closeIndent}}`;
+      return `{\n${props
+        .map((prop) => `${propIndent}${prop}`)
+        .join(',\n')},\n${closeIndent}}`;
     }
 
     return `{ ${props.join(', ')} }`;
@@ -338,12 +384,52 @@ function objectToLiteral(
  * JavaScript reserved words that cannot be used as variable names.
  */
 const RESERVED_WORDS = new Set([
-  'break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete',
-  'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof',
-  'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var',
-  'void', 'while', 'with', 'class', 'const', 'enum', 'export', 'extends',
-  'import', 'super', 'implements', 'interface', 'let', 'package', 'private',
-  'protected', 'public', 'static', 'yield', 'await', 'null', 'true', 'false',
+  'break',
+  'case',
+  'catch',
+  'continue',
+  'debugger',
+  'default',
+  'delete',
+  'do',
+  'else',
+  'finally',
+  'for',
+  'function',
+  'if',
+  'in',
+  'instanceof',
+  'new',
+  'return',
+  'switch',
+  'this',
+  'throw',
+  'try',
+  'typeof',
+  'var',
+  'void',
+  'while',
+  'with',
+  'class',
+  'const',
+  'enum',
+  'export',
+  'extends',
+  'import',
+  'super',
+  'implements',
+  'interface',
+  'let',
+  'package',
+  'private',
+  'protected',
+  'public',
+  'static',
+  'yield',
+  'await',
+  'null',
+  'true',
+  'false',
 ]);
 
 /**
@@ -359,5 +445,5 @@ function isValidIdentifier(str: string): boolean {
 function pascalCase(str: string): string {
   return str
     .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
-    .replace(/^./, s => s.toUpperCase());
+    .replace(/^./, (s) => s.toUpperCase());
 }
