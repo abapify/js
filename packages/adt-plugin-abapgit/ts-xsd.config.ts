@@ -10,7 +10,7 @@
  *   npx nx codegen adt-plugin-abapgit
  */
 
-import { defineConfig, rawSchema, flattenedInterfaces, indexBarrel } from 'ts-xsd/generators';
+import { defineConfig, rawSchema, interfaces, indexBarrel } from 'ts-xsd/generators';
 
 export default defineConfig({
   // Use extensionless imports for bundler compatibility
@@ -42,7 +42,7 @@ export default defineConfig({
       resolve: true,    // Merge imports, expand extensions and substitution groups
     }),
     // Generate flattened TypeScript types to ../types/ directory
-    flattenedInterfaces({
+    interfaces({
       filePattern: '../types/{name}.ts',
       flatten: true,  // Flatten all types into single file with root type alias
       addJsDoc: true,
