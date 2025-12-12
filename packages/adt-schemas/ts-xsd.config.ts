@@ -23,7 +23,7 @@
 import {
   defineConfig,
   rawSchema,
-  flattenedInterfaces,
+  interfaces,
 } from 'ts-xsd/generators';
 import { deriveRootTypeName } from 'ts-xsd';
 
@@ -90,7 +90,7 @@ export default defineConfig({
     }),
     // Generate TypeScript interfaces to generated/types/ directory
     // Uses ts-morph type checker for accurate type expansion
-    flattenedInterfaces({
+    interfaces({
       filePattern: '../types/{name}.types.ts',
       flatten: true, // Generate single flattened type per file
       addJsDoc: true,
