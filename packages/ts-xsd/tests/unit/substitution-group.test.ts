@@ -100,7 +100,7 @@ describe('substitution group interface generation', () => {
   it('should generate types for all complexTypes', () => {
     // Merge schemas to resolve substitution groups
     const merged = resolveSchema(domaSchema);
-    const result = generateInterfaces(merged, { generateAllTypes: true });
+    const { code: result } = generateInterfaces(merged);
     
     // Should have Dd01vType
     assert.ok(result.includes('export interface Dd01vType'), 'Should have Dd01vType');
@@ -117,7 +117,7 @@ describe('substitution group interface generation', () => {
   it('should expand substitution groups in AbapValuesType', () => {
     // Merge schemas to resolve substitution groups
     const merged = resolveSchema(domaSchema);
-    const result = generateInterfaces(merged, { generateAllTypes: true });
+    const { code: result } = generateInterfaces(merged);
     
     // AbapValuesType should have DD01V and DD07V_TAB (substitutes for abstract Schema)
     // instead of the abstract Schema element

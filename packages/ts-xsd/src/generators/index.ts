@@ -47,20 +47,9 @@ export { defineConfig } from '../codegen/types';
 export { rawSchema, type RawSchemaOptions } from './raw-schema';
 export { inferredTypes, type InferredTypesOptions } from './inferred-types';
 export { interfaces, type InterfacesOptions } from './interfaces';
-export {
-  flattenedInterfaces,
-  type FlattenedInterfacesOptions,
-} from './flattened-interfaces';
 export { indexBarrel, type IndexBarrelOptions } from './index-barrel';
 export { typedSchemas, type TypedSchemasOptions } from './typed-schemas';
 
-// Presets - re-exported from codegen
-export { presets } from '../codegen/presets';
-export type {
-  SimpleSchemaPresetOptions,
-  TypedSchemaPresetOptions,
-  FullSchemaPresetOptions,
-} from '../codegen/presets';
 
 // Runner - re-exported from codegen
 export {

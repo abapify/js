@@ -30,7 +30,7 @@ import { runCodegen } from '../../src/codegen/runner.ts';
 import { rawSchema } from '../../src/generators/raw-schema.ts';
 import { loadSchema, type Schema } from '../../src/xsd/index.ts';
 import type { CodegenConfig } from '../../src/codegen/types.ts';
-import { generateInterfaces, generateSimpleInterfaces } from '../../src/codegen/interface-generator.ts';
+import { generateInterfaces } from '../../src/codegen/interface-generator.ts';
 import { resolveSchema } from '../../src/xsd/resolve.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -358,8 +358,7 @@ describe('abapGit DOMA schema integration', () => {
     // Generate interfaces using the existing (complex) generator
     // This generator traverses $imports and $includes to resolve types
     // Note: The existing generator requires a rootElement to start from
-    const interfaces = generateInterfaces(linkedSchema, { 
-      generateAllTypes: true,
+    const { code: interfaces } = generateInterfaces(linkedSchema, { 
       addJsDoc: true,
     });
 
@@ -403,8 +402,7 @@ describe('abapGit DOMA schema integration', () => {
     
     // Generate interfaces using the simplified generator
     // This generator works with pre-merged schemas - no import traversal needed
-    const interfaces = generateSimpleInterfaces(mergedSchema, { 
-      generateAllTypes: true,
+    const { code: interfaces } = generateInterfaces(mergedSchema, { 
       addJsDoc: true,
     });
 
@@ -439,11 +437,11 @@ describe('abapGit DOMA schema integration', () => {
     
     // LINKED approach - uses existing complex generator
     const linkedSchema = loadSchema(domaPath, { autoLink: true });
-    const linkedInterfaces = generateInterfaces(linkedSchema, { generateAllTypes: true });
+    const { code: linkedInterfaces } = generateInterfaces(linkedSchema);
     
     // MERGED approach - uses resolveSchema + simple generator
     const mergedSchema = resolveSchema(linkedSchema);
-    const mergedInterfaces = generateSimpleInterfaces(mergedSchema, { generateAllTypes: true });
+    const { code: mergedInterfaces } = generateInterfaces(mergedSchema);
 
     console.log('\n=== Interface Generation Comparison ===');
     console.log(`LINKED interfaces:  ${linkedInterfaces.length} chars`);

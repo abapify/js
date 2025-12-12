@@ -22,7 +22,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should generate interface for simple complex type', () => {
-    const output = generateInterfaces(simpleSchema, {
+    const { code: output } = generateInterfaces(simpleSchema, {
       rootElement: 'person',
     });
     
@@ -62,7 +62,7 @@ describe('Interface Generator', () => {
   it('should generate interface with extends clause', () => {
     // NOTE: The simplified generator flattens inheritance instead of using extends.
     // This produces simpler, self-contained interfaces.
-    const output = generateInterfaces(inheritanceSchema, {
+    const { code: output } = generateInterfaces(inheritanceSchema, {
       rootElement: 'employee',
     });
     
@@ -103,7 +103,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should generate interface with array types', () => {
-    const output = generateInterfaces(nestedSchema, {
+    const { code: output } = generateInterfaces(nestedSchema, {
       rootElement: 'order',
     });
     
@@ -137,7 +137,7 @@ describe('Interface Generator', () => {
       ],
     } as const;
 
-    const output = generateInterfaces(mergedDeepSchema, {
+    const { code: output } = generateInterfaces(mergedDeepSchema, {
       rootElement: 'obj',
     });
     
@@ -155,7 +155,7 @@ describe('Interface Generator', () => {
   });
 
   it('should generate all types when generateAllTypes is true', () => {
-    const output = generateInterfaces(simpleSchema, {
+    const { code: output } = generateInterfaces(simpleSchema, {
       generateAllTypes: true,
     });
     
@@ -193,7 +193,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should generate type alias for simpleType enum', () => {
-    const output = generateInterfaces(enumSchema, {
+    const { code: output } = generateInterfaces(enumSchema, {
       generateAllTypes: true,
     });
     
@@ -226,7 +226,7 @@ describe('Interface Generator', () => {
 
   it('should generate interface for simpleContent with _text', () => {
     // NOTE: The simplified generator uses _text instead of $value for simpleContent
-    const output = generateInterfaces(simpleContentSchema, {
+    const { code: output } = generateInterfaces(simpleContentSchema, {
       rootElement: 'price',
     });
     
@@ -262,7 +262,7 @@ describe('Interface Generator', () => {
   it('should resolve types from include schemas', () => {
     // NOTE: The simplified generator flattens inheritance instead of using extends.
     // This is by design - it produces simpler, self-contained interfaces.
-    const output = generateInterfaces(mergedIncludeSchema, {
+    const { code: output } = generateInterfaces(mergedIncludeSchema, {
       rootElement: 'item',
     });
     
@@ -300,7 +300,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should resolve group references', () => {
-    const output = generateInterfaces(groupSchema, { rootElement: 'item' });
+    const { code: output } = generateInterfaces(groupSchema, { rootElement: 'item' });
     
     assert.ok(output.includes('export interface ItemType'), 'Should have ItemType');
     assert.ok(output.includes('name: string'), 'Should have name');
@@ -325,7 +325,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should handle any wildcard element', () => {
-    const output = generateInterfaces(anySchema, { rootElement: 'container' });
+    const { code: output } = generateInterfaces(anySchema, { rootElement: 'container' });
     
     assert.ok(output.includes('export interface ContainerType'), 'Should have ContainerType');
     assert.ok(output.includes('header: string'), 'Should have header');
@@ -371,7 +371,7 @@ describe('Interface Generator', () => {
     } as const;
 
     it('should use element type (LinkType), not element name (TemplateLink)', () => {
-      const output = generateInterfaces(mergedSchema, {
+      const { code: output } = generateInterfaces(mergedSchema, {
         rootElement: 'container',
       });
       
@@ -414,7 +414,7 @@ describe('Interface Generator', () => {
     } as const;
 
     it('should ignore ecore:name and use W3C name attribute only', () => {
-      const output = generateInterfaces(schemaWithEcoreName, {
+      const { code: output } = generateInterfaces(schemaWithEcoreName, {
         rootElement: 'item',
       });
       

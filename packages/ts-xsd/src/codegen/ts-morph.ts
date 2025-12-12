@@ -61,28 +61,16 @@ export interface SchemaSourceFileResult {
   rootTypeName: string | undefined;
 }
 
-export interface GenerateInterfacesOptions extends SchemaToSourceFileOptions {
-  /**
-   * If true, generates a single flattened type with all nested types inlined.
-   * If false (default), generates interfaces with imports and extends.
-   */
-  flatten?: boolean;
-  /**
-   * Additional source files to include for resolving imports when flattening.
-   * These are typically the generated source files from $imports schemas.
-   */
-  additionalSourceFiles?: SourceFile[];
-}
 
-export interface GenerateInterfacesResult {
-  /** The generated TypeScript code */
-  code: string;
-  /** The ts-morph SourceFile */
-  sourceFile: SourceFile;
-  /** The root type name */
-  rootTypeName: string | undefined;
-  /** The ts-morph Project (useful for further manipulation) */
-  project: Project;
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function deriveRootTypeName(filename: string | undefined): string | undefined {
+  if (!filename) return undefined;
+  const baseName = filename.replace(/\.xsd$/, '').replace(/^.*\//, '');
+  const pascalCase = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+  return `${pascalCase}Schema`;
 }
 
 // =============================================================================
@@ -257,65 +245,6 @@ export function flattenType(
   return flatFile;
 }
 
-// =============================================================================
-// generateInterfaces - High-level API
-// =============================================================================
-
-/**
- * Generate TypeScript interfaces from a schema.
- *
- * @param schema - The schema to generate interfaces from
- * @param options - Generation options
- * @returns Generated TypeScript code and metadata
- *
- * @example
- * // Generate interfaces with imports and extends
- * const { code } = generateInterfaces(schema);
- *
- * @example
- * // Generate a single flattened type with all nested types inlined
- * const { code } = generateInterfaces(schema, {
- *   flatten: true,
- *   additionalSourceFiles: [baseSchemaSourceFile]
- * });
- */
-export function generateInterfaces(
-  schema: Schema,
-  options: GenerateInterfacesOptions = {}
-): GenerateInterfacesResult {
-  const { flatten, additionalSourceFiles, ...schemaOptions } = options;
-
-  // Step 1: Generate the source file with interfaces
-  const { project, sourceFile, rootTypeName } = schemaToSourceFile(
-    schema,
-    schemaOptions
-  );
-
-  // Step 2: If flatten is requested and we have a root type, flatten it
-  if (flatten && rootTypeName) {
-    const flattenedFile = flattenType(sourceFile, rootTypeName, {
-      additionalSourceFiles,
-      filename: `${
-        schema.$filename?.replace('.xsd', '') ?? 'schema'
-      }.flattened.ts`,
-    });
-
-    return {
-      code: flattenedFile.getFullText(),
-      sourceFile: flattenedFile,
-      rootTypeName,
-      project,
-    };
-  }
-
-  // Return the non-flattened interfaces
-  return {
-    code: sourceFile.getFullText(),
-    sourceFile,
-    rootTypeName,
-    project,
-  };
-}
 
 // =============================================================================
 // Type Expansion (for flattenType)
@@ -373,7 +302,13 @@ export function expandTypeToString(
   if (type.isUnion()) {
     const unionTypes = type.getUnionTypes();
     if (unionTypes.every((t) => isPrimitiveType(t))) {
-      return type.getText();
+      // All primitives - but check if getText() returns import() reference
+      const textRepr = type.getText();
+      if (textRepr.includes('import(')) {
+        // Expand each union member individually to avoid import() in output
+        return unionTypes.map((t) => t.getText()).join(' | ');
+      }
+      return textRepr;
     }
     return unionTypes
       .map((t) => expandTypeToString(t, checker, context, indent, visited))
@@ -434,9 +369,32 @@ export function expandTypeToString(
   // For types without properties, check if getText() returns an import() - if so, try to expand
   const textRepr = type.getText();
   if (textRepr.includes('import(')) {
-    // This is a reference to another type - try to get its properties
-    // The type should already be resolved, so getProperties() should work
-    // If it doesn't have properties, it might be a type alias - get the base type
+    // Extract the type name from import("...").TypeName
+    const match = textRepr.match(/import\([^)]+\)\.(\w+)/);
+    if (match) {
+      const typeName = match[1];
+      // Look up the type alias in all source files in the project
+      const project = context.getSourceFile().getProject();
+      for (const sf of project.getSourceFiles()) {
+        const typeAlias = sf.getTypeAlias(typeName);
+        if (typeAlias) {
+          const typeNode = typeAlias.getTypeNode();
+          if (typeNode) {
+            // Return the raw type text (e.g., "'active' | 'inactive' | 'pending'")
+            return typeNode.getText();
+          }
+        }
+        // Also check interfaces
+        const iface = sf.getInterface(typeName);
+        if (iface) {
+          // For interfaces, expand their properties
+          const ifaceType = iface.getType();
+          return expandTypeToString(ifaceType, checker, context, indent, visited);
+        }
+      }
+    }
+
+    // Try base types as fallback
     const baseTypes = type.getBaseTypes();
     if (baseTypes.length > 0) {
       return expandTypeToString(
@@ -454,18 +412,6 @@ export function expandTypeToString(
   return textRepr;
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-export function deriveRootTypeName(
-  filename: string | undefined
-): string | undefined {
-  if (!filename) return undefined;
-  const baseName = filename.replace(/\.xsd$/, '').replace(/^.*\//, '');
-  const pascalCase = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-  return `${pascalCase}Schema`;
-}
 
 // =============================================================================
 // Internal Types
@@ -611,13 +557,10 @@ function resolveTypeName(typeName: string, ctx: GeneratorContext): string {
     return XSD_BUILT_IN_TYPES[stripped];
   }
 
-  // Simple type in current schema?
+  // Simple type in current schema? Return the type alias name
   const st = ctx.schema.simpleType?.find((s) => s.name === stripped);
-  if (st?.restriction?.enumeration && st.restriction.enumeration.length > 0) {
-    return st.restriction.enumeration.map((e) => `'${e.value}'`).join(' | ');
-  }
-  if (st?.restriction?.base) {
-    return XSD_BUILT_IN_TYPES[stripNsPrefix(st.restriction.base)] ?? 'string';
+  if (st) {
+    return toInterfaceName(stripped);
   }
 
   // Complex type in current schema?
@@ -655,6 +598,7 @@ function generateInterface(
     hasQuestionToken: boolean;
   }> = [];
   const extendsTypes: string[] = [];
+  let hasAny = false;
 
   // Handle complexContent extension (inheritance)
   if (ct.complexContent?.extension?.base) {
@@ -676,9 +620,9 @@ function generateInterface(
 
     // Collect extension's own properties
     const ext = ct.complexContent.extension;
-    if (ext.sequence) collectFromGroup(ext.sequence, properties, ctx, false);
-    if (ext.choice) collectFromGroup(ext.choice, properties, ctx, true);
-    if (ext.all) collectFromGroup(ext.all, properties, ctx, false);
+    if (ext.sequence) hasAny = collectFromGroup(ext.sequence, properties, ctx, false) || hasAny;
+    if (ext.choice) hasAny = collectFromGroup(ext.choice, properties, ctx, true) || hasAny;
+    if (ext.all) hasAny = collectFromGroup(ext.all, properties, ctx, false) || hasAny;
     collectAttributes(ext.attribute, properties, ctx);
   }
   // Handle simpleContent
@@ -692,9 +636,9 @@ function generateInterface(
   }
   // Handle direct content (no complexContent/simpleContent)
   else {
-    if (ct.sequence) collectFromGroup(ct.sequence, properties, ctx, false);
-    if (ct.choice) collectFromGroup(ct.choice, properties, ctx, true);
-    if (ct.all) collectFromGroup(ct.all, properties, ctx, false);
+    if (ct.sequence) hasAny = collectFromGroup(ct.sequence, properties, ctx, false) || hasAny;
+    if (ct.choice) hasAny = collectFromGroup(ct.choice, properties, ctx, true) || hasAny;
+    if (ct.all) hasAny = collectFromGroup(ct.all, properties, ctx, false) || hasAny;
     collectAttributes(ct.attribute, properties, ctx);
 
     if (ct.mixed) {
@@ -711,14 +655,14 @@ function generateInterface(
       const group = ctx.schema.group?.find((g) => g.name === groupName);
       if (group) {
         if (group.sequence)
-          collectFromGroup(group.sequence, properties, ctx, false);
-        if (group.choice) collectFromGroup(group.choice, properties, ctx, true);
-        if (group.all) collectFromGroup(group.all, properties, ctx, false);
+          hasAny = collectFromGroup(group.sequence, properties, ctx, false) || hasAny;
+        if (group.choice) hasAny = collectFromGroup(group.choice, properties, ctx, true) || hasAny;
+        if (group.all) hasAny = collectFromGroup(group.all, properties, ctx, false) || hasAny;
       }
     }
   }
 
-  ctx.sourceFile.addInterface({
+  const interfaceDecl = ctx.sourceFile.addInterface({
     name: interfaceName,
     isExported: true,
     extends: extendsTypes.length > 0 ? extendsTypes : undefined,
@@ -731,6 +675,15 @@ function generateInterface(
       ? [{ description: `Generated from complexType: ${name}` }]
       : undefined,
   });
+
+  // Add index signature for xs:any wildcard
+  if (hasAny) {
+    interfaceDecl.addIndexSignature({
+      keyName: 'key',
+      keyType: 'string',
+      returnType: 'unknown',
+    });
+  }
 }
 
 interface GroupLike {
@@ -738,6 +691,7 @@ interface GroupLike {
   sequence?: readonly ExplicitGroup[];
   choice?: readonly ExplicitGroup[];
   group?: readonly { ref?: string }[];
+  any?: readonly { namespace?: string; processContents?: string }[];
 }
 
 function collectFromGroup(
@@ -745,17 +699,19 @@ function collectFromGroup(
   properties: Array<{ name: string; type: string; hasQuestionToken: boolean }>,
   ctx: GeneratorContext,
   forceOptional: boolean
-): void {
+): boolean {
+  let hasAny = false;
+
   for (const el of group.element ?? []) {
     addElementProperty(el, properties, ctx, forceOptional);
   }
 
   for (const seq of group.sequence ?? []) {
-    collectFromGroup(seq, properties, ctx, forceOptional);
+    if (collectFromGroup(seq, properties, ctx, forceOptional)) hasAny = true;
   }
 
   for (const ch of group.choice ?? []) {
-    collectFromGroup(ch, properties, ctx, true);
+    if (collectFromGroup(ch, properties, ctx, true)) hasAny = true;
   }
 
   for (const g of group.group ?? []) {
@@ -764,14 +720,21 @@ function collectFromGroup(
       const namedGroup = ctx.schema.group?.find((gr) => gr.name === groupName);
       if (namedGroup) {
         if (namedGroup.sequence)
-          collectFromGroup(namedGroup.sequence, properties, ctx, forceOptional);
+          if (collectFromGroup(namedGroup.sequence, properties, ctx, forceOptional)) hasAny = true;
         if (namedGroup.choice)
-          collectFromGroup(namedGroup.choice, properties, ctx, true);
+          if (collectFromGroup(namedGroup.choice, properties, ctx, true)) hasAny = true;
         if (namedGroup.all)
-          collectFromGroup(namedGroup.all, properties, ctx, forceOptional);
+          if (collectFromGroup(namedGroup.all, properties, ctx, forceOptional)) hasAny = true;
       }
     }
   }
+
+  // Check for xs:any wildcard
+  if (group.any && group.any.length > 0) {
+    hasAny = true;
+  }
+
+  return hasAny;
 }
 
 function addElementProperty(

@@ -1,7 +1,7 @@
 /**
  * ts-xsd config for testing xs:include support
  */
-import { presets } from '../../../src/codegen/presets.ts';
+import { rawSchema, indexBarrel } from '../../../src/generators/index.ts';
 import type { CodegenConfig } from '../../../src/codegen/types.ts';
 
 export default {
@@ -12,5 +12,5 @@ export default {
       schemas: ['document', 'common'],
     },
   },
-  generators: presets.simpleSchemas(),
+  generators: [rawSchema(), indexBarrel()],
 } satisfies CodegenConfig;

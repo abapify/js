@@ -6,11 +6,11 @@
 
 import { describe, test as it } from 'node:test';
 import { strict as assert } from 'node:assert';
+import { schemaToSourceFile } from '../../src/codegen/ts-morph';
 import {
-  schemaToSourceFile,
   deriveRootTypeName,
   generateInterfaces,
-} from '../../src/codegen/ts-morph';
+} from '../../src/codegen/interface-generator';
 import type { Schema } from '../../src/xsd/types';
 
 describe('codegen/ts-morph', () => {
