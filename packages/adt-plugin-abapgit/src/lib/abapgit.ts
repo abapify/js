@@ -43,6 +43,17 @@ export const abapGitPlugin: AdtPlugin = createPlugin({
   format: {
     async import(object, targetPath, context) {
       try {
+        // Get the object's package - for DEVC objects, use name; for others, use package property
+        // Note: object.type might be 'DEVC/K' not just 'DEVC'
+        const isPackage = object.type?.startsWith('DEVC');
+        const objPackage = isPackage
+          ? object.name 
+          : ((object as any).package || object.name || 'ROOT');
+        
+        // Resolve full package path from SAP (root → ... → current)
+        // This uses ADK to load package hierarchy via super package references
+        const packagePath = await context.resolvePackagePath(objPackage);
+        
         // abapGit PREFIX folder logic:
         // - Root package (1 element in path): no subfolder, files go directly in src/
         // - Child packages: use name with parent prefix stripped
@@ -50,13 +61,13 @@ export const abapGitPlugin: AdtPlugin = createPlugin({
 
         let packageDir: string;
 
-        if (context.packagePath.length === 1) {
+        if (packagePath.length === 1) {
           // Root package: serialize directly to src/ (no subfolder)
           packageDir = '';
         } else {
           // Child package: strip parent prefix from name
-          const fullName = context.packagePath.at(-1)!;
-          const parentName = context.packagePath.at(-2)!;
+          const fullName = packagePath.at(-1)!;
+          const parentName = packagePath.at(-2)!;
 
           // Strip parent prefix and underscore (e.g., $PARENT_CHILD → CHILD → child)
           const prefix = parentName + '_';

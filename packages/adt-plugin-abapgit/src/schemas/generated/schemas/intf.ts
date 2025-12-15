@@ -11,6 +11,7 @@ export default {
     asx: "http://www.sap.com/abapxml",
   },
   targetNamespace: "http://www.sap.com/abapxml",
+  elementFormDefault: "unqualified",
   element: [
     {
       name: "abapGit",
