@@ -21,10 +21,19 @@ export type AbapObjectType = string;
 
 /**
  * Context for import operation
+ * 
+ * The plugin is responsible for determining folder structure based on its format rules.
+ * Plugin can use the provided resolver to load package hierarchy from SAP.
  */
 export interface ImportContext {
-  /** Path from root to this package (e.g., ['ZROOT', 'ZSUB']) */
-  packagePath: string[];
+  /** 
+   * Resolve full package path from root to the given package.
+   * Uses ADK to load package → super package → etc until root.
+   * 
+   * @param packageName - Package name to resolve
+   * @returns Array of package names from root to current (e.g., ['ZROOT', 'ZROOT_CHILD', 'ZROOT_CHILD_SUB'])
+   */
+  resolvePackagePath(packageName: string): Promise<string[]>;
 }
 
 /**

@@ -49,6 +49,10 @@ export function createXmlDocument(schema: SchemaLike): XmlDocument {
 
 /**
  * Create root element with namespace declarations
+ * 
+ * When elementFormDefault="unqualified", the root element should NOT have
+ * a namespace prefix. This is important for formats like abapGit where
+ * the root element (abapGit) is unqualified but child elements may have prefixes.
  */
 export function createRootElement(
   doc: XmlDocument,
@@ -57,16 +61,21 @@ export function createRootElement(
   prefix: string | undefined
 ): XmlElement {
   const ns = schema.targetNamespace || null;
-  const rootTag = prefix ? `${prefix}:${elementName}` : elementName;
+  
+  // Check elementFormDefault - when "unqualified", root element should NOT have prefix
+  // This follows the abapGit pattern where root is unqualified but xmlns:asx is declared
+  const elementFormDefault = (schema as { elementFormDefault?: string }).elementFormDefault;
+  const usePrefix = elementFormDefault === 'unqualified' ? undefined : prefix;
+  
+  const rootTag = usePrefix ? `${usePrefix}:${elementName}` : elementName;
   const root = doc.createElement(rootTag);
 
-  // Add namespace declaration
-  if (ns) {
-    if (prefix) {
-      root.setAttribute(`xmlns:${prefix}`, ns);
-    } else {
-      root.setAttribute('xmlns', ns);
-    }
+  // Add namespace declaration for the prefix (even if root doesn't use it)
+  // This allows child elements to use the prefix
+  if (ns && prefix) {
+    root.setAttribute(`xmlns:${prefix}`, ns);
+  } else if (ns && !prefix) {
+    root.setAttribute('xmlns', ns);
   }
 
   // Add xmlns declarations from schema
@@ -156,30 +165,53 @@ export function formatValue(value: unknown, type: string): string {
 
 /**
  * Simple XML formatter (basic indentation)
+ * 
+ * Keeps text content inline: <tag>text</tag>
+ * Only adds newlines for nested elements
  */
 export function formatXml(xml: string): string {
   let formatted = '';
   let indent = 0;
   const parts = xml.split(/(<[^>]+>)/g).filter(Boolean);
+  let lastWasText = false;
 
-  for (const part of parts) {
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const nextPart = parts[i + 1];
+    
     if (part.startsWith('<?')) {
       formatted += part + '\n';
+      lastWasText = false;
     } else if (part.startsWith('</')) {
       indent = Math.max(0, indent - 1);
-      formatted += '  '.repeat(indent) + part + '\n';
+      if (lastWasText) {
+        // Text content before closing tag - keep inline
+        formatted += part + '\n';
+      } else {
+        formatted += '  '.repeat(indent) + part + '\n';
+      }
+      lastWasText = false;
     } else if (part.startsWith('<') && part.endsWith('/>')) {
       formatted += '  '.repeat(indent) + part + '\n';
+      lastWasText = false;
     } else if (part.startsWith('<')) {
       formatted += '  '.repeat(indent) + part;
       if (!part.includes('</')) {
         indent++;
       }
-      formatted += '\n';
+      // Check if next part is text content (not a tag)
+      if (nextPart && !nextPart.startsWith('<')) {
+        // Don't add newline - text content follows
+      } else {
+        formatted += '\n';
+      }
+      lastWasText = false;
     } else {
+      // Text content - keep inline with opening tag
       const trimmed = part.trim();
       if (trimmed) {
-        formatted = formatted.trimEnd() + trimmed + '\n';
+        formatted += trimmed;
+        lastWasText = true;
       }
     }
   }

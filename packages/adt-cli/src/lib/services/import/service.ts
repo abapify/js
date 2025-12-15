@@ -1,4 +1,6 @@
 import { loadFormatPlugin } from '../../utils/format-loader';
+import type { ImportContext } from '@abapify/adt-plugin';
+import { AdkPackage } from '@abapify/adk';
 
 /**
  * Options for importing a transport request
@@ -111,6 +113,41 @@ export class ImportService {
     const results = { success: 0, skipped: 0, failed: 0 };
     const objectsByType: Record<string, number> = {};
     
+    /**
+     * Resolve full package path from root to the given package.
+     * Uses ADK to load package → super package → etc until root.
+     * 
+     * Note: ADK handles per-instance caching. A global package cache
+     * could be added to ADK later if performance becomes an issue.
+     */
+    async function resolvePackagePath(packageName: string): Promise<string[]> {
+      const path: string[] = [];
+      let currentPackage = packageName;
+      
+      // Traverse up the package hierarchy
+      while (currentPackage) {
+        path.unshift(currentPackage); // Add to beginning (building from leaf to root)
+        
+        try {
+          // Load package to get super package
+          const pkg = await AdkPackage.get(currentPackage);
+          const superPkg = pkg.superPackage;
+          
+          if (superPkg?.name) {
+            currentPackage = superPkg.name;
+          } else {
+            // No super package - we've reached the root
+            break;
+          }
+        } catch {
+          // Package not found or error - stop traversal
+          break;
+        }
+      }
+      
+      return path;
+    }
+    
     if (options.debug) {
       console.log(`📦 Processing ${objectsToImport.length} objects...`);
     }
@@ -118,23 +155,52 @@ export class ImportService {
     // Process each object
     for (const objRef of objectsToImport) {
       try {
+        // Check if plugin supports this object type
+        if (!plugin.instance.registry.isSupported(objRef.type)) {
+          results.skipped++;
+          if (options.debug) {
+            console.log(`  ⏭️ ${objRef.type} ${objRef.name}: type not supported`);
+          }
+          continue;
+        }
+
         // Load the ADK object
         const adkObject = await objRef.load();
         
         if (!adkObject) {
           results.skipped++;
+          if (options.debug) {
+            console.log(`  ⏭️ ${objRef.type} ${objRef.name}: failed to load`);
+          }
           continue;
         }
         
+        // Build import context - plugin handles path logic based on its format rules
+        // CLI provides a resolver function to get full package hierarchy from SAP
+        const context: ImportContext = {
+          resolvePackagePath,
+        };
+        
         // Delegate to plugin - import object from SAP to local files
-        await plugin.instance.importObject(adkObject, options.outputPath);
+        const result = await plugin.instance.format.import(
+          adkObject as any, // ADK object type
+          options.outputPath,
+          context
+        );
         
-        // Track statistics
-        objectsByType[objRef.type] = (objectsByType[objRef.type] || 0) + 1;
-        results.success++;
-        
-        if (options.debug) {
-          console.log(`  ✅ ${objRef.type} ${objRef.name}`);
+        if (result.success) {
+          // Track statistics
+          objectsByType[objRef.type] = (objectsByType[objRef.type] || 0) + 1;
+          results.success++;
+          
+          if (options.debug) {
+            console.log(`  ✅ ${objRef.type} ${objRef.name}`);
+          }
+        } else {
+          results.failed++;
+          if (options.debug) {
+            console.log(`  ❌ ${objRef.type} ${objRef.name}: ${result.errors?.join(', ') || 'unknown error'}`);
+          }
         }
       } catch (error) {
         results.failed++;
@@ -142,6 +208,11 @@ export class ImportService {
           console.log(`  ❌ ${objRef.type} ${objRef.name}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
+    }
+    
+    // Call afterImport hook if available
+    if (plugin.instance.hooks?.afterImport) {
+      await plugin.instance.hooks.afterImport(options.outputPath);
     }
     
     return {
