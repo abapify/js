@@ -71,6 +71,6 @@ fixtures/
 
 ## Consumers
 
-- `adt-schemas-xsd` - Schema round-trip tests
+- `adt-schemas` - Schema round-trip tests
 - `adt-contracts` - Mock response fixtures
 - `tests/e2e/` - Integration test baselines

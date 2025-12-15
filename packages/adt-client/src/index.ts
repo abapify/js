@@ -1,95 +1,69 @@
-// Main exports for @abapify/adt-client package
-export type { AdtClient } from './client/adt-client';
-export { AdtClientImpl } from './client/adt-client';
-export { ConnectionManager } from './client/connection-manager';
-export { AuthManager } from './client/auth-manager';
+/**
+ * ADT Client V2 - Minimalistic speci-based ADT client
+ *
+ * Uses speci's client generation instead of manually implementing HTTP calls.
+ */
 
-// Export logger utilities
-export { createLogger, loggers } from './utils/logger';
-export type { Logger } from './utils/logger';
-export { FileLogger, createFileLogger } from './utils/file-logger';
-export type { FileLogOptions, FileLoggerConfig } from './utils/file-logger';
+// Export main client factory
+export { createAdtClient, type AdtClient } from './client';
 
-// Service exports
-export { ObjectService } from './services/repository/object-service';
-export { SearchService } from './services/repository/search-service';
-export { TestService } from './services/test/test-service';
+// Legacy compatibility - AdtClientImpl was the old class name
+// TODO: Migrate CLI commands to use createAdtClient() and remove this
+/** @deprecated Use createAdtClient() instead */
+export { createAdtClient as AdtClientImpl } from './client';
+
+// Export contract for advanced use cases
+export { adtContract, type AdtContract } from '@abapify/adt-contracts';
+
+// Export types
 export type {
-  SearchOptions,
-  SearchResultDetailed,
-  ADTObjectInfo,
-} from './services/repository/search-service';
-export { TransportService } from './services/cts/transport-service';
-export { AtcService } from './services/atc/atc-service';
-export { GenericAdkService } from './services/adk/generic-adk-service';
-export { AdkFacade } from './services/adk/adk-facade';
-export type {
-  AdkClientInterface,
-  ObjectOperationOptions,
-  ObjectOperationResult,
-} from './services/adk/client-interface';
-export type {
-  TransportFilters,
-  TransportList,
-  TransportCreateOptions,
-  TransportCreateResult,
-  Transport,
-  Task,
-  TransportObject,
-} from './services/cts/types';
+  AdtConnectionConfig,
+  AdtRestContract,
+  OperationResult,
+  LockHandle,
+  AdtError,
+  Logger,
+} from './types';
 
-// Service operation interfaces
-export type { CtsOperations } from './services/cts/types';
-export type {
-  AtcOperations,
-  AtcOptions,
-  AtcResult,
-  AtcFinding,
-} from './services/atc/types';
-export type {
-  RepositoryOperations,
-  ObjectOutline,
-  CreateResult,
-  UpdateResult,
-  SearchResult,
-  PackageContent,
-  ObjectTypeInfo,
-  SetSourceOptions,
-  SetSourceResult,
-} from './services/repository/types';
-export { AdtSessionType } from './services/repository/types';
-export type {
-  DiscoveryOperations,
-  SystemInfo,
-  ADTDiscoveryService,
-  ADTWorkspace,
-  ADTCollection,
-} from './services/discovery/types';
-export { DiscoveryService } from './services/discovery/discovery-service';
-export { RepositoryService } from './services/repository/repository-service';
+// Response types are re-exported from adt-contracts for consumers
+// Note: Session and SystemInformation types are available via contract response inference
 
-// Handler exports
-export { ObjectHandlerFactory } from './handlers/object-handler-factory';
-export type { ObjectHandler } from './handlers/base-object-handler';
-export { BaseObjectHandler } from './handlers/base-object-handler';
-export { ClassHandler } from './handlers/class-handler';
-export { ProgramHandler } from './handlers/program-handler';
+// Export adapter for advanced use cases
+export {
+  createAdtAdapter,
+  type HttpAdapter,
+  type AdtAdapterConfig,
+} from './adapter';
 
-// Core type exports
-export type * from './types/client';
-export type * from './types/core';
-export type * from './types/responses';
+// Export plugins
+export {
+  type ResponsePlugin,
+  type ResponseContext,
+  type FileStorageOptions,
+  type TransformFunction,
+  type LogFunction,
+  type FileLoggingConfig,
+  FileStoragePlugin,
+  TransformPlugin,
+  LoggingPlugin,
+  FileLoggingPlugin,
+} from './plugins';
 
-// Utility exports
-export { XmlParser } from './utils/xml-parser';
-export { ErrorHandler } from './utils/error-handler';
-export { ServiceKeyParser } from './utils/auth-utils';
+// Export session management
+export {
+  SessionManager,
+  CookieStore,
+  CsrfTokenManager,
+} from './utils/session';
 
-// Factory function for creating ADT client instances
-import type { AdtClientConfig } from './types/client';
-import { AdtClientImpl } from './client/adt-client';
+// Re-export contract types needed for declaration generation
+export type { RestEndpointDescriptor, Serializable, RestContract } from '@abapify/adt-contracts';
 
-export function createAdtClient(config?: AdtClientConfig): AdtClientImpl {
-  return new AdtClientImpl(config);
-}
+// Re-export contract response types for ADK consumers
+// This allows ADK to depend only on adt-client, not adt-contracts directly
+export type { ClassResponse, InterfaceResponse } from '@abapify/adt-contracts';
+export type { Package as PackageResponse } from '@abapify/adt-contracts';
 
+// Transport response type - exported directly from contracts
+// Note: Transport business logic has moved to @abapify/adk (AdkTransportRequest)
+export type { TransportResponse as TransportGetResponse } from '@abapify/adt-contracts';

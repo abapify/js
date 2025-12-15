@@ -6,7 +6,7 @@
  */
 
 import { http } from '../../../base';
-import { adtcore } from 'adt-schemas-xsd';
+import { adtcore } from '../../../schemas';
 
 export const searchContract = {
   /**

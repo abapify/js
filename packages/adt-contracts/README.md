@@ -6,11 +6,11 @@ Part of the **ADT Toolkit** - see [main README](../../README.md) for architectur
 
 ## What is it?
 
-This package is the **contract layer** between `adt-client-v2` and `adt-schemas-xsd`. It provides declarative REST API contracts for SAP ADT (ABAP Development Tools) endpoints.
+This package is the **contract layer** between `adt-client` and `adt-schemas`. It provides declarative REST API contracts for SAP ADT (ABAP Development Tools) endpoints.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      adt-client-v2                               │
+│                      adt-client                               │
 │              (HTTP Client + Request Execution)                   │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -22,7 +22,7 @@ This package is the **contract layer** between `adt-client-v2` and `adt-schemas-
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     adt-schemas-xsd                              │
+│                     adt-schemas                              │
 │        (TypeScript schemas from SAP XSD definitions)             │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -82,7 +82,7 @@ const atc = createClient(atcContract, config);
 ```
 adt-contracts (this package)
     ├── speci contracts (endpoint definitions)
-    └── adt-schemas-xsd (ts-xsd schemas)
+    └── adt-schemas (ts-xsd schemas)
             └── ts-xsd (XSD → TypeScript)
 ```
 
@@ -90,14 +90,14 @@ adt-contracts (this package)
 
 ## Adding New Contracts
 
-1. Ensure schema exists in `adt-schemas-xsd`
+1. Ensure schema exists in `adt-schemas`
 2. Create contract file in `src/adt/<feature>/index.ts`
 3. Define endpoints using `adtHttp.get/post/put/delete`
 4. Export from `src/adt/index.ts`
 
 ```typescript
 import { adtHttp } from '../../base';
-import { mySchema } from 'adt-schemas-xsd';
+import { mySchema } from 'adt-schemas';
 
 export const myContract = {
   getResource: (id: string) =>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <!-- Document schema that includes common.xsd -->
+  
+  <xs:include schemaLocation="common.xsd"/>
+  
+  <!-- Document-specific type that substitutes for abstract content element -->
+  <xs:element name="document" substitutionGroup="content">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="metadata" type="MetadataType" minOccurs="0"/>
+        <xs:element name="title" type="xs:string"/>
+        <xs:element name="body" type="xs:string"/>
+      </xs:sequence>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  
+  <xs:complexType name="DocumentValuesType">
+    <xs:sequence>
+      <xs:element name="DOCUMENT" type="DocumentType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="DocumentType">
+    <xs:all>
+      <xs:element name="ID" type="xs:string"/>
+      <xs:element name="TITLE" type="xs:string"/>
+      <xs:element name="AUTHOR" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+  
+</xs:schema>

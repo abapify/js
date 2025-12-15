@@ -6,7 +6,7 @@
  */
 
 import { http } from '../../../base';
-import { systeminformationSchema } from 'adt-schemas-xsd';
+import { systeminformationSchema } from '../../../schemas';
 
 export const systeminformationContract = {
   /**

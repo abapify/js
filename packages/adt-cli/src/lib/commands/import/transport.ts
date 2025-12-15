@@ -1,105 +1,80 @@
 import { Command } from 'commander';
-import {
-  createComponentLogger,
-  handleCommandError,
-} from '../../utils/command-helpers';
-import {
-  shouldUseMockClient,
-  getMockAdtClient,
-} from '../../testing/cli-test-utils';
-import { loadFormatPlugin } from '../../utils/format-loader';
-// AdtClient will be imported dynamically when needed
+import { ImportService } from '../../services/import/service';
+import { IconRegistry } from '../../utils/icon-registry';
+import { getAdtClientV2 } from '../../utils/adt-client-v2';
 
 export const importTransportCommand = new Command('transport')
-  .description('Import transport request objects to local files')
-  .argument('<transport>', 'Transport request number')
-  .argument('[outputDir]', 'Output directory', './output')
+  .argument('<transportNumber>', 'Transport request number to import')
+  .argument('[targetFolder]', 'Target folder for output')
+  .description('Import a transport request and its objects')
+  .option(
+    '-o, --output <path>',
+    'Output directory (overrides targetFolder)',
+    ''
+  )
+  .option(
+    '-t, --object-types <types>',
+    'Comma-separated object types (e.g., CLAS,INTF,DDLS). Default: all supported by format'
+  )
   .option(
     '--format <format>',
-    'Format plugin (e.g., @abapify/oat, @abapify/oat/flat)'
+    'Output format: abapgit | oat | @abapify/abapgit | @abapify/oat',
+    'abapgit'
   )
-  .option('--object-types <types>', 'Comma-separated object types to import')
-  .action(async (transport: string, outputDir: string, options, command) => {
-    const logger = createComponentLogger(command, 'import-transport');
-
+  .option('--debug', 'Enable debug output', false)
+  .action(async (transportNumber, targetFolder, options) => {
     try {
-      logger.info(`Starting transport import: ${transport}`);
+      // Initialize ADT client (also initializes ADK)
+      await getAdtClientV2();
 
-      // Require format specification
-      if (!options.format) {
-        throw new Error(
-          'Format specification required. Example: --format=@abapify/oat or --format=@abapify/oat/flat'
-        );
-      }
+      const importService = new ImportService();
 
-      // Load the format plugin
-      logger.info(`Loading format plugin: ${options.format}`);
-      const plugin = await loadFormatPlugin(options.format);
-      logger.info(
-        `Loaded plugin: ${plugin.name}${
-          plugin.preset ? ` (preset: ${plugin.preset})` : ''
-        }`
-      );
+      // Determine output path: --output option, targetFolder argument, or default
+      const outputPath =
+        options.output ||
+        targetFolder ||
+        `./${options.format}-${transportNumber.toLowerCase()}`;
 
-      // Initialize ADT client (mock or real based on test mode)
-      let adtClient: any;
-      if (shouldUseMockClient()) {
-        adtClient = getMockAdtClient();
-        logger.info('Using mock ADT client for testing');
-      } else {
-        // Dynamic import to avoid bundling issues
-        const adtClientModule = await import('@abapify/adt-client');
-        adtClient = adtClientModule.createAdtClient();
-        logger.info('Using real ADT client');
-      }
+      // Show start message
+      console.log(`🚀 Starting import of transport: ${transportNumber}`);
+      console.log(`📁 Target folder: ${outputPath}`);
 
-      // Fetch transport objects
-      logger.info(`Fetching transport objects from SAP...`);
-      const transportObjects = await adtClient.transport.getObjects(transport);
-      logger.info(`Found ${transportObjects.length} objects in transport`);
+      // Parse object types if provided
+      const objectTypes = options.objectTypes
+        ? options.objectTypes
+            .split(',')
+            .map((t: string) => t.trim().toUpperCase())
+        : undefined;
 
-      // Filter by object types if specified
-      let objectsToImport = transportObjects;
-      if (options.objectTypes) {
-        const types = options.objectTypes.split(',').map((t: string) => t.trim());
-        objectsToImport = transportObjects.filter((obj: any) =>
-          types.includes(obj.type)
-        );
-        logger.info(`Filtered to ${objectsToImport.length} objects by type`);
-      }
+      const result = await importService.importTransport({
+        transportNumber,
+        outputPath,
+        objectTypes,
+        format: options.format,
+        debug: options.debug,
+      });
 
-      // Convert ADT objects to ADK objects using handlers
-      logger.info(`Converting objects to ADK format...`);
-      const adkObjects = [];
-      
-      for (const obj of objectsToImport) {
-        try {
-          const handler = adtClient.getHandler(obj.type);
-          if (handler && typeof handler.getAdkObject === 'function') {
-            const adkObj = await handler.getAdkObject(obj.name, { lazyLoad: true });
-            adkObjects.push(adkObj);
-            logger.info(`✓ Converted ${obj.type} ${obj.name}`);
-          } else {
-            logger.warn(`⚠ No ADK handler for ${obj.type} ${obj.name}, skipping`);
-          }
-        } catch (error: any) {
-          logger.error(`✗ Failed to convert ${obj.type} ${obj.name}: ${error.message}`);
+      // Display results
+      console.log(`\n✅ Transport import complete!`);
+      console.log(`📦 Transport: ${result.transportNumber}`);
+      console.log(`📝 Description: ${result.description}`);
+      console.log(`📊 Results: ${result.results.success} success, ${result.results.skipped} skipped, ${result.results.failed} failed`);
+
+      // Show object type breakdown
+      if (Object.keys(result.objectsByType).length > 0) {
+        console.log(`\n📋 Objects by type:`);
+        for (const [type, count] of Object.entries(result.objectsByType)) {
+          const icon = IconRegistry.getIcon(type);
+          console.log(`   ${icon} ${type}: ${count}`);
         }
       }
 
-      logger.info(`Successfully converted ${adkObjects.length} objects to ADK format`);
-
-      // Serialize using the format plugin
-      logger.info(`Serializing to ${plugin.name} format...`);
-      await plugin.instance.serialize(adkObjects, outputDir);
-      
-      console.log(`\n✅ Transport import complete!`);
-      console.log(`📦 Transport: ${transport}`);
-      console.log(`📁 Output: ${outputDir}`);
-      console.log(`🔧 Format: ${plugin.name}`);
-      console.log(`📊 Objects: ${adkObjects.length} converted`);
-      console.log(`\n✨ Files written to: ${outputDir}`);
+      console.log(`\n✨ Files written to: ${result.outputPath}`);
     } catch (error) {
-      handleCommandError(error, 'Transport import');
+      console.error(
+        `❌ Import failed:`,
+        error instanceof Error ? error.message : String(error)
+      );
+      process.exit(1);
     }
   });
