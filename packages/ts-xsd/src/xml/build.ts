@@ -236,41 +236,61 @@ function buildElement(
     const resolved = resolveElementInfo(element, schema);
     if (!resolved) continue;
     
-    const value = data[resolved.name];
+    const value = data[resolved.dataKey];
     if (value !== undefined) {
-      buildField(doc, node, value, resolved.name, resolved.typeName, schema, rootSchema, prefix);
+      buildFieldWithTagName(doc, node, value, resolved.tagName, resolved.typeName, resolved.inlineComplexType, resolved.elementSchema, rootSchema, prefix);
     }
   }
 }
 
 /**
  * Resolve element info (name and type), handling ref
+ * 
+ * Returns:
+ * - tagName: The XML tag name to use (may include prefix like "asx:abap")
+ * - dataKey: The key to look up in data object (local name without prefix)
+ * - typeName: The type name for building nested content (if type attribute)
+ * - inlineComplexType: The inline complexType definition (if present)
+ * - elementSchema: The schema where the element was found
  */
 function resolveElementInfo(
   element: ElementLike,
   schema: SchemaLike
-): { name: string; typeName: string | undefined } | undefined {
+): { 
+  tagName: string; 
+  dataKey: string; 
+  typeName: string | undefined;
+  inlineComplexType: ComplexTypeLike | undefined;
+  elementSchema: SchemaLike;
+} | undefined {
   // Direct element with name
   if (element.name) {
     return {
-      name: element.name,
+      tagName: element.name,
+      dataKey: element.name,
       typeName: element.type ? stripNsPrefix(element.type) : undefined,
+      inlineComplexType: element.complexType as ComplexTypeLike | undefined,
+      elementSchema: schema,
     };
   }
   
   // Handle element reference - get type from referenced element declaration
+  // IMPORTANT: Keep the original ref (with prefix) for the tag name
+  // This ensures elements like ref="asx:abap" render as <asx:abap>
   if (element.ref) {
     const refName = stripNsPrefix(element.ref);
     const refElement = findElement(refName, schema);
     if (refElement) {
-      const name = refElement.element.name ?? refName;
       return {
-        name,
+        tagName: element.ref, // Keep original ref with prefix for tag
+        dataKey: refElement.element.name ?? refName, // Local name for data lookup
         typeName: refElement.element.type ? stripNsPrefix(refElement.element.type) : undefined,
+        inlineComplexType: refElement.element.complexType as ComplexTypeLike | undefined,
+        elementSchema: refElement.schema,
       };
     }
-    // Fallback: use ref name, no type
-    return { name: refName, typeName: undefined };
+    // Fallback: use ref as tag, local name for data
+    return { tagName: element.ref, dataKey: refName, typeName: undefined, inlineComplexType: undefined, elementSchema: schema };
   }
   
   return undefined;
@@ -278,6 +298,10 @@ function resolveElementInfo(
 
 /**
  * Build a field (child element)
+ * 
+ * Respects elementFormDefault:
+ * - "qualified": local elements get namespace prefix
+ * - "unqualified" (default): local elements do NOT get namespace prefix
  */
 function buildField(
   doc: XmlDocument,
@@ -293,7 +317,12 @@ function buildField(
 
   // Search for nested complexType
   const nestedType = typeName ? findComplexType(typeName, schema) : undefined;
-  const tagName = prefix ? `${prefix}:${elementName}` : elementName;
+  
+  // Check elementFormDefault - local elements only get prefix when "qualified"
+  // Default is "unqualified" per XSD spec
+  const elementFormDefault = (rootSchema as { elementFormDefault?: string }).elementFormDefault;
+  const usePrefix = elementFormDefault === 'qualified' ? prefix : undefined;
+  const tagName = usePrefix ? `${usePrefix}:${elementName}` : elementName;
 
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -301,7 +330,9 @@ function buildField(
       if (nestedType) {
         buildElement(doc, child, item as Record<string, unknown>, nestedType.ct, nestedType.schema, rootSchema, prefix);
       } else {
-        child.appendChild(doc.createTextNode(formatValue(item, typeName || 'string')));
+        // Only add text node if value is not empty (allows self-closing tags)
+        const text = formatValue(item, typeName || 'string');
+        if (text) child.appendChild(doc.createTextNode(text));
       }
       parent.appendChild(child);
     }
@@ -310,7 +341,73 @@ function buildField(
     if (nestedType) {
       buildElement(doc, child, value as Record<string, unknown>, nestedType.ct, nestedType.schema, rootSchema, prefix);
     } else {
-      child.appendChild(doc.createTextNode(formatValue(value, typeName || 'string')));
+      // Only add text node if value is not empty (allows self-closing tags)
+      const text = formatValue(value, typeName || 'string');
+      if (text) child.appendChild(doc.createTextNode(text));
+    }
+    parent.appendChild(child);
+  }
+}
+
+/**
+ * Build a field with an explicit tag name (used for element refs with prefix)
+ * 
+ * Handles two cases:
+ * 1. Element refs with prefix (e.g., ref="asx:abap") - use tagName directly
+ * 2. Direct elements - apply elementFormDefault logic
+ */
+function buildFieldWithTagName(
+  doc: XmlDocument,
+  parent: XmlElement,
+  value: unknown,
+  tagName: string,
+  typeName: string | undefined,
+  inlineComplexType: ComplexTypeLike | undefined,
+  elementSchema: SchemaLike,
+  rootSchema: SchemaLike,
+  prefix: string | undefined
+): void {
+  if (value === undefined || value === null) return;
+
+  // First check for inline complexType, then search for named type
+  let nestedType: { ct: ComplexTypeLike; schema: SchemaLike } | undefined;
+  if (inlineComplexType) {
+    nestedType = { ct: inlineComplexType, schema: elementSchema };
+  } else if (typeName) {
+    nestedType = findComplexType(typeName, elementSchema);
+  }
+
+  // Determine the actual tag name to use
+  // If tagName already has a prefix (e.g., "asx:abap"), use it directly
+  // Otherwise, apply elementFormDefault logic
+  let actualTagName = tagName;
+  if (!tagName.includes(':')) {
+    // No prefix in tagName - apply elementFormDefault logic
+    const elementFormDefault = (rootSchema as { elementFormDefault?: string }).elementFormDefault;
+    const usePrefix = elementFormDefault === 'qualified' ? prefix : undefined;
+    actualTagName = usePrefix ? `${usePrefix}:${tagName}` : tagName;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const child = doc.createElement(actualTagName);
+      if (nestedType) {
+        buildElement(doc, child, item as Record<string, unknown>, nestedType.ct, nestedType.schema, rootSchema, prefix);
+      } else {
+        // Only add text node if value is not empty (allows self-closing tags)
+        const text = formatValue(item, typeName || 'string');
+        if (text) child.appendChild(doc.createTextNode(text));
+      }
+      parent.appendChild(child);
+    }
+  } else {
+    const child = doc.createElement(actualTagName);
+    if (nestedType) {
+      buildElement(doc, child, value as Record<string, unknown>, nestedType.ct, nestedType.schema, rootSchema, prefix);
+    } else {
+      // Only add text node if value is not empty (allows self-closing tags)
+      const text = formatValue(value, typeName || 'string');
+      if (text) child.appendChild(doc.createTextNode(text));
     }
     parent.appendChild(child);
   }

@@ -49,6 +49,10 @@ export interface ResolveOptions {
 
 /**
  * Collects all schema components into Maps for resolution.
+ * 
+ * IMPORTANT: Elements are only collected from schemas with the SAME targetNamespace
+ * as the root schema. This follows XSD semantics where xs:import brings in types
+ * from a different namespace but doesn't merge elements into the current namespace.
  */
 class SchemaCollector extends SchemaTraverser {
   readonly complexTypes = new Map<string, TopLevelComplexType>();
@@ -70,6 +74,7 @@ class SchemaCollector extends SchemaTraverser {
   }
   
   protected override onComplexType(ct: TopLevelComplexType): void {
+    // Types are collected from all schemas (needed for extension resolution)
     // First one wins (root schema takes precedence)
     if (!this.complexTypes.has(ct.name)) {
       this.complexTypes.set(ct.name, ct);
@@ -83,11 +88,27 @@ class SchemaCollector extends SchemaTraverser {
   }
   
   protected override onElement(element: TopLevelElement): void {
-    if (!this.elements.has(element.name)) {
+    // Collect elements from:
+    // 1. Same targetNamespace as root schema
+    // 2. Schemas with NO targetNamespace (chameleon schemas - adopt importing namespace)
+    // 3. Elements with substitutionGroup (needed for substitution expansion)
+    // 4. Abstract elements (targets of substitution groups)
+    //
+    // This follows XSD semantics where:
+    // - xs:include merges schemas with same/no namespace
+    // - xs:import references schemas with different namespace (elements stay separate)
+    // - Chameleon schemas (no targetNamespace) adopt the importing schema's namespace
+    const rootNs = this.rootSchema.targetNamespace;
+    const currentNs = this.currentSchema.targetNamespace;
+    const sameOrNoNamespace = currentNs === rootNs || currentNs === undefined;
+    const hasSubstitutionGroup = !!element.substitutionGroup;
+    const isAbstract = !!(element as { abstract?: boolean }).abstract;
+    
+    if ((sameOrNoNamespace || hasSubstitutionGroup || isAbstract) && !this.elements.has(element.name)) {
       this.elements.set(element.name, element);
     }
     
-    // Track substitution groups
+    // Track substitution groups (from any namespace - substitutes can be cross-namespace)
     if (element.substitutionGroup) {
       const abstractName = stripNsPrefix(element.substitutionGroup);
       const existing = this.substitutionGroups.get(abstractName) ?? [];
@@ -173,6 +194,7 @@ export function resolveSchema(schema: Schema, options: ResolveOptions = {}): Sch
   // Build resolved schema
   const resolved: Record<string, unknown> = {
     targetNamespace: schema.targetNamespace,
+    elementFormDefault: schema.elementFormDefault,
     $filename: schema.$filename,
     $xmlns: collector.xmlns.size > 0 
       ? Object.fromEntries(collector.xmlns) 

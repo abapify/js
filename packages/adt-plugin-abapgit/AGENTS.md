@@ -8,17 +8,29 @@
 
 ## Architecture Overview
 
+### XSD Design Principles (CRITICAL)
+
+> **Mantra:** "Global elements create roots. Global types create reuse."
+
+**Core Rules:**
+- ✅ ONE root element per document schema (`abapGit`)
+- ✅ Reuse via `xs:complexType`, NOT via elements
+- ✅ Payload types are TYPES ONLY (never global elements)
+- ❌ NO `xs:redefine` or `xs:override`
+- ❌ NO substitution groups
+- ❌ NO abstract elements
+
 ### XSD Schema Hierarchy
 
 ```
 xsd/
-├── abapgit.xsd          # Root: <abapGit version="..." serializer="...">
-├── asx.xsd              # Envelope: <asx:abap><asx:values>...</asx:values></asx:abap>
-├── types/               # Reusable SAP structure types
-│   ├── vseointerf.xsd   # Interface structure
-│   ├── vseoclass.xsd    # Class structure
+├── asx.xsd              # ASX envelope (structural types only, xs:any for payload)
+├── abapgit.xsd          # AbapGitRootType (TYPE ONLY - no element!)
+├── types/               # Reusable SAP structure TYPES
+│   ├── vseointerf.xsd   # VseoInterfType (no element!)
+│   ├── vseoclass.xsd    # VseoClassType (no element!)
 │   └── ...
-└── {type}.xsd           # Object schemas using xs:redefine
+└── {type}.xsd           # Concrete document schemas (ONE root each)
 ```
 
 ### Generated Code Structure
@@ -55,8 +67,8 @@ toAbapGit: (obj) => ({
 
 ```bash
 # Correct workflow for new object type
-1. Create xsd/types/{typename}.xsd (if new structure)
-2. Create xsd/{type}.xsd using xs:redefine
+1. Create xsd/types/{typename}.xsd - TYPE ONLY (no element!)
+2. Create xsd/{type}.xsd - concrete schema with ONE root element
 3. Add to ts-xsd.config.ts schemas array
 4. Run: npx nx codegen adt-plugin-abapgit
 5. Import generated schema in handler
@@ -66,30 +78,61 @@ toAbapGit: (obj) => ({
 
 ### 2. XSD Template for New Object Types
 
+**Step 1:** Create payload type in `xsd/types/{typename}.xsd` (TYPE ONLY):
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <!-- TYPE ONLY - no element declaration! -->
+  <xs:complexType name="{TypeName}Type">
+    <xs:all>
+      <xs:element name="FIELD1" type="xs:string"/>
+      <xs:element name="FIELD2" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+</xs:schema>
+```
+
+**Step 2:** Create concrete document schema in `xsd/{type}.xsd`:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           targetNamespace="http://www.sap.com/abapxml"
            xmlns:asx="http://www.sap.com/abapxml"
            elementFormDefault="unqualified">
 
-  <!-- Include type definitions -->
+  <!-- Import ASX namespace -->
+  <xs:import namespace="http://www.sap.com/abapxml" schemaLocation="asx.xsd"/>
+
+  <!-- Include reusable types -->
+  <xs:include schemaLocation="abapgit.xsd"/>
   <xs:include schemaLocation="types/{typename}.xsd"/>
 
-  <!-- Extend AbapValuesType with object-specific elements -->
-  <xs:redefine schemaLocation="asx.xsd">
-    <xs:complexType name="AbapValuesType">
-      <xs:complexContent>
-        <xs:extension base="asx:AbapValuesType">
-          <xs:sequence>
-            <xs:element name="{STRUCTNAME}" type="asx:{TypeName}Type" minOccurs="0"/>
-          </xs:sequence>
-        </xs:extension>
-      </xs:complexContent>
-    </xs:complexType>
-  </xs:redefine>
+  <!-- Object-specific values type -->
+  <xs:complexType name="{Type}ValuesType">
+    <xs:sequence>
+      <xs:element name="{STRUCTNAME}" type="{TypeName}Type" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
 
-  <xs:import schemaLocation="abapgit.xsd"/>
+  <!-- Object-specific ABAP envelope -->
+  <xs:complexType name="{Type}AbapType">
+    <xs:sequence>
+      <xs:element name="values" type="{Type}ValuesType"/>
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:string" default="1.0"/>
+  </xs:complexType>
+
+  <!-- THE ONLY ROOT ELEMENT -->
+  <xs:element name="abapGit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="abap" type="{Type}AbapType"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="required"/>
+      <xs:attribute name="serializer" type="xs:string" use="required"/>
+      <xs:attribute name="serializer_version" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
 </xs:schema>
 ```
 
@@ -179,8 +222,8 @@ import { createHandler } from '../../src/lib/handlers/base.ts';
 
 ### Adding New Object Type
 
-1. Create `xsd/types/{typename}.xsd` (if new SAP structure)
-2. Create `xsd/{type}.xsd` using `xs:redefine` pattern
+1. Create `xsd/types/{typename}.xsd` - payload TYPE ONLY (no element!)
+2. Create `xsd/{type}.xsd` - concrete document schema with ONE root element
 3. Add to `ts-xsd.config.ts` schemas array
 4. Run `npx nx codegen adt-plugin-abapgit`
 5. Create `src/lib/handlers/objects/{type}.ts`
