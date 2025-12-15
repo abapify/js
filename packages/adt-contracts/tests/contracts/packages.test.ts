@@ -2,7 +2,7 @@
  * Packages Contract Scenarios
  */
 
-import { packagesV1 } from '@abapify/adt-schemas-xsd';
+import { packagesV1 } from '../../src/schemas';
 import { fixtures } from 'adt-fixtures';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { packagesContract } from '../../src/adt/packages';

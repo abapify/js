@@ -1,7 +1,8 @@
 {
   "name": "@abapify/adt-client",
   "version": "0.0.1",
-  "description": "Abstracted ADT client for SAP ABAP Development Tools communication",
+  "description": "Minimalistic speci-based ADT client for SAP ABAP Development Tools",
+  "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -10,10 +11,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@abapify/adk": "*",
-    "fast-xml-parser": "^5.3.1",
-    "jsonc-eslint-parser": "^2.4.0",
-    "open": "^8.4.2",
-    "pino": "^8.17.2"
+    "@abapify/logger": "*",
+    "@abapify/adt-contracts": "*"
   }
 }

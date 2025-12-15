@@ -29,7 +29,6 @@ import { deployCommand } from './commands/deploy/index';
 import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
-import { setGlobalLogger } from './shared/clients';
 import { setCliContext } from './utils/adt-client-v2';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -238,7 +237,6 @@ export async function main(): Promise<void> {
       logOutput: globalOptions.logOutput || './tmp/logs',
       logResponseFiles: Boolean(globalOptions.logResponseFiles),
     };
-    setGlobalLogger(logger, loggingConfig);
 
     // Set CLI context for getAdtClientV2 (auto-reads these options)
     setCliContext({

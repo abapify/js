@@ -14,8 +14,8 @@
     "name": "adt-plugin-abapgit"
   },
   "dependencies": {
-    "@abapify/adk-v2": "*",
-    "speci": "*",
-    "ts-xsd": "*"
+    "@abapify/adk": "*",
+    "@abapify/adt-plugin": "*",
+    "ts-xsd": "workspace:*"
   }
 }
