@@ -1,40 +1,21 @@
 /**
- * ts-xsd - Type-safe XSD schemas for TypeScript
- *
- * Parse and build XML with full type inference from XSD-like schemas.
+ * ts-xsd
  * 
- * Schema format:
- * - element[] - top-level xsd:element declarations
- * - complexType{} - xsd:complexType definitions
- * - simpleType{} - xsd:simpleType definitions (optional)
+ * Core XSD parser, builder, and type inference for TypeScript.
+ * Implements W3C XML Schema Definition (XSD) 1.1 specification.
  */
 
-// Core functions
-export { parse, build, type BuildOptions } from './xml';
+// XSD module - parse and build XSD files
+export * from './xsd';
 
-// Config helpers
-export { defineConfig, type CodegenConfig } from './config';
+// Infer module - TypeScript type inference from schemas
+export type * from './infer';
 
-// Generator factory functions
-export { raw, factory, type RawOptions, type FactoryOptions } from './generators';
+// Codegen module - generate TypeScript literals from XSD
+export * from './codegen';
 
-// Types
-export type {
-  XsdSchema,
-  XsdComplexType,
-  XsdSimpleType,
-  XsdElementDecl,
-  XsdField,
-  XsdAttribute,
-  InferXsd,
-  InferXsdMerged,
-  InferElement,
-  InferFirstElement,
-  InferComplexType,
-} from './types';
+// XML module - parse and build XML using schema definitions
+export * from './xml';
 
-export type { Generator, GeneratorContext, SchemaData, SchemaImport } from './codegen/generator';
-
-// XSD self-hosting - parse and build XSD files using ts-xsd
-export { parseXsd, buildXsd, XsdSchemaDefinition } from './xsd';
-export type { XsdDocument } from './xsd';
+// Walker module - generator-based schema traversal for XML parsing/building
+export * from './walker';

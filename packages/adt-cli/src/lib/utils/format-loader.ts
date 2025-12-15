@@ -1,4 +1,21 @@
 import { shouldUseMockClient } from '../testing/cli-test-utils';
+// Static import for bundled abapgit plugin
+import * as abapgitPlugin from '@abapify/adt-plugin-abapgit';
+
+/**
+ * Bundled format plugins - statically imported for bundler compatibility
+ */
+const BUNDLED_PLUGINS: Record<string, any> = {
+  '@abapify/adt-plugin-abapgit': abapgitPlugin,
+};
+
+/**
+ * Format shortcuts - map short names to actual package names
+ */
+const FORMAT_SHORTCUTS: Record<string, string> = {
+  'oat': '@abapify/oat',
+  'abapgit': '@abapify/adt-plugin-abapgit',
+};
 
 /**
  * Parse format specification with optional preset
@@ -6,18 +23,14 @@ import { shouldUseMockClient } from '../testing/cli-test-utils';
  *   @abapify/oat -> { package: '@abapify/oat', preset: undefined }
  *   @abapify/oat/flat -> { package: '@abapify/oat', preset: 'flat' }
  *   oat -> { package: '@abapify/oat', preset: undefined } (shortcut)
- *   abapgit -> { package: '@abapify/abapgit', preset: undefined } (shortcut)
+ *   abapgit -> { package: '@abapify/adt-plugin-abapgit', preset: undefined } (shortcut)
  */
 export function parseFormatSpec(formatSpec: string): {
   package: string;
   preset?: string;
 } {
-  // Handle shortcuts for backward compatibility
-  if (formatSpec === 'oat') {
-    return { package: '@abapify/oat' };
-  }
-  if (formatSpec === 'abapgit') {
-    return { package: '@abapify/abapgit' };
+  if (formatSpec in FORMAT_SHORTCUTS) {
+    return { package: FORMAT_SHORTCUTS[formatSpec] };
   }
 
   const parts = formatSpec.split('/');
@@ -35,8 +48,8 @@ export function parseFormatSpec(formatSpec: string): {
 }
 
 /**
- * Load format plugin dynamically
- * Supports both @abapify/... packages and legacy shortcuts (oat, abapgit)
+ * Load format plugin
+ * Uses static imports for bundled plugins, dynamic imports for external ones
  */
 export async function loadFormatPlugin(formatSpec: string) {
   const { package: packageName, preset } = parseFormatSpec(formatSpec);
@@ -58,8 +71,8 @@ export async function loadFormatPlugin(formatSpec: string) {
       };
     }
 
-    // Dynamic import of the real plugin package
-    const pluginModule = await import(packageName);
+    // Use bundled plugin if available, otherwise try dynamic import
+    const pluginModule = BUNDLED_PLUGINS[packageName] ?? await import(packageName);
     const PluginClass =
       pluginModule.default || pluginModule[Object.keys(pluginModule)[0]];
 

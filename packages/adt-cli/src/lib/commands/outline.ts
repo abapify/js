@@ -1,7 +1,14 @@
 import { Command } from 'commander';
-import { ObjectRegistry } from '../objects/registry';
+// TODO: ObjectRegistry was removed - needs ADK migration
+// import { ObjectRegistry } from '../objects/registry';
 import { IconRegistry } from '../utils/icon-registry';
 import { AdtClientImpl } from '@abapify/adt-client';
+
+// TODO: Stub until ADK migration
+const ObjectRegistry = {
+  isSupported: (_type: string) => false,
+  get: (_type: string, _client: unknown) => { throw new Error('ObjectRegistry needs ADK migration'); },
+};
 
 export const outlineCommand = new Command('outline')
   .argument('<objectName>', 'ABAP object name to show outline for')

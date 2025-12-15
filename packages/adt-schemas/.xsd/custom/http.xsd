@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HTTP Sessions Schema
+  
+  Used by: GET /sap/bc/adt/core/http/sessions
+  Content-Type: application/vnd.sap.adt.core.http.session.v3+xml
+  
+  Returns session info with CSRF token and atom:links
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:http="http://www.sap.com/adt/http"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    targetNamespace="http://www.sap.com/adt/http"
+    elementFormDefault="qualified">
+
+  <xsd:import namespace="http://www.w3.org/2005/Atom" schemaLocation="../sap/atom.xsd"/>
+
+  <!-- Root element -->
+  <xsd:element name="session" type="http:SessionType"/>
+
+  <!-- Session Type -->
+  <xsd:complexType name="SessionType">
+    <xsd:sequence>
+      <xsd:element ref="atom:link" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="properties" type="http:PropertiesType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Properties container -->
+  <xsd:complexType name="PropertiesType">
+    <xsd:sequence>
+      <xsd:element name="property" type="http:PropertyType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Single property with name attribute -->
+  <xsd:complexType name="PropertyType">
+    <xsd:simpleContent>
+      <xsd:extension base="xsd:string">
+        <xsd:attribute name="name" type="xsd:string" use="required"/>
+      </xsd:extension>
+    </xsd:simpleContent>
+  </xsd:complexType>
+
+</xsd:schema>

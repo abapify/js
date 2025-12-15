@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DEVC - Package type for abapGit serialization -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:complexType name="DevcType">
+    <xs:all>
+      <!-- Package description text - required in abapGit format -->
+      <xs:element name="CTEXT" type="xs:string"/>
+    </xs:all>
+  </xs:complexType>
+
+</xs:schema>

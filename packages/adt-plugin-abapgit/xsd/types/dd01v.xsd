@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DD01V - Domain header type (SAP DDIC table DD01V) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:complexType name="Dd01vType">
+    <xs:all>
+      <xs:element name="DOMNAME" type="xs:string"/>
+      <xs:element name="DDLANGUAGE" type="xs:string" minOccurs="0"/>
+      <xs:element name="DATATYPE" type="xs:string" minOccurs="0"/>
+      <xs:element name="LENG" type="xs:string" minOccurs="0"/>
+      <xs:element name="OUTPUTLEN" type="xs:string" minOccurs="0"/>
+      <xs:element name="DECIMALS" type="xs:string" minOccurs="0"/>
+      <xs:element name="LOWERCASE" type="xs:string" minOccurs="0"/>
+      <xs:element name="SIGNFLAG" type="xs:string" minOccurs="0"/>
+      <xs:element name="VALEXI" type="xs:string" minOccurs="0"/>
+      <xs:element name="ENTITYTAB" type="xs:string" minOccurs="0"/>
+      <xs:element name="CONVEXIT" type="xs:string" minOccurs="0"/>
+      <xs:element name="DDTEXT" type="xs:string" minOccurs="0"/>
+      <xs:element name="DOMMASTER" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+</xs:schema>

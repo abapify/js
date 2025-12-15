@@ -174,10 +174,10 @@ Sessions are stored in `~/.adt/sessions/` with file permissions `0600` (owner re
 }
 ```
 
-## Integration with adt-client-v2
+## Integration with adt-client
 
 ```typescript
-import { createAdtClient } from '@abapify/adt-client-v2';
+import { createAdtClient } from '@abapify/adt-client';
 import { AuthManager, BasicAuthMethod } from '@abapify/adt-auth';
 
 // Get credentials

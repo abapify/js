@@ -1,37 +1,35 @@
 /**
  * ADT OO Classes Contract
- * 
+ *
  * Endpoint: /sap/bc/adt/oo/classes
  * Full CRUD operations for ABAP classes including source code management.
  */
 
 import { http, contract } from '../../base';
-import { classes as classesSchema } from 'adt-schemas-xsd';
-import type { InferElement } from 'ts-xsd';
-import type { RestContract } from 'speci/rest';
+import { classes as classesSchema, type InferTypedSchema } from '../../schemas';
 
 /**
  * Include types for ABAP classes
  */
-export type ClassIncludeType = 'definitions' | 'implementations' | 'macros' | 'main';
+export type ClassIncludeType =
+  | 'definitions'
+  | 'implementations'
+  | 'macros'
+  | 'main';
 
 /**
  * Class response type - exported for consumers (ADK, etc.)
- * 
+ *
  * This is the canonical type for class metadata.
- * Consumers should import this type instead of inferring from speci internals.
- * 
- * Note: Using InferElement instead of InferXsd because the classes schema has
- * multiple root elements (abapClass, abapClassInclude). InferXsd would create
- * a union type that exceeds TypeScript's serialization limits (TS7056).
+ * Uses pre-generated type from adt-schemas.
  */
-export type ClassResponse = InferElement<typeof classesSchema, 'abapClass'>;
+export type ClassResponse = InferTypedSchema<typeof classesSchema>;
 
 /**
  * /sap/bc/adt/oo/classes
  * Full CRUD operations for ABAP classes
  */
-const _classesContract: RestContract = contract({
+const _classesContract = contract({
   /**
    * GET /sap/bc/adt/oo/classes/{name}
    * Retrieve class metadata including includes
@@ -117,71 +115,96 @@ const _classesContract: RestContract = contract({
      * Get source code for a specific include
      */
     get: (name: string, includeType: ClassIncludeType) =>
-      http.get(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/${includeType}`, {
-        responses: { 200: undefined as unknown as string },
-        headers: { Accept: 'text/plain' },
-      }),
+      http.get(
+        `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/${includeType}`,
+        {
+          responses: { 200: undefined as unknown as string },
+          headers: { Accept: 'text/plain' },
+        }
+      ),
 
     /**
      * PUT /sap/bc/adt/oo/classes/{name}/includes/{includeType}
      * Update source code for a specific include
      */
     put: (name: string, includeType: ClassIncludeType, source: string) =>
-      http.put(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/${includeType}`, {
-        body: source,
-        responses: { 200: undefined as unknown as string },
-        headers: {
-          Accept: 'text/plain',
-          'Content-Type': 'text/plain',
-        },
-      }),
+      http.put(
+        `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/${includeType}`,
+        {
+          body: source,
+          responses: { 200: undefined as unknown as string },
+          headers: {
+            Accept: 'text/plain',
+            'Content-Type': 'text/plain',
+          },
+        }
+      ),
 
     /**
      * Shorthand accessors for specific includes
      */
     definitions: {
       get: (name: string) =>
-        http.get(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/definitions`, {
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain' },
-        }),
+        http.get(
+          `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/definitions`,
+          {
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain' },
+          }
+        ),
       put: (name: string, source: string) =>
-        http.put(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/definitions`, {
-          body: source,
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain', 'Content-Type': 'text/plain' },
-        }),
+        http.put(
+          `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/definitions`,
+          {
+            body: source,
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain', 'Content-Type': 'text/plain' },
+          }
+        ),
     },
     implementations: {
       get: (name: string) =>
-        http.get(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/implementations`, {
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain' },
-        }),
+        http.get(
+          `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/implementations`,
+          {
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain' },
+          }
+        ),
       put: (name: string, source: string) =>
-        http.put(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/implementations`, {
-          body: source,
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain', 'Content-Type': 'text/plain' },
-        }),
+        http.put(
+          `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/implementations`,
+          {
+            body: source,
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain', 'Content-Type': 'text/plain' },
+          }
+        ),
     },
     macros: {
       get: (name: string) =>
-        http.get(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/macros`, {
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain' },
-        }),
+        http.get(
+          `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/macros`,
+          {
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain' },
+          }
+        ),
       put: (name: string, source: string) =>
-        http.put(`/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/macros`, {
-          body: source,
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain', 'Content-Type': 'text/plain' },
-        }),
+        http.put(
+          `/sap/bc/adt/oo/classes/${name.toLowerCase()}/includes/macros`,
+          {
+            body: source,
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain', 'Content-Type': 'text/plain' },
+          }
+        ),
     },
   },
 });
 
-export type ClassesContract = RestContract;
-
 /** Exported contract for classes operations */
-export const classesContract: ClassesContract = _classesContract;
+export const classesContract = _classesContract;
+
+/** Type alias for the classes contract */
+export type ClassesContract = typeof classesContract;

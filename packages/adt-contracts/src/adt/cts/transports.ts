@@ -4,11 +4,11 @@
  *
  * GET with _action=FIND - Search transports (undocumented but works)
  *
- * Uses manual ts-xsd schema from adt-schemas-xsd for proper XML parsing.
+ * Uses manual ts-xsd schema from adt-schemas for proper XML parsing.
  */
 
 import { http } from 'speci/rest';
-import { transportfind } from 'adt-schemas-xsd';
+import { transportfind } from '../../schemas';
 
 // ============================================================================
 // URL Parameter Enums

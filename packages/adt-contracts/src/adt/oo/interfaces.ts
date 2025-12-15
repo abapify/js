@@ -1,32 +1,29 @@
 /**
  * ADT OO Interfaces Contract
- * 
+ *
  * Endpoint: /sap/bc/adt/oo/interfaces
  * Full CRUD operations for ABAP interfaces including source code management.
  */
 
 import { http, contract } from '../../base';
-import { interfaces as interfacesSchema } from 'adt-schemas-xsd';
-import type { InferElement } from 'ts-xsd';
-import type { RestContract } from 'speci/rest';
+import {
+  interfaces as interfacesSchema,
+  type InferTypedSchema,
+} from '../../schemas';
 
 /**
  * Interface response type - exported for consumers (ADK, etc.)
- * 
+ *
  * This is the canonical type for interface metadata.
- * Consumers should import this type instead of inferring from speci internals.
- * 
- * Note: Using InferElement instead of InferXsd because the interfaces schema has
- * a single root element (abapInterface). InferXsd would create a type that
- * exceeds TypeScript's serialization limits (TS7056).
+ * Uses pre-generated type from adt-schemas.
  */
-export type InterfaceResponse = InferElement<typeof interfacesSchema, 'abapInterface'>;
+export type InterfaceResponse = InferTypedSchema<typeof interfacesSchema>;
 
 /**
  * /sap/bc/adt/oo/interfaces
  * Full CRUD operations for ABAP interfaces
  */
-const _interfacesContract: RestContract = contract({
+const _interfacesContract = contract({
   /**
    * GET /sap/bc/adt/oo/interfaces/{name}
    * Retrieve interface metadata
@@ -85,25 +82,32 @@ const _interfacesContract: RestContract = contract({
      */
     main: {
       get: (name: string) =>
-        http.get(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`, {
-          responses: { 200: undefined as unknown as string },
-          headers: { Accept: 'text/plain' },
-        }),
+        http.get(
+          `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`,
+          {
+            responses: { 200: undefined as unknown as string },
+            headers: { Accept: 'text/plain' },
+          }
+        ),
 
       put: (name: string, source: string) =>
-        http.put(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`, {
-          body: source,
-          responses: { 200: undefined as unknown as string },
-          headers: {
-            Accept: 'text/plain',
-            'Content-Type': 'text/plain',
-          },
-        }),
+        http.put(
+          `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`,
+          {
+            body: source,
+            responses: { 200: undefined as unknown as string },
+            headers: {
+              Accept: 'text/plain',
+              'Content-Type': 'text/plain',
+            },
+          }
+        ),
     },
   },
 });
 
-export type InterfacesContract = RestContract;
-
 /** Exported contract for interfaces operations */
-export const interfacesContract: InterfacesContract = _interfacesContract;
+export const interfacesContract = _interfacesContract;
+
+/** Type alias for the interfaces contract */
+export type InterfacesContract = typeof interfacesContract;

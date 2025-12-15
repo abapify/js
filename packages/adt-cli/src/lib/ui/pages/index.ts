@@ -15,4 +15,4 @@ export { default as PackagePage } from './package';
 export type { AdtCoreObject, AdtCorePageOptions } from './adt-core';
 export type { DiscoveryData } from './discovery';
 export type { TransportParams, TransportData } from './transport';
-// Note: Package type is now AdkPackage from @abapify/adk-v2
+// Note: Package type is now AdkPackage from @abapify/adk

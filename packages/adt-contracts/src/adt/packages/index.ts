@@ -10,18 +10,19 @@
  */
 
 import { http } from 'speci/rest';
-import { packagesV1 } from 'adt-schemas-xsd';
+import { packagesV1 } from '../../schemas';
 
 // ============================================================================
 // Contract
 // ============================================================================
 
+import type { InferTypedSchema } from '../../schemas';
 
 /**
  * Package response type - inferred from packagesV1 schema
  * Use this type for package data throughout the codebase
  */
-export type Package = typeof packagesV1['_infer'];
+export type Package = InferTypedSchema<typeof packagesV1>;
 
 export const packagesContract = {
   /**

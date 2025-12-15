@@ -12,11 +12,11 @@
   },
   "dependencies": {
     "@abapify/adk": "*",
-    "@abapify/adk-v2": "*",
     "@abapify/adt-auth": "*",
     "@abapify/adt-client": "*",
-    "@abapify/adt-client-v2": "*",
     "@abapify/adt-config": "*",
+    "@abapify/adt-plugin": "*",
+    "@abapify/adt-plugin-abapgit": "*",
     "@abapify/adt-tui": "*",
     "@abapify/logger": "*",
     "@inquirer/prompts": "^7.9.0",

@@ -1,40 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   abapGit CLAS (Class) Schema
-  
+
   Defines VSEOCLASS structure for *.clas.xml files.
+
+  Uses xs:redefine to extend AbapValuesType with CLAS-specific elements.
+  This ensures VSEOCLASS can only appear inside asx:values, not as root.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sap.com/abapxml"
            xmlns:asx="http://www.sap.com/abapxml"
-           elementFormDefault="qualified">
+           elementFormDefault="unqualified">
 
-  <xs:import namespace="http://www.sap.com/abapxml" schemaLocation="asx.xsd"/>
-  <xs:include schemaLocation="abapgit.xsd"/>
+  <!-- Include types (brought into asx namespace) -->
+  <xs:include schemaLocation="types/vseoclass.xsd"/>
 
-  <!-- VSEOCLASS substitutes asx:Schema -->
-  <xs:element name="VSEOCLASS" type="VseoClassType" substitutionGroup="asx:Schema"/>
+  <!-- Redefine AbapValuesType to include CLAS-specific elements -->
+  <xs:redefine schemaLocation="asx.xsd">
+    <xs:complexType name="AbapValuesType">
+      <xs:complexContent>
+        <xs:extension base="asx:AbapValuesType">
+          <xs:sequence>
+            <xs:element name="VSEOCLASS" type="asx:VseoClassType" minOccurs="0"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:redefine>
 
-  <xs:complexType name="VseoClassType">
-    <xs:all>
-      <xs:element name="CLSNAME" type="xs:string"/>
-      <xs:element name="LANGU" type="xs:string" minOccurs="0"/>
-      <xs:element name="DESCRIPT" type="xs:string" minOccurs="0"/>
-      <xs:element name="STATE" type="xs:string" minOccurs="0"/>
-      <xs:element name="CATEGORY" type="xs:string" minOccurs="0"/>
-      <xs:element name="EXPOSURE" type="xs:string" minOccurs="0"/>
-      <xs:element name="CLSFINAL" type="xs:string" minOccurs="0"/>
-      <xs:element name="CLSABSTRCT" type="xs:string" minOccurs="0"/>
-      <xs:element name="CLSCCINCL" type="xs:string" minOccurs="0"/>
-      <xs:element name="FIXPT" type="xs:string" minOccurs="0"/>
-      <xs:element name="UNICODE" type="xs:string" minOccurs="0"/>
-      <xs:element name="WITH_UNIT_TESTS" type="xs:string" minOccurs="0"/>
-      <xs:element name="DURATION" type="xs:string" minOccurs="0"/>
-      <xs:element name="RISK" type="xs:string" minOccurs="0"/>
-      <xs:element name="MSG_ID" type="xs:string" minOccurs="0"/>
-      <xs:element name="REFCLSNAME" type="xs:string" minOccurs="0"/>
-      <xs:element name="SHRM_ENABLED" type="xs:string" minOccurs="0"/>
-      <xs:element name="ABAP_LANGUAGE_VERSION" type="xs:string" minOccurs="0"/>
-    </xs:all>
-  </xs:complexType>
+  <!-- Import abapGit root element -->
+  <xs:import schemaLocation="abapgit.xsd"/>
 
 </xs:schema>

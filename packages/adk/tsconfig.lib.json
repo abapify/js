@@ -14,7 +14,7 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../adt-schemas/tsconfig.lib.json"
-    }    
+      "path": "../adt-client"
+    }
   ]
 }

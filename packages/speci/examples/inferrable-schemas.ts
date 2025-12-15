@@ -4,7 +4,7 @@
  * Shows how schema libraries can implement Inferrable to provide
  * automatic type inference in Speci.
  *
- * This demonstrates how Zod, ts-xml, or any schema library can
+ * This demonstrates how Zod, ts-xsd, or any schema library can
  * add one property (_infer) to enable automatic type inference.
  */
 

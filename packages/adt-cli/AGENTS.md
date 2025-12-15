@@ -8,6 +8,53 @@ This file provides guidance to AI coding assistants when working with the `adt-c
 
 ## Architecture
 
+### Command → Service Pattern (CRITICAL)
+
+**Commands MUST call Services for business logic. Commands should be thin wrappers.**
+
+```
+┌─────────────────────────────────────┐
+│ Command (commands/import/transport) │
+│ - Parse CLI arguments               │
+│ - Initialize ADK/client             │
+│ - Call service                      │
+│ - Display results to user           │
+└─────────────┬───────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────┐
+│ Service (services/import/service)   │
+│ - Business logic                    │
+│ - ADK operations                    │
+│ - Plugin delegation                 │
+│ - Returns result object             │
+└─────────────────────────────────────┘
+```
+
+**Why?**
+- **DRY**: Business logic in one place, reusable
+- **Testability**: Services can be unit tested without CLI
+- **Separation**: CLI concerns (args, output) vs business logic
+- **Programmatic use**: Services can be called from other code
+
+**Example:**
+```typescript
+// Command - thin wrapper
+export const importTransportCommand = new Command('transport')
+  .action(async (transportNumber, outputDir, options) => {
+    const service = new ImportService();
+    const result = await service.importTransport({
+      transportNumber,
+      outputPath: outputDir,
+      format: options.format,
+      objectTypes: options.objectTypes?.split(','),
+    });
+    
+    // Display results
+    console.log(`✅ Imported ${result.results.success} objects`);
+  });
+```
+
 ### Command Structure
 
 Commands are organized in `src/lib/commands/`:
@@ -43,7 +90,7 @@ commands/
               │ Credentials only
               ▼
 ┌─────────────────────────────────────┐
-│ V2 Client (adt-client-v2)           │
+│ V2 Client (adt-client)           │
 │ - Pure HTTP client                  │
 │ - No file I/O dependencies          │
 │ - Plugin system for extensions      │
@@ -52,7 +99,7 @@ commands/
 
 #### ❌ WRONG - Importing v1 Directly
 ```typescript
-import { createAdtClient } from '@abapify/adt-client-v2';
+import { createAdtClient } from '@abapify/adt-client';
 import { AuthManager } from '@abapify/adt-client'; // ❌ NO!
 
 // DON'T import v1 AuthManager in commands!
@@ -68,7 +115,7 @@ const session = authManager.loadSession();
 
 #### ✅ CORRECT - Use Shared Helper
 ```typescript
-import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client';
 
 // Simple usage - auth handled automatically
 const adtClient = getAdtClientV2();
@@ -76,8 +123,8 @@ const adtClient = getAdtClientV2();
 
 #### With Plugins
 ```typescript
-import { getAdtClientV2 } from '../utils/adt-client-v2';
-import type { ResponseContext } from '@abapify/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client';
+import type { ResponseContext } from '@abapify/adt-client';
 
 // For commands that need to capture raw responses
 const adtClient = getAdtClientV2({
@@ -95,7 +142,7 @@ const adtClient = getAdtClientV2({
 
 #### With Logger
 ```typescript
-import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client';
 
 // Enable HTTP request/response logging
 const adtClient = getAdtClientV2({
@@ -112,7 +159,7 @@ const adtClient = getAdtClientV2({
 ```
 
 **Locations:**
-- `src/lib/utils/adt-client-v2.ts` - Client initialization helper
+- `src/lib/utils/adt-client.ts` - Client initialization helper
 - `src/lib/utils/auth.ts` - Auth bridge (wraps v1 AuthManager)
 
 **Why correct?**
@@ -130,7 +177,7 @@ When creating new commands that need ADT API access:
 
 ```typescript
 import { Command } from 'commander';
-import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getAdtClientV2 } from '../utils/adt-client';
 
 export const myCommand = new Command('mycommand')
   .description('My new command')
@@ -208,7 +255,7 @@ For machine-readable output, add `--json` flag:
 
 ### When to Use V1 vs V2
 
-**Use V2 (`@abapify/adt-client-v2`) when:**
+**Use V2 (`@abapify/adt-client`) when:**
 - Endpoint has a contract in v2
 - Need type-safe responses
 - Simple request/response operations
@@ -225,7 +272,7 @@ When migrating a command from v1 to v2:
 
 1. **Check if v2 contract exists:**
    ```bash
-   ls packages/adt-client-v2/src/adt/**/*contract.ts
+   ls packages/adt-client/src/adt/**/*contract.ts
    ```
 
 2. **Update imports:**
@@ -234,7 +281,7 @@ When migrating a command from v1 to v2:
    import { AdtClientImpl } from '@abapify/adt-client';
 
    // Add
-   import { getAdtClientV2 } from '../utils/adt-client-v2';
+   import { getAdtClientV2 } from '../utils/adt-client';
    ```
 
 3. **Replace client initialization:**
@@ -255,7 +302,7 @@ When migrating a command from v1 to v2:
    npx adt <command> [args]
    ```
 
-6. **Update AGENTS.md:** Document the migration in adt-client-v2's migration status
+6. **Update AGENTS.md:** Document the migration in adt-client's migration status
 
 ## Testing Commands
 
@@ -281,7 +328,7 @@ npx adt <command> [args]
 
 ### Available Helpers
 
-**`utils/adt-client-v2.ts`**
+**`utils/adt-client.ts`**
 - `getAdtClientV2(options?)` - Get authenticated v2 client
 
 **`utils/command-helpers.ts`**
@@ -349,6 +396,6 @@ After creating a command, register it in:
 
 ## Questions or Issues?
 
-- Check `@abapify/adt-client-v2` AGENTS.md for contract documentation
+- Check `@abapify/adt-client` AGENTS.md for contract documentation
 - See existing commands in `src/lib/commands/` for examples
 - Review `utils/` directory for available helpers

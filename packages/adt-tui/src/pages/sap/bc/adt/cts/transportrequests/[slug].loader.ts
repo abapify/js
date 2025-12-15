@@ -1,17 +1,16 @@
 /**
  * Transport Request/Task Loader
  *
- * Uses adt-schemas-xsd for type-safe XML parsing.
+ * Uses adt-contracts for type-safe XML parsing.
  */
 
-import { transportmanagmentSingle } from 'adt-schemas-xsd';
-import type { InferXsd } from 'ts-xsd';
+import { transportmanagmentSingle, type TransportResponse } from '@abapify/adt-contracts';
 
 // Re-export the schema for type inference
 export { transportmanagmentSingle as schema };
 
-// Infer types from schema
-type TransportRoot = InferXsd<typeof transportmanagmentSingle>;
+// Use type from contracts package
+type TransportRoot = TransportResponse;
 
 // Extract nested types
 export type Request = NonNullable<TransportRoot['request']>;

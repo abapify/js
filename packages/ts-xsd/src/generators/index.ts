@@ -1,14 +1,59 @@
 /**
- * Built-in generators for ts-xsd
+ * ts-xsd Generators
+ *
+ * Composable generator plugins for XSD codegen.
+ *
+ * @example
+ * ```ts
+ * import { defineConfig } from 'ts-xsd/generators';
+ * import { rawSchema, inferredTypes, indexBarrel } from 'ts-xsd/generators';
+ *
+ * export default defineConfig({
+ *   sources: {
+ *     abapgit: {
+ *       xsdDir: 'xsd',
+ *       outputDir: 'src/schemas/generated',
+ *       schemas: ['intf', 'dtel', 'clas'],
+ *     },
+ *   },
+ *   generators: [
+ *     rawSchema(),
+ *     inferredTypes(),
+ *     indexBarrel(),
+ *   ],
+ * });
+ * ```
  */
 
-// Export factory functions (preferred)
-export { raw, type RawOptions } from './raw';
-export { factory, type FactoryOptions } from './factory';
+// Types - re-exported from codegen
+export type {
+  GeneratorPlugin,
+  GeneratedFile,
+  SchemaInfo,
+  SourceInfo,
+  SourceConfig,
+  SetupContext,
+  TransformContext,
+  FinalizeContext,
+  HookContext,
+  AfterAllContext,
+  CodegenConfig,
+} from '../codegen/types';
 
-// Export default instances for backward compatibility
-export { default as rawGenerator } from './raw';
-export { default as factoryGenerator } from './factory';
+// Config helper - re-exported from codegen
+export { defineConfig } from '../codegen/types';
 
-// Re-export types
-export type { Generator, GeneratorContext, SchemaData, SchemaImport } from '../codegen/generator';
+// Generator plugins - each exports a factory function
+export { rawSchema, type RawSchemaOptions } from './raw-schema';
+export { inferredTypes, type InferredTypesOptions } from './inferred-types';
+export { interfaces, type InterfacesOptions } from './interfaces';
+export { indexBarrel, type IndexBarrelOptions } from './index-barrel';
+export { typedSchemas, type TypedSchemasOptions } from './typed-schemas';
+
+
+// Runner - re-exported from codegen
+export {
+  runCodegen,
+  type RunnerOptions,
+  type RunnerResult,
+} from '../codegen/runner';

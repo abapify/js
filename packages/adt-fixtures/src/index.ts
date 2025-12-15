@@ -2,7 +2,7 @@
  * adt-fixtures - SAP ADT XML fixtures for testing
  * 
  * Provides lazy access to real SAP XML samples for use in:
- * - Schema tests (adt-schemas-xsd)
+ * - Schema tests (adt-schemas)
  * - Contract tests (adt-contracts)
  * - E2E tests
  * - Scripts and CLI tools

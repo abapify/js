@@ -1,8 +1,22 @@
 {
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "ts-xsd",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/ts-xsd/src",
   "projectType": "library",
-  "tags": ["scope:ts-xsd"],
-  "targets": {}
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx --test tests/**/*.test.ts",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "test:coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx --test --experimental-test-coverage --test-coverage-exclude='**/types.ts' --test-coverage-exclude='tests/**' tests/**/*.test.ts",
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
 }

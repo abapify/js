@@ -2,6 +2,28 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "defaultBase": "main",
   "nxCloudId": "689f2325a9081eb8eb04b58d",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.config.ts",
+      "!{projectRoot}/**/*.config.js",
+      "!{projectRoot}/**/*.config.mjs",
+      "!{projectRoot}/**/tsdown.config.*",
+      "!{projectRoot}/**/vitest.config.*",
+      "!{projectRoot}/**/vite.config.*",
+      "!{projectRoot}/**/*.spec.ts",
+      "!{projectRoot}/**/*.test.ts",
+      "!{projectRoot}/**/tests/**/*"
+    ],
+    "sharedGlobals": []
+  },
+  "pluginsConfig": {
+    "@nx/js": {
+      "analyzeSourceFiles": true,
+      "analyzePackageJson": true
+    }
+  },
   "plugins": [
     {
       "plugin": "@nx/js/typescript",

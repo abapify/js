@@ -1,40 +1,21 @@
 {
   "name": "ts-xsd",
   "version": "0.1.0",
-  "description": "Type-safe XSD schemas for TypeScript - parse and build XML with full type inference",
+  "description": "Core XSD parser and builder - W3C XMLSchema 1:1 TypeScript representation",
   "type": "module",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "bin": {
-    "ts-xsd": "./dist/cli.mjs"
+    "ts-xsd": "./dist/codegen/cli.mjs"
   },
   "exports": {
     ".": "./dist/index.mjs",
-    "./cli": "./dist/cli.mjs",
-    "./codegen": "./dist/codegen.mjs",
-    "./loader": "./dist/loader.mjs",
-    "./register": "./dist/register.mjs",
+    "./codegen/cli": "./dist/codegen/cli.mjs",
+    "./generators": "./dist/generators/index.mjs",
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "keywords": [
-    "xsd",
-    "xml",
-    "typescript",
-    "type-inference",
-    "schema",
-    "parser"
-  ],
-  "author": "abapify",
-  "license": "MIT",
   "dependencies": {
-    "@xmldom/xmldom": "^0.9.8"
+    "@xmldom/xmldom": "*"
   },
-  "module": "./dist/index.mjs",
-  "devDependencies": {
-    "ts-morph": "^27.0.2"
-  }
+  "module": "./dist/index.mjs"
 }

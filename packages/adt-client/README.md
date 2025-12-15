@@ -1,184 +1,281 @@
 # @abapify/adt-client
 
-> ⚠️ **LEGACY PACKAGE** - This package is being replaced by [@abapify/adt-client-v2](../adt-client-v2/README.md).
->
-> **Why?** The new architecture uses contract-first design with `speci` + `ts-xsd` for full type safety.
-> This package will be removed once migration is complete.
+**Contract-driven SAP ADT REST client** - The new architecture using `speci` + `ts-xsd` for full type safety.
 
----
+## Why v2?
 
-Node.js client library for SAP ABAP Development Tools (ADT) REST APIs. Connect to SAP systems, manage transports, run ATC checks, and work with ABAP objects programmatically.
+This package replaces the legacy `adt-client` with a **contract-first design**:
 
-## Why Use This?
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-client                               │
+│              (HTTP Client + Request Execution)                   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      adt-contracts                               │
+│         (REST API Contracts using speci + ts-xsd)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     adt-schemas                              │
+│        (TypeScript schemas from SAP XSD definitions)             │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-- **CLI-First Design**: Purpose-built as the core engine for the [ADT CLI](../adt-cli/README.md) with unique command-line features
-- **Monorepo Integration**: Seamlessly integrates with other abapify-js packages (ADK, parsers, generators)
-- **Modern Toolchain**: Built for modern TypeScript/Node.js development workflows and CI/CD automation
-- **SAP BTP Optimized**: Specifically optimized for SAP Business Technology Platform ABAP Environment
+**Benefits over v1:**
+- ✅ **Type-safe from XSD** - Types generated from official SAP schemas
+- ✅ **Contract-first** - API contracts define the interface
+- ✅ **Zero manual types** - No hand-written type definitions
+- ✅ **Easy to extend** - Add endpoints by defining contracts
+- ✅ **Testable** - Contracts are pure data, easy to mock
 
-## Comparison with Existing Solutions
+## Features
 
-This client complements the excellent [abap-adt-api](https://github.com/marcellourbani/abap-adt-api) by Marcello Urbani, which offers comprehensive ADT API coverage and mature features.
-
-**Key Differences:**
-
-| Feature             | @abapify/adt-client                                       | abap-adt-api                   |
-| ------------------- | --------------------------------------------------------- | ------------------------------ |
-| **Maturity**        | PoC phase, actively developing                            | Mature, production-ready       |
-| **Scope**           | CLI-focused core component                                | Comprehensive ADT library      |
-| **Architecture**    | Monorepo part, integrates with ADK/parsers                | Standalone package             |
-| **CLI Integration** | Native CLI commands ([see ADT CLI](../adt-cli/README.md)) | Programmatic API only          |
-| **Unique Features** | Source deployment, object scaffolding, Git integration    | Broader ADT operation coverage |
-
-**When to use this client:**
-
-- You want CLI-based ABAP development workflows
-- You need integration with the abapify-js ecosystem (ADK, code generators)
-- You're building modern TypeScript-first automation tools
-
-**When to use abap-adt-api:**
-
-- You need comprehensive, battle-tested ADT API coverage
-- You're building standalone applications without CLI requirements
-- You want maximum feature completeness and stability
-
-## Key Features
-
-- 🔐 **Secure Authentication** - OAuth 2.0 with PKCE flow for SAP BTP
-- 🚀 **High Performance** - Optimized HTTP headers and CSRF token caching
-- 📦 **Complete API Coverage** - Transport system, ATC, repository, and discovery services
-- 🔧 **TypeScript Native** - Full type definitions and IntelliSense support
-- 📊 **Built-in Logging** - Structured logging with configurable components
+- ✅ **Contract-driven** - Uses `speci` + `ts-xsd` contracts
+- ✅ **Full type inference** - Types flow from XSD to response
+- ✅ **Zero dependencies** - Only uses native fetch API
+- ✅ **Clean API** - Arrow-function contracts
+- ✅ **Promise-based** - Modern async/await API
 
 ## Installation
 
 ```bash
-npm install @abapify/adt-client
+bun add @abapify/adt-client
 ```
 
 ## Quick Start
 
 ```typescript
-import { AdtClientImpl } from '@abapify/adt-client';
+import { createAdtClient } from '@abapify/adt-client';
 
-const client = new AdtClientImpl();
-
-// Connect using SAP BTP service key
-await client.connect({
-  serviceKeyPath: './service-key.json',
+// Create client
+const client = createAdtClient({
+  baseUrl: 'https://sap-system.com:8000',
+  username: 'YOUR_USER',
+  password: 'YOUR_PASS',
+  client: '100',
+  language: 'EN',
 });
 
-// Create a transport request
-const transport = await client.cts.createTransport({
-  type: 'K',
-  description: 'My Development Changes',
-});
+// Get complete class with all includes
+const classObj = await client.getClass('ZCL_MY_CLASS');
+console.log(classObj.metadata.description);
+console.log(classObj.includes.main);
+console.log(classObj.includes.definitions);
+console.log(classObj.includes.implementations);
 
-// Run quality checks
-const atcResults = await client.atc.runAtcCheck({
-  objectType: 'CLAS',
-  objectName: 'ZCL_MY_CLASS',
-});
-
-// Search for objects
-const objects = await client.repository.searchObjects({
-  query: 'ZCL_*',
-  objectTypes: ['CLAS', 'INTF'],
-});
+// Update main source
+await client.updateMainSource('ZCL_MY_CLASS', newSource);
 ```
 
-## Configuration
+## API Reference
 
-### Authentication
-
-Get your SAP BTP service key from your ABAP Environment:
-
-1. In SAP BTP Cockpit, navigate to your ABAP Environment
-2. Go to Service Keys and create a new key
-3. Save the JSON content as `service-key.json`
+### Client Creation
 
 ```typescript
-await client.connect({
-  serviceKeyPath: './service-key.json',
-});
+createAdtClient(config: AdtConnectionConfig): AdtClient
 ```
 
-### Logging (Optional)
+**Config:**
 
-Configure logging for debugging and monitoring:
+- `baseUrl` - SAP system URL (e.g., `https://sap-system.com:8000`)
+- `username` - SAP username
+- `password` - SAP password
+- `client` - SAP client (optional, e.g., `'100'`)
+- `language` - SAP language (optional, e.g., `'EN'`)
 
-```bash
-# Set log level for development
-export ADT_LOG_LEVEL=debug
+### Class Operations
 
-# Enable specific components
-export ADT_LOG_COMPONENTS=auth,cts,atc
-
-# Pretty print logs in development
-export NODE_ENV=development
-```
-
-## Use Cases
-
-### CI/CD Integration
+#### Get Complete Class
 
 ```typescript
-// Automated quality checks in your pipeline
-const atcResults = await client.atc.runAtcCheck({
-  objectType: 'CLAS',
-  objectName: 'ZCL_MY_CLASS',
-});
+getClass(className: string): Promise<ClassObject>
+```
 
-if (atcResults.some((r) => r.priority === 1)) {
-  throw new Error('Critical ATC findings detected');
+Returns class metadata and all includes (main, definitions, implementations, macros, testclasses).
+
+#### Get Metadata Only
+
+```typescript
+getMetadata(className: string): Promise<ClassMetadata>
+```
+
+Returns class metadata (name, description, package, etc.).
+
+#### Get All Includes
+
+```typescript
+getIncludes(className: string): Promise<ClassIncludes>
+```
+
+Returns all class source includes.
+
+#### Get Specific Include
+
+```typescript
+getInclude(className: string, includeType: 'main' | 'definitions' | 'implementations' | 'macros' | 'testclasses'): Promise<string>
+```
+
+Returns specific include source code.
+
+#### Update Main Source
+
+```typescript
+updateMainSource(className: string, source: string): Promise<OperationResult>
+```
+
+Updates the main class source code.
+
+#### Create Class
+
+```typescript
+createClass(className: string, metadata: Partial<ClassMetadata>): Promise<OperationResult>
+```
+
+Creates a new class with specified metadata.
+
+#### Delete Class
+
+```typescript
+deleteClass(className: string): Promise<OperationResult>
+```
+
+Deletes a class.
+
+#### Lock/Unlock
+
+```typescript
+lockClass(className: string): Promise<string>
+unlockClass(className: string, lockHandle: string): Promise<OperationResult>
+```
+
+Lock and unlock class for editing.
+
+## Types
+
+### ClassMetadata
+
+```typescript
+interface ClassMetadata {
+  name: string;
+  description?: string;
+  packageName?: string;
+  responsible?: string;
+  createdBy?: string;
+  createdAt?: string;
+  changedBy?: string;
+  changedAt?: string;
+  final?: boolean;
+  abstract?: boolean;
+  visibility?: 'public' | 'protected' | 'private';
 }
 ```
 
-### Transport Automation
+### ClassIncludes
 
 ```typescript
-// Create and manage transports programmatically
-const transport = await client.cts.createTransport({
-  type: 'K',
-  description: 'Automated deployment',
-});
-
-await client.cts.addObjectToTransport(transport.number, {
-  objectType: 'CLAS',
-  objectName: 'ZCL_MY_CLASS',
-});
-
-await client.cts.releaseTransport(transport.number);
-```
-
-### Object Discovery
-
-```typescript
-// Find and analyze ABAP objects
-const objects = await client.repository.searchObjects({
-  query: 'Z*',
-  objectTypes: ['CLAS', 'INTF', 'PROG'],
-});
-
-for (const obj of objects) {
-  const metadata = await client.repository.getObject(obj.type, obj.name);
-  console.log(`${obj.name}: ${metadata.description}`);
+interface ClassIncludes {
+  main?: string;
+  definitions?: string;
+  implementations?: string;
+  macros?: string;
+  testclasses?: string;
 }
 ```
 
-## Contributing
+### ClassObject
 
-This package is part of the [abapify-js monorepo](https://github.com/your-org/abapify-js).
+```typescript
+interface ClassObject {
+  metadata: ClassMetadata;
+  includes: ClassIncludes;
+}
+```
 
-For development setup, issues, and pull requests, please visit the main repository.
+## Examples
 
-## Roadmap
+### Read and Modify Class
 
-- 🔄 **Streaming Support** - Large object handling with streams
-- 📊 **Enhanced Metrics** - Built-in performance monitoring
-- 🔌 **Plugin System** - Extensible middleware architecture
-- 📱 **Browser Support** - Client-side usage capabilities
-- 🌐 **Multi-System** - Connect to multiple SAP systems simultaneously
+```typescript
+// Get class
+const classObj = await client.getClass('ZCL_MY_CLASS');
+
+// Modify source
+const newSource = classObj.includes.main?.replace('OLD_TEXT', 'NEW_TEXT');
+
+// Update
+if (newSource) {
+  await client.updateMainSource('ZCL_MY_CLASS', newSource);
+}
+```
+
+### Create New Class
+
+```typescript
+await client.createClass('ZCL_NEW_CLASS', {
+  description: 'My new class',
+  packageName: 'ZPACKAGE',
+  visibility: 'public',
+  final: false,
+  abstract: false,
+});
+```
+
+### Lock, Edit, Unlock Pattern
+
+```typescript
+// Lock class
+const lockHandle = await client.lockClass('ZCL_MY_CLASS');
+
+try {
+  // Edit class
+  await client.updateMainSource('ZCL_MY_CLASS', newSource);
+} finally {
+  // Always unlock
+  await client.unlockClass('ZCL_MY_CLASS', lockHandle);
+}
+```
+
+## Architecture
+
+### Two-Layer Design
+
+```typescript
+const client = createAdtClient({...});
+
+// Layer 1: Low-level contracts (direct ADT REST access)
+client.adt.core.http.sessions.getSession()
+client.adt.cts.transportrequests.getTransport(id)
+
+// Layer 2: High-level services (business logic)
+client.services.transports.importAndActivate(transportId)  // Future
+
+// Utility: Raw HTTP for debugging
+client.fetch('/arbitrary/endpoint', { method: 'GET' })
+```
+
+**Contracts** - Thin, declarative HTTP definitions with 1:1 mapping to SAP ADT endpoints
+**Services** - Business logic orchestration combining multiple contract calls
+
+## Comparison with adt-client v1
+
+| Feature | v1 (Legacy) | v2 (New) |
+|---------|-------------|----------|
+| **Type Safety** | Manual types | Generated from XSD |
+| **Architecture** | Service-based | Contract-first |
+| **Dependencies** | Many | Zero |
+| **Extensibility** | Complex | Add contracts |
+| **Testing** | Difficult | Easy (pure data) |
+
+## Related Packages
+
+- **[adt-contracts](../adt-contracts)** - REST API contracts (speci + ts-xsd)
+- **[adt-schemas](../adt-schemas)** - TypeScript schemas from SAP XSD
+- **[speci](../speci)** - Contract specification system
+- **[ts-xsd](../ts-xsd)** - XSD → TypeScript generation
 
 ## License
 

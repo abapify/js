@@ -31,6 +31,9 @@ export default [
       '**/dist',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
+      // Exclude scripts from dependency analysis to prevent false circular dependencies
+      'scripts/**',
+      'e2e/**',
     ],
   },
   {
@@ -43,6 +46,8 @@ export default [
           allow: [
             '^.*/eslint(\\.base)?\\.config\\.[cm]?js$',
             '^.*/tsdown\\.config\\.(ts|js|mjs)$',
+            '^.*/samples/.*',
+            '^.*\\.config\\..*\\.ts$',
           ],
           depConstraints: [
             {
@@ -52,6 +57,19 @@ export default [
           ],
         },
       ],
+    },
+  },
+  {
+    // Disable module boundaries for config files (not runtime code)
+    files: [
+      '**/*.config.ts',
+      '**/*.config.*.ts',
+      '**/*.config.js',
+      '**/*.config.mjs',
+      '**/samples/**',
+    ],
+    rules: {
+      '@nx/enforce-module-boundaries': 'off',
     },
   },
   {
@@ -79,7 +97,7 @@ export default [
       'import/resolver': {
         // Let ESLint resolve TS paths and respect tsconfig for DX
         typescript: {
-          project: true,
+          project: './tsconfig.base.json',
           alwaysTryTypes: true,
         },
         node: {
@@ -90,16 +108,7 @@ export default [
     rules: {
       // Remove file extensions from internal imports (autofixable)
       // Keeps package imports intact via "ignorePackages"
-      'import/extensions': [
-        'error',
-        'ignorePackages',
-        {
-          ts: 'never',
-          tsx: 'never',
-          js: 'never',
-          jsx: 'never',
-        },
-      ],
+      'import/extensions': ['error', 'never'],
       // Additional helpful fix: cleans up needless "./index" patterns
       'import/no-useless-path-segments': ['error', { noUselessIndex: true }],
     },

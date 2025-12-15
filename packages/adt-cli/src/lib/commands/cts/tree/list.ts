@@ -11,7 +11,7 @@
 
 import { Command } from 'commander';
 import { getAdtClientV2 } from '../../../utils/adt-client-v2';
-import { initializeAdk, AdkTransportRequest } from '@abapify/adk-v2';
+import { initializeAdk, AdkTransportRequest } from '@abapify/adk';
 
 // Status icons
 const STATUS_ICONS: Record<string, string> = {

@@ -1,5 +1,15 @@
-import { FormatRegistry } from '../../formats/format-registry';
-import { ObjectRegistry } from '../../objects/registry';
+// TODO: FormatRegistry and ObjectRegistry were removed - needs ADK migration
+// import { FormatRegistry } from '../../formats/format-registry';
+// import { ObjectRegistry } from '../../objects/registry';
+
+// TODO: Stubs until ADK migration
+const FormatRegistry = {
+  get: (_format: string) => { throw new Error('FormatRegistry needs ADK migration'); },
+};
+const ObjectRegistry = {
+  isSupported: (_type: string) => false,
+  get: (_type: string) => { throw new Error('ObjectRegistry needs ADK migration'); },
+};
 import { IconRegistry } from '../../utils/icon-registry';
 import { ConfigLoader } from '../../config/loader';
 import { PackageMapper } from '../../config/package-mapper';
