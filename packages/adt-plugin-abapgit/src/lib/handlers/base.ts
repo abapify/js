@@ -273,7 +273,8 @@ export function createHandler<T extends AdkObject, TSchema extends AbapGitSchema
         serializer_version: definition.serializer_version,
       } as InferAbapGitType<TSchema>;
       
-      return definition.schema.build(fullPayload);
+      // Build XML with pretty formatting for readability
+      return definition.schema.build(fullPayload, { pretty: true });
     },
     
     createFile(path: string, content: string, encoding?: BufferEncoding): SerializedFile {

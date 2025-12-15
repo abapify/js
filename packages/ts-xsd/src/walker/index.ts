@@ -607,6 +607,7 @@ export function stripNsPrefix(name: string): string {
   return colonIndex >= 0 ? name.slice(colonIndex + 1) : name;
 }
 
+
 /**
  * Check if element/group has maxOccurs > 1 (is array)
  */
