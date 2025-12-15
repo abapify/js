@@ -14,12 +14,12 @@ Part of the **ADT Toolkit** - see [main README](../../README.md) for architectur
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      adt-client-v2                               │
+│                      adt-client                               │
 │              (Contract-driven HTTP Client)                       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-The CLI uses `adt-client-v2` for type-safe ADT API access, with contracts defined in `adt-contracts` and schemas from `adt-schemas-xsd`.
+The CLI uses `adt-client` for type-safe ADT API access, with contracts defined in `adt-contracts` and schemas from `adt-schemas`.
 
 ## Features
 

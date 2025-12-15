@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "speci": "*",
-    "@abapify/adt-schemas-xsd": "*"
+    "@abapify/adt-schemas": "*"
   },
   "devDependencies": {
     "adt-fixtures": "*"

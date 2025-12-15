@@ -1,17 +1,17 @@
 /**
  * ADT Discovery Contract
- * 
+ *
  * Endpoint: GET /sap/bc/adt/discovery
  * Returns AtomPub service document describing available ADT services.
  */
 
 import { http } from '../../base';
-import { discovery } from 'adt-schemas-xsd';
+import { discovery, type InferTypedSchema } from '../../schemas';
 
 /**
  * Discovery response type - inferred from XSD schema
  */
-export type DiscoveryResponse = typeof discovery._infer;
+export type DiscoveryResponse = InferTypedSchema<typeof discovery>;
 
 export const discoveryContract = {
   /**

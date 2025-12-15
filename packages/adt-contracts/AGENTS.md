@@ -2,7 +2,7 @@
 
 ## Overview
 
-Type-safe SAP ADT REST API contracts using `speci` + `adt-schemas-xsd`.
+Type-safe SAP ADT REST API contracts using `speci` + `adt-schemas`.
 
 ## Contract Testing Framework
 
@@ -53,7 +53,7 @@ tests/
 // tests/contracts/myapi.ts
 import { ContractScenario, type ContractOperation } from './base';
 import { myContract } from '../../src/adt/myapi';
-import { mySchema } from '@abapify/adt-schemas-xsd';
+import { mySchema } from '@abapify/adt-schemas';
 import { fixtures } from 'adt-fixtures';
 
 export class MyApiScenario extends ContractScenario {
@@ -149,7 +149,7 @@ npx vitest run
 ## Adding New Contracts
 
 1. Create contract in `src/adt/{area}/`
-2. Import schema from `@abapify/adt-schemas-xsd`
+2. Import schema from `@abapify/adt-schemas`
 3. Create scenario in `tests/contracts/{area}.ts`
 4. Register in `tests/contracts/index.ts`
 5. Add fixture to `adt-fixtures` if needed

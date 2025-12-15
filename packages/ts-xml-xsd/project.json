@@ -1,8 +1,0 @@
-{
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "ts-xml-xsd",
-  "sourceRoot": "packages/ts-xml-xsd/src",
-  "projectType": "library",
-  "tags": ["scope:ts-xml"],
-  "targets": {}
-}

@@ -1,40 +1,30 @@
 /**
- * ADT Schemas - ts-xml based schema library
+ * ADT XML Schemas - Using ts-xsd (W3C format)
  *
- * Each namespace is in its own folder with:
- * - `types.ts` - TypeScript input types
- * - `schema.ts` - ts-xml schema definitions + namespace objects
- * - `index.ts` - Barrel exports
+ * This package exports typed XSD schemas with parse/build methods.
  *
- * Namespace objects provide:
- * - `.uri` - Namespace URI
- * - `.prefix` - Namespace prefix
- * - `.attr()`, `.elem()`, `.elems()` - Field helpers
- * - `.schema()` - Schema factory
+ * @example
+ * import { atom, adtcore } from '@abapify/adt-schemas';
  *
- * Cross-references are used to avoid duplication:
- * - Common field mixins (AdtCoreFields, AdtCoreObjectFields)
- * - Shared schemas (AtomLinkSchema, PackageRefSchema)
- * - Type imports across namespaces
+ * // Parse XML using schema
+ * const data = atom.parse(xmlString);
+ *
+ * // Build XML from data
+ * const xml = atom.build(data);
+ *
+ * // Type extraction
+ * import type { InferTypedSchema } from '@abapify/adt-schemas';
+ * type AtomData = InferTypedSchema<typeof atom>;
  */
 
-// Base utilities (namespace factory, parse/build functions)
-export * from "./base/index";
+// Re-export all schemas
+export * from './schemas';
 
-// ADT Core - foundational namespace
-export * from "./namespaces/adt/core/index";
-
-// Atom - standard syndication format
-export * from "./namespaces/atom/index";
-
-// Packages - SAP package objects
-export * from "./namespaces/adt/packages/index";
-
-// Classes - ABAP OO Classes
-export * from "./namespaces/adt/oo/classes/index";
-
-// Interfaces - ABAP OO Interfaces
-export * from "./namespaces/adt/oo/interfaces/index";
-
-// DDIC - Data Dictionary objects
-export * from "./namespaces/adt/ddic/index";
+// Re-export ts-xsd types for consumers (single point of entry)
+export { typedSchema, parseXml, buildXml } from 'ts-xsd';
+export type {
+  TypedSchema,
+  InferTypedSchema,
+  SchemaLike,
+  InferSchema,
+} from 'ts-xsd';

@@ -2,7 +2,7 @@
  * adt cts tree config - View/Edit search configuration
  *
  * Shows or edits the current search configuration used by the transport tree.
- * Uses fully typed contracts with adt-schemas-xsd.
+ * Uses fully typed contracts with adt-schemas.
  *
  * Usage:
  *   adt cts tree config         - View current configuration

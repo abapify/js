@@ -16,11 +16,11 @@ describe('InferSchema with complex types', () => {
     ? E extends Record<string, unknown> ? { data: string } : never
     : {};
 
-  // Simulate SpeciSchema - like adt-schemas-xsd does
+  // Simulate SpeciSchema - like adt-schemas does
   type SimulatedSpeciSchema<T> = T & Serializable<SimulatedInferXsd<T>>;
 
   it('should infer type from Serializable with complex generic', () => {
-    // This simulates what adt-schemas-xsd does
+    // This simulates what adt-schemas does
     type Schema = SimulatedSpeciSchema<{ root: 'test'; elements: { foo: {} } }>;
     
     // InferSchema should extract the type from _infer

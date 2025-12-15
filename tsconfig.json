@@ -10,19 +10,7 @@
       "path": "./packages/adt-cli"
     },
     {
-      "path": "./packages/adt-schemas-xsd"
-    },
-    {
       "path": "./packages/adt-playwright"
-    },
-    {
-      "path": "./packages/adt-schemas-v2"
-    },
-    {
-      "path": "./packages/ts-xml-codegen"
-    },
-    {
-      "path": "./packages/adt-client-v2"
     },
     {
       "path": "./packages/adt-puppeteer"
@@ -46,16 +34,7 @@
       "path": "./packages/adt-codegen"
     },
     {
-      "path": "./packages/adt-schemas"
-    },
-    {
-      "path": "./packages/ts-xsd-core"
-    },
-    {
       "path": "./packages/adt-config"
-    },
-    {
-      "path": "./packages/ts-xml-xsd"
     },
     {
       "path": "./tools/nx-typecheck"
@@ -67,16 +46,10 @@
       "path": "./packages/logger"
     },
     {
-      "path": "./packages/adk-v2"
-    },
-    {
       "path": "./tools/nx-tsdown"
     },
     {
       "path": "./tools/nx-vitest"
-    },
-    {
-      "path": "./packages/ts-xml"
     },
     {
       "path": "./packages/ts-xsd"
@@ -88,10 +61,16 @@
       "path": "./tools/nx-sync"
     },
     {
-      "path": "./packages/xmld"
+      "path": "./packages/adk"
     },
     {
-      "path": "./packages/adk"
+      "path": "./packages/adt-schemas"
+    },
+    {
+      "path": "./packages/adt-plugin-abapgit"
+    },
+    {
+      "path": "./packages/adt-plugin"
     }
   ]
 }
