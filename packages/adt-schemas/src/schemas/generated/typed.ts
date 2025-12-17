@@ -47,6 +47,7 @@ import type { TemplatelinkExtendedSchema } from './types/custom/templatelinkExte
 import type { TransportfindSchema } from './types/custom/transportfind.types';
 import type { TransportmanagmentCreateSchema } from './types/custom/transportmanagmentCreate.types';
 import type { TransportmanagmentSingleSchema } from './types/custom/transportmanagmentSingle.types';
+import type { AtcRunSchema } from './types/custom/atcRun.types';
 
 // SAP schemas
 import _atom from './schemas/sap/atom';
@@ -117,3 +118,5 @@ import _transportmanagmentCreate from './schemas/custom/transportmanagmentCreate
 export const transportmanagmentCreate: TypedSchema<TransportmanagmentCreateSchema> = typedSchema<TransportmanagmentCreateSchema>(_transportmanagmentCreate);
 import _transportmanagmentSingle from './schemas/custom/transportmanagmentSingle';
 export const transportmanagmentSingle: TypedSchema<TransportmanagmentSingleSchema> = typedSchema<TransportmanagmentSingleSchema>(_transportmanagmentSingle);
+import _atcRun from './schemas/custom/atcRun';
+export const atcRun: TypedSchema<AtcRunSchema> = typedSchema<AtcRunSchema>(_atcRun);

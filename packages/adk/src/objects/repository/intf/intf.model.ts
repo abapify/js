@@ -16,10 +16,10 @@ import type { InterfaceResponse } from '../../../base/adt';
 /**
  * Interface data type - imported from contract
  * 
- * This ensures ADK always matches what the contract returns.
- * If contract changes schema (e.g., to extended version), ADK updates automatically.
+ * The schema wraps everything in an 'abapInterface' element, so we unwrap it here
+ * to provide a flat structure for ADK consumers.
  */
-export type InterfaceXml = InterfaceResponse;
+export type InterfaceXml = InterfaceResponse['abapInterface'];
 
 /**
  * ADK Interface object
@@ -58,11 +58,12 @@ export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceX
   // ============================================
   
   async load(): Promise<this> {
-    const data = await this.ctx.client.adt.oo.interfaces.get(this.name);
-    if (!data) {
+    const response = await this.ctx.client.adt.oo.interfaces.get(this.name);
+    if (!response?.abapInterface) {
       throw new Error(`Interface '${this.name}' not found or returned empty response`);
     }
-    this.setData(data as InterfaceXml);
+    // Unwrap the abapInterface element from the response
+    this.setData(response.abapInterface);
     return this;
   }
   
