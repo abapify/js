@@ -25,6 +25,9 @@
       "path": "../adt-plugin-abapgit/tsconfig.lib.json"
     },
     {
+      "path": "../adt-plugin/tsconfig.lib.json"
+    },
+    {
       "path": "../adt-config/tsconfig.lib.json"
     },
     {

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ATC Run Request Schema
+  
+  POST /sap/bc/adt/atc/runs?worklistId={id}
+  
+  The run request body contains:
+  - atc:run root element with maximumVerdicts attribute
+  - objectSets containing objectSet elements
+  - objectSet has kind attribute and contains adtcore:objectReferences
+  
+  Example:
+  <atc:run maximumVerdicts="100" xmlns:atc="http://www.sap.com/adt/atc">
+    <objectSets xmlns:adtcore="http://www.sap.com/adt/core">
+      <objectSet kind="inclusive">
+        <adtcore:objectReferences>
+          <adtcore:objectReference adtcore:uri="/sap/bc/adt/packages/MYPACKAGE"/>
+        </adtcore:objectReferences>
+      </objectSet>
+    </objectSets>
+  </atc:run>
+  
+  Note: This schema is for the REQUEST body. The response uses atcworklist:worklistRun.
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:atc="http://www.sap.com/adt/atc"
+    xmlns:adtcore="http://www.sap.com/adt/core"
+    targetNamespace="http://www.sap.com/adt/atc"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+  <xsd:import namespace="http://www.sap.com/adt/core" schemaLocation="../sap/adtcore.xsd"/>
+
+  <!-- Root element for ATC run request -->
+  <xsd:element name="run" type="atc:AtcRunRequest"/>
+
+  <!-- ATC Run Request type -->
+  <xsd:complexType name="AtcRunRequest">
+    <xsd:sequence>
+      <xsd:element name="objectSets" type="atc:AtcObjectSets" minOccurs="1" maxOccurs="1"/>
+    </xsd:sequence>
+    <xsd:attribute name="maximumVerdicts" type="xsd:integer"/>
+  </xsd:complexType>
+
+  <!-- Object Sets container -->
+  <xsd:complexType name="AtcObjectSets">
+    <xsd:sequence>
+      <xsd:element name="objectSet" type="atc:AtcObjectSetRequest" minOccurs="1" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Single Object Set -->
+  <xsd:complexType name="AtcObjectSetRequest">
+    <xsd:sequence>
+      <xsd:element ref="adtcore:objectReferences" minOccurs="0" maxOccurs="1"/>
+    </xsd:sequence>
+    <xsd:attribute name="kind" type="xsd:string"/>
+  </xsd:complexType>
+
+</xsd:schema>

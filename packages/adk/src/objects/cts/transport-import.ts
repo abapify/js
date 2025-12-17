@@ -15,6 +15,7 @@
 import type { AdkContext } from '../../base/context';
 import { getGlobalContext } from '../../base/global-context';
 import type { TransportGetResponse } from '../../base/adt';
+import type { TransportData } from './transport/transport.types';
 
 // Types from the transport schema
 // These match the structure in transportmanagment-single.types.ts
@@ -99,7 +100,10 @@ export class AdkTransportObjectRef {
     // The factory handles type resolution and loading
     try {
       const obj = adk.get(this.name, this.type);
-      await obj.load();
+      // Check if object has load method (AdkGenericObject doesn't)
+      if ('load' in obj && typeof obj.load === 'function') {
+        await obj.load();
+      }
       return obj;
     } catch {
       // Type not supported or object not found
@@ -159,7 +163,7 @@ export class AdkTransport {
 
   private constructor(
     private readonly ctx: AdkContext,
-    private readonly data: TransportGetResponse
+    private readonly data: TransportData
   ) {}
 
   // ===========================================================================
@@ -304,8 +308,8 @@ export class AdkTransport {
   // Raw data access
   // ===========================================================================
 
-  /** Raw API response */
-  get raw(): TransportGetResponse { return this.data; }
+  /** Raw API response (unwrapped) */
+  get raw(): TransportData { return this.data; }
 
   // ===========================================================================
   // Static Factory
@@ -326,6 +330,7 @@ export class AdkTransport {
   static async get(number: string, ctx?: AdkContext): Promise<AdkTransport> {
     const context = ctx ?? getGlobalContext();
     const response = await context.client.adt.cts.transportrequests.get(number);
-    return new AdkTransport(context, response);
+    // Unwrap the root element from the response
+    return new AdkTransport(context, response.root);
   }
 }

@@ -7,28 +7,8 @@
 
 export type LogSchema = {
     logKeys: {
-        link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-        }[];
         progVersion?: {
             key?: {
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
                 value?: string;
                 calls?: number;
                 lastCall?: string;

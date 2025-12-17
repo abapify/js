@@ -27,6 +27,15 @@ export type {
   SchemaInfo,
 } from './plugins/index';
 
+// Contract generator
+export { 
+  generateContracts, 
+  defaultResolveImports,
+  type GenerateContractsOptions,
+  type ContractImports,
+  type ResolveImportsHook,
+} from './plugins/generate-contracts';
+
 export type {
   CodegenPlugin,
   PluginHooks,
