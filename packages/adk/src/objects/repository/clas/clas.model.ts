@@ -23,10 +23,10 @@ import type { ClassResponse } from '../../../base/adt';
 /**
  * Class data type - imported from contract
  * 
- * This ensures ADK always matches what the contract returns.
- * If contract changes schema (e.g., to extended version), ADK updates automatically.
+ * The schema wraps everything in an 'abapClass' element, so we unwrap it here
+ * to provide a flat structure for ADK consumers.
  */
-export type ClassXml = ClassResponse;
+export type ClassXml = ClassResponse['abapClass'];
 
 /**
  * ADK Class object
@@ -97,14 +97,14 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implemen
   // Includes
   get includes(): ClassInclude[] {
     const rawIncludes = this.dataSync.include ?? [];
-    return rawIncludes.map((inc: ClassResponse['include'][number]) => ({
+    return rawIncludes.map((inc: NonNullable<ClassXml['include']>[number]) => ({
       includeType: (inc.includeType ?? 'main') as ClassIncludeType,
       sourceUri: inc.sourceUri ?? '',
       name: inc.name ?? '',
       type: inc.type ?? 'CLAS/I',
       version: inc.version ?? '',
-      changedAt: inc.changedAt instanceof Date ? inc.changedAt : inc.changedAt ? new Date(inc.changedAt) : new Date(0),
-      createdAt: inc.createdAt instanceof Date ? inc.createdAt : inc.createdAt ? new Date(inc.createdAt) : new Date(0),
+      changedAt: inc.changedAt ? new Date(inc.changedAt as string | number | Date) : new Date(0),
+      createdAt: inc.createdAt ? new Date(inc.createdAt as string | number | Date) : new Date(0),
       changedBy: inc.changedBy ?? '',
       createdBy: inc.createdBy ?? '',
     }));
@@ -156,11 +156,12 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implemen
   // ============================================
   
   async load(): Promise<this> {
-    const data = await this.ctx.client.adt.oo.classes.get(this.name);
-    if (!data) {
+    const response = await this.ctx.client.adt.oo.classes.get(this.name);
+    if (!response?.abapClass) {
       throw new Error(`Class '${this.name}' not found or returned empty response`);
     }
-    this.setData(data as ClassXml);
+    // Unwrap the abapClass element from the response
+    this.setData(response.abapClass);
     return this;
   }
   

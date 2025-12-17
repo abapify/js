@@ -16,16 +16,6 @@ export type InterfacesSchema = {
             packageName?: string;
             description?: string;
         };
-        link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-        }[];
         adtTemplate?: {
             adtProperty?: {
                 _text?: string;
@@ -53,28 +43,8 @@ export type InterfacesSchema = {
             language?: {
                 version?: string;
                 description?: string;
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
             };
             objectUsage?: {
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
                 restricted?: boolean;
             };
         };

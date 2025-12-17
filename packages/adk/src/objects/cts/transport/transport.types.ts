@@ -25,8 +25,13 @@ import type { TransportGetResponse } from '../../../base/adt';
 // Inferred types from contract schema
 // ============================================
 
-/** Full response type from TransportService.get() */
-export type TransportData = TransportGetResponse;
+/** 
+ * Full response type from TransportService.get()
+ * 
+ * The schema wraps everything in a 'root' element, so we unwrap it here
+ * to provide a flat structure for ADK consumers.
+ */
+export type TransportData = TransportGetResponse['root'];
 
 /** Request data from schema */
 export type TransportRequestData = NonNullable<TransportData['request']>;

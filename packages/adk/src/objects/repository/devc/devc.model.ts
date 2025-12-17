@@ -20,10 +20,11 @@ import type {
 
 /**
  * Package data type - inferred from packagesContract response
- * NonNullable ensures it satisfies AdkObjectData constraint (name & type required)
- * Re-exported for consumers who need the raw API response type
+ * 
+ * The schema wraps everything in a 'package' element, so we unwrap it here
+ * to provide a flat structure for ADK consumers.
  */
-export type PackageXml = NonNullable<PackageResponse>;
+export type PackageXml = NonNullable<PackageResponse['package']>;
 
 /**
  * ADK Package object
@@ -128,11 +129,12 @@ export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> im
   // ============================================
   
   async load(): Promise<this> {
-    const data = await this.ctx.client.adt.packages.get(this.name);
-    if (!data) {
+    const response = await this.ctx.client.adt.packages.get(this.name);
+    if (!response?.package) {
       throw new Error(`Package '${this.name}' not found or returned empty response`);
     }
-    this.setData(data as PackageXml);
+    // Unwrap the package element from the response
+    this.setData(response.package);
     return this;
   }
   

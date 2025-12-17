@@ -16,16 +16,6 @@ export type TransportmanagmentSingleSchema = {
             packageName?: string;
             description?: string;
         };
-        link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-        }[];
         adtTemplate?: {
             adtProperty?: {
                 _text?: string;
@@ -35,16 +25,6 @@ export type TransportmanagmentSingleSchema = {
         };
         request?: {
             long_desc?: string;
-            link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-            }[];
             attributes?: {
                 attribute?: string;
                 description?: string;
@@ -52,16 +32,6 @@ export type TransportmanagmentSingleSchema = {
                 position?: string;
             }[];
             abap_object?: {
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
                 pgmid?: string;
                 type?: string;
                 name?: string;
@@ -77,16 +47,6 @@ export type TransportmanagmentSingleSchema = {
             }[];
             all_objects?: {
                 abap_object?: {
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
-                    }[];
                     pgmid?: string;
                     type?: string;
                     name?: string;
@@ -103,27 +63,7 @@ export type TransportmanagmentSingleSchema = {
             };
             task?: {
                 long_desc?: string;
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
                 abap_object?: {
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
-                    }[];
                     pgmid?: string;
                     type?: string;
                     name?: string;
@@ -191,27 +131,7 @@ export type TransportmanagmentSingleSchema = {
         };
         task?: {
             long_desc?: string;
-            link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-            }[];
             abap_object?: {
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
                 pgmid?: string;
                 type?: string;
                 name?: string;

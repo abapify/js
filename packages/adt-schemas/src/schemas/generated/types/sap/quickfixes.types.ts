@@ -10,25 +10,6 @@ export type QuickfixesSchema = {
         affectedObjects?: {
             unit?: {
                 content: string;
-                objectReference: {
-                    extension?: unknown;
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
-                };
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
             }[];
         };
     };

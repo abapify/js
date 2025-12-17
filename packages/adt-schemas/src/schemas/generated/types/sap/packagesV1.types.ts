@@ -16,16 +16,6 @@ export type PackagesV1Schema = {
             packageName?: string;
             description?: string;
         };
-        link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-        }[];
         adtTemplate?: {
             adtProperty?: {
                 _text?: string;

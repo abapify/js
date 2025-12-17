@@ -57,7 +57,7 @@ async function getConfigUri(ctx: AdkContext): Promise<string> {
   if (cachedConfigUri) return cachedConfigUri;
   
   const response = await ctx.client.adt.cts.transportrequests.searchconfiguration.configurations.get();
-  const configs = response?.configuration;
+  const configs = response?.configurations;
   if (!configs) throw new Error('No search configuration found');
   
   const configArray = Array.isArray(configs) ? configs : [configs];
@@ -202,7 +202,9 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
   }
 
   async load(): Promise<this> {
-    const response = await this.ctx.client.adt.cts.transportrequests.get(this.name);
+    const rawResponse = await this.ctx.client.adt.cts.transportrequests.get(this.name);
+    // Unwrap the root element from the response
+    const response = rawResponse.root;
     this.setData({
       name: this.name,
       type: response.object_type === 'T' ? 'RQTQ' : 'RQRQ',
@@ -390,7 +392,9 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
    */
   static async get(number: string, ctx?: AdkContext): Promise<AdkTransportRequest> {
     const context = ctx ?? getGlobalContext();
-    const response = await context.client.adt.cts.transportrequests.get(number);
+    const rawResponse = await context.client.adt.cts.transportrequests.get(number);
+    // Unwrap the root element from the response
+    const response = rawResponse.root;
     // Return task or request based on object_type
     if (response.object_type === 'T') {
       return new AdkTransportTask(context, response);
@@ -589,7 +593,8 @@ export class AdkTransportTask extends AdkTransportRequest {
    */
   static override async get(number: string, ctx?: AdkContext): Promise<AdkTransportTask> {
     const context = ctx ?? getGlobalContext();
-    const response = await context.client.adt.cts.transportrequests.get(number);
-    return new AdkTransportTask(context, response);
+    const rawResponse = await context.client.adt.cts.transportrequests.get(number);
+    // Unwrap the root element from the response
+    return new AdkTransportTask(context, rawResponse.root);
   }
 }

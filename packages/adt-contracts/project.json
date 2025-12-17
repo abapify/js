@@ -4,5 +4,17 @@
   "sourceRoot": "packages/adt-contracts/src",
   "projectType": "library",
   "tags": ["type:library"],
-  "targets": {}
+  "targets": {
+    "generate-contracts": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx adt codegen contracts",
+        "cwd": "{projectRoot}"
+      },
+      "outputs": [
+        "{projectRoot}/src/generated/adt",
+        "{projectRoot}/docs/adt-endpoints.md"
+      ]
+    }
+  }
 }

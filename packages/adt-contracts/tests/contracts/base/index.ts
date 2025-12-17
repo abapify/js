@@ -1,11 +1,13 @@
 /**
  * Contract Testing Framework
  * 
- * Type-safe contract validation without HTTP calls.
- * Tests contract definitions: method, path, headers, body, responses.
+ * Two types of tests:
+ * 1. Contract Definition Tests - validate method, path, headers, body, responses
+ * 2. Client Call Tests - test typed client calls with mocked XML responses
  */
 
 import { describe, it, expect } from 'vitest';
+import { createClient } from 'speci/rest';
 import { type FixtureHandle } from 'adt-fixtures';
 
 /** HTTP methods */
@@ -144,3 +146,6 @@ export function runScenario(scenario: ContractScenario): void {
 
 /** Re-export FixtureHandle for convenience */
 export type { FixtureHandle };
+
+// Re-export createClient for use in typed client call tests
+export { createClient };

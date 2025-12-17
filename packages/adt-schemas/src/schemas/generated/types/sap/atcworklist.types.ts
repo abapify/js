@@ -20,16 +20,6 @@ export type AtcworklistSchema = {
                 findings: {
                     finding?: {
                         extension?: unknown;
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         quickfixes: {
                             manual?: boolean;
                             automatic?: boolean;
@@ -76,17 +66,6 @@ export type AtcworklistSchema = {
                 description?: string;
                 author?: string;
                 objectTypeId?: string;
-            }[];
-        };
-        descriptionTags: {
-            tagWithDescription?: {
-                name: string;
-                descriptions: {
-                    description?: {
-                        value?: string;
-                        description?: string;
-                    }[];
-                };
             }[];
         };
         infos: {

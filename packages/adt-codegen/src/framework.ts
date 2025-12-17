@@ -16,7 +16,7 @@ import type {
   GlobalContext,
   TemplateLink,
 } from './types';
-import { ConsoleLogger, type Logger } from './logger';
+import { ConsoleLogger } from './logger';
 import { matchesFilter } from './filters';
 
 export class CodegenFramework {

@@ -30,6 +30,7 @@ import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setCliContext } from './utils/adt-client-v2';
+import { loadCommandPlugins } from './plugin-loader';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -204,6 +205,9 @@ export async function createCLI(): Promise<Command> {
   // Test commands for debugging
   program.addCommand(createTestLogCommand());
   program.addCommand(createTestAdtCommand());
+
+  // Load command plugins from config (adt.config.ts)
+  await loadCommandPlugins(program, process.cwd());
 
   // Apply global options help to all commands using afterAll hook
   addGlobalOptionsHelpToAll(program);

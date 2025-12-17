@@ -30,6 +30,53 @@ export type DestinationInput = Destination | string;
 export interface AdtConfig {
   /** Named destinations (SID -> destination config or URL string) */
   destinations?: Record<string, DestinationInput>;
+  
+  /** CLI command plugins to load dynamically */
+  commands?: string[];
+  
+  /** Codegen framework configuration */
+  codegen?: Record<string, unknown>;
+  
+  /** Contract generation configuration */
+  contracts?: ContractsConfig;
+  
+  /** Allow arbitrary plugin-specific config sections */
+  [key: string]: unknown;
+}
+
+/**
+ * Contract generation configuration
+ */
+export interface ContractsConfig {
+  /**
+   * Discovery source configuration
+   * - If file exists: use cached discovery data
+   * - If file doesn't exist: fetch from SAP and cache to this path
+   * 
+   * @example 'tmp/discovery/discovery.xml'
+   */
+  discovery?: string;
+  
+  /** Content-type to schema mapping */
+  contentTypeMapping?: ContentTypeMapping | string;
+  /** Enabled endpoints whitelist */
+  enabledEndpoints?: EnabledEndpoints | string;
+  /** Output directory for generated contracts */
+  output?: string;
+  /** Output directory for documentation */
+  docs?: string;
+  /** Custom import resolver */
+  resolveImports?: () => { base: string; schemas: string };
+}
+
+export interface ContentTypeMapping {
+  mapping: Record<string, string>;
+  fallbacks: Record<string, string>;
+}
+
+export interface EnabledEndpoints {
+  enabled: string[];
+  notes?: Record<string, string>;
 }
 
 // =============================================================================
