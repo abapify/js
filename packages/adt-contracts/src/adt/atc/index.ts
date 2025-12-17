@@ -8,7 +8,22 @@
  */
 
 import { http, contract } from '../../base';
-import { atcworklist } from '../../schemas';
+import { atcworklist, atc, atcRun } from '../../schemas';
+
+/**
+ * /sap/bc/adt/atc/customizing
+ * Get ATC customizing settings (check variants, exemption reasons, etc.)
+ */
+const customizing = contract({
+  /**
+   * GET /sap/bc/adt/atc/customizing
+   */
+  get: () =>
+    http.get('/sap/bc/adt/atc/customizing', {
+      responses: { 200: atc },
+      headers: { Accept: 'application/xml' },
+    }),
+});
 
 /**
  * /sap/bc/adt/atc/runs
@@ -17,12 +32,17 @@ import { atcworklist } from '../../schemas';
 const runs = contract({
   /**
    * POST /sap/bc/adt/atc/runs{?worklistId,clientWait}
+   * Run ATC checks on objects specified in the request body
    */
   post: (params?: { worklistId?: string; clientWait?: boolean }) =>
     http.post('/sap/bc/adt/atc/runs', {
       query: params,
+      body: atcRun,
       responses: { 200: atcworklist },
-      headers: { Accept: 'application/xml' },
+      headers: { 
+        Accept: 'application/xml',
+        'Content-Type': 'application/xml',
+      },
     }),
 });
 
@@ -71,16 +91,29 @@ const results = contract({
  */
 const worklists = contract({
   /**
+   * POST /sap/bc/adt/atc/worklists{?checkVariant}
+   * Create a new ATC worklist
+   */
+  create: (params?: { checkVariant?: string }) =>
+    http.post('/sap/bc/adt/atc/worklists', {
+      query: params,
+      responses: { 200: atcworklist },
+      headers: { Accept: '*/*' },
+    }),
+
+  /**
    * GET /sap/bc/adt/atc/worklists/{id}
+   * Get worklist results by ID
    */
   get: (id: string) =>
     http.get(`/sap/bc/adt/atc/worklists/${id}`, {
       responses: { 200: atcworklist },
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: '*/*' },
     }),
 });
 
 export const atcContract = {
+  customizing,
   runs,
   results,
   worklists,

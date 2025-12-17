@@ -65,6 +65,7 @@ const targetSchemas = [
   'custom/transportfind',
   'custom/transportmanagmentCreate',
   'custom/transportmanagmentSingle',
+  'custom/atcRun',
 ];
 
 export default defineConfig({

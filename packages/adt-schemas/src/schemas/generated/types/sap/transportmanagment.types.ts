@@ -22,31 +22,11 @@ export type TransportmanagmentSchema = {
                                 obj_info?: string;
                                 obj_desc?: string;
                             }[];
-                            link?: {
-                                href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
-                            }[];
                             number?: string;
                             owner?: string;
                             desc?: string;
                             status?: string;
                             uri?: string;
-                        }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
                         }[];
                         abap_object?: {
                             pgmid?: string;
@@ -79,31 +59,11 @@ export type TransportmanagmentSchema = {
                                 obj_info?: string;
                                 obj_desc?: string;
                             }[];
-                            link?: {
-                                href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
-                            }[];
                             number?: string;
                             owner?: string;
                             desc?: string;
                             status?: string;
                             uri?: string;
-                        }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
                         }[];
                         abap_object?: {
                             pgmid?: string;
@@ -136,31 +96,11 @@ export type TransportmanagmentSchema = {
                                 obj_info?: string;
                                 obj_desc?: string;
                             }[];
-                            link?: {
-                                href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
-                            }[];
                             number?: string;
                             owner?: string;
                             desc?: string;
                             status?: string;
                             uri?: string;
-                        }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
                         }[];
                         abap_object?: {
                             pgmid?: string;
@@ -196,31 +136,11 @@ export type TransportmanagmentSchema = {
                             obj_info?: string;
                             obj_desc?: string;
                         }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         number?: string;
                         owner?: string;
                         desc?: string;
                         status?: string;
                         uri?: string;
-                    }[];
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
                     }[];
                     abap_object?: {
                         pgmid?: string;
@@ -253,31 +173,11 @@ export type TransportmanagmentSchema = {
                             obj_info?: string;
                             obj_desc?: string;
                         }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         number?: string;
                         owner?: string;
                         desc?: string;
                         status?: string;
                         uri?: string;
-                    }[];
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
                     }[];
                     abap_object?: {
                         pgmid?: string;
@@ -310,31 +210,11 @@ export type TransportmanagmentSchema = {
                             obj_info?: string;
                             obj_desc?: string;
                         }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         number?: string;
                         owner?: string;
                         desc?: string;
                         status?: string;
                         uri?: string;
-                    }[];
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
                     }[];
                     abap_object?: {
                         pgmid?: string;
@@ -371,31 +251,11 @@ export type TransportmanagmentSchema = {
                                 obj_info?: string;
                                 obj_desc?: string;
                             }[];
-                            link?: {
-                                href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
-                            }[];
                             number?: string;
                             owner?: string;
                             desc?: string;
                             status?: string;
                             uri?: string;
-                        }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
                         }[];
                         abap_object?: {
                             pgmid?: string;
@@ -428,31 +288,11 @@ export type TransportmanagmentSchema = {
                                 obj_info?: string;
                                 obj_desc?: string;
                             }[];
-                            link?: {
-                                href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
-                            }[];
                             number?: string;
                             owner?: string;
                             desc?: string;
                             status?: string;
                             uri?: string;
-                        }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
                         }[];
                         abap_object?: {
                             pgmid?: string;
@@ -485,31 +325,11 @@ export type TransportmanagmentSchema = {
                                 obj_info?: string;
                                 obj_desc?: string;
                             }[];
-                            link?: {
-                                href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
-                            }[];
                             number?: string;
                             owner?: string;
                             desc?: string;
                             status?: string;
                             uri?: string;
-                        }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
                         }[];
                         abap_object?: {
                             pgmid?: string;
@@ -545,31 +365,11 @@ export type TransportmanagmentSchema = {
                             obj_info?: string;
                             obj_desc?: string;
                         }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         number?: string;
                         owner?: string;
                         desc?: string;
                         status?: string;
                         uri?: string;
-                    }[];
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
                     }[];
                     abap_object?: {
                         pgmid?: string;
@@ -602,31 +402,11 @@ export type TransportmanagmentSchema = {
                             obj_info?: string;
                             obj_desc?: string;
                         }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         number?: string;
                         owner?: string;
                         desc?: string;
                         status?: string;
                         uri?: string;
-                    }[];
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
                     }[];
                     abap_object?: {
                         pgmid?: string;
@@ -659,31 +439,11 @@ export type TransportmanagmentSchema = {
                             obj_info?: string;
                             obj_desc?: string;
                         }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         number?: string;
                         owner?: string;
                         desc?: string;
                         status?: string;
                         uri?: string;
-                    }[];
-                    link?: {
-                        href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
                     }[];
                     abap_object?: {
                         pgmid?: string;
@@ -723,16 +483,6 @@ export type TransportmanagmentSchema = {
                             line?: number;
                             column?: number;
                             word?: string;
-                        }[];
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
                         }[];
                         uri?: string;
                         type?: unknown;

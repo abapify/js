@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "paths": {
+      "@abapify/adt-contracts/schemas": ["./src/schemas.ts"],
+      "@abapify/adt-contracts/base": ["./src/base.ts"]
+    }
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],
   "references": [
