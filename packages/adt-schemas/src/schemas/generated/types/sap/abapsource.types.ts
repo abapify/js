@@ -17,4 +17,14 @@ export type AbapsourceSchema = {
             };
         }[];
     };
+} | {
+    syntaxConfiguration: {
+        language?: {
+            version?: string;
+            description?: string;
+        };
+        objectUsage?: {
+            restricted?: boolean;
+        };
+    };
 };

@@ -17,8 +17,13 @@ class SearchScenario extends Scenario<typeof adtcore> {
   readonly fixtures = [fixtures.repository.search.quickSearch];
 
   validateParsed(data: SchemaType<typeof adtcore>): void {
+    // parse() now returns wrapped format: { elementName: content }
+    // The search response uses 'objectReferences' as root element
+    const objectReferences = (data as any).objectReferences;
+    expect(objectReferences).toBeDefined();
+    
     // Cast to any to access dynamic properties from search response
-    const merged = data as unknown as Record<string, unknown>;
+    const merged = objectReferences as unknown as Record<string, unknown>;
 
     // Validate we got object reference array
     expect(merged.objectReference).toBeDefined();
@@ -42,13 +47,11 @@ class SearchScenario extends Scenario<typeof adtcore> {
     expect(secondRef?.description).toBe('Another class');
   }
 
-  validateBuilt(xml: string): void {
+  override validateBuilt(xml: string): void {
     // Root element with namespace (schema uses 'adtcore' prefix from XSD)
     expect(xml).toContain('xmlns:adtcore="http://www.sap.com/adt/core"');
-    expect(xml).toContain('mainObject');  // adtcore root element
-
-    // Note: The adtcore schema's root element is 'mainObject', not 'objectReferences'
-    // The search response uses a different element that may not be in the schema
+    // The search response uses 'objectReferences' as root element
+    expect(xml).toContain('objectReferences');
   }
 }
 
