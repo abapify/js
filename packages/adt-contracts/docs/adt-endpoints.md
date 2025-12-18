@@ -3,14 +3,13 @@
 > Auto-generated from SAP ADT discovery data.
 > To enable an endpoint, add it to `adt-codegen` config/enabled-endpoints.json
 
-## Enabled Endpoints (12)
+## Enabled Endpoints (11)
 
 These endpoints have generated contracts in `src/generated/adt/`:
 
 | Endpoint | Title | Category |
 |----------|-------|----------|
 | `/sap/bc/adt/atc/results` | ATC results | atcresults |
-| `/sap/bc/adt/atc/runs` | ATC runs | atcruns |
 | `/sap/bc/adt/atc/worklists` | ATC worklist | atcworklists |
 | `/sap/bc/adt/cts/transportrequests` | Transport Management | transportmanagement |
 | `/sap/bc/adt/cts/transportrequests/reference` | Transport Management | transportmanagementref |
@@ -22,7 +21,7 @@ These endpoints have generated contracts in `src/generated/adt/`:
 | `/sap/bc/adt/packages/settings` | Package Settings | settings |
 | `/sap/bc/adt/packages/validation` | Package Name Validation | devck/validation |
 
-## Available Endpoints (Not Yet Enabled) (527)
+## Available Endpoints (Not Yet Enabled) (528)
 
 These endpoints were discovered but no contracts are generated yet:
 
@@ -211,7 +210,7 @@ These endpoints were discovered but no contracts are generated yet:
 
 </details>
 
-### /sap/bc/adt/atc (22 endpoints)
+### /sap/bc/adt/atc (23 endpoints)
 
 <details>
 <summary>Click to expand</summary>
@@ -239,6 +238,7 @@ These endpoints were discovered but no contracts are generated yet:
 | `/sap/bc/adt/atc/exemptions/apply` | Exemptions Apply |
 | `/sap/bc/adt/atc/items` | ATC Items |
 | `/sap/bc/adt/atc/result/worklist` | Result Worklist |
+| `/sap/bc/adt/atc/runs` | ATC runs |
 | `/sap/bc/adt/atc/variants` | List of Variants |
 
 </details>

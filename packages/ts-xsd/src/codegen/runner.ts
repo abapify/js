@@ -108,10 +108,17 @@ export async function runCodegen(
   /**
    * Recursively discover and parse schemas referenced via xs:include or xs:redefine.
    * This ensures schemas like types/devc.xsd are in globalAllSchemas when devc.xsd references them.
+   * 
+   * @param schema - The parsed schema object
+   * @param xsdDir - The root XSD directory (e.g., '.xsd')
+   * @param currentXsdPath - The path of the current XSD file (for resolving relative paths)
+   * @param sourceName - The source name for logging
+   * @param discovered - Set of already discovered schema names
    */
   function discoverReferencedSchemas(
     schema: Record<string, unknown>,
     xsdDir: string,
+    currentXsdPath: string,
     sourceName: string,
     discovered: Set<string> = new Set()
   ): void {
@@ -132,10 +139,11 @@ export async function runCodegen(
       }
       discovered.add(schemaNameWithPath);
       
-      // Try to load the referenced schema
-      const refXsdPath = join(xsdDir, ref.schemaLocation);
+      // Resolve the referenced schema path relative to the current XSD file's directory
+      const currentXsdDir = dirname(currentXsdPath);
+      const refXsdPath = join(currentXsdDir, ref.schemaLocation);
       if (!existsSync(refXsdPath)) {
-        log(`    ⚠️  Referenced schema not found: ${ref.schemaLocation}`);
+        log(`    ⚠️  Referenced schema not found: ${ref.schemaLocation} (resolved from ${currentXsdDir})`);
         continue;
       }
       
@@ -159,7 +167,7 @@ export async function runCodegen(
         log(`    📎 Auto-discovered: ${schemaNameWithPath}`);
         
         // Recursively discover schemas referenced by this one
-        discoverReferencedSchemas(refSchema as Record<string, unknown>, xsdDir, sourceName, discovered);
+        discoverReferencedSchemas(refSchema as Record<string, unknown>, xsdDir, refXsdPath, sourceName, discovered);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         log(`    ⚠️  Failed to parse referenced schema ${ref.schemaLocation}: ${err.message}`);
@@ -205,7 +213,7 @@ export async function runCodegen(
         result.schemas.push({ name: schemaName, source: sourceName });
         
         // Auto-discover schemas referenced via xs:include or xs:redefine
-        discoverReferencedSchemas(schema as Record<string, unknown>, source.xsdDir, sourceName);
+        discoverReferencedSchemas(schema as Record<string, unknown>, source.xsdDir, xsdPath, sourceName);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         log(`  ❌ Failed to parse ${schemaName}: ${err.message}`);

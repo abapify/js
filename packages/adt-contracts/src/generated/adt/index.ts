@@ -12,7 +12,6 @@ export { packagesContract } from './sap/bc/adt/packages';
 
 // sap/bc/adt/atc
 export { resultsContract } from './sap/bc/adt/atc/results';
-export { runsContract } from './sap/bc/adt/atc/runs';
 export { worklistsContract } from './sap/bc/adt/atc/worklists';
 
 // sap/bc/adt/cts

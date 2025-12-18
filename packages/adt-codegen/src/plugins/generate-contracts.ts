@@ -613,6 +613,13 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
       const contractName = dirPath.split('/').pop() || 'contract';
       
       const methods = processCollection(coll);
+      
+      // Skip endpoints with no methods (e.g., method filter excluded all)
+      if (methods.length === 0) {
+        console.log('  - ' + dirPath + '.ts (skipped: no methods after filtering)');
+        continue;
+      }
+      
       totalMethods += methods.length;
       
       const imports = importResolver(dirPath, outputDir);
@@ -750,6 +757,13 @@ export async function generateContractsFromDiscovery(options: GenerateContractsF
     const contractName = dirPath.split('/').pop() || 'contract';
     
     const methods = processCollection(collJson);
+    
+    // Skip endpoints with no methods (e.g., method filter excluded all)
+    if (methods.length === 0) {
+      console.log('  - ' + dirPath + '.ts (skipped: no methods after filtering)');
+      continue;
+    }
+    
     totalMethods += methods.length;
     
     const imports = importResolver(dirPath, outputDir);
