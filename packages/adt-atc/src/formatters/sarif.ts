@@ -1,10 +1,16 @@
+/**
+ * SARIF Formatter
+ * 
+ * Outputs ATC findings in SARIF format for GitHub Code Scanning.
+ */
+
 import { writeFile } from 'fs/promises';
-import { AtcResult, AtcFinding } from '../services/atc/service';
+import type { AtcResult, AtcFinding } from '../types';
 
 export async function outputSarifReport(
   result: AtcResult,
   outputFile: string,
-  targetName: string
+  _targetName?: string
 ): Promise<void> {
   // Transform ATC findings to SARIF format
   const rules = Array.from(
@@ -36,6 +42,10 @@ export async function outputSarifReport(
   const results = result.findings.map((finding: AtcFinding) => {
     const filePath = `src/${finding.objectType.toLowerCase()}/${finding.objectName.toLowerCase()}.${finding.objectType.toLowerCase()}`;
 
+    // Parse line number from location if available
+    const lineMatch = finding.location?.match(/start=(\d+)/);
+    const line = lineMatch ? parseInt(lineMatch[1], 10) : 1;
+
     return {
       ruleId: finding.checkId,
       level:
@@ -50,16 +60,14 @@ export async function outputSarifReport(
           physicalLocation: {
             artifactLocation: { uri: filePath },
             region: {
-              startLine: finding.location?.line || 1,
-              startColumn: finding.location?.column || 1,
+              startLine: line,
+              startColumn: 1,
             },
           },
         },
       ],
       partialFingerprints: {
-        primaryLocationLineHash: `${finding.checkId}-${finding.objectName}-${
-          finding.location?.line || 0
-        }`,
+        primaryLocationLineHash: `${finding.checkId}-${finding.objectName}-${line}`,
       },
     };
   });
