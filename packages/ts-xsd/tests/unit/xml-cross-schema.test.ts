@@ -10,7 +10,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseXml, buildXml } from '../../src/xml';
-import type { SchemaLike } from '../../src/infer/types';
+import type { SchemaLike } from '../../src/xsd/schema-like';
 
 describe('Cross-schema XML parsing', () => {
   describe('Element ref from $imports', () => {
