@@ -119,18 +119,17 @@ export const atcCommand = new Command('atc')
       console.log('⏳ Running ATC analysis...');
       const maxResults = parseInt(options.maxResults) || 100;
       
-      // Build run data matching atcRun schema structure
+      // Build run data - NOTE: buildXml adds root element automatically from schema
+      // Data should NOT include the root element wrapper
       const runData = {
-        run: {
-          maximumVerdicts: maxResults,
-          objectSets: {
-            objectSet: [{
-              kind: 'inclusive',
-              objectReferences: {
-                objectReference: [{ uri: objectUri }],
-              },
-            }],
-          },
+        maximumVerdicts: maxResults,
+        objectSets: {
+          objectSet: [{
+            kind: 'inclusive',
+            objectReferences: {
+              objectReference: [{ uri: objectUri }],
+            },
+          }],
         },
       };
 

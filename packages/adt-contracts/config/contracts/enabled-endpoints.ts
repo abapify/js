@@ -14,12 +14,8 @@
 import type { EndpointDefinition } from '@abapify/adt-codegen';
 
 export const enabledEndpoints: EndpointDefinition[] = [
-  // ATC - ABAP Test Cockpit (selective endpoints)
-  {
-    path: '/sap/bc/adt/atc/runs',
-    methods: ['POST'],
-    description: 'Run ATC checks',
-  },
+  // ATC - ABAP Test Cockpit
+  // NOTE: /sap/bc/adt/atc/runs POST is not in discovery - add manually if needed
   {
     path: '/sap/bc/adt/atc/worklists',
     methods: ['GET'],

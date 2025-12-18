@@ -24,6 +24,25 @@ import {
   formatXml,
 } from './build-utils';
 
+/**
+ * Get the namespace prefix for a schema's targetNamespace from the root schema's $xmlns
+ */
+function getPrefixForSchema(schema: SchemaLike, rootSchema: SchemaLike): string | undefined {
+  const targetNs = (schema as { targetNamespace?: string }).targetNamespace;
+  if (!targetNs) return undefined;
+  
+  const xmlns = (rootSchema as { $xmlns?: Record<string, string> }).$xmlns;
+  if (!xmlns) return undefined;
+  
+  // Find prefix that maps to this namespace
+  for (const [prefix, ns] of Object.entries(xmlns)) {
+    if (ns === targetNs) {
+      return prefix;
+    }
+  }
+  return undefined;
+}
+
 export type { BuildOptions } from './build-utils';
 export { type XmlDocument, type XmlElement } from './build-utils';
 
@@ -205,7 +224,21 @@ function buildElement(
     if (!attribute.name) continue;
     const value = data[attribute.name];
     if (value !== undefined && value !== null) {
-      node.setAttribute(attribute.name, formatValue(value, attribute.type || 'string'));
+      // Check attributeFormDefault - attributes get prefix when "qualified"
+      // Use the schema where the attribute is defined (passed to buildElement)
+      const attributeFormDefault = (schema as { attributeFormDefault?: string }).attributeFormDefault;
+      const attrForm = (attribute as { form?: string }).form;
+      
+      let attrName = attribute.name;
+      // Priority: 1. Per-attribute form, 2. Schema attributeFormDefault
+      if (attrForm === 'qualified' || (attrForm !== 'unqualified' && attributeFormDefault === 'qualified')) {
+        // Get prefix for this schema's namespace
+        const attrPrefix = getPrefixForSchema(schema, rootSchema);
+        if (attrPrefix) {
+          attrName = `${attrPrefix}:${attribute.name}`;
+        }
+      }
+      node.setAttribute(attrName, formatValue(value, attribute.type || 'string'));
     }
   }
 
@@ -238,7 +271,7 @@ function buildElement(
     
     const value = data[resolved.dataKey];
     if (value !== undefined) {
-      buildFieldWithTagName(doc, node, value, resolved.tagName, resolved.typeName, resolved.inlineComplexType, resolved.elementSchema, rootSchema, prefix);
+      buildFieldWithTagName(doc, node, value, resolved.tagName, resolved.typeName, resolved.inlineComplexType, resolved.elementSchema, rootSchema, prefix, resolved.form);
     }
   }
 }
@@ -252,6 +285,7 @@ function buildElement(
  * - typeName: The type name for building nested content (if type attribute)
  * - inlineComplexType: The inline complexType definition (if present)
  * - elementSchema: The schema where the element was found
+ * - form: Per-element form override ("qualified" or "unqualified")
  */
 function resolveElementInfo(
   element: ElementLike,
@@ -262,6 +296,7 @@ function resolveElementInfo(
   typeName: string | undefined;
   inlineComplexType: ComplexTypeLike | undefined;
   elementSchema: SchemaLike;
+  form: string | undefined;
 } | undefined {
   // Direct element with name
   if (element.name) {
@@ -271,6 +306,7 @@ function resolveElementInfo(
       typeName: element.type ? stripNsPrefix(element.type) : undefined,
       inlineComplexType: element.complexType as ComplexTypeLike | undefined,
       elementSchema: schema,
+      form: (element as { form?: string }).form,
     };
   }
   
@@ -287,10 +323,11 @@ function resolveElementInfo(
         typeName: refElement.element.type ? stripNsPrefix(refElement.element.type) : undefined,
         inlineComplexType: refElement.element.complexType as ComplexTypeLike | undefined,
         elementSchema: refElement.schema,
+        form: undefined, // Refs always use their prefix
       };
     }
     // Fallback: use ref as tag, local name for data
-    return { tagName: element.ref, dataKey: refName, typeName: undefined, inlineComplexType: undefined, elementSchema: schema };
+    return { tagName: element.ref, dataKey: refName, typeName: undefined, inlineComplexType: undefined, elementSchema: schema, form: undefined };
   }
   
   return undefined;
@@ -352,9 +389,10 @@ function buildField(
 /**
  * Build a field with an explicit tag name (used for element refs with prefix)
  * 
- * Handles two cases:
+ * Handles three cases:
  * 1. Element refs with prefix (e.g., ref="asx:abap") - use tagName directly
- * 2. Direct elements - apply elementFormDefault logic
+ * 2. Elements with form="unqualified" - never use prefix
+ * 3. Direct elements - apply elementFormDefault logic
  */
 function buildFieldWithTagName(
   doc: XmlDocument,
@@ -365,7 +403,8 @@ function buildFieldWithTagName(
   inlineComplexType: ComplexTypeLike | undefined,
   elementSchema: SchemaLike,
   rootSchema: SchemaLike,
-  prefix: string | undefined
+  prefix: string | undefined,
+  elementForm: string | undefined
 ): void {
   if (value === undefined || value === null) return;
 
@@ -378,13 +417,23 @@ function buildFieldWithTagName(
   }
 
   // Determine the actual tag name to use
+  // Priority: 1. Per-element form attribute, 2. Schema elementFormDefault
   // If tagName already has a prefix (e.g., "asx:abap"), use it directly
-  // Otherwise, apply elementFormDefault logic
   let actualTagName = tagName;
   if (!tagName.includes(':')) {
-    // No prefix in tagName - apply elementFormDefault logic
-    const elementFormDefault = (rootSchema as { elementFormDefault?: string }).elementFormDefault;
-    const usePrefix = elementFormDefault === 'qualified' ? prefix : undefined;
+    // No prefix in tagName - check element form first, then schema default
+    let usePrefix: string | undefined;
+    if (elementForm === 'unqualified') {
+      // Element explicitly marked as unqualified - no prefix
+      usePrefix = undefined;
+    } else if (elementForm === 'qualified') {
+      // Element explicitly marked as qualified - use prefix
+      usePrefix = prefix;
+    } else {
+      // No element-level form - use schema default
+      const elementFormDefault = (rootSchema as { elementFormDefault?: string }).elementFormDefault;
+      usePrefix = elementFormDefault === 'qualified' ? prefix : undefined;
+    }
     actualTagName = usePrefix ? `${usePrefix}:${tagName}` : tagName;
   }
 

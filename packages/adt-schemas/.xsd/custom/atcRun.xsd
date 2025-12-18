@@ -37,7 +37,7 @@
   <!-- ATC Run Request type -->
   <xsd:complexType name="AtcRunRequest">
     <xsd:sequence>
-      <xsd:element name="objectSets" type="atc:AtcObjectSets" minOccurs="1" maxOccurs="1"/>
+      <xsd:element name="objectSets" type="atc:AtcObjectSets" minOccurs="1" maxOccurs="1" form="unqualified"/>
     </xsd:sequence>
     <xsd:attribute name="maximumVerdicts" type="xsd:integer"/>
   </xsd:complexType>
@@ -45,7 +45,7 @@
   <!-- Object Sets container -->
   <xsd:complexType name="AtcObjectSets">
     <xsd:sequence>
-      <xsd:element name="objectSet" type="atc:AtcObjectSetRequest" minOccurs="1" maxOccurs="unbounded"/>
+      <xsd:element name="objectSet" type="atc:AtcObjectSetRequest" minOccurs="1" maxOccurs="unbounded" form="unqualified"/>
     </xsd:sequence>
   </xsd:complexType>
 
