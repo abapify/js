@@ -13,4 +13,50 @@ export type QuickfixesSchema = {
             }[];
         };
     };
+} | {
+    evaluationResults: {
+        evaluationResult?: {
+            userContent?: string;
+            affectedObjects?: unknown;
+        }[];
+    };
+} | {
+    proposalRequest: {
+        input: {
+            content: string;
+        };
+        affectedObjects?: {
+            unit?: {
+                content: string;
+            }[];
+        };
+        userContent?: string;
+    };
+} | {
+    proposalResult: {
+        deltas: {
+            unit?: {
+                content: string;
+            }[];
+        };
+        selection?: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+        };
+        variableSourceStates?: {
+            keepCursor?: boolean;
+        };
+        statusMessages?: {
+            statusMessage?: {
+                severity: "info" | "warning";
+                message: string;
+                id?: string;
+            }[];
+        };
+    };
 };

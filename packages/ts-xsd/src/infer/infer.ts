@@ -49,8 +49,9 @@ export type InferSchema<T extends SchemaLike> =
     : unknown;
 
 /**
- * Infer union of all root element types.
+ * Infer union of all root element types (content only, not wrapped).
  * Each root element's type is inferred and combined into a union.
+ * Use InferParsedSchema for parse() return type which wraps with element name.
  */
 export type InferRootElementTypes<E extends readonly ElementLike[], T extends SchemaLike> =
   E[number] extends infer El
@@ -68,6 +69,40 @@ export type InferRootElementTypes<E extends readonly ElementLike[], T extends Sc
             ? InferTypeName<N, T>
             : unknown
           : unknown
+      : unknown
+    : unknown;
+
+/**
+ * Infer wrapped type for parse() function output.
+ * Returns { ElementName: ContentType } to match parse() runtime behavior.
+ * 
+ * @example
+ * ```typescript
+ * const result = parse(schema, xml);
+ * // result is { Person: { firstName: string, ... } }
+ * ```
+ */
+export type InferParsedSchema<T extends SchemaLike> = 
+  T['element'] extends readonly ElementLike[]
+    ? InferWrappedRootElementTypes<T['element'], T>
+    : unknown;
+
+/**
+ * Infer wrapped root element types for parse() output.
+ * Each root element's type is wrapped with its name: { ElementName: ContentType }
+ */
+export type InferWrappedRootElementTypes<E extends readonly ElementLike[], T extends SchemaLike> =
+  E[number] extends infer El
+    ? El extends ElementLike
+      ? El extends { name: infer N }
+        ? N extends string
+          ? El extends { type: infer TypeName }
+            ? TypeName extends string
+              ? { [K in N]: InferTypeName<TypeName, T> }
+              : { [K in N]: InferTypeName<N, T> }
+            : { [K in N]: InferTypeName<N, T> }
+          : unknown
+        : unknown
       : unknown
     : unknown;
 

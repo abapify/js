@@ -12,4 +12,22 @@ export type AtcresultquerySchema = {
         contactPerson: string;
         queryEnabled: boolean;
     };
+} | {
+    specificResultQuery: {
+        includeAggregates: boolean;
+        includeFindings: boolean;
+        contactPerson: string;
+        queryEnabled: boolean;
+        displayId: string;
+    };
+} | {
+    userResultQuery: {
+        includeAggregates: boolean;
+        includeFindings: boolean;
+        contactPerson: string;
+        queryEnabled: boolean;
+        createdBy: string;
+        ageMin: number;
+        ageMax: number;
+    };
 };

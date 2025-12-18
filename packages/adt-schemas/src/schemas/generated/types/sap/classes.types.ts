@@ -142,4 +142,35 @@ export type ClassesSchema = {
         constructorGenerated?: boolean;
         hasTests?: boolean;
     };
+} | {
+    abapClassInclude: {
+        containerRef?: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+        };
+        adtTemplate?: {
+            adtProperty?: {
+                _text?: string;
+                key?: string;
+            }[];
+            name?: string;
+        };
+        name: string;
+        type: string;
+        changedBy?: string;
+        changedAt?: string;
+        createdAt?: string;
+        createdBy?: string;
+        version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+        description?: string;
+        descriptionTextLimit?: number;
+        language?: string;
+        sourceUri?: string;
+        includeType?: unknown;
+    };
 };

@@ -47,4 +47,33 @@ export type AdtcoreSchema = {
         responsible?: string;
         abapLanguageVersion?: string;
     };
+} | {
+    objectReferences: {
+        objectReference: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+        }[];
+        name?: string;
+    };
+} | {
+    objectReference: {
+        extension?: unknown;
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        name?: string;
+        packageName?: string;
+        description?: string;
+    };
+} | {
+    content: {
+        _text?: string;
+        type?: string;
+        encoding?: string;
+    };
 };

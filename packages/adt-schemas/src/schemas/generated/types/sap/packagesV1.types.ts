@@ -160,4 +160,41 @@ export type PackagesV1Schema = {
         responsible?: string;
         abapLanguageVersion?: string;
     };
+} | {
+    packageTree: {
+        treeNode?: {
+            extension?: unknown;
+            superPackageRef: {
+                extension?: unknown;
+                uri?: string;
+                parentUri?: string;
+                type?: string;
+                name?: string;
+                packageName?: string;
+                description?: string;
+            };
+            packageInterfaces: {
+                packageInterfaceRef?: {
+                    extension?: unknown;
+                    uri?: string;
+                    parentUri?: string;
+                    type?: string;
+                    name?: string;
+                    packageName?: string;
+                    description?: string;
+                }[];
+                isVisible?: boolean;
+            };
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+            isEncapsulated?: boolean;
+            hasSubpackages?: boolean;
+            hasInterfaces?: boolean;
+        }[];
+        isSuperTree?: boolean;
+    };
 };

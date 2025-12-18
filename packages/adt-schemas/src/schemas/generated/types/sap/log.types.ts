@@ -17,4 +17,46 @@ export type LogSchema = {
         }[];
         base?: string;
     };
+} | {
+    logEntry: {
+        fieldList: {
+            field?: {
+                value: {
+                    e?: {
+                        t?: boolean;
+                        v?: string;
+                        y?: string;
+                    };
+                    s?: {
+                        c: unknown[];
+                        t?: boolean;
+                    };
+                    t?: {
+                        c?: unknown[];
+                        t?: boolean;
+                    };
+                };
+                name?: string;
+            }[];
+        };
+    };
+} | {
+    collectionSummary: {
+        success?: {
+            server: {
+                name?: string;
+            };
+        };
+        unreached?: {
+            server: {
+                name?: string;
+            };
+        };
+        failed?: {
+            server?: string;
+            returnCode?: number;
+            errorMessage?: string;
+        }[];
+        collectedLogs?: number;
+    };
 };
