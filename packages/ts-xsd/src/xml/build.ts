@@ -64,6 +64,7 @@ export function build<T extends SchemaLike>(
   // Find the element declaration - either by name or by matching data
   let elementDecl: ElementLike | undefined;
   let elementSchema: SchemaLike = schema;
+  let elementData = data as Record<string, unknown>;
   
   if (options.rootElement) {
     // Search in main schema and $imports
@@ -73,10 +74,31 @@ export function build<T extends SchemaLike>(
     }
     elementDecl = found.element;
     elementSchema = found.schema;
+    // If data is wrapped with root element name, unwrap it
+    if (elementData[options.rootElement] !== undefined) {
+      elementData = elementData[options.rootElement] as Record<string, unknown>;
+    }
   } else {
-    elementDecl = findMatchingElement(data as Record<string, unknown>, schema);
+    // Check if data is wrapped with element name (new format from parse())
+    // Data format: { elementName: { ...content } }
+    const dataKeys = Object.keys(elementData);
+    if (dataKeys.length === 1) {
+      const potentialElementName = dataKeys[0];
+      const found = findElement(potentialElementName, schema);
+      if (found) {
+        elementDecl = found.element;
+        elementSchema = found.schema;
+        // Unwrap the data
+        elementData = elementData[potentialElementName] as Record<string, unknown>;
+      }
+    }
+    
+    // Fallback to matching by data structure if not wrapped
     if (!elementDecl) {
-      throw new Error('Schema has no element declarations');
+      elementDecl = findMatchingElement(elementData, schema);
+      if (!elementDecl) {
+        throw new Error('Schema has no element declarations');
+      }
     }
   }
 
@@ -105,7 +127,7 @@ export function build<T extends SchemaLike>(
   }
   const root = createRootElement(doc, elementName, schema, prefix);
 
-  buildElement(doc, root, data as Record<string, unknown>, rootType, rootSchema, schema, prefix);
+  buildElement(doc, root, elementData, rootType, rootSchema, schema, prefix);
   doc.appendChild(root);
 
   let xml = new XMLSerializer().serializeToString(doc);

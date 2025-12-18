@@ -18,29 +18,33 @@ class AtcCustomizingScenario extends Scenario<typeof atc> {
   readonly fixtures = [fixtures.atc.customizing];
 
   validateParsed(data: AtcCustomizing): void {
+    // parse() now returns wrapped format: { elementName: content }
+    const customizing = (data as any).customizing;
+    expect(customizing).toBeDefined();
+    
     // Properties
-    expect(data.properties).toBeDefined();
-    expect(data.properties?.property).toBeDefined();
-    expect(data.properties?.property?.length).toBeGreaterThan(0);
+    expect(customizing.properties).toBeDefined();
+    expect(customizing.properties?.property).toBeDefined();
+    expect(customizing.properties?.property?.length).toBeGreaterThan(0);
     
     // Check for systemCheckVariant property
-    const checkVariant = data.properties?.property?.find(p => p.name === 'systemCheckVariant');
+    const checkVariant = customizing.properties?.property?.find((p: any) => p.name === 'systemCheckVariant');
     expect(checkVariant).toBeDefined();
     expect(checkVariant?.value).toBe('DEFAULT_CHECK_VARIANT');
     
     // Exemption reasons
-    expect(data.exemption).toBeDefined();
-    expect(data.exemption?.reasons).toBeDefined();
-    expect(data.exemption?.reasons?.reason).toBeDefined();
-    expect(data.exemption?.reasons?.reason?.length).toBeGreaterThan(0);
+    expect(customizing.exemption).toBeDefined();
+    expect(customizing.exemption?.reasons).toBeDefined();
+    expect(customizing.exemption?.reasons?.reason).toBeDefined();
+    expect(customizing.exemption?.reasons?.reason?.length).toBeGreaterThan(0);
     
     // Check for FPOS reason
-    const fposReason = data.exemption?.reasons?.reason?.find(r => r.id === 'FPOS');
+    const fposReason = customizing.exemption?.reasons?.reason?.find((r: any) => r.id === 'FPOS');
     expect(fposReason).toBeDefined();
     expect(fposReason?.justificationMandatory).toBe(true);
   }
 
-  validateBuilt(xml: string): void {
+  override validateBuilt(xml: string): void {
     expect(xml).toContain('xmlns:atc="http://www.sap.com/adt/atc"');
     expect(xml).toContain('systemCheckVariant');
     expect(xml).toContain('exemption');
@@ -56,33 +60,37 @@ class AtcWorklistScenario extends Scenario<typeof atcworklist> {
   readonly fixtures = [fixtures.atc.worklist];
 
   validateParsed(data: AtcWorklist): void {
+    // parse() now returns wrapped format: { elementName: content }
+    const worklist = (data as any).worklist;
+    expect(worklist).toBeDefined();
+    
     // Root attributes
-    expect(data.id).toBeDefined();
-    expect(data.timestamp).toBeDefined();
-    expect(data.usedObjectSet).toBeDefined();
-    expect(data.objectSetIsComplete).toBe(true);
+    expect(worklist.id).toBeDefined();
+    expect(worklist.timestamp).toBeDefined();
+    expect(worklist.usedObjectSet).toBeDefined();
+    expect(worklist.objectSetIsComplete).toBe(true);
     
     // Object sets
-    expect(data.objectSets).toBeDefined();
-    expect(data.objectSets?.objectSet).toBeDefined();
-    expect(data.objectSets?.objectSet?.length).toBeGreaterThanOrEqual(2);
+    expect(worklist.objectSets).toBeDefined();
+    expect(worklist.objectSets?.objectSet).toBeDefined();
+    expect(worklist.objectSets?.objectSet?.length).toBeGreaterThanOrEqual(2);
     
     // Check for ALL object set
-    const allSet = data.objectSets?.objectSet?.find(s => s.kind === 'ALL');
+    const allSet = worklist.objectSets?.objectSet?.find((s: any) => s.kind === 'ALL');
     expect(allSet).toBeDefined();
     expect(allSet?.title).toBe('All Objects');
     
     // Check for TRANSPORT object set
-    const transportSet = data.objectSets?.objectSet?.find(s => s.kind === 'TRANSPORT');
+    const transportSet = worklist.objectSets?.objectSet?.find((s: any) => s.kind === 'TRANSPORT');
     expect(transportSet).toBeDefined();
     
     // Objects
-    expect(data.objects).toBeDefined();
-    expect(data.objects?.object).toBeDefined();
-    expect(data.objects?.object?.length).toBeGreaterThan(0);
+    expect(worklist.objects).toBeDefined();
+    expect(worklist.objects?.object).toBeDefined();
+    expect(worklist.objects?.object?.length).toBeGreaterThan(0);
     
     // Check first object has required attributes
-    const firstObj = data.objects?.object?.[0];
+    const firstObj = worklist.objects?.object?.[0];
     expect(firstObj?.uri).toBeDefined();
     expect(firstObj?.type).toBeDefined();
     expect(firstObj?.name).toBeDefined();
@@ -90,7 +98,7 @@ class AtcWorklistScenario extends Scenario<typeof atcworklist> {
     expect(firstObj?.author).toBeDefined();
     
     // Check for object with findings
-    const objWithFindings = data.objects?.object?.find(o => 
+    const objWithFindings = worklist.objects?.object?.find((o: any) => 
       o.findings?.finding && o.findings.finding.length > 0
     );
     expect(objWithFindings).toBeDefined();
@@ -102,17 +110,17 @@ class AtcWorklistScenario extends Scenario<typeof atcworklist> {
     expect(finding?.uri ?? finding?.['atcfinding:uri']).toBeDefined();
     
     // Infos
-    expect(data.infos).toBeDefined();
-    expect(data.infos?.info).toBeDefined();
-    expect(data.infos?.info?.length).toBeGreaterThan(0);
+    expect(worklist.infos).toBeDefined();
+    expect(worklist.infos?.info).toBeDefined();
+    expect(worklist.infos?.info?.length).toBeGreaterThan(0);
     
     // Check for FINDING_STATS info
-    const statsInfo = data.infos?.info?.find(i => i.type === 'FINDING_STATS');
+    const statsInfo = worklist.infos?.info?.find((i: any) => i.type === 'FINDING_STATS');
     expect(statsInfo).toBeDefined();
     expect(statsInfo?.description).toBeDefined();
   }
 
-  validateBuilt(xml: string): void {
+  override validateBuilt(xml: string): void {
     expect(xml).toContain('xmlns:atcworklist="http://www.sap.com/adt/atc/worklist"');
     expect(xml).toContain('atcworklist:id=');
     expect(xml).toContain('atcworklist:objectSets');

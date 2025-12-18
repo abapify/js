@@ -1,9 +1,11 @@
 /**
  * Test to verify that generated types match parse() behavior
  * 
- * This test proves the design gap between:
- * - Generated types: wrap with element name { elementName: Type }
- * - parse(): returns content directly without wrapper
+ * Both parse() and generated types wrap content with root element name:
+ * - parse(): returns { elementName: { ...content } }
+ * - Generated types: { elementName: Type }
+ * 
+ * This enables type discrimination for multi-root schemas.
  */
 
 import { describe, it } from 'node:test';
@@ -33,29 +35,24 @@ describe('Type and Parse Consistency', () => {
 
   const personXml = `<person><name>John</name><age>30</age></person>`;
 
-  describe('Consistent behavior (FIXED)', () => {
-    it('parse() returns content WITHOUT element wrapper', () => {
+  describe('Consistent behavior (wrapped)', () => {
+    it('parse() returns content WITH element wrapper', () => {
       const result = parseXml(personSchema, personXml);
       
-      // parse() returns { name: 'John', age: 30 }
-      // NOT { person: { name: 'John', age: 30 } }
-      assert.deepStrictEqual(result, { name: 'John', age: 30 });
-      assert.ok(!('person' in result), 'parse() should NOT wrap with element name');
+      // parse() returns { person: { name: 'John', age: 30 } }
+      // Wrapped with element name for type discrimination
+      assert.deepStrictEqual(result, { person: { name: 'John', age: 30 } });
+      assert.ok('person' in result, 'parse() should wrap with element name');
     });
 
-    it('generated type does NOT wrap with element name (matches parse)', () => {
+    it('generated type wraps with element name (matches parse)', () => {
       const { sourceFile } = schemaToSourceFile(personSchema as unknown as Schema);
       const code = sourceFile.getFullText();
       
-      // Generated type is: PersonType (directly, no wrapper)
-      // NOT: { person: PersonType }
+      // Generated type is: { person: PersonType }
       assert.ok(
-        code.includes('export type PersonSchema = PersonType'),
-        'Generated type should be PersonType directly'
-      );
-      assert.ok(
-        !code.includes('person: PersonType'),
-        'Generated type should NOT wrap with element name'
+        code.includes('person: PersonType'),
+        'Generated type should wrap with element name'
       );
     });
 
@@ -64,14 +61,12 @@ describe('Type and Parse Consistency', () => {
       const { sourceFile } = schemaToSourceFile(personSchema as unknown as Schema);
       const code = sourceFile.getFullText();
 
-      // parse() returns: { name: 'John', age: 30 }
-      // Generated type is: PersonType = { name?: string, age?: number }
+      // parse() returns: { person: { name: 'John', age: 30 } }
+      // Generated type is: { person: PersonType }
       
-      // Both have 'name' at root level - CONSISTENT!
-      assert.ok('name' in parsed, 'parsed has name at root');
-      assert.ok(!('person' in parsed), 'parsed does NOT have person wrapper');
-      assert.ok(!code.includes('person: PersonType'), 'type does NOT have person wrapper');
-      assert.ok(code.includes('export type PersonSchema = PersonType'), 'type IS PersonType directly');
+      // Both have 'person' at root level - CONSISTENT!
+      assert.ok('person' in parsed, 'parsed has person wrapper');
+      assert.ok(code.includes('person: PersonType'), 'type has person wrapper');
     });
   });
 
@@ -108,29 +103,30 @@ describe('Type and Parse Consistency', () => {
       ],
     } as const satisfies SchemaLike;
 
-    it('parse() returns content for whichever root element is in XML', () => {
+    it('parse() returns wrapped content for type discrimination', () => {
       const personXml = `<person><name>John</name></person>`;
       const companyXml = `<company><title>Acme</title></company>`;
       
       const parsedPerson = parseXml(multiRootSchema, personXml);
       const parsedCompany = parseXml(multiRootSchema, companyXml);
       
-      // Both return content directly, no wrapper
-      assert.deepStrictEqual(parsedPerson, { name: 'John' });
-      assert.deepStrictEqual(parsedCompany, { title: 'Acme' });
+      // Both return wrapped content for type discrimination
+      assert.deepStrictEqual(parsedPerson, { person: { name: 'John' } });
+      assert.deepStrictEqual(parsedCompany, { company: { title: 'Acme' } });
       
-      // Neither has the element name as wrapper
-      assert.ok(!('person' in parsedPerson));
-      assert.ok(!('company' in parsedCompany));
+      // Each has its element name as wrapper
+      assert.ok('person' in parsedPerson);
+      assert.ok('company' in parsedCompany);
     });
 
-    it('generated type wraps ONLY the primary element', () => {
+    it('generated type is union of wrapped elements', () => {
       const { sourceFile } = schemaToSourceFile(multiRootSchema as unknown as Schema);
       const code = sourceFile.getFullText();
       
-      // Generated root type only includes first/primary element
-      // This is another inconsistency for multi-root schemas
+      // Generated root type is union: { person: PersonType } | { company: CompanyType }
       assert.ok(code.includes('export type MultiSchema'));
+      assert.ok(code.includes('person: PersonType'), 'has person wrapper');
+      assert.ok(code.includes('company: CompanyType'), 'has company wrapper');
     });
   });
 });
