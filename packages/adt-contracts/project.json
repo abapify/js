@@ -9,6 +9,54 @@
     "default": ["{projectRoot}/src/**/*", "{projectRoot}/tests/**/*"]
   },
   "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsdown",
+        "cwd": "{projectRoot}"
+      },
+      "outputs": ["{projectRoot}/dist"],
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/tsdown.config.ts",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/package.json"
+      ],
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --reporter=default",
+        "cwd": "{projectRoot}"
+      },
+      "outputs": ["{projectRoot}/coverage"],
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/tests/**/*",
+        "{projectRoot}/vitest.config.ts",
+        "{projectRoot}/package.json",
+        "{workspaceRoot}/vitest.config.ts"
+      ],
+      "dependsOn": ["^build"]
+    },
+    "typecheck:test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc -p tsconfig.test.json --noEmit",
+        "cwd": "{projectRoot}"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/tests/**/*",
+        "{projectRoot}/tsconfig.test.json",
+        "{projectRoot}/tsconfig.json"
+      ],
+      "dependsOn": ["^build"]
+    },
     "codegen": {
       "executor": "nx:run-commands",
       "dependsOn": ["@abapify/adt-codegen:build"],
