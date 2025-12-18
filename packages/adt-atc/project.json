@@ -1,0 +1,8 @@
+{
+  "name": "adt-atc",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-atc/src",
+  "projectType": "library",
+  "tags": ["scope:adt", "type:plugin"],
+  "targets": {}
+}

@@ -55,6 +55,13 @@ export interface EndpointConfig {
   schema?: string;
   
   /**
+   * Override the Accept header for this endpoint.
+   * SAP discovery sometimes reports wrong content types.
+   * Use this to specify the actual Accept header value.
+   */
+  accept?: string;
+  
+  /**
    * Custom description for the generated contract
    */
   description?: string;
@@ -72,6 +79,7 @@ export interface NormalizedEndpointConfig {
   pattern: EndpointPattern;
   methods?: HttpMethod[];
   schema?: string;
+  accept?: string;
   description?: string;
 }
 
@@ -122,6 +130,7 @@ export function normalizeEndpoint(def: EndpointDefinition): NormalizedEndpointCo
       pattern: def.path,
       methods: def.methods,
       schema: def.schema,
+      accept: def.accept,
       description: def.description,
     };
   }

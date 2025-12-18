@@ -72,6 +72,21 @@ export interface CliContext {
    * Logger instance
    */
   logger: CliLogger;
+  
+  /**
+   * ADT client factory (provided by adt-cli when authenticated)
+   * Returns an authenticated ADT client for making API calls.
+   * Only available when running within adt-cli context.
+   * Note: This is async - plugins must await the result.
+   */
+  getAdtClient?: () => Promise<unknown>;
+  
+  /**
+   * ADT system name for hyperlinks (e.g., "S0D")
+   * Used to construct adt:// protocol links.
+   * Only available when running within adt-cli context.
+   */
+  adtSystemName?: string;
 }
 
 /**

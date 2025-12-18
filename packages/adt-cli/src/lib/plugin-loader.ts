@@ -14,6 +14,8 @@ import type {
   CliLogger,
   AdtCliConfig,
 } from '@abapify/adt-plugin';
+import { getAdtClientV2 } from './utils/adt-client-v2';
+import { getAdtSystem } from './ui/components/link';
 
 /**
  * Load config file from current directory or parent directories
@@ -110,6 +112,11 @@ function pluginToCommand(plugin: CliCommandPlugin, config: AdtCliConfig): Comman
         cwd: process.cwd(),
         config,
         logger: createSimpleLogger(),
+        // Provide ADT client factory for plugins that need API access
+        // Note: This is async - plugins must await the result
+        getAdtClient: async () => await getAdtClientV2(),
+        // Provide system name for ADT hyperlinks
+        adtSystemName: getAdtSystem(),
       };
       
       try {

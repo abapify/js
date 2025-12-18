@@ -256,7 +256,8 @@ function processCollection(coll: CollectionJson): EndpointMethod[] {
   const methods: EndpointMethod[] = [];
   const endpointConfig = getEndpointConfig(coll.href);
   const schema = endpointConfig?.schema ?? inferSchema(coll.href, coll.accepts);
-  const accept = coll.accepts[0] || 'application/xml';
+  // Use accept override from config, or fall back to discovery value
+  const accept = endpointConfig?.accept ?? coll.accepts[0] ?? 'application/xml';
   const methodNames = new Set<string>();
   
   if (coll.templateLinks.length === 0) {

@@ -18,7 +18,7 @@ export const worklistsContract = contract({
     http.get(`/sap/bc/adt/atc/worklists/${worklistId}`, {
       query: params,
       responses: { 200: atcworklist },
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: '*/*' },
     }),
   /**
    * GET ATC worklist
@@ -27,7 +27,7 @@ export const worklistsContract = contract({
     http.get(`/sap/bc/adt/atc/worklists/${worklistId}/${objectSetName}`, {
       query: params,
       responses: { 200: atcworklist },
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: '*/*' },
     }),
 });
 

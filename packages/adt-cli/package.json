@@ -21,6 +21,8 @@
     "@abapify/logger": "*",
     "@inquirer/prompts": "^7.9.0",
     "@abapify/adt-contracts": "*",
+    "@abapify/adt-codegen": "*",
+    "@abapify/adt-atc": "*",
     "chalk": "^5.6.2",
     "commander": "^12.0.0",
     "fast-xml-parser": "^5.3.1",
