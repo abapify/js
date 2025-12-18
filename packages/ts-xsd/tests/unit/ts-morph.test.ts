@@ -113,7 +113,8 @@ describe('codegen/ts-morph', () => {
 
       assert.equal(rootTypeName, 'TestSchema');
       assert.ok(code.includes('export type TestSchema'));
-      assert.ok(code.includes('person: PersonType'));
+      // Root type is now the element's content type directly (matches parse() behavior)
+      assert.ok(code.includes('export type TestSchema = PersonType'));
     });
 
     it('handles optional elements (minOccurs=0)', () => {
@@ -323,8 +324,8 @@ describe('codegen/ts-morph', () => {
       assert.equal(rootTypeName, 'TestSchema');
       assert.ok(code.includes('export interface PersonType'));
       assert.ok(code.includes('export type TestSchema'));
-      // Should NOT be flattened - should have interface reference
-      assert.ok(code.includes('person: PersonType'));
+      // Root type is the element's content type directly (matches parse() behavior)
+      assert.ok(code.includes('export type TestSchema = PersonType'));
     });
 
     it('generates flattened type with flatten: true', () => {
@@ -349,9 +350,9 @@ describe('codegen/ts-morph', () => {
       });
 
       assert.equal(rootTypeName, 'TestSchema');
-      // Should be flattened - inline object type, not interface reference
+      // Should be flattened - inline object type directly (matches parse() behavior)
       assert.ok(code.includes('export type TestSchema'));
-      assert.ok(code.includes('person: {'));
+      // Root type is the element's content type directly, flattened inline
       assert.ok(code.includes('name: string'));
       assert.ok(code.includes('age: number'));
       // Should NOT have separate interface

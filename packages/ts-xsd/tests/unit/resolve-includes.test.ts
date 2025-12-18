@@ -4,7 +4,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { resolveSchema } from '../../src/xsd/resolve.ts';
-import type { SchemaLike } from '../../src/infer/types.ts';
+import type { Schema } from '../../src/xsd/types';
 
 describe('resolveSchema with $includes', () => {
   // Schema with $includes (simulating xs:include - same namespace)
@@ -41,7 +41,7 @@ describe('resolveSchema with $includes', () => {
   } as const;
 
   it('should include elements from $includes in resolved schema', () => {
-    const resolved = resolveSchema(mainSchema as unknown as SchemaLike);
+    const resolved = resolveSchema(mainSchema as unknown as Schema);
     const elementNames = (resolved.element as Array<{ name?: string }>)?.map(e => e.name) ?? [];
     
     assert.ok(elementNames.includes('VSEOINTERF'), 'Should have VSEOINTERF');
@@ -50,7 +50,7 @@ describe('resolveSchema with $includes', () => {
   });
 
   it('should include complexTypes from $includes in resolved schema', () => {
-    const resolved = resolveSchema(mainSchema as unknown as SchemaLike);
+    const resolved = resolveSchema(mainSchema as unknown as Schema);
     const typeNames = (resolved.complexType as Array<{ name?: string }>)?.map(ct => ct.name) ?? [];
     
     assert.ok(typeNames.includes('VseoInterfType'), 'Should have VseoInterfType');
@@ -73,7 +73,7 @@ describe('resolveSchema with $includes', () => {
       complexType: [{ name: 'MainType', sequence: { element: [{ name: 'main', type: 'xs:string' }] } }],
     } as const;
 
-    const resolved = resolveSchema(schema as unknown as SchemaLike);
+    const resolved = resolveSchema(schema as unknown as Schema);
     const typeNames = (resolved.complexType as Array<{ name?: string }>)?.map(ct => ct.name) ?? [];
     
     assert.ok(typeNames.includes('MainType'), 'Should have MainType');
