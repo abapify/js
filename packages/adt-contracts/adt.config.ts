@@ -47,5 +47,8 @@ export default {
     
     // Custom import resolver for package self-references
     resolveImports,
+    
+    // Clean output directory before generating
+    clean: true,
   },
 };

@@ -132,6 +132,7 @@ export const contractsCommand: CliCommandPlugin = {
       contentTypeMapping,
       enabledEndpoints,
       resolveImports: contractsConfig.resolveImports,
+      clean: contractsConfig.clean,
     });
     
     ctx.logger.info('\n✅ Contract generation complete!');

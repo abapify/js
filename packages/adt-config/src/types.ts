@@ -67,6 +67,12 @@ export interface ContractsConfig {
   docs?: string;
   /** Custom import resolver */
   resolveImports?: () => { base: string; schemas: string };
+  /**
+   * Clean output directory before generating.
+   * When true, removes all files in outputDir before generating new contracts.
+   * @default false
+   */
+  clean?: boolean;
 }
 
 export interface ContentTypeMapping {

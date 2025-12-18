@@ -11,20 +11,32 @@
  * - Works directly from discovery XML (no pre-processing needed)
  */
 
-import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
+import { readdir, readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { join, dirname, relative } from 'path';
 import { existsSync } from 'fs';
 import { parseDiscoveryXml, getAllCollections } from './discovery-parser';
+import {
+  type EndpointDefinition,
+  type NormalizedEndpointConfig,
+  type HttpMethod,
+  findMatchingEndpoint,
+  isMethodEnabled,
+  isPathEnabled,
+} from './endpoint-config';
 
 interface ContentTypeMapping {
   mapping: Record<string, string>;
   fallbacks: Record<string, string>;
 }
 
-interface EnabledEndpoints {
+/** @deprecated Use EndpointDefinition[] instead */
+interface LegacyEnabledEndpoints {
   enabled: string[];
   notes?: Record<string, string>;
 }
+
+/** Enabled endpoints - array of definitions or legacy format */
+type EnabledEndpoints = EndpointDefinition[] | LegacyEnabledEndpoints;
 
 interface CollectionJson {
   href: string;
@@ -93,6 +105,13 @@ export interface GenerateContractsOptions {
    * If not provided, uses relative path calculation (default behavior).
    */
   resolveImports?: ResolveImportsHook;
+  
+  /**
+   * Clean output directory before generating.
+   * When true, removes all files in outputDir before generating new contracts.
+   * @default false
+   */
+  clean?: boolean;
 }
 
 /**
@@ -109,7 +128,7 @@ export function defaultResolveImports(_relativePath: string, _outputDir: string)
 }
 
 let contentTypeMapping: ContentTypeMapping;
-let enabledEndpoints: EnabledEndpoints;
+let enabledEndpointsList: EndpointDefinition[];
 
 async function loadMapping(mappingPath: string): Promise<void> {
   const content = await readFile(mappingPath, 'utf-8');
@@ -118,23 +137,34 @@ async function loadMapping(mappingPath: string): Promise<void> {
 
 async function loadEnabledEndpoints(path: string): Promise<void> {
   const content = await readFile(path, 'utf-8');
-  enabledEndpoints = JSON.parse(content);
+  const parsed = JSON.parse(content);
+  enabledEndpointsList = normalizeEnabledEndpoints(parsed);
+}
+
+/** Check if endpoints config is legacy format */
+function isLegacyFormat(endpoints: EnabledEndpoints): endpoints is LegacyEnabledEndpoints {
+  return !Array.isArray(endpoints) && 'enabled' in endpoints;
+}
+
+/** Convert legacy or new format to EndpointDefinition[] */
+function normalizeEnabledEndpoints(endpoints: EnabledEndpoints): EndpointDefinition[] {
+  if (isLegacyFormat(endpoints)) {
+    // Convert legacy { enabled: string[] } to EndpointDefinition[]
+    return endpoints.enabled;
+  }
+  return endpoints;
 }
 
 function isEndpointEnabled(href: string): boolean {
-  for (const pattern of enabledEndpoints.enabled) {
-    if (pattern.endsWith('/**')) {
-      const prefix = pattern.slice(0, -3);
-      if (href.startsWith(prefix)) return true;
-    } else if (pattern.endsWith('/*')) {
-      const prefix = pattern.slice(0, -2);
-      const remaining = href.slice(prefix.length);
-      if (href.startsWith(prefix) && !remaining.includes('/')) return true;
-    } else {
-      if (href === pattern || href.startsWith(pattern + '/')) return true;
-    }
-  }
-  return false;
+  return isPathEnabled(href, enabledEndpointsList);
+}
+
+function getEndpointConfig(href: string): NormalizedEndpointConfig | undefined {
+  return findMatchingEndpoint(href, enabledEndpointsList);
+}
+
+function isMethodEnabledForEndpoint(href: string, method: HttpMethod): boolean {
+  return isMethodEnabled(href, method, enabledEndpointsList);
 }
 
 function getSchemaFromContentType(contentType: string): string | undefined {
@@ -224,25 +254,35 @@ function methodNameFromRel(rel: string, httpMethod: string, existingNames: Set<s
 
 function processCollection(coll: CollectionJson): EndpointMethod[] {
   const methods: EndpointMethod[] = [];
-  const schema = inferSchema(coll.href, coll.accepts);
+  const endpointConfig = getEndpointConfig(coll.href);
+  const schema = endpointConfig?.schema ?? inferSchema(coll.href, coll.accepts);
   const accept = coll.accepts[0] || 'application/xml';
   const methodNames = new Set<string>();
   
   if (coll.templateLinks.length === 0) {
-    methods.push({
-      name: 'get',
-      httpMethod: 'GET',
-      path: coll.href,
-      pathParams: [],
-      queryParams: [],
-      accept,
-      responseSchema: schema,
-      description: 'GET ' + coll.title,
-    });
+    // Only add GET if method filtering allows it
+    if (isMethodEnabledForEndpoint(coll.href, 'GET')) {
+      methods.push({
+        name: 'get',
+        httpMethod: 'GET',
+        path: coll.href,
+        pathParams: [],
+        queryParams: [],
+        accept,
+        responseSchema: schema,
+        description: 'GET ' + coll.title,
+      });
+    }
   } else {
     for (const link of coll.templateLinks) {
       const { path, pathParams, queryParams } = parseTemplate(link.template);
       const httpMethod = inferMethod(link.rel);
+      
+      // Skip if method is not enabled for this endpoint
+      if (!isMethodEnabledForEndpoint(coll.href, httpMethod)) {
+        continue;
+      }
+      
       const methodName = methodNameFromRel(link.rel, httpMethod, methodNames);
       
       const method: EndpointMethod = {
@@ -506,7 +546,7 @@ async function findJsonFiles(dir: string): Promise<string[]> {
  * Generate contracts from discovery collections
  */
 export async function generateContracts(options: GenerateContractsOptions): Promise<void> {
-  const { collectionsDir, outputDir, docsDir, resolveImports } = options;
+  const { collectionsDir, outputDir, docsDir, resolveImports, clean } = options;
   
   // Use provided hook or default resolver
   const importResolver = resolveImports ?? defaultResolveImports;
@@ -514,6 +554,12 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
   console.log('Collections: ' + collectionsDir);
   console.log('Output: ' + outputDir);
   console.log('Docs: ' + docsDir);
+  
+  // Clean output directory if requested
+  if (clean && existsSync(outputDir)) {
+    await rm(outputDir, { recursive: true });
+    console.log('Cleaned: ' + outputDir);
+  }
   
   // Load content type mapping - either from file or use object directly
   if (typeof options.contentTypeMapping === 'string') {
@@ -532,9 +578,9 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
     }
     await loadEnabledEndpoints(options.enabledEndpoints);
   } else {
-    enabledEndpoints = options.enabledEndpoints;
+    enabledEndpointsList = normalizeEnabledEndpoints(options.enabledEndpoints);
   }
-  console.log('Enabled patterns: ' + enabledEndpoints.enabled.length);
+  console.log('Enabled patterns: ' + enabledEndpointsList.length);
   
   if (!existsSync(collectionsDir)) {
     throw new Error('Collections directory not found: ' + collectionsDir);
@@ -544,8 +590,8 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
   console.log('Found ' + jsonFiles.length + ' collection files\n');
   
   const generatedContracts: Array<{ relativePath: string; contractName: string }> = [];
-  const enabledEndpointsList: Array<{ href: string; title: string; category: string }> = [];
-  const unsupportedEndpointsList: Array<{ href: string; title: string; category: string }> = [];
+  const enabledEndpointsInfo: Array<{ href: string; title: string; category: string }> = [];
+  const skippedEndpointsInfo: Array<{ href: string; title: string; category: string }> = [];
   let totalMethods = 0;
   
   for (const jsonFile of jsonFiles) {
@@ -556,11 +602,11 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
       const endpointInfo = { href: coll.href, title: coll.title, category: coll.category.term };
       
       if (!isEndpointEnabled(coll.href)) {
-        unsupportedEndpointsList.push(endpointInfo);
+        skippedEndpointsInfo.push(endpointInfo);
         continue;
       }
       
-      enabledEndpointsList.push(endpointInfo);
+      enabledEndpointsInfo.push(endpointInfo);
       
       const relPath = relative(collectionsDir, jsonFile);
       const dirPath = dirname(relPath);
@@ -590,14 +636,14 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
   console.log('\n  + index.ts');
   
   // Generate unsupported endpoints doc
-  const unsupportedDoc = generateUnsupportedEndpointsDoc(unsupportedEndpointsList, enabledEndpointsList);
+  const unsupportedDoc = generateUnsupportedEndpointsDoc(skippedEndpointsInfo, enabledEndpointsInfo);
   await mkdir(docsDir, { recursive: true });
   await writeFile(join(docsDir, 'adt-endpoints.md'), unsupportedDoc, 'utf-8');
   console.log('  + ' + docsDir + '/adt-endpoints.md');
   
   console.log('\nSummary:');
   console.log('   Enabled: ' + generatedContracts.length + ' contracts, ' + totalMethods + ' methods');
-  console.log('   Skipped: ' + unsupportedEndpointsList.length + ' endpoints (not in whitelist)');
+  console.log('   Skipped: ' + skippedEndpointsInfo.length + ' endpoints (not in whitelist)');
 }
 
 /**
@@ -616,6 +662,12 @@ export interface GenerateContractsFromDiscoveryOptions {
   enabledEndpoints: string | EnabledEndpoints;
   /** Hook to resolve import paths for generated contracts */
   resolveImports?: ResolveImportsHook;
+  /**
+   * Clean output directory before generating.
+   * When true, removes all files in outputDir before generating new contracts.
+   * @default false
+   */
+  clean?: boolean;
 }
 
 /**
@@ -624,7 +676,7 @@ export interface GenerateContractsFromDiscoveryOptions {
  * This is the preferred method - no pre-processing of collections needed.
  */
 export async function generateContractsFromDiscovery(options: GenerateContractsFromDiscoveryOptions): Promise<void> {
-  const { discoveryXml, outputDir, docsDir, resolveImports } = options;
+  const { discoveryXml, outputDir, docsDir, resolveImports, clean } = options;
   
   // Use provided hook or default resolver
   const importResolver = resolveImports ?? defaultResolveImports;
@@ -632,6 +684,12 @@ export async function generateContractsFromDiscovery(options: GenerateContractsF
   console.log('Discovery: ' + discoveryXml);
   console.log('Output: ' + outputDir);
   console.log('Docs: ' + docsDir);
+  
+  // Clean output directory if requested
+  if (clean && existsSync(outputDir)) {
+    await rm(outputDir, { recursive: true });
+    console.log('Cleaned: ' + outputDir);
+  }
   
   // Load discovery XML
   if (!existsSync(discoveryXml)) {
@@ -659,24 +717,24 @@ export async function generateContractsFromDiscovery(options: GenerateContractsF
     }
     await loadEnabledEndpoints(options.enabledEndpoints);
   } else {
-    enabledEndpoints = options.enabledEndpoints;
+    enabledEndpointsList = normalizeEnabledEndpoints(options.enabledEndpoints);
   }
-  console.log('Enabled patterns: ' + enabledEndpoints.enabled.length);
+  console.log('Enabled patterns: ' + enabledEndpointsList.length);
   
   const generatedContracts: Array<{ relativePath: string; contractName: string }> = [];
-  const enabledEndpointsList: Array<{ href: string; title: string; category: string }> = [];
-  const unsupportedEndpointsList: Array<{ href: string; title: string; category: string }> = [];
+  const enabledEndpointsInfo: Array<{ href: string; title: string; category: string }> = [];
+  const skippedEndpointsInfo: Array<{ href: string; title: string; category: string }> = [];
   let totalMethods = 0;
   
   for (const coll of collections) {
     const endpointInfo = { href: coll.href, title: coll.title, category: coll.category.term };
     
     if (!isEndpointEnabled(coll.href)) {
-      unsupportedEndpointsList.push(endpointInfo);
+      skippedEndpointsInfo.push(endpointInfo);
       continue;
     }
     
-    enabledEndpointsList.push(endpointInfo);
+    enabledEndpointsInfo.push(endpointInfo);
     
     // Convert CollectionData to CollectionJson format
     const collJson: CollectionJson = {
@@ -711,12 +769,12 @@ export async function generateContractsFromDiscovery(options: GenerateContractsF
   console.log('\n  + index.ts');
   
   // Generate endpoints doc
-  const endpointsDoc = generateUnsupportedEndpointsDoc(unsupportedEndpointsList, enabledEndpointsList);
+  const endpointsDoc = generateUnsupportedEndpointsDoc(skippedEndpointsInfo, enabledEndpointsInfo);
   await mkdir(docsDir, { recursive: true });
   await writeFile(join(docsDir, 'adt-endpoints.md'), endpointsDoc, 'utf-8');
   console.log('  + ' + docsDir + '/adt-endpoints.md');
   
   console.log('\nSummary:');
   console.log('   Enabled: ' + generatedContracts.length + ' contracts, ' + totalMethods + ' methods');
-  console.log('   Skipped: ' + unsupportedEndpointsList.length + ' endpoints (not in whitelist)');
+  console.log('   Skipped: ' + skippedEndpointsInfo.length + ' endpoints (not in whitelist)');
 }

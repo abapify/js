@@ -36,6 +36,16 @@ export {
   type ResolveImportsHook,
 } from './plugins/generate-contracts';
 
+// Endpoint configuration API
+export {
+  defineEndpoint,
+  defineEndpoints,
+  type EndpointDefinition,
+  type EndpointConfig,
+  type EndpointPattern,
+  type HttpMethod,
+} from './plugins/endpoint-config';
+
 export type {
   CodegenPlugin,
   PluginHooks,
