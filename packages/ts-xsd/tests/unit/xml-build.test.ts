@@ -864,4 +864,218 @@ describe('buildXml', () => {
       assert.ok(!xml.includes('<optional'), 'Should not include undefined element');
     });
   });
+
+  describe('Namespaced type references', () => {
+    it('should build nested complex types with namespace prefix in type reference', () => {
+      // This mirrors the atcRun schema structure that was failing
+      const schema = {
+        $xmlns: {
+          atc: 'http://www.sap.com/adt/atc',
+        },
+        targetNamespace: 'http://www.sap.com/adt/atc',
+        elementFormDefault: 'qualified',
+        element: [
+          { name: 'run', type: 'atc:RunRequest' },
+        ],
+        complexType: [
+          {
+            name: 'RunRequest',
+            sequence: {
+              element: [
+                { name: 'objectSets', type: 'atc:ObjectSets', minOccurs: '1' },
+              ],
+            },
+            attribute: [
+              { name: 'maximumVerdicts', type: 'xs:integer' },
+            ],
+          },
+          {
+            name: 'ObjectSets',
+            sequence: {
+              element: [
+                { name: 'objectSet', type: 'atc:ObjectSet', maxOccurs: 'unbounded' },
+              ],
+            },
+          },
+          {
+            name: 'ObjectSet',
+            attribute: [
+              { name: 'kind', type: 'xs:string' },
+            ],
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const data = {
+        maximumVerdicts: 100,
+        objectSets: {
+          objectSet: [{ kind: 'inclusive' }],
+        },
+      };
+
+      const xml = buildXml(schema, data, { xmlDecl: false });
+
+      // Should contain the nested structure
+      assert.ok(xml.includes('<atc:run'), 'Should have root element with prefix');
+      assert.ok(xml.includes('maximumVerdicts="100"'), 'Should have attribute');
+      assert.ok(xml.includes('<atc:objectSets'), 'Should have objectSets element');
+      assert.ok(xml.includes('<atc:objectSet'), 'Should have objectSet element');
+      assert.ok(xml.includes('kind="inclusive"'), 'Should have kind attribute');
+    });
+
+    it('should build schema with element ref to $imports schema', () => {
+      // This is the exact pattern from atcRun schema that was failing
+      // The issue: element with ref to imported schema
+      const adtcoreSchema = {
+        $xmlns: {
+          adtcore: 'http://www.sap.com/adt/core',
+        },
+        targetNamespace: 'http://www.sap.com/adt/core',
+        elementFormDefault: 'qualified',
+        element: [
+          { name: 'objectReferences', type: 'adtcore:ObjectReferences' },
+        ],
+        complexType: [
+          {
+            name: 'ObjectReferences',
+            sequence: {
+              element: [
+                { name: 'objectReference', type: 'adtcore:ObjectReference', maxOccurs: 'unbounded' },
+              ],
+            },
+          },
+          {
+            name: 'ObjectReference',
+            attribute: [
+              { name: 'uri', type: 'xs:string' },
+            ],
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const atcSchema = {
+        $xmlns: {
+          xsd: 'http://www.w3.org/2001/XMLSchema',
+          atc: 'http://www.sap.com/adt/atc',
+          adtcore: 'http://www.sap.com/adt/core',
+        },
+        $imports: [adtcoreSchema],
+        targetNamespace: 'http://www.sap.com/adt/atc',
+        attributeFormDefault: 'unqualified',
+        elementFormDefault: 'qualified',
+        element: [
+          { name: 'run', type: 'atc:AtcRunRequest' },
+        ],
+        complexType: [
+          {
+            name: 'AtcRunRequest',
+            sequence: {
+              element: [
+                { name: 'objectSets', type: 'atc:AtcObjectSets', minOccurs: '1', maxOccurs: '1' },
+              ],
+            },
+            attribute: [
+              { name: 'maximumVerdicts', type: 'xsd:integer' },
+            ],
+          },
+          {
+            name: 'AtcObjectSets',
+            sequence: {
+              element: [
+                { name: 'objectSet', type: 'atc:AtcObjectSetRequest', minOccurs: '1', maxOccurs: 'unbounded' },
+              ],
+            },
+          },
+          {
+            name: 'AtcObjectSetRequest',
+            sequence: {
+              element: [
+                { ref: 'adtcore:objectReferences', minOccurs: '0', maxOccurs: '1' },
+              ],
+            },
+            attribute: [
+              { name: 'kind', type: 'xsd:string' },
+            ],
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const data = {
+        maximumVerdicts: 100,
+        objectSets: {
+          objectSet: [{
+            kind: 'inclusive',
+            objectReferences: {
+              objectReference: [{ uri: '/sap/bc/adt/cts/transportrequests/TEST123' }],
+            },
+          }],
+        },
+      };
+
+      const xml = buildXml(atcSchema, data, { xmlDecl: false });
+
+      // Should contain the full nested structure including ref element
+      assert.ok(xml.includes('<atc:run'), 'Should have root element with prefix');
+      assert.ok(xml.includes('maximumVerdicts="100"'), 'Should have attribute');
+      assert.ok(xml.includes('<atc:objectSets'), 'Should have objectSets element');
+      assert.ok(xml.includes('<atc:objectSet'), 'Should have objectSet element');
+      assert.ok(xml.includes('kind="inclusive"'), 'Should have kind attribute');
+      assert.ok(xml.includes('objectReferences') || xml.includes('adtcore:objectReferences'), 'Should have objectReferences element');
+      assert.ok(xml.includes('uri='), 'Should have uri attribute on objectReference');
+    });
+
+    it('should build deeply nested complex types', () => {
+      const schema = {
+        $xmlns: {
+          ns: 'http://example.com/ns',
+        },
+        targetNamespace: 'http://example.com/ns',
+        elementFormDefault: 'qualified',
+        element: [
+          { name: 'root', type: 'ns:Level1' },
+        ],
+        complexType: [
+          {
+            name: 'Level1',
+            sequence: {
+              element: [
+                { name: 'level2', type: 'ns:Level2' },
+              ],
+            },
+          },
+          {
+            name: 'Level2',
+            sequence: {
+              element: [
+                { name: 'level3', type: 'ns:Level3' },
+              ],
+            },
+          },
+          {
+            name: 'Level3',
+            sequence: {
+              element: [
+                { name: 'value', type: 'xs:string' },
+              ],
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const data = {
+        level2: {
+          level3: {
+            value: 'deep',
+          },
+        },
+      };
+
+      const xml = buildXml(schema, data, { xmlDecl: false });
+
+      assert.ok(xml.includes('<ns:root'), 'Should have root element');
+      assert.ok(xml.includes('<ns:level2'), 'Should have level2 element');
+      assert.ok(xml.includes('<ns:level3'), 'Should have level3 element');
+      assert.ok(xml.includes('<ns:value>deep</ns:value>'), 'Should have value element with content');
+    });
+  });
 });

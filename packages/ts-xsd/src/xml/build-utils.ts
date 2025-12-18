@@ -48,6 +48,42 @@ export function createXmlDocument(schema: SchemaLike): XmlDocument {
 }
 
 /**
+ * Collect all namespace declarations from a schema and its $imports recursively
+ */
+function collectAllNamespaces(schema: SchemaLike, collected: Map<string, string> = new Map(), visited: Set<unknown> = new Set()): Map<string, string> {
+  // Prevent infinite recursion
+  if (visited.has(schema)) return collected;
+  visited.add(schema);
+  
+  // Add namespaces from this schema's $xmlns
+  if (schema.$xmlns) {
+    for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
+      if (!collected.has(pfx)) {
+        collected.set(pfx, uri as string);
+      }
+    }
+  }
+  
+  // Recursively collect from $imports
+  const imports = (schema as { $imports?: SchemaLike[] }).$imports;
+  if (imports) {
+    for (const imported of imports) {
+      collectAllNamespaces(imported, collected, visited);
+    }
+  }
+  
+  // Also collect from $includes
+  const includes = (schema as { $includes?: SchemaLike[] }).$includes;
+  if (includes) {
+    for (const included of includes) {
+      collectAllNamespaces(included, collected, visited);
+    }
+  }
+  
+  return collected;
+}
+
+/**
  * Create root element with namespace declarations
  * 
  * When elementFormDefault="unqualified", the root element should NOT have
@@ -78,14 +114,15 @@ export function createRootElement(
     root.setAttribute('xmlns', ns);
   }
 
-  // Add xmlns declarations from schema
-  if (schema.$xmlns) {
-    for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
-      if (pfx && pfx !== prefix) {
-        root.setAttribute(`xmlns:${pfx}`, uri as string);
-      } else if (!pfx) {
-        root.setAttribute('xmlns', uri as string);
-      }
+  // Collect ALL namespace declarations from schema and its $imports recursively
+  // This ensures that namespaces used by inherited types are declared
+  const allNamespaces = collectAllNamespaces(schema);
+  
+  for (const [pfx, uri] of allNamespaces) {
+    if (pfx && pfx !== prefix) {
+      root.setAttribute(`xmlns:${pfx}`, uri);
+    } else if (!pfx) {
+      root.setAttribute('xmlns', uri);
     }
   }
 

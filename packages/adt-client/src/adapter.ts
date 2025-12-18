@@ -174,9 +174,11 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
 
       logger?.debug('Request URL:', options.url);
       logger?.debug('Request method:', options.method);
-      logger?.debug('options.body:', options.body);
+      logger?.debug('options.body:', JSON.stringify(options.body)?.substring(0, 200));
       logger?.debug('options.bodySchema:', options.bodySchema ? 'present' : 'undefined');
+      logger?.debug('bodySerializableSchema:', bodySerializableSchema ? 'present' : 'undefined');
       logger?.debug('Body type:', typeof body);
+      logger?.debug('Body value:', body ? JSON.stringify(body).substring(0, 200) : 'undefined/null');
       if (body !== undefined && body !== null) {
         if (typeof body === 'string') {
           requestBody = body;
