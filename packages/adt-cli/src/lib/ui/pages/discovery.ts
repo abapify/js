@@ -9,7 +9,7 @@ import type { Page, Component } from '../types';
 import { Box, Field, Section, Text } from '../components';
 import { createPrintFn } from '../render';
 import { definePage, type NavParams } from '../router';
-import type { DiscoveryResponse } from 'adt-contracts';
+import type { DiscoveryResponse } from '@abapify/adt-contracts';
 
 /**
  * Discovery response type - re-exported from adt-contracts

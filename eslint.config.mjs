@@ -36,6 +36,9 @@ export default [
       'e2e/**',
       // Generated contracts use package imports intentionally (not relative)
       'packages/adt-contracts/src/generated/**',
+      // Config files are build-time only, not runtime dependencies
+      '**/*.config.ts',
+      '**/*.config.mts',
     ],
   },
   {

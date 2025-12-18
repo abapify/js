@@ -1,5 +1,11 @@
+/**
+ * GitLab Code Quality Formatter
+ * 
+ * Outputs ATC findings in GitLab Code Quality format.
+ */
+
 import { writeFile } from 'fs/promises';
-import { AtcResult, AtcFinding } from '../services/atc/service';
+import type { AtcResult, AtcFinding } from '../types';
 
 export async function outputGitLabCodeQuality(
   result: AtcResult,
@@ -27,10 +33,12 @@ export async function outputGitLabCodeQuality(
     // Extract file path from object reference
     const filePath = `src/${finding.objectType.toLowerCase()}/${finding.objectName.toLowerCase()}.${finding.objectType.toLowerCase()}`;
 
+    // Parse line number from location if available
+    const lineMatch = finding.location?.match(/start=(\d+)/);
+    const line = lineMatch ? parseInt(lineMatch[1], 10) : 1;
+
     // Create unique fingerprint for the finding
-    const fingerprint = `${finding.checkId}-${finding.objectName}-${
-      finding.location?.line || 0
-    }`;
+    const fingerprint = `${finding.checkId}-${finding.objectName}-${line}`;
 
     return {
       description: finding.messageText,
@@ -40,8 +48,8 @@ export async function outputGitLabCodeQuality(
       location: {
         path: filePath,
         lines: {
-          begin: finding.location?.line || 1,
-          end: finding.location?.line || 1,
+          begin: line,
+          end: line,
         },
       },
     };

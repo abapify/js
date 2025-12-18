@@ -468,10 +468,13 @@ export function* walkAttributes(
       }
     }
     
-    // Extension's own attributes
+    // Extension's own attributes (resolve refs)
     if (ext.attribute) {
-      for (const attribute of ext.attribute) {
-        yield { attribute, required: attribute.use === 'required' };
+      for (const attr of ext.attribute) {
+        const resolved = resolveAttribute(attr, schema);
+        if (resolved) {
+          yield { attribute: resolved, required: resolved.use === 'required' };
+        }
       }
     }
     
@@ -484,18 +487,24 @@ export function* walkAttributes(
   if (ct.simpleContent?.extension) {
     const ext = ct.simpleContent.extension;
     if (ext.attribute) {
-      for (const attribute of ext.attribute) {
-        yield { attribute, required: attribute.use === 'required' };
+      for (const attr of ext.attribute) {
+        const resolved = resolveAttribute(attr, schema);
+        if (resolved) {
+          yield { attribute: resolved, required: resolved.use === 'required' };
+        }
       }
     }
     yield* walkAttributeGroupRefs(ext.attributeGroup, schema);
     return;
   }
   
-  // Direct attributes
+  // Direct attributes (resolve refs)
   if (ct.attribute) {
-    for (const attribute of ct.attribute) {
-      yield { attribute, required: attribute.use === 'required' };
+    for (const attr of ct.attribute) {
+      const resolved = resolveAttribute(attr, schema);
+      if (resolved) {
+        yield { attribute: resolved, required: resolved.use === 'required' };
+      }
     }
   }
   
@@ -564,7 +573,72 @@ function findGroup(
 }
 
 /**
- * Find a named attributeGroup by name.
+ * Find a top-level attribute by name.
+ * Searches current schema and $imports.
+ */
+function findAttribute(
+  name: string,
+  schema: SchemaLike
+): AttributeLike | undefined {
+  // Search in current schema's top-level attributes
+  const schemaWithAttrs = schema as { attribute?: readonly AttributeLike[] };
+  if (schemaWithAttrs.attribute) {
+    for (const attr of schemaWithAttrs.attribute) {
+      if (attr.name === name) return attr;
+    }
+  }
+  
+  // Search in $includes (same namespace)
+  if (schema.$includes) {
+    for (const included of schema.$includes) {
+      const found = findAttribute(name, included);
+      if (found) return found;
+    }
+  }
+  
+  // Search in $imports (different namespace)
+  if (schema.$imports) {
+    for (const imported of schema.$imports) {
+      const found = findAttribute(name, imported);
+      if (found) return found;
+    }
+  }
+  
+  return undefined;
+}
+
+/**
+ * Resolve an attribute - handles both direct attributes and refs.
+ * Returns the resolved attribute with its name.
+ */
+function resolveAttribute(
+  attribute: AttributeLike,
+  schema: SchemaLike
+): AttributeLike | undefined {
+  // If attribute has a ref, resolve it
+  if (attribute.ref) {
+    const refName = stripNsPrefix(attribute.ref);
+    const resolved = findAttribute(refName, schema);
+    if (resolved) {
+      // Merge ref's use with resolved attribute
+      return {
+        ...resolved,
+        use: attribute.use ?? resolved.use,
+      } as AttributeLike;
+    }
+    // Fallback: create attribute with ref name
+    return {
+      name: refName,
+      type: 'xs:string',
+      use: attribute.use,
+    } as AttributeLike;
+  }
+  // Direct attribute
+  return attribute;
+}
+
+/**
+ * Find an attributeGroup by name.
  */
 function findAttributeGroup(
   name: string,

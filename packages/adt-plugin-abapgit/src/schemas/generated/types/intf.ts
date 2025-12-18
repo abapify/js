@@ -25,4 +25,19 @@ export type IntfSchema = {
         serializer: string;
         serializer_version: string;
     };
+} | {
+    abap: {
+        values: {
+            VSEOINTERF?: {
+                CLSNAME: string;
+                LANGU?: string;
+                DESCRIPT?: string;
+                EXPOSURE?: string;
+                STATE?: string;
+                UNICODE?: string;
+                ABAP_LANGUAGE_VERSION?: string;
+            };
+        };
+        version?: string;
+    };
 };

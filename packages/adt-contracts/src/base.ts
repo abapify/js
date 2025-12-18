@@ -40,6 +40,12 @@ export type {
   RestEndpointDescriptor,
 } from 'speci/rest';
 
+// Type utilities for extracting types from contracts
+export type {
+  ExtractResponse,
+  InferSuccessResponse,
+} from 'speci/rest';
+
 // Import RestClient for use in return type
 import type { RestClient } from 'speci/rest';
 
