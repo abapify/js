@@ -1,10 +1,33 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- TODO: Replace with real SAP ATC worklist response -->
-<atc:worklist xmlns:atc="http://www.sap.com/adt/atc">
-  <atc:object uri="/sap/bc/adt/oo/classes/zcl_test" type="CLAS" name="ZCL_TEST">
-    <atc:finding checkId="CL_CI_TEST" messageId="001" priority="1">
-      <atc:location uri="/sap/bc/adt/oo/classes/zcl_test/source/main#start=10,1"/>
-      <atc:message>Test finding message</atc:message>
-    </atc:finding>
-  </atc:object>
-</atc:worklist>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Source: GET /sap/bc/adt/atc/worklists/{id}?clientWait=false -->
+<!-- Sanitized: worklist ID, object names anonymized -->
+<atcworklist:worklist 
+    atcworklist:id="0A7425B8447B1FE0B6B42B64033E28EE" 
+    atcworklist:timestamp="2025-12-18T12:05:55Z" 
+    atcworklist:usedObjectSet="99999999999999999999999999999999" 
+    atcworklist:objectSetIsComplete="true" 
+    xmlns:atcworklist="http://www.sap.com/adt/atc/worklist">
+  <atcworklist:objectSets>
+    <atcworklist:objectSet 
+        atcworklist:name="00000000000000000000000000000000" 
+        atcworklist:title="All Objects" 
+        atcworklist:kind="ALL"/>
+    <atcworklist:objectSet 
+        atcworklist:name="99999999999999999999999999999999" 
+        atcworklist:title="Last Check Run" 
+        atcworklist:kind="LAST_RUN"/>
+  </atcworklist:objectSets>
+  <atcworklist:objects>
+    <atcobject:object 
+        adtcore:uri="/sap/bc/adt/atc/objects/R3TR/CLAS/ZCL_SAMPLE_CLASS" 
+        adtcore:type="CLAS" 
+        adtcore:name="ZCL_SAMPLE_CLASS" 
+        adtcore:packageName="ZTEST_PACKAGE" 
+        atcobject:author="TESTUSER" 
+        xmlns:atcobject="http://www.sap.com/adt/atc/object" 
+        xmlns:adtcore="http://www.sap.com/adt/core">
+      <atcobject:findings/>
+    </atcobject:object>
+  </atcworklist:objects>
+  <atcworklist:infos/>
+</atcworklist:worklist>
