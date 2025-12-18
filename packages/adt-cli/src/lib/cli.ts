@@ -11,7 +11,7 @@ import {
   fetchCommand,
   getCommand,
   outlineCommand,
-  atcCommand,
+  // ATC command moved to @abapify/adt-atc plugin
   loginCommand,
   logoutCommand,
   statusCommand,
@@ -161,8 +161,8 @@ export async function createCLI(): Promise<Command> {
   // Object outline command
   program.addCommand(outlineCommand);
 
-  // ATC (ABAP Test Cockpit) command
-  program.addCommand(atcCommand);
+  // ATC (ABAP Test Cockpit) command - now loaded as plugin from @abapify/adt-atc
+  // Add '@abapify/adt-atc/commands/atc' to adt.config.ts commands array to enable
 
   // Search command
   program.addCommand(searchCommand);

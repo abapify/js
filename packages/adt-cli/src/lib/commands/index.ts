@@ -8,7 +8,8 @@ export { infoCommand } from './info';
 export { fetchCommand } from './fetch';
 export { getCommand } from './get';
 export { outlineCommand } from './outline';
-export { atcCommand } from './atc';
+// ATC command moved to @abapify/adt-atc plugin
+// Add '@abapify/adt-atc/commands/atc' to adt.config.ts commands array to enable
 export { loginCommand } from './auth/login';
 export { logoutCommand } from './auth/logout';
 export { statusCommand } from './auth/status';

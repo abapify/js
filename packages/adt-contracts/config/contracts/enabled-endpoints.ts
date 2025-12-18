@@ -19,6 +19,7 @@ export const enabledEndpoints: EndpointDefinition[] = [
   {
     path: '/sap/bc/adt/atc/worklists',
     methods: ['GET'],
+    accept: '*/*', // SAP requires */* instead of application/xml
     description: 'Get ATC worklists',
   },
   {
