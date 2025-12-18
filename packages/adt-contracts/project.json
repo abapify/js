@@ -5,8 +5,14 @@
   "projectType": "library",
   "tags": ["type:library"],
   "targets": {
-    "generate-contracts": {
+    "codegen": {
       "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "inputs": [
+        "{projectRoot}/adt.config.ts",
+        "{projectRoot}/config/**/*",
+        "{projectRoot}/tmp/discovery/**/*"
+      ],
       "options": {
         "command": "npx adt codegen contracts",
         "cwd": "{projectRoot}"

@@ -54,13 +54,13 @@ interface EndpointMethod {
 export interface ContractImports {
   /**
    * Module path for http and contract utilities
-   * @example '@abapify/adt-contracts/base' or '../base'
+   * @example '#base' (tsconfig path alias)
    */
   base: string;
   
   /**
    * Module path for schema imports
-   * @example '@abapify/adt-contracts/schemas' or '../schemas'
+   * @example '#schemas' (tsconfig path alias)
    */
   schemas: string;
 }
@@ -96,15 +96,15 @@ export interface GenerateContractsOptions {
 }
 
 /**
- * Default import resolver - calculates relative paths from generated file to base/schemas
- * Assumes output structure: outputDir/sap/bc/adt/.../contract.ts
- * And base/schemas are siblings to outputDir's parent
+ * Default import resolver - uses tsconfig path aliases
+ * 
+ * Uses #base and #schemas aliases which are configured in tsconfig.json paths.
+ * tsdown 0.18+ resolves these in both JS and .d.ts output.
  */
-export function defaultResolveImports(relativePath: string, _outputDir: string): ContractImports {
-  const depth = relativePath.split('/').length;
+export function defaultResolveImports(_relativePath: string, _outputDir: string): ContractImports {
   return {
-    base: '../'.repeat(depth) + '../base',
-    schemas: '../'.repeat(depth) + '../schemas',
+    base: '#base',
+    schemas: '#schemas',
   };
 }
 

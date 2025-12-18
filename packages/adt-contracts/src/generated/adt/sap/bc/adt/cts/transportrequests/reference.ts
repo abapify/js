@@ -7,8 +7,8 @@
  * @generated - DO NOT EDIT MANUALLY
  */
 
-import { http, contract } from '@abapify/adt-contracts/base';
-import { transportmanagment } from '@abapify/adt-contracts/schemas';
+import { http, contract } from '#base';
+import { transportmanagment } from '#schemas';
 
 export const referenceContract = contract({
   /**

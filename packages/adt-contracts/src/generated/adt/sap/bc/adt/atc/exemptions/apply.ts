@@ -7,8 +7,8 @@
  * @generated - DO NOT EDIT MANUALLY
  */
 
-import { http, contract } from '@abapify/adt-contracts/base';
-import { atcexemption } from '@abapify/adt-contracts/schemas';
+import { http, contract } from '#base';
+import { atcexemption } from '#schemas';
 
 export const applyContract = contract({
   /**

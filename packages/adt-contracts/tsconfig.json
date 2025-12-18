@@ -4,8 +4,8 @@
     "outDir": "dist",
     "rootDir": ".",
     "paths": {
-      "@abapify/adt-contracts/schemas": ["./src/schemas.ts"],
-      "@abapify/adt-contracts/base": ["./src/base.ts"]
+      "#schemas": ["./src/schemas.ts"],
+      "#base": ["./src/base.ts"]
     }
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],

@@ -7,8 +7,8 @@
  * @generated - DO NOT EDIT MANUALLY
  */
 
-import { http, contract } from '@abapify/adt-contracts/base';
-import { classes } from '@abapify/adt-contracts/schemas';
+import { http, contract } from '#base';
+import { classes } from '#schemas';
 
 export const classesContract = contract({
   /**

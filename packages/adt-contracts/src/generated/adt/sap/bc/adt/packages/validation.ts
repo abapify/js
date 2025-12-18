@@ -7,8 +7,8 @@
  * @generated - DO NOT EDIT MANUALLY
  */
 
-import { http, contract } from '@abapify/adt-contracts/base';
-import { packagesV1 } from '@abapify/adt-contracts/schemas';
+import { http, contract } from '#base';
+import { packagesV1 } from '#schemas';
 
 export const validationContract = contract({
   /**
