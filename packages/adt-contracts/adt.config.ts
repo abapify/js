@@ -17,11 +17,11 @@ import { enabledEndpoints } from './config/contracts/enabled-endpoints.ts';
 
 /**
  * Import resolver for generated contracts
- * Uses package self-references for cleaner imports
+ * Uses tsconfig path aliases - tsdown 0.18+ resolves these in .d.ts files
  */
 const resolveImports = () => ({
-  base: '@abapify/adt-contracts/base',
-  schemas: '@abapify/adt-contracts/schemas',
+  base: '#base',
+  schemas: '#schemas',
 });
 
 export default {
