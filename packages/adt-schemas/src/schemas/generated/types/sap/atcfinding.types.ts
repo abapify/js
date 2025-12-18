@@ -45,4 +45,46 @@ export type AtcfindingSchema = {
         remarkText?: string;
         remarkLink?: string;
     };
+} | {
+    findingReferences: {
+        findingReference?: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+        }[];
+    };
+} | {
+    items: {
+        item?: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+            processor?: string;
+            status?: number;
+            remarkText?: string;
+            remarkLink?: string;
+        }[];
+    };
+} | {
+    remarks: {
+        remark?: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+            remarkText?: string;
+            remarkLink?: string;
+        }[];
+    };
 };

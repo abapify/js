@@ -113,8 +113,9 @@ describe('codegen/ts-morph', () => {
 
       assert.equal(rootTypeName, 'TestSchema');
       assert.ok(code.includes('export type TestSchema'));
-      // Root type is now the element's content type directly (matches parse() behavior)
-      assert.ok(code.includes('export type TestSchema = PersonType'));
+      // Root type is now wrapped with element name (matches parse() behavior)
+      // Element name is 'person' (lowercase) as defined in schema
+      assert.ok(code.includes('export type TestSchema = { person: PersonType }'));
     });
 
     it('handles optional elements (minOccurs=0)', () => {
@@ -324,8 +325,9 @@ describe('codegen/ts-morph', () => {
       assert.equal(rootTypeName, 'TestSchema');
       assert.ok(code.includes('export interface PersonType'));
       assert.ok(code.includes('export type TestSchema'));
-      // Root type is the element's content type directly (matches parse() behavior)
-      assert.ok(code.includes('export type TestSchema = PersonType'));
+      // Root type is now wrapped with element name (matches parse() behavior)
+      // Element name is 'person' (lowercase) as defined in schema
+      assert.ok(code.includes('export type TestSchema = { person: PersonType }'));
     });
 
     it('generates flattened type with flatten: true', () => {

@@ -79,4 +79,15 @@ export type AtcworklistSchema = {
         usedObjectSet?: string;
         objectSetIsComplete?: boolean;
     };
+} | {
+    worklistRun: {
+        worklistId: string;
+        worklistTimestamp: string;
+        infos: {
+            info?: {
+                type: string;
+                description: string;
+            }[];
+        };
+    };
 };

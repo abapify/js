@@ -82,4 +82,6 @@ export type AtcresultSchema = {
             };
         }[];
     };
+} | {
+    queryChoice: unknown;
 };
