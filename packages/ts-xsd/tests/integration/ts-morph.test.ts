@@ -170,10 +170,8 @@ describe('ts-morph integration', () => {
       writeOutput('classes.flattened.ts', flatCode);
 
       // Verify flattened output has all properties inlined (including inherited from AdtObjectType)
-      assert.ok(
-        flatCode.includes('abapClass:'),
-        'Should have abapClass property'
-      );
+      // Root type is now the element's content type directly (matches parse() behavior)
+      // So we check for the content properties, not the element wrapper
       assert.ok(
         flatCode.includes('name:'),
         'Should have inherited name property'
@@ -367,7 +365,8 @@ describe('ts-morph integration', () => {
       );
 
       // Verify all properties are inlined
-      assert.ok(flatCode.includes('root:'), 'Should have root property');
+      // Root type is now the element's content type directly (matches parse() behavior)
+      // So we check for content properties, not the element wrapper
       assert.ok(flatCode.includes('person:'), 'Should have person property');
       assert.ok(flatCode.includes('name:'), 'Should have name property');
       assert.ok(flatCode.includes('address:'), 'Should have address property');
