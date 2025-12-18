@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { buildXml } from '../../src/xml';
-import type { SchemaLike } from '../../src/infer/types';
+import type { SchemaLike } from '../../src/xsd/schema-like';
 
 describe('buildXml', () => {
   describe('Basic building', () => {

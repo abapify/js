@@ -908,7 +908,9 @@ function generateRootType(rootTypeName: string, ctx: GeneratorContext): void {
   ctx.sourceFile.addTypeAlias({
     name: rootTypeName,
     isExported: true,
-    type: `{ ${primaryElement.name}: ${elementType} }`,
+    // Root type matches what parse() returns - the element's content directly
+    // parse() returns content without element name wrapper
+    type: elementType,
     docs: ctx.addJsDoc ? [{ description: `Root schema type (${primaryElement.name} element)` }] : undefined,
   });
 }
