@@ -3,36 +3,14 @@
 > Auto-generated from SAP ADT discovery data.
 > To enable an endpoint, add it to `adt-codegen` config/enabled-endpoints.json
 
-## Enabled Endpoints (34)
+## Enabled Endpoints (12)
 
 These endpoints have generated contracts in `src/generated/adt/`:
 
 | Endpoint | Title | Category |
 |----------|-------|----------|
-| `/sap/bc/adt/atc/approvers` | List of Approvers | atcapprovers |
-| `/sap/bc/adt/atc/autoqf/worklist` | Autoquickfix | atcautoqf |
-| `/sap/bc/adt/atc/ccstunnel` | CCS Tunnel | ccstunnel |
-| `/sap/bc/adt/atc/checkcategories` | Check Category | chkctyp |
-| `/sap/bc/adt/atc/checkcategories/validation` | Check Category Name Validation | chkctyp/validation |
-| `/sap/bc/adt/atc/checkexemptions` | Exemption | chketyp |
-| `/sap/bc/adt/atc/checkexemptions/validation` | Exemption Name Validation | chketyp/validation |
-| `/sap/bc/adt/atc/checkexemptionsview` | Exemptions View | exemptionsView |
-| `/sap/bc/adt/atc/checkfailures` | Check Failure | atccheckfailures |
-| `/sap/bc/adt/atc/checkfailures/logs` | Check Failure Details | atccheckfailuresdetails |
-| `/sap/bc/adt/atc/checks` | Check | chkotyp |
-| `/sap/bc/adt/atc/checks/validation` | Check Name Validation | chkotyp/validation |
-| `/sap/bc/adt/atc/checkvariants` | Check Variant | chkvtyp |
-| `/sap/bc/adt/atc/checkvariants/codecompletion/templates` | CHKV Templates | chkvtyp/codecompletion |
-| `/sap/bc/adt/atc/checkvariants/validation` | Check Variant Name Validation | chkvtyp/validation |
-| `/sap/bc/adt/atc/configuration/configurations` | ATC Configuration | atcConfiguration |
-| `/sap/bc/adt/atc/configuration/metadata` | ATC Configuration (Metadata) | atcConfigurationMetadata |
-| `/sap/bc/adt/atc/customizing` | ATC customizing | atccustomizing |
-| `/sap/bc/adt/atc/exemptions/apply` | Exemptions Apply | atcexemptions |
-| `/sap/bc/adt/atc/items` | ATC Items | atcitems |
-| `/sap/bc/adt/atc/result/worklist` | Result Worklist | atcresultworklist |
 | `/sap/bc/adt/atc/results` | ATC results | atcresults |
 | `/sap/bc/adt/atc/runs` | ATC runs | atcruns |
-| `/sap/bc/adt/atc/variants` | List of Variants | atcvariants |
 | `/sap/bc/adt/atc/worklists` | ATC worklist | atcworklists |
 | `/sap/bc/adt/cts/transportrequests` | Transport Management | transportmanagement |
 | `/sap/bc/adt/cts/transportrequests/reference` | Transport Management | transportmanagementref |
@@ -44,7 +22,7 @@ These endpoints have generated contracts in `src/generated/adt/`:
 | `/sap/bc/adt/packages/settings` | Package Settings | settings |
 | `/sap/bc/adt/packages/validation` | Package Name Validation | devck/validation |
 
-## Available Endpoints (Not Yet Enabled) (505)
+## Available Endpoints (Not Yet Enabled) (527)
 
 These endpoints were discovered but no contracts are generated yet:
 
@@ -230,6 +208,38 @@ These endpoints were discovered but no contracts are generated yet:
 | `/sap/bc/adt/aps/com/sod2/validation` | Open Discovery API Package Assignment Name Validation |
 | `/sap/bc/adt/aps/common/sbc1` | Technical Object Group |
 | `/sap/bc/adt/aps/common/sbc1/validation` | Technical Object Group Name Validation |
+
+</details>
+
+### /sap/bc/adt/atc (22 endpoints)
+
+<details>
+<summary>Click to expand</summary>
+
+| Endpoint | Title |
+|----------|-------|
+| `/sap/bc/adt/atc/approvers` | List of Approvers |
+| `/sap/bc/adt/atc/autoqf/worklist` | Autoquickfix |
+| `/sap/bc/adt/atc/ccstunnel` | CCS Tunnel |
+| `/sap/bc/adt/atc/checkcategories` | Check Category |
+| `/sap/bc/adt/atc/checkcategories/validation` | Check Category Name Validation |
+| `/sap/bc/adt/atc/checkexemptions` | Exemption |
+| `/sap/bc/adt/atc/checkexemptions/validation` | Exemption Name Validation |
+| `/sap/bc/adt/atc/checkexemptionsview` | Exemptions View |
+| `/sap/bc/adt/atc/checkfailures` | Check Failure |
+| `/sap/bc/adt/atc/checkfailures/logs` | Check Failure Details |
+| `/sap/bc/adt/atc/checks` | Check |
+| `/sap/bc/adt/atc/checks/validation` | Check Name Validation |
+| `/sap/bc/adt/atc/checkvariants` | Check Variant |
+| `/sap/bc/adt/atc/checkvariants/codecompletion/templates` | CHKV Templates |
+| `/sap/bc/adt/atc/checkvariants/validation` | Check Variant Name Validation |
+| `/sap/bc/adt/atc/configuration/configurations` | ATC Configuration |
+| `/sap/bc/adt/atc/configuration/metadata` | ATC Configuration (Metadata) |
+| `/sap/bc/adt/atc/customizing` | ATC customizing |
+| `/sap/bc/adt/atc/exemptions/apply` | Exemptions Apply |
+| `/sap/bc/adt/atc/items` | ATC Items |
+| `/sap/bc/adt/atc/result/worklist` | Result Worklist |
+| `/sap/bc/adt/atc/variants` | List of Variants |
 
 </details>
 
