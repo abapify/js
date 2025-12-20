@@ -211,6 +211,8 @@ export class AuthManager {
         auth: {
           ...session.auth,
           pluginOptions: {
+            url: session.host,
+            client: session.client,
             ...session.auth.pluginOptions,
             log,
           },
