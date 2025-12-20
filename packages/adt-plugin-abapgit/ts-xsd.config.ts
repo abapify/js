@@ -117,8 +117,14 @@ export default defineConfig({
       ...schemas.map(s => `import _${s} from './schemas/${s}';`),
       '',
       '// Full AbapGit types - using flattened root types',
+      '// Note: Generated types may be unions, we import the raw schema type',
       ...schemas.map(s => 
-        `import type { ${capitalize(s)}Schema as ${capitalize(s)}AbapGitType } from './types/${s}';`
+        `import type { ${capitalize(s)}Schema as _${capitalize(s)}Schema } from './types/${s}';`
+      ),
+      '',
+      '// Extract the abapGit variant from union types (generated types may be unions)',
+      ...schemas.map(s => 
+        `type ${capitalize(s)}AbapGitType = Extract<_${capitalize(s)}Schema, { abapGit: unknown }>;`
       ),
       '',
       '// AbapGit schema instances - using flattened types with values extracted from abapGit.abap.values',
