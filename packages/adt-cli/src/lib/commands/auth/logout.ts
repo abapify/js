@@ -1,19 +1,27 @@
 import { Command } from 'commander';
-import { AuthManager } from '@abapify/adt-auth';
+import { AuthManager, FileStorage } from '@abapify/adt-auth';
 import {
-  createComponentLogger,
   handleCommandError,
 } from '../../utils/command-helpers';
+import { getDefaultSid } from '../../utils/auth';
 
 export const logoutCommand = new Command('logout')
   .description('Logout from ADT')
-  .action(async (options, command) => {
+  .option('--sid <sid>', 'System ID to logout from (defaults to current default)')
+  .action(async (options) => {
     try {
-      const logger = createComponentLogger(command, 'auth');
-      const authManager = new AuthManager(logger);
-      authManager.logout();
+      const sid = options.sid || getDefaultSid();
+      
+      if (!sid) {
+        console.log('❌ No active session to logout from');
+        process.exit(1);
+      }
 
-      console.log('✅ Successfully logged out!');
+      const storage = new FileStorage();
+      const authManager = new AuthManager(storage);
+      authManager.deleteSession(sid);
+
+      console.log(`✅ Successfully logged out from ${sid}!`);
     } catch (error) {
       handleCommandError(error, 'Logout');
     }

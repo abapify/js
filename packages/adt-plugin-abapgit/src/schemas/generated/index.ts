@@ -21,11 +21,19 @@ import _dtel from './schemas/dtel';
 import _intf from './schemas/intf';
 
 // Full AbapGit types - using flattened root types
-import type { ClasSchema as ClasAbapGitType } from './types/clas';
-import type { DevcSchema as DevcAbapGitType } from './types/devc';
-import type { DomaSchema as DomaAbapGitType } from './types/doma';
-import type { DtelSchema as DtelAbapGitType } from './types/dtel';
-import type { IntfSchema as IntfAbapGitType } from './types/intf';
+// Note: Generated types may be unions, we import the raw schema type
+import type { ClasSchema as _ClasSchema } from './types/clas';
+import type { DevcSchema as _DevcSchema } from './types/devc';
+import type { DomaSchema as _DomaSchema } from './types/doma';
+import type { DtelSchema as _DtelSchema } from './types/dtel';
+import type { IntfSchema as _IntfSchema } from './types/intf';
+
+// Extract the abapGit variant from union types (generated types may be unions)
+type ClasAbapGitType = Extract<_ClasSchema, { abapGit: unknown }>;
+type DevcAbapGitType = Extract<_DevcSchema, { abapGit: unknown }>;
+type DomaAbapGitType = Extract<_DomaSchema, { abapGit: unknown }>;
+type DtelAbapGitType = Extract<_DtelSchema, { abapGit: unknown }>;
+type IntfAbapGitType = Extract<_IntfSchema, { abapGit: unknown }>;
 
 // AbapGit schema instances - using flattened types with values extracted from abapGit.abap.values
 export const clas = abapGitSchema<ClasAbapGitType, ClasAbapGitType['abapGit']['abap']['values']>(_clas);

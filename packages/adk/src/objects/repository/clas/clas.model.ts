@@ -157,7 +157,9 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implemen
   
   async load(): Promise<this> {
     const response = await this.ctx.client.adt.oo.classes.get(this.name);
-    if (!response?.abapClass) {
+    // Type guard: response is a union of { abapClass } | { abapClassInclude }
+    // ADK Class objects only use the abapClass variant
+    if (!response || !('abapClass' in response) || !response.abapClass) {
       throw new Error(`Class '${this.name}' not found or returned empty response`);
     }
     // Unwrap the abapClass element from the response

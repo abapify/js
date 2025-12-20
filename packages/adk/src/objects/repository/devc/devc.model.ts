@@ -130,7 +130,9 @@ export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> im
   
   async load(): Promise<this> {
     const response = await this.ctx.client.adt.packages.get(this.name);
-    if (!response?.package) {
+    // Type guard: response is a union of { package } | { packageTree }
+    // ADK Package objects only use the package variant
+    if (!response || !('package' in response) || !response.package) {
       throw new Error(`Package '${this.name}' not found or returned empty response`);
     }
     // Unwrap the package element from the response

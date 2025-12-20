@@ -35,28 +35,29 @@ export const statusCommand = new Command('status')
       // Show SID
       console.log(`🆔 System: ${sid}`);
 
-      // Show auth type
-      const authTypeDisplay =
-        session.authType === 'oauth' ? 'OAuth (BTP)' :
-        session.authType === 'puppeteer' ? 'Browser (Puppeteer)' :
+      // Show host and client
+      console.log(`🌐 Host: ${session.host}`);
+      if (session.client) {
+        console.log(`🔧 Client: ${session.client}`);
+      }
+
+      // Show auth method
+      const authMethodDisplay =
+        session.auth.method === 'cookie' ? 'Cookie (Browser SSO)' :
         'Basic Auth';
-      console.log(`🔐 Auth Type: ${authTypeDisplay}`);
+      console.log(`🔐 Auth Method: ${authMethodDisplay}`);
 
-      // Show system info based on auth type
-      if (session.authType === 'basic' && session.basicAuth) {
-        console.log(`🌐 Host: ${session.basicAuth.host}`);
-        console.log(`👤 User: ${session.basicAuth.username}`);
-        if (session.basicAuth.client) {
-          console.log(`🔧 Client: ${session.basicAuth.client}`);
-        }
-      } else if (session.authType === 'puppeteer' && session.puppeteerAuth) {
-        console.log(`🌐 Host: ${session.puppeteerAuth.host}`);
-        if (session.puppeteerAuth.client) {
-          console.log(`🔧 Client: ${session.puppeteerAuth.client}`);
-        }
+      // Show plugin if available
+      if (session.auth.plugin) {
+        console.log(`🔌 Plugin: ${session.auth.plugin}`);
+      }
 
-        // Show token expiration
-        const expiresAt = new Date(session.puppeteerAuth.tokenExpiresAt);
+      // Show credentials info based on method
+      if (session.auth.method === 'basic' && 'username' in session.auth.credentials) {
+        console.log(`👤 User: ${session.auth.credentials.username}`);
+      } else if (session.auth.method === 'cookie' && 'expiresAt' in session.auth.credentials) {
+        // Show token expiration for cookie auth
+        const expiresAt = new Date(session.auth.credentials.expiresAt);
         const now = new Date();
         const isExpired = expiresAt <= now;
 
