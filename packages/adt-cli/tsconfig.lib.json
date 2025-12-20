@@ -13,6 +13,12 @@
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../adt-atc"
+    },
+    {
+      "path": "../adt-codegen"
+    },
+    {
       "path": "../adt-contracts"
     },
     {
