@@ -10,11 +10,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock the ADT client
+// Response must have 'root' wrapper to match TransportmanagmentSingleSchema
 const mockTransportResponse = {
-  object_type: 'K',
-  name: 'DEVK900001',
-  type: 'RQRQ',
-  request: {
+  root: {
+    object_type: 'K',
+    name: 'DEVK900001',
+    type: 'RQRQ',
+    request: {
     number: 'DEVK900001',
     parent: '',
     owner: 'DEVELOPER',
@@ -73,6 +75,7 @@ const mockTransportResponse = {
       },
     ],
   },
+  },  // close root
 };
 
 // Create mock client
@@ -240,24 +243,26 @@ describe('AdkTransport', () => {
     it('should deduplicate objects across tasks', async () => {
       // Create mock with duplicate object
       const mockWithDuplicates = {
-        ...mockTransportResponse,
-        request: {
-          ...mockTransportResponse.request,
-          task: [
-            {
-              number: 'DEVK900002',
-              abap_object: [
-                { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_SHARED' },
-              ],
-            },
-            {
-              number: 'DEVK900003',
-              abap_object: [
-                { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_SHARED' }, // Duplicate
-                { pgmid: 'R3TR', type: 'PROG', name: 'ZTEST' },
-              ],
-            },
-          ],
+        root: {
+          ...mockTransportResponse.root,
+          request: {
+            ...mockTransportResponse.root.request,
+            task: [
+              {
+                number: 'DEVK900002',
+                abap_object: [
+                  { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_SHARED' },
+                ],
+              },
+              {
+                number: 'DEVK900003',
+                abap_object: [
+                  { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_SHARED' }, // Duplicate
+                  { pgmid: 'R3TR', type: 'PROG', name: 'ZTEST' },
+                ],
+              },
+            ],
+          },
         },
       };
       

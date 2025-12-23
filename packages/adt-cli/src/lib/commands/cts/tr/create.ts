@@ -165,15 +165,14 @@ export const ctsCreateCommand = new Command('create')
       }
 
       // Create the transport via ADK layer
-      // ADK expects { services: { transports } } - client already has client.services
-      const adkCtx = { services: client.services };
-      const tr = await AdkTransportRequest.create(adkCtx, {
+      // ADK expects (options, ctx?) - ctx is AdkContext with client property
+      const tr = await AdkTransportRequest.create({
         description: createOptions.description,
         type: createOptions.type as 'K' | 'W',
         target: createOptions.target,
         project: createOptions.project,
         owner: createOptions.owner,
-      });
+      }, { client });
 
       if (options.json) {
         console.log(JSON.stringify({

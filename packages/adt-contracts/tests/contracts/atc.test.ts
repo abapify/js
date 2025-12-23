@@ -29,7 +29,7 @@ class AtcWorklistsScenario extends ContractScenario {
       contract: () => worklistsContract.get('WL123'),
       method: 'GET',
       path: '/sap/bc/adt/atc/worklists/WL123',
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: '*/*' },
       response: {
         status: 200,
         schema: atcworklist,
@@ -41,7 +41,7 @@ class AtcWorklistsScenario extends ContractScenario {
       contract: () => worklistsContract.get('WL123', { timestamp: '2024-01-01', includeExemptedFindings: 'true' }),
       method: 'GET',
       path: '/sap/bc/adt/atc/worklists/WL123',
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: '*/*' },
       query: { timestamp: '2024-01-01', includeExemptedFindings: 'true' },
       response: { status: 200, schema: atcworklist },
     },
@@ -50,7 +50,7 @@ class AtcWorklistsScenario extends ContractScenario {
       contract: () => worklistsContract.objectset('WL123', 'MY_OBJECT_SET'),
       method: 'GET',
       path: '/sap/bc/adt/atc/worklists/WL123/MY_OBJECT_SET',
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: '*/*' },
       response: { status: 200, schema: atcworklist },
     },
   ];
