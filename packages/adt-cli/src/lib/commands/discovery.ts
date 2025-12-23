@@ -1,5 +1,6 @@
 import { Command } from 'commander';
-import { writeFileSync } from 'fs';
+import { writeFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 import { getAdtClientV2, getCaptured } from '../utils/adt-client-v2';
 import { DiscoveryPage } from '../ui/pages';
 
@@ -27,6 +28,8 @@ export const discoveryCommand = new Command('discovery')
 
         if (isXml) {
           if (captured.xml) {
+            // Ensure parent directory exists
+            mkdirSync(dirname(options.output), { recursive: true });
             // Save raw XML
             writeFileSync(options.output, captured.xml);
             console.log(`💾 Discovery XML saved to: ${options.output}`);
@@ -35,6 +38,8 @@ export const discoveryCommand = new Command('discovery')
             process.exit(1);
           }
         } else {
+          // Ensure parent directory exists
+          mkdirSync(dirname(options.output), { recursive: true });
           // Save as JSON (default)
           writeFileSync(options.output, JSON.stringify(discovery, null, 2));
           console.log(`💾 Discovery JSON saved to: ${options.output}`);

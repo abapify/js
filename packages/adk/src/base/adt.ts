@@ -28,12 +28,52 @@
 export type { AdtClient } from '@abapify/adt-client';
 
 // Response types (inferred from contracts/schemas)
+// Note: Some response types are unions (e.g., ClassResponse = { abapClass } | { abapClassInclude })
+// We re-export the full union and provide extracted types for ADK objects
 export type { 
-  ClassResponse,
-  InterfaceResponse,
-  PackageResponse,
+  ClassResponse as ClassResponseUnion,
+  InterfaceResponse as InterfaceResponseUnion,
+  PackageResponse as PackageResponseUnion,
   TransportGetResponse,
 } from '@abapify/adt-client';
+
+// CRUD contract types for typed ADK base model
+export type {
+  CrudContract,
+  CrudContractBase,
+  CrudQueryParams,
+  LockOptions,
+  UnlockOptions,
+  ObjectStructureOptions,
+  SourceOperations,
+  SourcesContract,
+  IncludesContract,
+} from '@abapify/adt-client';
+
+import type { 
+  ClassResponse as _ClassResponse,
+  InterfaceResponse as _InterfaceResponse,
+  PackageResponse as _PackageResponse,
+} from '@abapify/adt-client';
+
+/**
+ * Extract the abapClass variant from ClassResponse union
+ * ClassResponse = { abapClass: ... } | { abapClassInclude: ... }
+ * ADK Class objects only use the abapClass variant
+ */
+export type ClassResponse = Extract<_ClassResponse, { abapClass: unknown }>;
+
+/**
+ * Extract the abapInterface variant from InterfaceResponse union
+ */
+export type InterfaceResponse = Extract<_InterfaceResponse, { abapInterface: unknown }>;
+
+/**
+ * Extract the package variant from PackageResponse union
+ * PackageResponse = { package: ... } | { packageTree: ... }
+ * ADK Package objects only use the package variant
+ */
+export type PackageResponse = Extract<_PackageResponse, { package: unknown }>;
 
 // ============================================
 // ADK Contract Proxy

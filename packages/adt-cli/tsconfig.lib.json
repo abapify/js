@@ -13,6 +13,15 @@
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../adt-export"
+    },
+    {
+      "path": "../adt-atc"
+    },
+    {
+      "path": "../adt-codegen"
+    },
+    {
       "path": "../adt-contracts"
     },
     {
@@ -23,6 +32,9 @@
     },
     {
       "path": "../adt-plugin-abapgit/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-plugin/tsconfig.lib.json"
     },
     {
       "path": "../adt-config/tsconfig.lib.json"

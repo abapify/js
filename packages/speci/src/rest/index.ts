@@ -47,7 +47,7 @@ export type {
 } from './types';
 
 // Export helpers
-export { schema } from './types';
+export { schema, createInferrable } from './types';
 
 // Export helpers - http object and factory
 export { http, createHttp, type RestEndpointOptions } from './helpers';

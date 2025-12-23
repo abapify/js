@@ -24,4 +24,19 @@ export const interfaceHandler = createHandler(AdkInterface, {
   }),
 
   getSource: (obj) => obj.getSource(),
+
+  // Git → SAP: Map abapGit values to ADK data (type inferred from AdkInterface)
+  fromAbapGit: ({ VSEOINTERF }) => ({
+    name: (VSEOINTERF?.CLSNAME ?? '').toUpperCase(),
+    type: 'INTF/OI', // ADT object type
+    description: VSEOINTERF?.DESCRIPT,
+  }),
+  
+  // Git → SAP: Set source files on ADK object (symmetric with getSource)
+  // Stores sources as pending for later deploy via ADT
+  setSources: (intf, sources) => {
+    if (sources.main) {
+      (intf as unknown as { _pendingSource: string })._pendingSource = sources.main;
+    }
+  },
 });

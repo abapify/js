@@ -6,31 +6,5 @@
  */
 
 export type ConfigurationsSchema = {
-    configurations: {
-        configuration: {
-            properties: {
-                property: {
-                    _text?: string;
-                    key?: string;
-                    isMandatory?: boolean;
-                }[];
-            };
-            link?: {
-                href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
-            };
-            client?: string;
-            configName?: string;
-            createdBy?: string;
-            createdAt?: string;
-            changedBy?: string;
-            changedAt?: string;
-        }[];
-    };
+    configurations: unknown;
 };

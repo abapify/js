@@ -16,16 +16,6 @@ export type PackagesV1Schema = {
             packageName?: string;
             description?: string;
         };
-        link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-        }[];
         adtTemplate?: {
             adtProperty?: {
                 _text?: string;
@@ -169,5 +159,42 @@ export type PackagesV1Schema = {
         masterLanguage?: string;
         responsible?: string;
         abapLanguageVersion?: string;
+    };
+} | {
+    packageTree: {
+        treeNode?: {
+            extension?: unknown;
+            superPackageRef: {
+                extension?: unknown;
+                uri?: string;
+                parentUri?: string;
+                type?: string;
+                name?: string;
+                packageName?: string;
+                description?: string;
+            };
+            packageInterfaces: {
+                packageInterfaceRef?: {
+                    extension?: unknown;
+                    uri?: string;
+                    parentUri?: string;
+                    type?: string;
+                    name?: string;
+                    packageName?: string;
+                    description?: string;
+                }[];
+                isVisible?: boolean;
+            };
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+            isEncapsulated?: boolean;
+            hasSubpackages?: boolean;
+            hasInterfaces?: boolean;
+        }[];
+        isSuperTree?: boolean;
     };
 };

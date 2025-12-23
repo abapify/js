@@ -1,89 +1,102 @@
 /**
  * ADT ATC (ABAP Test Cockpit) Contracts
  * 
+ * Combines generated contracts with manually-defined endpoints not in discovery.
+ * 
  * Structure mirrors URL tree:
- * - /sap/bc/adt/atc/runs → atc.runs
- * - /sap/bc/adt/atc/results → atc.results
- * - /sap/bc/adt/atc/worklists → atc.worklists
+ * - /sap/bc/adt/atc/customizing → atc.customizing (manual - not in discovery)
+ * - /sap/bc/adt/atc/runs → atc.runs (manual - POST with body)
+ * - /sap/bc/adt/atc/results → atc.results (generated)
+ * - /sap/bc/adt/atc/worklists → atc.worklists (generated + manual create)
  */
 
 import { http, contract } from '../../base';
-import { atcworklist } from '../../schemas';
+import { atcworklist, atc, atcRun } from '../../schemas';
+
+// Re-export generated contracts
+export { worklistsContract } from '../../generated/adt/sap/bc/adt/atc/worklists';
+export { resultsContract } from '../../generated/adt/sap/bc/adt/atc/results';
+
+/**
+ * /sap/bc/adt/atc/customizing
+ * Get ATC customizing settings (check variants, exemption reasons, etc.)
+ * 
+ * NOTE: Not in SAP discovery - manually defined
+ */
+const customizing = contract({
+  /**
+   * GET /sap/bc/adt/atc/customizing
+   */
+  get: () =>
+    http.get('/sap/bc/adt/atc/customizing', {
+      responses: { 200: atc },
+      headers: { Accept: 'application/xml' },
+    }),
+});
 
 /**
  * /sap/bc/adt/atc/runs
+ * 
+ * NOTE: POST endpoint with body - not in SAP discovery
  * @source atcruns.json
  */
 const runs = contract({
   /**
    * POST /sap/bc/adt/atc/runs{?worklistId,clientWait}
+   * Run ATC checks on objects specified in the request body
    */
   post: (params?: { worklistId?: string; clientWait?: boolean }) =>
     http.post('/sap/bc/adt/atc/runs', {
       query: params,
+      body: atcRun,
       responses: { 200: atcworklist },
-      headers: { Accept: 'application/xml' },
+      headers: { 
+        Accept: 'application/xml',
+        'Content-Type': 'application/xml',
+      },
     }),
 });
 
 /**
- * /sap/bc/adt/atc/results
- * @source atcresults.json
+ * /sap/bc/adt/atc/worklists - Extended
+ * 
+ * Adds POST (create) endpoint not in generated contract
  */
-const results = contract({
+const worklistsExtended = contract({
   /**
-   * GET /sap/bc/adt/atc/results{?activeResult,contactPerson,createdBy,ageMin,ageMax,centralResult,sysId}
+   * POST /sap/bc/adt/atc/worklists{?checkVariant}
+   * Create a new ATC worklist
+   * 
+   * NOTE: Not in SAP discovery - manually defined
    */
-  get: (params?: {
-    activeResult?: boolean;
-    contactPerson?: string;
-    createdBy?: string;
-    ageMin?: number;
-    ageMax?: number;
-    centralResult?: boolean;
-    sysId?: string;
-  }) =>
-    http.get('/sap/bc/adt/atc/results', {
+  create: (params?: { checkVariant?: string }) =>
+    http.post('/sap/bc/adt/atc/worklists', {
       query: params,
       responses: { 200: atcworklist },
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: '*/*' },
     }),
-
-  /**
-   * GET /sap/bc/adt/atc/results/{displayId}{?activeResult,contactPerson,includeExemptedFindings}
-   */
-  byDisplayId: {
-    get: (
-      displayId: string,
-      params?: { activeResult?: boolean; contactPerson?: string; includeExemptedFindings?: boolean }
-    ) =>
-      http.get(`/sap/bc/adt/atc/results/${displayId}`, {
-        query: params,
-        responses: { 200: atcworklist },
-        headers: { Accept: 'application/xml' },
-      }),
-  },
 });
+
+// Import generated contracts for combined export
+import { worklistsContract } from '../../generated/adt/sap/bc/adt/atc/worklists';
+import { resultsContract } from '../../generated/adt/sap/bc/adt/atc/results';
 
 /**
- * /sap/bc/adt/atc/worklists
- * @source atcworklists.json
+ * Combined ATC contract
+ * 
+ * Uses generated contracts where available, adds manual endpoints for:
+ * - customizing (not in discovery)
+ * - runs POST (not in discovery)
+ * - worklists.create (not in discovery)
  */
-const worklists = contract({
-  /**
-   * GET /sap/bc/adt/atc/worklists/{id}
-   */
-  get: (id: string) =>
-    http.get(`/sap/bc/adt/atc/worklists/${id}`, {
-      responses: { 200: atcworklist },
-      headers: { Accept: 'application/xml' },
-    }),
-});
-
 export const atcContract = {
+  customizing,
   runs,
-  results,
-  worklists,
+  results: resultsContract,
+  worklists: {
+    ...worklistsContract,
+    ...worklistsExtended,
+  },
 };
 
 /** Type alias for the ATC contract */

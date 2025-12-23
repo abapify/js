@@ -91,6 +91,18 @@ export function createPuppeteerAdapter(): BrowserAdapter {
       return cookies.map(convertCookie);
     },
 
+    async clearCookies(domain: string): Promise<void> {
+      if (!page) throw new Error('Page not created');
+      const client = await page.createCDPSession();
+      const { cookies } = await client.send('Network.getAllCookies');
+      const toRemove = cookies.filter(c => 
+        c.domain.includes(domain) || domain.includes(c.domain.replace(/^\./, ''))
+      );
+      for (const cookie of toRemove) {
+        await client.send('Network.deleteCookies', { name: cookie.name, domain: cookie.domain });
+      }
+    },
+
     async getUserAgent(): Promise<string> {
       if (!page) throw new Error('Page not created');
       return page.evaluate(() => navigator.userAgent);

@@ -8,7 +8,6 @@ import { AdkMainObject } from '../../../base/model';
 import { Interface as InterfaceKind } from '../../../base/kinds';
 import { getGlobalContext } from '../../../base/global-context';
 import type { AdkContext } from '../../../base/context';
-import type { AbapInterface } from './intf.types';
 
 // Import response type from ADT integration layer
 import type { InterfaceResponse } from '../../../base/adt';
@@ -16,10 +15,10 @@ import type { InterfaceResponse } from '../../../base/adt';
 /**
  * Interface data type - imported from contract
  * 
- * This ensures ADK always matches what the contract returns.
- * If contract changes schema (e.g., to extended version), ADK updates automatically.
+ * The schema wraps everything in an 'abapInterface' element, so we unwrap it here
+ * to provide a flat structure for ADK consumers.
  */
-export type InterfaceXml = InterfaceResponse;
+export type InterfaceXml = InterfaceResponse['abapInterface'];
 
 /**
  * ADK Interface object
@@ -27,23 +26,16 @@ export type InterfaceXml = InterfaceResponse;
  * Inherits from AdkMainObject which provides:
  * - AdkObject: name, type, description, version, language, changedBy/At, createdBy/At, links
  * - AdkMainObject: package, packageRef, responsible, masterLanguage, masterSystem, abapLanguageVersion
+ * 
+ * Access interface-specific properties via `data`:
+ * - data.modeled, data.sourceUri, data.fixPointArithmetic, data.activeUnicodeCheck
  */
-export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceXml> implements AbapInterface {
+export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceXml> {
   static readonly kind = InterfaceKind;
   readonly kind = AdkInterface.kind;
   
-  // ADT object URI
+  // ADT object URI (computed - not in data)
   get objectUri(): string { return `/sap/bc/adt/oo/interfaces/${encodeURIComponent(this.name.toLowerCase())}`; }
-  
-  // abapoo:* attributes (interface-specific)
-  get modeled(): boolean { return this.dataSync.modeled ?? false; }
-  
-  // abapsource:* attributes
-  get sourceUri(): string { return this.dataSync.sourceUri ?? 'source/main'; }
-  get fixPointArithmetic(): boolean { return this.dataSync.fixPointArithmetic ?? false; }
-  get activeUnicodeCheck(): boolean { return this.dataSync.activeUnicodeCheck ?? false; }
-  
-  // packageRef is inherited from AdkMainObject
   
   // Lazy segments - source code
   
@@ -54,33 +46,65 @@ export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceX
   }
   
   // ============================================
-  // Deferred Loading (implements abstract from AdkObject)
-  // ============================================
-  
-  async load(): Promise<this> {
-    const data = await this.ctx.client.adt.oo.interfaces.get(this.name);
-    if (!data) {
-      throw new Error(`Interface '${this.name}' not found or returned empty response`);
-    }
-    this.setData(data as InterfaceXml);
-    return this;
-  }
-  
-  // ============================================
-  // Static Factory Methods
+  // Source Code Save Methods
   // ============================================
   
   /**
-   * Get an interface by name
-   * 
-   * @param name - Interface name (e.g., 'ZIF_MY_INTERFACE')
-   * @param ctx - Optional ADK context (uses global context if not provided)
+   * Save main source code
+   * Requires object to be locked first
    */
+  async saveMainSource(source: string, options?: { lockHandle?: string; transport?: string }): Promise<void> {
+    const params = new URLSearchParams();
+    if (options?.lockHandle) params.set('lockHandle', options.lockHandle);
+    if (options?.transport) params.set('corrNr', options.transport);
+    
+    await this.ctx.client.fetch(
+      `/sap/bc/adt/oo/interfaces/${this.name.toLowerCase()}/source/main${params.toString() ? '?' + params.toString() : ''}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: source,
+      }
+    );
+  }
+  
+  /**
+   * Save pending source (set via _pendingSource)
+   * Used by export workflow after deserialization from abapGit
+   * Overrides base class method
+   */
+  protected override async savePendingSources(options?: { lockHandle?: string; transport?: string }): Promise<void> {
+    const pendingSource = (this as unknown as { _pendingSource?: string })._pendingSource;
+    if (!pendingSource) return;
+    
+    await this.saveMainSource(pendingSource, options);
+    
+    // Clear pending source after save
+    delete (this as unknown as { _pendingSource?: string })._pendingSource;
+  }
+  
+  /**
+   * Check if object has pending sources to save
+   * Overrides base class method
+   */
+  protected override hasPendingSources(): boolean {
+    return !!(this as unknown as { _pendingSource?: string })._pendingSource;
+  }
+  
+  // ============================================
+  // CRUD contract config - enables save()
+  // ============================================
+  
+  protected override get wrapperKey() { return 'abapInterface'; }
+  protected override get crudContract() { return this.ctx.client.adt.oo.interfaces; }
+  
+  // ============================================
+  // Static Factory Method
+  // ============================================
+  
   static async get(name: string, ctx?: AdkContext): Promise<AdkInterface> {
     const context = ctx ?? getGlobalContext();
-    const intf = new AdkInterface(context, name);
-    await intf.load();
-    return intf;
+    return new AdkInterface(context, name).load();
   }
 }
 
