@@ -11,7 +11,7 @@ export class PluginError extends Error {
       | 'validation'
       | 'filesystem',
     public readonly context?: Record<string, unknown>,
-    public readonly cause?: Error
+    public override readonly cause?: Error
   ) {
     super(message);
     this.name = 'PluginError';

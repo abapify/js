@@ -21,7 +21,16 @@ export const searchCommand = new Command('search')
 
       // Handle results - define type for search objects
       type SearchObject = { name?: string; type?: string; uri?: string; description?: string; packageName?: string };
-      const rawObjects = results.objectReference;
+      // Results can come in different shapes depending on response - handle both
+      const resultsAny = results as Record<string, unknown>;
+      let rawObjects: SearchObject | SearchObject[] | undefined;
+      if ('objectReferences' in resultsAny && resultsAny.objectReferences) {
+        const refs = resultsAny.objectReferences as { objectReference?: SearchObject | SearchObject[] };
+        rawObjects = refs.objectReference;
+      } else if ('mainObject' in resultsAny && resultsAny.mainObject) {
+        const main = resultsAny.mainObject as { objectReference?: SearchObject | SearchObject[] };
+        rawObjects = main.objectReference;
+      }
       const objects: SearchObject[] = rawObjects
         ? (Array.isArray(rawObjects) ? rawObjects : [rawObjects])
         : [];
