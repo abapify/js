@@ -6,5 +6,8 @@ scripts/
 # Ignore e2e tests at root level (they have their own project)
 e2e/
 
-# Ignore ADT config (contains SAP connection secrets)
-adt.config.ts
+# Ignore ADT config files from Nx source analysis
+# - Contains SAP connection secrets (should not be committed)
+# - Imports @abapify/adt-codegen which creates false circular dependencies
+#   (adt-contracts:codegen → adt-codegen:build → ... → adt-contracts:build)
+**/adt.config.ts
