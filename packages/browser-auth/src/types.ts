@@ -95,6 +95,11 @@ export interface BrowserAdapter {
   getCookies(): Promise<CookieData[]>;
 
   /**
+   * Clear cookies matching a domain pattern
+   */
+  clearCookies(domain: string): Promise<void>;
+
+  /**
    * Get user agent string
    */
   getUserAgent(): Promise<string>;

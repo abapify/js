@@ -29,12 +29,14 @@ export interface DiscoveryParams extends NavParams {
  * Render discovery data as a Page
  */
 function renderDiscoveryPage(data: DiscoveryData, params: DiscoveryParams): Page {
-  const workspaces = data?.workspace || [];
+  // Access service.workspace from discovery response
+  const service = data?.service;
+  const workspaces = (service?.workspace ?? []) as Array<{ title?: string; collection?: unknown }>;
   const filter = params.filter?.toLowerCase();
 
   // Filter workspaces if filter provided
   const filteredWorkspaces = filter
-    ? workspaces.filter((ws) => ws.title?.toLowerCase().includes(filter))
+    ? workspaces.filter((ws: { title?: string }) => ws.title?.toLowerCase().includes(filter))
     : workspaces;
 
   // Build content
@@ -58,14 +60,14 @@ function renderDiscoveryPage(data: DiscoveryData, params: DiscoveryParams): Page
         : [];
 
     // Build collection items
-    const collectionComponents: Component[] = collections.map((coll) => {
+    const collectionComponents: Component[] = collections.map((coll: { title?: string; href?: string; category?: unknown; templateLinks?: { templateLink?: unknown } }) => {
       const categories = Array.isArray(coll.category)
         ? coll.category
         : coll.category
           ? [coll.category]
           : [];
       const categoryTerms = categories
-        .map((c) => c.term)
+        .map((c: { term?: string }) => c.term)
         .filter(Boolean)
         .join(', ');
 

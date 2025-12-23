@@ -201,7 +201,7 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
     return `/sap/bc/adt/cts/transportrequests/${this.name}`;
   }
 
-  async load(): Promise<this> {
+  override async load(): Promise<this> {
     const rawResponse = await this.ctx.client.adt.cts.transportrequests.get(this.name);
     // Unwrap the root element from the response
     const response = rawResponse.root;
@@ -212,6 +212,9 @@ export class AdkTransportRequest extends AdkObject<typeof TransportRequestKind, 
     });
     return this;
   }
+
+  // Note: save() not supported - no crudContract defined
+  // Transport requests are managed via CTS APIs (release, import, etc.)
 
   // ===========================================================================
   // Properties (shared by request and task)

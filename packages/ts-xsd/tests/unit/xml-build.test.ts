@@ -1078,4 +1078,100 @@ describe('buildXml', () => {
       assert.ok(xml.includes('<ns:value>deep</ns:value>'), 'Should have value element with content');
     });
   });
+
+  describe('Root element closing tag', () => {
+    it('should never produce self-closing root element even when empty', () => {
+      const schema = {
+        targetNamespace: 'http://example.com',
+        $xmlns: { ex: 'http://example.com' },
+        element: [{ name: 'Empty', type: 'ex:EmptyType' }],
+        complexType: [
+          {
+            name: 'EmptyType',
+            attribute: [{ name: 'id', type: 'xs:string' }],
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { id: 'test' }, { xmlDecl: false });
+
+      // Root element should have explicit closing tag, not self-closing
+      assert.ok(xml.includes('</ex:Empty>'), 'Root element should have explicit closing tag');
+      assert.ok(!xml.includes('/>'), 'Root element should not be self-closing');
+    });
+
+    it('should produce explicit closing tag for root with only attributes', () => {
+      const schema = {
+        element: [{ name: 'Item', type: 'ItemType' }],
+        complexType: [
+          {
+            name: 'ItemType',
+            attribute: [
+              { name: 'name', type: 'xs:string' },
+              { name: 'value', type: 'xs:string' },
+            ],
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(schema, { name: 'test', value: '123' }, { xmlDecl: false });
+
+      assert.ok(xml.includes('</Item>'), 'Root element should have explicit closing tag');
+    });
+  });
+
+  describe('Inherited attribute namespace prefix', () => {
+    it('should use base schema namespace prefix for inherited attributes', () => {
+      // Base schema defines attributes in its namespace
+      const baseSchema = {
+        $xmlns: { base: 'http://example.com/base' },
+        targetNamespace: 'http://example.com/base',
+        attributeFormDefault: 'qualified',
+        complexType: [
+          {
+            name: 'BaseType',
+            attribute: [
+              { name: 'id', type: 'xs:string' },
+              { name: 'name', type: 'xs:string' },
+            ],
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      // Derived schema extends base type
+      const derivedSchema = {
+        $xmlns: {
+          base: 'http://example.com/base',
+          derived: 'http://example.com/derived',
+        },
+        $imports: [baseSchema],
+        targetNamespace: 'http://example.com/derived',
+        attributeFormDefault: 'qualified',
+        element: [{ name: 'Derived', type: 'derived:DerivedType' }],
+        complexType: [
+          {
+            name: 'DerivedType',
+            complexContent: {
+              extension: {
+                base: 'base:BaseType',
+                attribute: [{ name: 'extra', type: 'xs:string' }],
+              },
+            },
+          },
+        ],
+      } as const satisfies SchemaLike;
+
+      const xml = buildXml(
+        derivedSchema,
+        { id: '123', name: 'Test', extra: 'value' },
+        { xmlDecl: false }
+      );
+
+      // Inherited attributes should use base namespace prefix
+      assert.ok(xml.includes('base:id="123"'), 'Inherited id attribute should use base: prefix');
+      assert.ok(xml.includes('base:name="Test"'), 'Inherited name attribute should use base: prefix');
+      // Own attribute should use derived namespace prefix
+      assert.ok(xml.includes('derived:extra="value"'), 'Own extra attribute should use derived: prefix');
+    });
+  });
 });

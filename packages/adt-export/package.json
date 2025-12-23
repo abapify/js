@@ -1,0 +1,32 @@
+{
+  "name": "@abapify/adt-export",
+  "version": "0.1.0",
+  "description": "Export CLI plugin for adt-cli - deploy local files to SAP",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./commands/export": "./dist/commands/export.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "export",
+    "deploy",
+    "abapgit",
+    "oat"
+  ],
+  "dependencies": {
+    "@abapify/adt-plugin": "workspace:*",
+    "@abapify/adk": "workspace:*",
+    "@abapify/adt-plugin-abapgit": "workspace:*"
+  },
+  "module": "./dist/index.mjs"
+}

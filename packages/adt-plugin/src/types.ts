@@ -50,7 +50,33 @@ export interface ImportResult {
 // ============================================
 
 /**
- * Context for export operation
+ * FileTree - Virtual file system abstraction for export
+ * 
+ * Plugins receive this to iterate and read files without
+ * direct dependency on Node.js fs module.
+ */
+export interface FileTree {
+  /** Root path of the file tree */
+  readonly root: string;
+
+  /** Find files matching glob pattern */
+  glob(pattern: string): Promise<string[]>;
+
+  /** Read file contents as string */
+  read(path: string): Promise<string>;
+
+  /** Read file contents as buffer */
+  readBuffer(path: string): Promise<Buffer>;
+
+  /** Check if path exists */
+  exists(path: string): Promise<boolean>;
+
+  /** List directory contents */
+  readdir(path: string): Promise<string[]>;
+}
+
+/**
+ * Context for export operation (legacy - kept for compatibility)
  */
 export interface ExportContext {
   /** Base directory containing the serialized files */
@@ -58,7 +84,7 @@ export interface ExportContext {
 }
 
 /**
- * Result of export operation
+ * Result of single object export operation (legacy)
  */
 export interface ExportResult {
   success: boolean;
@@ -132,18 +158,19 @@ export interface AdtPlugin {
     ): Promise<ImportResult>;
 
     /**
-     * Export from file system to ADK object (Git → SAP)
-     * Reads serialized files and returns ADK object
+     * Export from file system to ADK objects (Git → SAP)
+     * Generator that yields ADK objects ready to be saved to SAP.
      * 
-     * @param sourcePath - Path to serialized files
-     * @param type - ABAP object type
-     * @param name - Object name
+     * Plugin is responsible for:
+     * - Iterating files in its format (*.oat.xml, *.abap, etc.)
+     * - Parsing each file into ADK object
+     * - Yielding ADK objects (does NOT save to SAP)
+     * 
+     * @param fileTree - Virtual file system to read from
+     * @param client - ADT client for creating ADK objects
+     * @yields ADK objects ready to be saved
      */
-    export?(
-      sourcePath: string,
-      type: AbapObjectType,
-      name: string
-    ): Promise<ExportResult>;
+    export?(fileTree: FileTree, client: unknown): AsyncGenerator<AdkObject>;
   };
 
   /** Lifecycle hooks */

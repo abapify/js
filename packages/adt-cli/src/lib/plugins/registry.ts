@@ -82,9 +82,10 @@ export class PluginRegistry implements IPluginRegistry {
    * Register a plugin manually
    */
   register(plugin: FormatPlugin): void {
+    const pluginName = plugin?.name ?? 'unknown';
     if (!this.isValidPlugin(plugin)) {
       throw new PluginConfigError(
-        plugin.name,
+        pluginName,
         'Plugin does not implement required interface'
       );
     }
@@ -137,8 +138,7 @@ export class PluginRegistry implements IPluginRegistry {
       typeof plugin.name === 'string' &&
       typeof plugin.version === 'string' &&
       typeof plugin.description === 'string' &&
-      typeof plugin.serialize === 'function' &&
-      typeof plugin.deserialize === 'function' &&
+      typeof plugin.serializeObject === 'function' &&
       typeof plugin.getSupportedObjectTypes === 'function'
     );
   }
