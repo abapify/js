@@ -39,12 +39,8 @@ export {
 export {
   type ResponsePlugin,
   type ResponseContext,
-  type FileStorageOptions,
-  type TransformFunction,
   type LogFunction,
   type FileLoggingConfig,
-  FileStoragePlugin,
-  TransformPlugin,
   LoggingPlugin,
   FileLoggingPlugin,
 } from './plugins';

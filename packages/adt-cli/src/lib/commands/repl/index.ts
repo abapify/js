@@ -33,8 +33,10 @@ async function createFetchFn() {
 async function getSystemId(): Promise<string | undefined> {
   try {
     const adtClient = await getAdtClientV2();
-    const info = await adtClient.adt.core.http.systeminformation.getSystemInformation();
-    return info.systemID;
+    const info = await adtClient.adt.core.http.systeminformation.getSystemInfo();
+    // Response is parsed data with systemID property
+    const infoData = info as { systemID?: string };
+    return infoData.systemID;
   } catch {
     return undefined;
   }

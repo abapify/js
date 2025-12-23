@@ -81,10 +81,11 @@ export class ConfigValidator {
         );
       }
 
-      // Validate version if specified
-      if (plugin.version && !this.isValidSemver(plugin.version)) {
+      // Validate version if specified (version is optional on PluginSpec)
+      const pluginWithVersion = plugin as { name: string; version?: string; config?: unknown };
+      if (pluginWithVersion.version && !this.isValidSemver(pluginWithVersion.version)) {
         warnings.push(
-          `Plugin ${plugin.name} has invalid version format: ${plugin.version}`
+          `Plugin ${plugin.name} has invalid version format: ${pluginWithVersion.version}`
         );
       }
 
