@@ -69,9 +69,8 @@ export const ctsSetCommand = new Command('set')
 
       // Get transport via ADK
       progress.step(`🔍 Getting transport ${transport}...`);
-      // ADK expects { services: { transports } } - client already has client.services
-      const adkCtx = { services: client.services };
-      const tr = await AdkTransportRequest.get(adkCtx, transport);
+      // ADK expects (number, ctx?) - ctx is AdkContext with client property
+      const tr = await AdkTransportRequest.get(transport, { client });
       progress.done();
 
       // Update using ADK (handles lock/unlock automatically)
