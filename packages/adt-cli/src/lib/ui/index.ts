@@ -15,7 +15,7 @@ export { Field, Section, Box, Text } from './components';
 
 // Pages
 export { AdtCorePage, GenericPage } from './pages';
-export type { AdtCoreObject, AdtCorePageOptions, Package } from './pages';
+export type { AdtCoreObject, AdtCorePageOptions } from './pages';
 
 // Router
 export { router, type Route, type AdtClient } from './router';
