@@ -6,4 +6,5 @@ scripts/
 # Ignore e2e tests at root level (they have their own project)
 e2e/
 
-*.config.ts
+# Ignore ADT config (contains SAP connection secrets)
+adt.config.ts

@@ -37,10 +37,14 @@ const _interfacesContract = contract({
   /**
    * POST /sap/bc/adt/oo/interfaces
    * Create a new interface
+   * 
+   * Usage: client.adt.oo.interfaces.post({ corrNr?: string }, interfaceData)
+   * The interfaceData is typed via the schema and serialized automatically.
    */
-  post: (body: string) =>
+  post: (options?: { corrNr?: string }) =>
     http.post('/sap/bc/adt/oo/interfaces', {
-      body,
+      body: interfacesSchema,  // Schema for type inference + serialization
+      query: options?.corrNr ? { corrNr: options.corrNr } : undefined,
       responses: { 200: interfacesSchema },
       headers: {
         Accept: 'application/vnd.sap.adt.oo.interfaces.v5+xml',
@@ -51,10 +55,17 @@ const _interfacesContract = contract({
   /**
    * PUT /sap/bc/adt/oo/interfaces/{name}
    * Update interface metadata (properties)
+   * 
+   * Usage: client.adt.oo.interfaces.put(name, { corrNr?, lockHandle? }, interfaceData)
+   * The interfaceData is typed via the schema and serialized automatically.
    */
-  put: (name: string, body: string) =>
+  put: (name: string, options?: { corrNr?: string; lockHandle?: string }) =>
     http.put(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`, {
-      body,
+      body: interfacesSchema,  // Schema for type inference + serialization
+      query: {
+        ...(options?.corrNr ? { corrNr: options.corrNr } : {}),
+        ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
+      },
       responses: { 200: interfacesSchema },
       headers: {
         Accept: 'application/vnd.sap.adt.oo.interfaces.v5+xml',

@@ -128,6 +128,13 @@ export function build<T extends SchemaLike>(
   const root = createRootElement(doc, elementName, schema, prefix);
 
   buildElement(doc, root, elementData, rootType, rootSchema, schema, prefix);
+  
+  // Ensure root element is never self-closing (SAP ADT requires closing tags)
+  // If root has no child nodes, add an empty text node to force </element> instead of />
+  if (!root.hasChildNodes()) {
+    root.appendChild(doc.createTextNode(''));
+  }
+  
   doc.appendChild(root);
 
   let xml = new XMLSerializer().serializeToString(doc);
@@ -242,20 +249,22 @@ function buildElement(
   prefix: string | undefined
 ): void {
   // Build attributes using walker (handles inheritance)
-  for (const { attribute } of walkAttributes(typeDef, schema)) {
+  // The walker now returns the schema where each attribute is defined,
+  // which is critical for correct namespace prefix resolution in inherited types
+  for (const { attribute, schema: attrSchema } of walkAttributes(typeDef, schema)) {
     if (!attribute.name) continue;
     const value = data[attribute.name];
     if (value !== undefined && value !== null) {
       // Check attributeFormDefault - attributes get prefix when "qualified"
-      // Use the schema where the attribute is defined (passed to buildElement)
-      const attributeFormDefault = (schema as { attributeFormDefault?: string }).attributeFormDefault;
+      // Use the schema where the attribute is defined (from walker), not the current schema
+      const attributeFormDefault = (attrSchema as { attributeFormDefault?: string }).attributeFormDefault;
       const attrForm = (attribute as { form?: string }).form;
       
       let attrName = attribute.name;
       // Priority: 1. Per-attribute form, 2. Schema attributeFormDefault
       if (attrForm === 'qualified' || (attrForm !== 'unqualified' && attributeFormDefault === 'qualified')) {
-        // Get prefix for this schema's namespace
-        const attrPrefix = getPrefixForSchema(schema, rootSchema);
+        // Get prefix for the attribute's defining schema's namespace
+        const attrPrefix = getPrefixForSchema(attrSchema, rootSchema);
         if (attrPrefix) {
           attrName = `${attrPrefix}:${attribute.name}`;
         }

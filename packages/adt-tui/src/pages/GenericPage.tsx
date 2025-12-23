@@ -5,7 +5,7 @@
  * Returns PageResult for framework-driven rendering.
  */
 
-import React from 'react';
+// React import not needed with JSX transform
 import { Box, Text } from 'ink';
 import type { PageProps, PageResult, MenuItem } from '../lib/types';
 import { getActionName } from '../lib/parser';
@@ -123,22 +123,4 @@ function extractSummary(data: Record<string, unknown>): SummaryItem[] {
   return summary.slice(0, 8); // Limit to 8 items
 }
 
-/**
- * Remove link elements from data for cleaner display
- */
-function removeLinks(obj: unknown): unknown {
-  if (!obj || typeof obj !== 'object') return obj;
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => removeLinks(item));
-  }
-
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (key === 'atom:link' || key === 'link' || key.endsWith(':link')) {
-      continue;
-    }
-    result[key] = removeLinks(value);
-  }
-  return result;
-}
+// removeLinks function removed - was unused

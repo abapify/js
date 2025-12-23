@@ -70,7 +70,8 @@ function renderInterfacePage(intf: any, _params: NavParams): Page {
   // Inherited interfaces (very useful navigation!)
   const interfaces = intf?.interfaceRef ?? [];
   if (interfaces.length > 0) {
-    const inheritedFields = interfaces.map(ref => 
+    type InterfaceRef = { name?: string; uri?: string; type?: string; description?: string };
+    const inheritedFields = interfaces.map((ref: InterfaceRef) => 
       Field(adtLink({ ...ref, type: ref.type || 'INTF/OI' }), ref.description ?? '')
     );
     sections.push(Section(`▼ Inherited Interfaces (${interfaces.length})`, ...inheritedFields));

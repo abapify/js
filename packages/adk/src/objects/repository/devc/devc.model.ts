@@ -128,7 +128,7 @@ export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> im
   // Deferred Loading (implements abstract from AdkObject)
   // ============================================
   
-  async load(): Promise<this> {
+  override async load(): Promise<this> {
     const response = await this.ctx.client.adt.packages.get(this.name);
     // Type guard: response is a union of { package } | { packageTree }
     // ADK Package objects only use the package variant
@@ -139,6 +139,9 @@ export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> im
     this.setData(response.package);
     return this;
   }
+
+  // Note: save() not yet implemented - no crudContract defined
+  // Package creation requires transport handling
   
   // Lock/unlock inherited from AdkObject using generic lock service
   

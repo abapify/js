@@ -44,7 +44,6 @@ export class BtpAuthProvider implements AuthProvider {
         baseUrl: serviceKey.url,
         username: serviceKey.uaa.clientid,
         password: serviceKey.uaa.clientsecret,
-        authType: 'oauth',
       });
     } catch (error) {
       throw new Error(
@@ -83,7 +82,6 @@ export class BasicAuthProvider implements AuthProvider {
       baseUrl: this.config.host,
       username: this.config.username,
       password: this.config.password,
-      authType: 'basic',
     });
   }
 
@@ -122,11 +120,15 @@ export class MockAuthProvider implements AuthProvider {
 
   async createClient(): Promise<AdtClient> {
     // Return a mock client for testing
+    // Use config.enabled to potentially customize mock behavior
+    const baseUrl = this.config.enabled 
+      ? 'http://mock-sap-system.local' 
+      : 'http://disabled-mock.local';
+    
     return createAdtClient({
-      baseUrl: 'http://mock-sap-system.local',
+      baseUrl,
       username: 'mock-user',
       password: 'mock-password',
-      authType: 'mock',
     });
   }
 

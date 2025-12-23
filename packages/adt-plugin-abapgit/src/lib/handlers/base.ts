@@ -10,6 +10,12 @@ import { getTypeForKind } from '@abapify/adk';
 import type { AbapGitSchema, InferAbapGitType, InferValuesType } from './abapgit-schema';
 
 /**
+ * Extract the data type (D) from an AdkObject<K, D>
+ * This allows us to infer the payload type from the ADK class itself
+ */
+export type InferAdkData<T> = T extends AdkObject<infer _K, infer D> ? D : never;
+
+/**
  * ADK object class type
  * Used to pass ADK classes to createHandler
  * 
@@ -44,15 +50,38 @@ export interface SerializedFile {
 }
 
 /**
- * Handler interface for object serialization
+ * Handler interface for object serialization/deserialization
+ * 
+ * @typeParam T - ADK object type
+ * @typeParam TSchema - AbapGit schema type (provides type-safe values)
  */
-export interface ObjectHandler<T extends AdkObject = AdkObject> {
+export interface ObjectHandler<
+  T extends AdkObject = AdkObject,
+  TSchema extends AbapGitSchema<unknown, unknown> = AbapGitSchema<unknown, unknown>
+> {
   /** ABAP object type (e.g., 'CLAS', 'INTF') */
   readonly type: AbapObjectType;
   /** File extension for this type (e.g., 'clas', 'intf') */
   readonly fileExtension: string;
-  /** Serialize object to files */
+  /** Schema for parsing/building XML */
+  readonly schema: TSchema;
+  /** Map abapGit file suffix to source key */
+  readonly suffixToSourceKey?: Record<string, string>;
+  /** Serialize object to files (SAP → Git) */
   serialize(object: T): Promise<SerializedFile[]>;
+  /** 
+   * Map abapGit values to ADK data (Git → SAP)
+   * Return type includes name (required) plus any ADK data fields
+   */
+  fromAbapGit?(
+    values: InferValuesType<TSchema>
+  ): Partial<InferAdkData<T>> & { name: string };
+  
+  /**
+   * Set source files on ADK object during deserialization (Git → SAP)
+   * Symmetric counterpart to getSources
+   */
+  setSources?(object: T, sources: Record<string, string>): void;
 }
 
 /**
@@ -88,6 +117,25 @@ export function getSupportedTypes(): AbapObjectType[] {
 }
 
 // ============================================
+// Deserialization Context
+// ============================================
+
+/**
+ * Payload for creating ADK objects from abapGit
+ * Contains all data needed to construct an object (name, metadata, sources)
+ */
+export interface ObjectPayload {
+  /** Object name */
+  name: string;
+  /** Object description */
+  description?: string;
+  /** Source files keyed by include type (e.g., { main: '...', testclasses: '...' }) */
+  sources?: Record<string, string>;
+  /** Additional type-specific data */
+  [key: string]: unknown;
+}
+
+// ============================================
 // Handler Factory
 // ============================================
 
@@ -97,7 +145,10 @@ export function getSupportedTypes(): AbapObjectType[] {
  * @typeParam T - ADK object type
  * @typeParam TSchema - The AbapGit schema (provides both full type and values type)
  */
-export interface HandlerDefinition<T extends AdkObject, TSchema extends AbapGitSchema<unknown, unknown> = AbapGitSchema<unknown, unknown>> {
+export interface HandlerDefinition<
+  T extends AdkObject, 
+  TSchema extends AbapGitSchema<unknown, unknown> = AbapGitSchema<unknown, unknown>
+> {
   /** AbapGit typed schema for XML generation */
   schema: TSchema;
   
@@ -115,6 +166,25 @@ export interface HandlerDefinition<T extends AdkObject, TSchema extends AbapGitS
    * The base class wraps this in the full AbapGitType structure
    */
   toAbapGit(object: T): InferValuesType<TSchema>;
+  
+  /**
+   * Map abapGit values to ADK data (optional)
+   * Symmetric counterpart to toAbapGit - used for export (Git → SAP)
+   * 
+   * @param values - Parsed abapGit values (same type as toAbapGit returns)
+   * @returns Partial ADK data with name for deserialization
+   */
+  fromAbapGit?(
+    values: InferValuesType<TSchema>
+  ): Partial<InferAdkData<T>> & { name: string };
+  
+  /**
+   * Map abapGit file suffix to source key (for objects with multiple sources)
+   * Used during deserialization to map file suffixes to source keys
+   * 
+   * @example For CLAS: { 'locals_def': 'definitions', 'testclasses': 'testclasses' }
+   */
+  suffixToSourceKey?: Record<string, string>;
   
   /** 
    * Custom filename for XML file (optional)
@@ -143,6 +213,20 @@ export interface HandlerDefinition<T extends AdkObject, TSchema extends AbapGitS
    * }))
    */
   getSources?(object: T): Array<{ suffix?: string; content: string | Promise<string> }>;
+  
+  /**
+   * Set source files on ADK object during deserialization (Git → SAP)
+   * Symmetric counterpart to getSources
+   * 
+   * @param object - ADK object to set sources on
+   * @param sources - Source files keyed by source key (e.g., { main: '...', testclasses: '...' })
+   * 
+   * @example setSources: (cls, sources) => {
+   *   if (sources.main) cls.setSource(sources.main);
+   *   if (sources.testclasses) cls.setIncludeSource('testclasses', sources.testclasses);
+   * }
+   */
+  setSources?(object: T, sources: Record<string, string>): void;
   
   /** 
    * Serialize object to files (optional)
@@ -335,16 +419,27 @@ export function createHandler<T extends AdkObject, TSchema extends AbapGitSchema
     return files;
   };
 
-  // Create handler object
-  const handler: ObjectHandler<T> = {
+  // Default fromAbapGit using definition.fromAbapGit if provided
+  const defaultFromAbapGit = definition.fromAbapGit
+    ? (values: InferValuesType<TSchema>): Partial<InferAdkData<T>> & { name: string } => {
+        return definition.fromAbapGit!(values);
+      }
+    : undefined;
+
+  // Create handler object with full type information
+  const handler: ObjectHandler<T, TSchema> = {
     type,
     fileExtension,
+    schema: definition.schema,
+    suffixToSourceKey: definition.suffixToSourceKey,
     serialize: definition.serialize 
       ? (object: T) => definition.serialize!(object, ctx)
       : defaultSerialize,
+    fromAbapGit: defaultFromAbapGit,
+    setSources: definition.setSources,
   };
   
-  // Auto-register
+  // Auto-register (cast to base type for registry storage)
   handlerRegistry.set(type, handler as ObjectHandler);
   
   return handler;

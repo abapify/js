@@ -43,10 +43,14 @@ const _classesContract = contract({
   /**
    * POST /sap/bc/adt/oo/classes
    * Create a new class
+   * 
+   * Usage: client.adt.oo.classes.post({ corrNr?: string }, classData)
+   * The classData is typed via the schema and serialized automatically.
    */
-  post: (body: string) =>
+  post: (options?: { corrNr?: string }) =>
     http.post('/sap/bc/adt/oo/classes', {
-      body,
+      body: classesSchema,  // Schema for type inference + serialization
+      query: options?.corrNr ? { corrNr: options.corrNr } : undefined,
       responses: { 200: classesSchema },
       headers: {
         Accept: 'application/vnd.sap.adt.oo.classes.v4+xml',
@@ -57,10 +61,17 @@ const _classesContract = contract({
   /**
    * PUT /sap/bc/adt/oo/classes/{name}
    * Update class metadata (properties)
+   * 
+   * Usage: client.adt.oo.classes.put(name, { corrNr?, lockHandle? }, classData)
+   * The classData is typed via the schema and serialized automatically.
    */
-  put: (name: string, body: string) =>
+  put: (name: string, options?: { corrNr?: string; lockHandle?: string }) =>
     http.put(`/sap/bc/adt/oo/classes/${name.toLowerCase()}`, {
-      body,
+      body: classesSchema,  // Schema for type inference + serialization
+      query: {
+        ...(options?.corrNr ? { corrNr: options.corrNr } : {}),
+        ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
+      },
       responses: { 200: classesSchema },
       headers: {
         Accept: 'application/vnd.sap.adt.oo.classes.v4+xml',

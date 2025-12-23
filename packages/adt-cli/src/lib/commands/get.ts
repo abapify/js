@@ -32,18 +32,23 @@ export const getCommand = new Command('get')
         maxResults: 10,
       });
 
-      const objects = searchResult.objectReference || [];
+      // Handle union type - objectReference may be array or single object
+      const rawObjects = 'objectReference' in searchResult ? searchResult.objectReference : [];
+      const objects = Array.isArray(rawObjects) ? rawObjects : rawObjects ? [rawObjects] : [];
+
+      // Define object type for type safety
+      type SearchObject = { name?: string; type?: string; uri?: string; description?: string; packageName?: string };
 
       // Find exact match
       const exactMatch = objects.find(
-        (obj) => String(obj.name || '').toUpperCase() === objectName.toUpperCase()
+        (obj: SearchObject) => String(obj.name || '').toUpperCase() === objectName.toUpperCase()
       );
 
       if (!exactMatch) {
         console.log(`❌ Object '${objectName}' not found`);
 
         // Show similar objects if any
-        const similar = objects.filter((obj) =>
+        const similar = objects.filter((obj: SearchObject) =>
           String(obj.name || '').toUpperCase().includes(objectName.toUpperCase())
         );
 

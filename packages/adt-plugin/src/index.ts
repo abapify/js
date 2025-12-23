@@ -24,6 +24,7 @@ export type {
   ImportResult,
   ExportContext,
   ExportResult,
+  FileTree,
   AdtPlugin,
   AdtPluginDefinition,
 } from './types';

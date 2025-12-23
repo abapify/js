@@ -67,3 +67,13 @@ export type { Package as PackageResponse } from '@abapify/adt-contracts';
 // Transport response type - exported directly from contracts
 // Note: Transport business logic has moved to @abapify/adk (AdkTransportRequest)
 export type { TransportResponse as TransportGetResponse } from '@abapify/adt-contracts';
+
+// Export services layer
+export {
+  TransportService,
+  createTransportService,
+  type Transport,
+  type TransportTask,
+  type CreateTransportOptions,
+  type ListTransportsOptions,
+} from './services';

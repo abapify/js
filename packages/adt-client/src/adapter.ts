@@ -12,6 +12,7 @@ import type {
 } from '@abapify/adt-contracts';
 import type { ResponsePlugin, ResponseContext } from './plugins/types';
 import { SessionManager } from './utils/session';
+import { createAdtError } from './errors';
 
 // Re-export HttpAdapter type for consumers
 export type { HttpAdapter };
@@ -172,13 +173,13 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       let requestBody: string | undefined;
       const body = options.body;
 
-      logger?.debug('Request URL:', options.url);
-      logger?.debug('Request method:', options.method);
-      logger?.debug('options.body:', JSON.stringify(options.body)?.substring(0, 200));
-      logger?.debug('options.bodySchema:', options.bodySchema ? 'present' : 'undefined');
-      logger?.debug('bodySerializableSchema:', bodySerializableSchema ? 'present' : 'undefined');
-      logger?.debug('Body type:', typeof body);
-      logger?.debug('Body value:', body ? JSON.stringify(body).substring(0, 200) : 'undefined/null');
+      logger?.debug('Request URL: ' + options.url);
+      logger?.debug('Request method: ' + options.method);
+      logger?.debug('options.body: ' + (options.body ? JSON.stringify(options.body).substring(0, 500) : 'UNDEFINED'));
+      logger?.debug('options.bodySchema: ' + (options.bodySchema ? 'present' : 'undefined'));
+      logger?.debug('bodySerializableSchema: ' + (bodySerializableSchema ? 'present' : 'undefined'));
+      logger?.debug('Body type: ' + typeof body);
+      logger?.debug('Body value: ' + (body ? JSON.stringify(body).substring(0, 500) : 'UNDEFINED/NULL'));
       if (body !== undefined && body !== null) {
         if (typeof body === 'string') {
           requestBody = body;
@@ -186,11 +187,18 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
           logger?.debug('Body content (first 200 chars):', requestBody.substring(0, 200));
         } else if (bodySerializableSchema) {
           // Use Serializable schema's build method (from adt-schemas)
-          requestBody = bodySerializableSchema.build(body);
-          logger?.debug('Body: serialized using Serializable.build()');
-          logger?.debug('Body output type:', typeof requestBody);
-          logger?.debug('Body output length:', requestBody?.length);
-          logger?.debug('Body content (first 500 chars):', requestBody?.substring(0, 500));
+          try {
+            logger?.debug('Calling bodySerializableSchema.build with body: ' + JSON.stringify(body).substring(0, 300));
+            requestBody = bodySerializableSchema.build(body);
+            logger?.debug('Body: serialized using Serializable.build()');
+            logger?.debug('Body output type: ' + typeof requestBody);
+            logger?.debug('Body output length: ' + requestBody?.length);
+            logger?.debug('Body content (first 500 chars): ' + requestBody?.substring(0, 500));
+          } catch (buildError) {
+            logger?.error('Schema build() threw error: ' + (buildError instanceof Error ? buildError.message : String(buildError)));
+            logger?.error('Stack: ' + (buildError instanceof Error ? buildError.stack : 'N/A'));
+            throw buildError;
+          }
         } else {
           requestBody = JSON.stringify(body);
           logger?.debug('Body: serialized as JSON');
@@ -211,9 +219,22 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
       // Check for HTTP errors
       if (!response.ok) {
         const errorBody = await response.text();
-        const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
-        logger?.error(`Request failed - ${errorMsg} (${options.method} ${url.toString()})`);
-        if (errorBody) {
+        
+        // Create structured ADT error with parsed exception details
+        const adtError = createAdtError(
+          response.status,
+          response.statusText,
+          url.toString(),
+          options.method,
+          errorBody
+        );
+        
+        logger?.error(`Request failed - ${adtError.message} (${options.method} ${url.toString()})`);
+        if (adtError.exception) {
+          logger?.error(`ADT Exception: namespace=${adtError.exception.namespace}, type=${adtError.exception.type}`);
+        }
+        if (errorBody && !adtError.exception) {
+          // Log raw body only if we couldn't parse it as ADT exception
           logger?.error(`Response body: ${errorBody}`);
         }
 
@@ -222,7 +243,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): HttpAdapter {
           sessionManager.clear();
           logger?.warn('Session cleared due to 403 Forbidden response');
         }
-        throw new Error(errorMsg);
+        throw adtError;
       }
 
       // Parse response

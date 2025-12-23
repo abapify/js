@@ -33,21 +33,22 @@ export const outlineCommand = new Command('outline')
       );
 
       // Find exact match
+      type SearchObject = { name: string; type: string; packageName?: string };
       const exactMatch = result.objects.find(
-        (obj) => obj.name.toUpperCase() === objectName.toUpperCase()
+        (obj: SearchObject) => obj.name.toUpperCase() === objectName.toUpperCase()
       );
 
       if (!exactMatch) {
         console.log(`❌ Object '${objectName}' not found`);
 
         // Show similar objects if any
-        const similarObjects = result.objects.filter((obj) =>
+        const similarObjects = result.objects.filter((obj: SearchObject) =>
           obj.name.toUpperCase().includes(objectName.toUpperCase())
         );
 
         if (similarObjects.length > 0) {
           console.log(`\n💡 Similar objects found:`);
-          similarObjects.slice(0, 5).forEach((obj) => {
+          similarObjects.slice(0, 5).forEach((obj: SearchObject) => {
             const icon = IconRegistry.getIcon(obj.type);
             console.log(
               `   ${icon} ${obj.name} (${obj.type}) - ${obj.packageName}`
