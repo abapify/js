@@ -38,12 +38,11 @@ export const ctsReleaseCommand = new Command('release')
 
       // Step 1: Get transport via ADK
       progress.step(`🔍 Getting transport ${transport}...`);
-      // ADK expects { services: { transports } } - client already has client.services
-      const adkCtx = { services: client.services };
+      // ADK expects (number, ctx?) - ctx is AdkContext with client property
       
       let tr: AdkTransportRequest;
       try {
-        tr = await AdkTransportRequest.get(adkCtx, transport);
+        tr = await AdkTransportRequest.get(transport, { client });
       } catch (err) {
         console.error(`❌ Transport ${transport} not found or not accessible`);
         process.exit(1);
