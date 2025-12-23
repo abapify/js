@@ -357,6 +357,46 @@ function generateMethodCode(method: EndpointMethod, indent: string): string {
     indent + '  }),\n';
 }
 
+/**
+ * Generate a CRUD contract file using the crud() helper
+ */
+function generateCrudContractFile(
+  coll: CollectionJson,
+  relativePath: string,
+  imports: ContractImports,
+  config: NormalizedEndpointConfig
+): string {
+  const contractName = relativePath.split('/').pop() || 'contract';
+  const schema = config.schema;
+  const accept = config.accept;
+  
+  if (!schema || !accept) {
+    throw new Error(`CRUD contract requires schema and accept for ${coll.href}`);
+  }
+  
+  let code = '/**\n' +
+    ' * ' + coll.title + '\n' +
+    ' * \n' +
+    ' * Endpoint: ' + coll.href + '\n' +
+    ' * Category: ' + coll.category.term + '\n' +
+    ' * \n' +
+    ' * Full CRUD operations following ADT URL template:\n' +
+    ' *   {basePath}/{object_name}{?corrNr,lockHandle,version,accessMode,_action}\n' +
+    ' * \n' +
+    ' * @generated - DO NOT EDIT MANUALLY\n' +
+    ' */\n\n' +
+    "import { crud } from '" + imports.base + "';\n" +
+    "import { " + schema + " } from '" + imports.schemas + "';\n\n" +
+    'export const ' + contractName + 'Contract = crud({\n' +
+    "  basePath: '" + coll.href + "',\n" +
+    '  schema: ' + schema + ',\n' +
+    "  contentType: '" + accept + "',\n" +
+    '});\n\n' +
+    'export type ' + contractName.charAt(0).toUpperCase() + contractName.slice(1) + 'Contract = typeof ' + contractName + 'Contract;\n';
+
+  return code;
+}
+
 function generateContractFile(
   coll: CollectionJson, 
   methods: EndpointMethod[], 
@@ -613,25 +653,40 @@ export async function generateContracts(options: GenerateContractsOptions): Prom
       const dirPath = dirname(relPath);
       const contractName = dirPath.split('/').pop() || 'contract';
       
-      const methods = processCollection(coll);
+      // Get endpoint config to check for CRUD mode
+      const endpointConfig = getEndpointConfig(coll.href);
+      const imports = importResolver(dirPath, outputDir);
       
-      // Skip endpoints with no methods (e.g., method filter excluded all)
-      if (methods.length === 0) {
-        console.log('  - ' + dirPath + '.ts (skipped: no methods after filtering)');
-        continue;
+      let code: string;
+      let methodCount: number;
+      
+      if (endpointConfig?.crud) {
+        // Generate CRUD contract using crud() helper
+        code = generateCrudContractFile(coll, dirPath, imports, endpointConfig);
+        methodCount = 4; // get, post, put, delete
+        console.log('  + ' + dirPath + '.ts (CRUD: get, post, put, delete)');
+      } else {
+        // Generate standard contract with individual methods
+        const methods = processCollection(coll);
+        
+        // Skip endpoints with no methods (e.g., method filter excluded all)
+        if (methods.length === 0) {
+          console.log('  - ' + dirPath + '.ts (skipped: no methods after filtering)');
+          continue;
+        }
+        
+        code = generateContractFile(coll, methods, dirPath, imports);
+        methodCount = methods.length;
+        console.log('  + ' + dirPath + '.ts (' + methods.length + ' methods)');
       }
       
-      totalMethods += methods.length;
-      
-      const imports = importResolver(dirPath, outputDir);
-      const code = generateContractFile(coll, methods, dirPath, imports);
+      totalMethods += methodCount;
       
       const outputPath = join(outputDir, dirPath + '.ts');
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(outputPath, code, 'utf-8');
       
       generatedContracts.push({ relativePath: dirPath, contractName });
-      console.log('  + ' + dirPath + '.ts (' + methods.length + ' methods)');
       
     } catch (err) {
       console.error('  Error: ' + jsonFile + ':', err);
@@ -757,25 +812,40 @@ export async function generateContractsFromDiscovery(options: GenerateContractsF
     const dirPath = coll.href.replace(/^\//, '');
     const contractName = dirPath.split('/').pop() || 'contract';
     
-    const methods = processCollection(collJson);
+    // Get endpoint config to check for CRUD mode
+    const endpointConfig = getEndpointConfig(coll.href);
+    const imports = importResolver(dirPath, outputDir);
     
-    // Skip endpoints with no methods (e.g., method filter excluded all)
-    if (methods.length === 0) {
-      console.log('  - ' + dirPath + '.ts (skipped: no methods after filtering)');
-      continue;
+    let code: string;
+    let methodCount: number;
+    
+    if (endpointConfig?.crud) {
+      // Generate CRUD contract using crud() helper
+      code = generateCrudContractFile(collJson, dirPath, imports, endpointConfig);
+      methodCount = 4; // get, post, put, delete
+      console.log('  + ' + dirPath + '.ts (CRUD: get, post, put, delete)');
+    } else {
+      // Generate standard contract with individual methods
+      const methods = processCollection(collJson);
+      
+      // Skip endpoints with no methods (e.g., method filter excluded all)
+      if (methods.length === 0) {
+        console.log('  - ' + dirPath + '.ts (skipped: no methods after filtering)');
+        continue;
+      }
+      
+      code = generateContractFile(collJson, methods, dirPath, imports);
+      methodCount = methods.length;
+      console.log('  + ' + dirPath + '.ts (' + methods.length + ' methods)');
     }
     
-    totalMethods += methods.length;
-    
-    const imports = importResolver(dirPath, outputDir);
-    const code = generateContractFile(collJson, methods, dirPath, imports);
+    totalMethods += methodCount;
     
     const outputPath = join(outputDir, dirPath + '.ts');
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, code, 'utf-8');
     
     generatedContracts.push({ relativePath: dirPath, contractName });
-    console.log('  + ' + dirPath + '.ts (' + methods.length + ' methods)');
   }
   
   // Generate index

@@ -322,13 +322,12 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   /** 
    * Lock the object for modification
    * 
-   * Uses: POST {objectUri}?_action=LOCK&corrNr={transport}
+   * Uses the CRUD contract's lock() method.
    * 
    * The lock response contains:
    * - LOCK_HANDLE: Required for subsequent PUT/unlock operations
    * - CORRNR: Transport request assigned to this object (use for PUT if no explicit transport)
    * - CORRUSER: User who owns the transport
-   * - CORRTEXT: Transport description
    * 
    * @param transport - Optional transport request to use for locking.
    *                    Required when object is already in a transport.
@@ -336,23 +335,43 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   async lock(transport?: string): Promise<LockHandle> {
     if (this._lockHandle) return this._lockHandle;
     
-    // Build lock URL with required parameters
-    const params = new URLSearchParams({ 
-      _action: 'LOCK',
-      accessMode: 'MODIFY',
-    });
-    if (transport) {
-      params.set('corrNr', transport);
+    const contract = this.crudContract;
+    if (!contract?.lock) {
+      throw new Error(`Lock not supported for ${this.kind}. Provide crudContract with lock() method.`);
     }
     
-    const response = await this.ctx.client.fetch(`${this.objectUri}?${params.toString()}`, {
-      method: 'POST',
-      headers: { 'X-sap-adt-sessiontype': 'stateful' },
-    });
+    // Use contract's lock method
+    const response = await contract.lock(this.name, { corrNr: transport });
     
     // Parse lock response XML
     // Response format: <asx:abap>...<DATA><LOCK_HANDLE>xxx</LOCK_HANDLE><CORRNR>yyy</CORRNR>...</DATA>...</asx:abap>
     const responseText = String(response);
+    this._lockHandle = this.parseLockResponse(responseText);
+    return this._lockHandle;
+  }
+  
+  /** 
+   * Unlock the object
+   * 
+   * Uses the CRUD contract's unlock() method.
+   */
+  async unlock(): Promise<void> {
+    if (!this._lockHandle) return;
+    
+    const contract = this.crudContract;
+    if (!contract?.unlock) {
+      throw new Error(`Unlock not supported for ${this.kind}. Provide crudContract with unlock() method.`);
+    }
+    
+    // Use contract's unlock method
+    await contract.unlock(this.name, { lockHandle: this._lockHandle.handle });
+    this._lockHandle = undefined;
+  }
+  
+  /**
+   * Parse lock response XML to extract lock handle and correlation info
+   */
+  protected parseLockResponse(responseText: string): LockHandle {
     const lockHandleMatch = responseText.match(/<LOCK_HANDLE>([^<]+)<\/LOCK_HANDLE>/);
     
     if (!lockHandleMatch) {
@@ -363,29 +382,11 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     const corrNrMatch = responseText.match(/<CORRNR>([^<]+)<\/CORRNR>/);
     const corrUserMatch = responseText.match(/<CORRUSER>([^<]+)<\/CORRUSER>/);
     
-    this._lockHandle = { 
+    return { 
       handle: lockHandleMatch[1],
       correlationNumber: corrNrMatch?.[1],
       correlationUser: corrUserMatch?.[1],
     };
-    return this._lockHandle;
-  }
-  
-  /** 
-   * Unlock the object 
-   * 
-   * TODO: Implement via ADT lock API when contract is available
-   * Uses: POST {objectUri}?_action=UNLOCK
-   */
-  async unlock(): Promise<void> {
-    if (!this._lockHandle) return;
-    
-    // TODO: Implement when lock contract is added to adt-client
-    await this.ctx.client.fetch(`${this.objectUri}?_action=UNLOCK&lockHandle=${encodeURIComponent(this._lockHandle.handle)}`, {
-      method: 'POST',
-    });
-    
-    this._lockHandle = undefined;
   }
   
   /**
