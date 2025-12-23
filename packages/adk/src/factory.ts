@@ -124,6 +124,18 @@ export interface AdkFactory {
   get(name: string, adtType: string): AdkObject | AdkGenericObject;
   
   /**
+   * Get object with initial data (for deserialization)
+   * 
+   * Creates object pre-populated with data - no load() needed.
+   * Used when deserializing from files rather than loading from SAP.
+   * 
+   * @example
+   * const cls = factory.getWithData({ name: 'ZCL_TEST', description: 'Test' }, 'CLAS');
+   * // cls.isLoaded is true, no need to call load()
+   */
+  getWithData(data: Record<string, unknown>, adtType: string): AdkObject | AdkGenericObject;
+  
+  /**
    * Get object by ADK kind (type-safe)
    * 
    * Returns correctly typed object based on kind.
@@ -180,6 +192,20 @@ export function createAdkFactory(ctx: AdkContext): AdkFactory {
       
       // Fallback to generic object
       return new AdkGenericObject(ctx, name, adtType);
+    },
+    
+    getWithData(data: Record<string, unknown>, adtType: string): AdkObject | AdkGenericObject {
+      const entry = resolveType(adtType);
+      
+      if (entry) {
+        // Pass data directly to constructor - it will extract name from data.name
+        return new entry.constructor(ctx, data);
+      }
+      
+      // Fallback to generic object with name from data
+      const obj = new AdkGenericObject(ctx, (data as { name?: string }).name ?? '', adtType);
+      obj.setData(data);
+      return obj;
     },
     
     byKind<K extends AdkKind>(kind: K, name: string): AdkObjectForKind<K> {

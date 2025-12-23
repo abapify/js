@@ -12,8 +12,9 @@ export const registry = {
     create: 'transport/create.xml',
   },
   atc: {
+    customizing: 'atc/customizing.xml',
     worklist: 'atc/worklist.xml',
-    result: 'atc/result.xml',
+    runsResponse: 'atc/runs-response.xml',
   },
   packages: {
     tmp: 'packages/tmp.xml',

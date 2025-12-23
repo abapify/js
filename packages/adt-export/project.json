@@ -1,0 +1,8 @@
+{
+  "name": "adt-export",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-export/src",
+  "projectType": "library",
+  "tags": ["scope:adt", "type:plugin"],
+  "targets": {}
+}

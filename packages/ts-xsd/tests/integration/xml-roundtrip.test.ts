@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseXml, buildXml } from '../../src/xml';
-import type { SchemaLike } from '../../src/infer/types';
+import type { SchemaLike } from '../../src/xsd/schema-like';
 
 describe('XML Roundtrip', () => {
   describe('parse → build → parse', () => {
@@ -34,10 +34,11 @@ describe('XML Roundtrip', () => {
       // Build XML from data
       const xml = buildXml(schema, original, { xmlDecl: false });
       
-      // Parse XML back to data
+      // Parse XML back to data - now returns wrapped format
       const parsed = parseXml(schema, xml);
       
-      assert.deepStrictEqual(parsed, original);
+      // parse() returns { Person: { ...content } }
+      assert.deepStrictEqual(parsed, { Person: original });
     });
 
     it('should roundtrip nested complex types', () => {
@@ -80,7 +81,7 @@ describe('XML Roundtrip', () => {
       const xml = buildXml(schema, original, { xmlDecl: false });
       const parsed = parseXml(schema, xml);
       
-      assert.deepStrictEqual(parsed, original);
+      assert.deepStrictEqual(parsed, { Order: original });
     });
 
     it('should roundtrip arrays', () => {
@@ -119,7 +120,7 @@ describe('XML Roundtrip', () => {
       const xml = buildXml(schema, original, { xmlDecl: false });
       const parsed = parseXml(schema, xml);
       
-      assert.deepStrictEqual(parsed, original);
+      assert.deepStrictEqual(parsed, { Order: original });
     });
 
     it('should roundtrip with type inheritance', () => {
@@ -170,7 +171,7 @@ describe('XML Roundtrip', () => {
       const xml = buildXml(schema, original, { xmlDecl: false });
       const parsed = parseXml(schema, xml);
       
-      assert.deepStrictEqual(parsed, original);
+      assert.deepStrictEqual(parsed, { Employee: original });
     });
 
     it('should roundtrip with namespaced elements', () => {
@@ -200,7 +201,7 @@ describe('XML Roundtrip', () => {
       const xml = buildXml(schema, original, { xmlDecl: false });
       const parsed = parseXml(schema, xml);
       
-      assert.deepStrictEqual(parsed, original);
+      assert.deepStrictEqual(parsed, { Order: original });
     });
 
     it('should roundtrip with boolean values', () => {
@@ -224,7 +225,7 @@ describe('XML Roundtrip', () => {
       const xml = buildXml(schema, original, { xmlDecl: false });
       const parsed = parseXml(schema, xml);
       
-      assert.deepStrictEqual(parsed, original);
+      assert.deepStrictEqual(parsed, { Settings: original });
     });
 
     it('should roundtrip with choice group', () => {
@@ -249,7 +250,7 @@ describe('XML Roundtrip', () => {
       const xml = buildXml(schema, original, { xmlDecl: false });
       const parsed = parseXml(schema, xml);
       
-      assert.deepStrictEqual(parsed, original);
+      assert.deepStrictEqual(parsed, { Payment: original });
     });
   });
 
@@ -271,12 +272,13 @@ describe('XML Roundtrip', () => {
       } as const satisfies SchemaLike;
 
       const original = { value: 'test', count: 42 };
+      const wrapped = { Data: original };
       
       // First roundtrip
       const xml1 = buildXml(schema, original, { xmlDecl: false });
       const parsed1 = parseXml(schema, xml1);
       
-      // Second roundtrip
+      // Second roundtrip - build accepts wrapped format
       const xml2 = buildXml(schema, parsed1, { xmlDecl: false });
       const parsed2 = parseXml(schema, xml2);
       
@@ -284,10 +286,10 @@ describe('XML Roundtrip', () => {
       const xml3 = buildXml(schema, parsed2, { xmlDecl: false });
       const parsed3 = parseXml(schema, xml3);
       
-      // All should be equal
-      assert.deepStrictEqual(parsed1, original);
-      assert.deepStrictEqual(parsed2, original);
-      assert.deepStrictEqual(parsed3, original);
+      // All should be equal (wrapped format)
+      assert.deepStrictEqual(parsed1, wrapped);
+      assert.deepStrictEqual(parsed2, wrapped);
+      assert.deepStrictEqual(parsed3, wrapped);
       
       // XML should be identical after first roundtrip
       assert.strictEqual(xml2, xml1);

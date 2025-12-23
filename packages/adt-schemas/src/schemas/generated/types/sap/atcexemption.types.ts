@@ -53,4 +53,63 @@ export type AtcexemptionSchema = {
         validUntil: string;
         supportPackage?: string;
     };
+} | {
+    exemptionApply: {
+        exemptionProposal: {
+            finding?: string;
+            package: string;
+            subObject?: string;
+            subObjectType?: string;
+            subObjectTypeDescr: string;
+            objectTypeDescr: string;
+            restriction: {
+                thisFinding: {
+                    _text?: boolean;
+                    enabled: boolean;
+                };
+                rangeOfFindings: {
+                    restrictByObject: {
+                        _text?: string;
+                        subobject?: boolean;
+                        object?: boolean;
+                        package?: boolean;
+                    };
+                    restrictByCheck: {
+                        _text?: string;
+                        message?: boolean;
+                        check?: boolean;
+                    };
+                    restrictByValidity?: {
+                        _text?: string;
+                        unrestricted?: boolean;
+                        date?: boolean;
+                        component_release?: boolean;
+                        support_package?: boolean;
+                    };
+                    enabled: boolean;
+                };
+            };
+            approver: string;
+            apprIsArea?: string;
+            reason: string;
+            validity: string;
+            release: string;
+            softwareComponent: string;
+            softwareComponentDescription: string;
+            justification: string;
+            notify: string;
+            checkClass: string;
+            validUntil: string;
+            supportPackage?: string;
+        };
+        status: {
+            message: string;
+            type: string;
+        };
+    };
+} | {
+    status: {
+        message: string;
+        type: string;
+    };
 };

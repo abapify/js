@@ -5,6 +5,7 @@
 
 export { default as atom } from './atom';
 export { default as adtcore } from './adtcore';
+export { default as exception } from './exception';
 export { default as classes } from './classes';
 export { default as interfaces } from './interfaces';
 export { default as packagesV1 } from './packagesV1';
