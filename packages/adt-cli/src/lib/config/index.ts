@@ -1,4 +1,4 @@
 export * from './interfaces';
-export * from './loader';
+export { ConfigLoader } from './loader';
 export * from './auth';
 export * from './validation';

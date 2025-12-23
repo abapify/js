@@ -108,7 +108,9 @@ export const treeConfigSetCommand = new Command('set')
       // Get configurations list
       const configsResponse = await client.adt.cts.transportrequests.searchconfiguration.configurations.get();
       
-      const configs = configsResponse?.configuration;
+      // Response has 'configurations' property (plural) containing config array
+      const configsData = configsResponse as { configurations?: unknown };
+      const configs = configsData?.configurations as Array<{ link?: { href?: string } }> | undefined;
       if (!configs) {
         console.log('\n❌ No search configuration found');
         return;
@@ -179,9 +181,10 @@ export const treeConfigSetCommand = new Command('set')
       console.log('\n🔄 Saving configuration...');
       const configData = buildConfigurationData(newProps);
       
+      // Cast to unknown to bypass schema mismatch - TODO: align schema with actual API
       await client.adt.cts.transportrequests.searchconfiguration.configurations.put(
         configId,
-        configData
+        configData as unknown as Parameters<typeof client.adt.cts.transportrequests.searchconfiguration.configurations.put>[1]
       );
 
       console.log('✅ Configuration updated successfully');

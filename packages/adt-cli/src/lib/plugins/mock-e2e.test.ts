@@ -177,16 +177,7 @@ describe('Plugin Architecture E2E Tests', () => {
   // These tests should be rewritten to use proper ADK integration tests
 
   it('should handle multiple plugins with format selection', async () => {
-    const _config: CliConfig = {
-      auth: {
-        type: 'mock',
-        mock: { enabled: true },
-      },
-      plugins: {
-        formats: [{ name: '@abapify/oat' }, { name: '@abapify/abapgit' }],
-      },
-    };
-
+    // Config would be used in a real CLI scenario - kept for documentation
     // Simulate CLI behavior: multiple plugins available, no default
     const availableFormats = pluginRegistry.getAvailableFormats();
     expect(availableFormats).toHaveLength(2);

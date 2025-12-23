@@ -28,15 +28,19 @@ export const packageGetCommand = new Command('package')
 
       // Use router to render the package page
       const route = router.get('DEVC');
+      // Extract package data - response is wrapped in { package: ... }
+      const pkgData = (pkg as { package?: Record<string, unknown> }).package ?? pkg;
       if (route) {
-        const page = route.page(pkg, { name });
+        const page = route.page(pkgData, { name });
         render(page);
       } else {
         // Fallback: simple output
-        console.log(`📦 Package: ${pkg.name}`);
-        console.log(`   Type: ${pkg.type}`);
-        console.log(`   Description: ${pkg.description || 'N/A'}`);
-        console.log(`   Package Type: ${pkg.attributes?.packageType || 'N/A'}`);
+        const pkgAny = pkgData as Record<string, unknown>;
+        console.log(`📦 Package: ${pkgAny.name || name}`);
+        console.log(`   Type: ${pkgAny.type || 'N/A'}`);
+        console.log(`   Description: ${pkgAny.description || 'N/A'}`);
+        const attrs = pkgAny.attributes as Record<string, unknown> | undefined;
+        console.log(`   Package Type: ${attrs?.packageType || 'N/A'}`);
       }
     } catch (error) {
       console.error(

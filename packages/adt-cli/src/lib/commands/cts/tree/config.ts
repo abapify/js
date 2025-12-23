@@ -198,7 +198,9 @@ export const treeConfigCommand = new Command('config')
       // Get configurations list (typed)
       const configsResponse = await client.adt.cts.transportrequests.searchconfiguration.configurations.get();
       
-      const configs = configsResponse?.configuration;
+      // Response has 'configurations' property (plural) containing config array
+      const configsData = configsResponse as { configurations?: unknown };
+      const configs = configsData?.configurations as Array<{ link?: { href?: string } }> | undefined;
       if (!configs) {
         console.log('\n📭 No search configuration found');
         return;
@@ -220,10 +222,23 @@ export const treeConfigCommand = new Command('config')
 
       // Extract config ID and fetch details using typed contract
       const configId = extractConfigId(configUri);
-      const configDetails = await client.adt.cts.transportrequests.searchconfiguration.configurations.getById(configId);
+      const configDetailsRaw = await client.adt.cts.transportrequests.searchconfiguration.configurations.getById(configId);
+      
+      // Response has nested structure - extract configuration object
+      // Cast to expected shape for property access
+      type ConfigDetails = {
+        configuration?: {
+          properties?: { property?: Array<{ key?: string; _text?: string; isMandatory?: boolean }> };
+          createdBy?: string;
+          createdAt?: string;
+          changedBy?: string;
+          changedAt?: string;
+        };
+      };
+      const configDetails = (configDetailsRaw as ConfigDetails)?.configuration;
 
       // Convert properties to map for easy access
-      const properties = propertiesToMap(configDetails);
+      const properties = propertiesToMap(configDetails as Record<string, unknown>);
 
       // Edit mode - launch interactive editor
       if (options.edit) {
@@ -239,9 +254,10 @@ export const treeConfigCommand = new Command('config')
           // PUT the configuration back using the typed contract
           // Body type is Partial<Configuration> - we only send properties
           // Note: CSRF token is auto-initialized by the adapter before write operations
+          // Cast to unknown to bypass schema mismatch - TODO: align schema with actual API
           await client.adt.cts.transportrequests.searchconfiguration.configurations.put(
             configId,
-            configData
+            configData as unknown as Parameters<typeof client.adt.cts.transportrequests.searchconfiguration.configurations.put>[1]
           );
         };
 
