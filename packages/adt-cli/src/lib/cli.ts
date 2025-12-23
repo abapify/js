@@ -4,7 +4,6 @@ import { Command } from 'commander';
 import {
   importPackageCommand,
   importTransportCommand,
-  exportPackageCommand,
   searchCommand,
   discoveryCommand,
   infoCommand,
@@ -25,7 +24,8 @@ import {
   packageGetCommand,
 } from './commands';
 import { refreshCommand } from './commands/auth/refresh';
-import { deployCommand } from './commands/deploy/index';
+// Deploy command moved to @abapify/adt-export plugin
+// Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
@@ -180,15 +180,11 @@ export async function createCLI(): Promise<Command> {
   importCmd.addCommand(importPackageCommand);
   importCmd.addCommand(importTransportCommand);
 
-  // Export commands
-  const exportCmd = program
-    .command('export')
-    .description('Export ABAP objects from various formats to SAP systems');
+  // Export commands - moved to @abapify/adt-export plugin
+  // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 
-  exportCmd.addCommand(exportPackageCommand);
-
-  // Deploy command (now unified - supports files, folders, and glob patterns)
-  program.addCommand(deployCommand);
+  // Deploy command moved to @abapify/adt-export plugin
+  // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 
   // Lock command
   program.addCommand(createLockCommand());

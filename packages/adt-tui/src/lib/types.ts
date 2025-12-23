@@ -2,7 +2,7 @@
  * Core types for ADT TUI
  */
 
-import type { ComponentType } from 'react';
+// ComponentType not needed - pages return PageResult, not React components
 
 /**
  * Hypermedia link extracted from ADT responses

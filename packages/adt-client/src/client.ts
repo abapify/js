@@ -11,6 +11,7 @@
 
 import { createAdtAdapter, type AdtAdapterConfig } from './adapter';
 import { createAdtClient as createAdtContractClient, type AdtClientType, type HttpRequestOptions } from '@abapify/adt-contracts';
+import { createTransportService, type TransportService } from './services';
 
 /**
  * Fetch options for generic HTTP requests
@@ -52,9 +53,17 @@ export interface FetchOptions {
 // Re-export AdtClientType from adt-contracts for consumers
 export type { AdtClientType } from '@abapify/adt-contracts';
 
+/**
+ * Services layer - business logic orchestration
+ */
+interface AdtServices {
+  transports: TransportService;
+}
+
 // Return type explicitly defined to avoid TS7056 "exceeds maximum length" error
 interface AdtClientReturn {
   adt: AdtClientType;
+  services: AdtServices;
   fetch: (url: string, options?: FetchOptions) => Promise<unknown>;
 }
 
@@ -81,12 +90,23 @@ export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
     return adapter.request<unknown>(requestOptions);
   };
 
+  // Create services layer
+  const services: AdtServices = {
+    transports: createTransportService(adtClient),
+  };
+
   return {
     /**
      * Typed ADT REST contracts
      * Direct access to speci-generated client methods
      */
     adt: adtClient,
+
+    /**
+     * Services layer - business logic orchestration
+     * Higher-level operations that combine multiple contract calls
+     */
+    services,
 
     /**
      * Generic fetch utility for arbitrary ADT endpoints

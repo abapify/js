@@ -30,18 +30,15 @@ export const infoCommand = new Command('info')
 
         if (!options.output) {
           console.log('📋 Session Information:');
-          if (sessionData.links && Array.isArray(sessionData.links)) {
-            console.log('\n  Links:');
-            sessionData.links.forEach((link) => {
-              console.log(`    • ${link.title || 'Link'}: ${link.href || 'N/A'}`);
-            });
-          }
-
-          if (sessionData.properties?.properties && Array.isArray(sessionData.properties.properties)) {
+          // Session data structure: { session: { properties?: { property?: [...] } } }
+          const properties = sessionData.session?.properties?.property;
+          if (properties && Array.isArray(properties)) {
             console.log('\n  Properties:');
-            sessionData.properties.properties.forEach((prop) => {
-              console.log(`    • ${prop.name}: ${prop.value}`);
+            properties.forEach((prop: { name: string; _text?: string }) => {
+              console.log(`    • ${prop.name}: ${prop._text || 'N/A'}`);
             });
+          } else {
+            console.log('  No session properties available');
           }
         }
       }
@@ -49,19 +46,23 @@ export const infoCommand = new Command('info')
       // Fetch system info
       if (showSystem) {
         console.log(showSession ? '\n🔄 Fetching system information...\n' : '🔄 Fetching system information...\n');
-        const systemData = await adtClient.adt.core.http.systeminformation.getSystemInformation();
+        const systemData = await adtClient.adt.core.http.systeminformation.getSystemInfo() as unknown as Record<string, unknown>;
         capturedData.system = systemData;
 
         if (!options.output) {
           console.log('🖥️  System Information:');
 
-          // Display key system properties - now fully typed!
-          if (systemData.systemID) console.log(`  • System ID: ${systemData.systemID}`);
-          if (systemData.client) console.log(`  • Client: ${systemData.client}`);
-          if (systemData.userName) console.log(`  • User: ${systemData.userName}`);
-          if (systemData.language) console.log(`  • Language: ${systemData.language}`);
-          if (systemData.release) console.log(`  • Release: ${systemData.release}`);
-          if (systemData.sapRelease) console.log(`  • SAP Release: ${systemData.sapRelease}`);
+          // Display key system properties
+          const displayProperty = (key: string, label: string) => {
+            if (systemData[key]) console.log(`  • ${label}: ${systemData[key]}`);
+          };
+          
+          displayProperty('systemID', 'System ID');
+          displayProperty('client', 'Client');
+          displayProperty('userName', 'User');
+          displayProperty('language', 'Language');
+          displayProperty('release', 'Release');
+          displayProperty('sapRelease', 'SAP Release');
 
           // Display any other properties
           const knownKeys = ['systemID', 'client', 'userName', 'userFullName', 'language', 'release', 'sapRelease'];

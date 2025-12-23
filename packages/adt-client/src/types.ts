@@ -29,12 +29,9 @@ export type AdtRestContract = RestContract;
 // Example: import { classes, InferXsd } from 'adt-schemas';
 // type ClassData = InferXsd<typeof classes, 'AbapClass'>;
 
-// Error response from ADT
-export interface AdtError {
-  message: string;
-  code?: string;
-  details?: string;
-}
+// Error types are now in errors.ts with full ADT exception parsing
+// Re-export for backward compatibility
+export { AdtError, type AdtExceptionData } from './errors';
 
 // Lock handle for object locking
 export interface LockHandle {

@@ -16,6 +16,7 @@ import { typedSchema, type TypedSchema } from 'ts-xsd';
 // Pre-generated root schema types (imported from individual files)
 import type { AtomSchema } from './types/sap/atom.types';
 import type { AdtcoreSchema } from './types/sap/adtcore.types';
+import type { ExceptionSchema } from './types/sap/exception.types';
 import type { ClassesSchema } from './types/sap/classes.types';
 import type { InterfacesSchema } from './types/sap/interfaces.types';
 import type { PackagesV1Schema } from './types/sap/packagesV1.types';
@@ -54,6 +55,8 @@ import _atom from './schemas/sap/atom';
 export const atom: TypedSchema<AtomSchema> = typedSchema<AtomSchema>(_atom);
 import _adtcore from './schemas/sap/adtcore';
 export const adtcore: TypedSchema<AdtcoreSchema> = typedSchema<AdtcoreSchema>(_adtcore);
+import _exception from './schemas/sap/exception';
+export const exception: TypedSchema<ExceptionSchema> = typedSchema<ExceptionSchema>(_exception);
 import _classes from './schemas/sap/classes';
 export const classes: TypedSchema<ClassesSchema> = typedSchema<ClassesSchema>(_classes);
 import _interfaces from './schemas/sap/interfaces';

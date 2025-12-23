@@ -5,7 +5,7 @@
  * This module contains NO browser-specific code.
  */
 
-import type { BrowserAdapter, BrowserAuthOptions, BrowserCredentials, CookieData } from './types';
+import type { BrowserAdapter, BrowserAuthOptions, BrowserCredentials } from './types';
 import { matchesCookiePattern, cookieMatchesAny, resolveUserDataDir } from './utils';
 
 const DEFAULT_TIMEOUT = 300_000; // 5 minutes
@@ -57,10 +57,21 @@ export async function authenticate(
     log('🔍 Opening browser...');
     await adapter.newPage();
 
-    // Step 2: Wait for authentication (200 response from target URL)
+    // Step 2: Clear old SAP cookies to ensure we capture fresh ones
+    // This is critical for re-authentication - old cookies may be stale
+    log('🧹 Clearing old SAP cookies...');
+    await adapter.clearCookies(sapHost);
+
+    // Step 3: Wait for authentication (200 response from target URL AND required cookies)
     log('🌐 Complete SSO login if prompted...');
 
-    await new Promise<void>((resolve, reject) => {
+    const cookiesToWait = requiredCookies && requiredCookies.length > 0
+      ? requiredCookies
+      : ['SAP_SESSIONID_*']; // Default: wait for session cookie
+
+    log(`⏳ Waiting for cookies: ${cookiesToWait.join(', ')}`);
+
+    const sapCookies = await new Promise<Awaited<ReturnType<typeof adapter.getCookies>>>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error('Authentication timeout - SSO not completed'));
       }, timeout);
@@ -70,59 +81,32 @@ export async function authenticate(
         reject(new Error('Authentication cancelled - browser was closed'));
       });
 
-      adapter.onResponse(event => {
+      // Check for both 200 response AND required cookies on every response
+      adapter.onResponse(async event => {
+        // Only check on 200 responses from the target URL
         if (event.url === targetUrl && event.status === 200) {
-          clearTimeout(timeoutId);
-          log('✅ Authentication complete!');
-          resolve();
-        }
-      });
-
-      // Navigate - events are already set up
-      adapter.goto(targetUrl, { timeout: 30000 }).catch(() => {});
-    });
-
-    // Step 3: Wait for required cookies
-    const cookiesToWait = requiredCookies && requiredCookies.length > 0
-      ? requiredCookies
-      : ['SAP_SESSIONID_*']; // Default: wait for session cookie
-
-    log(`⏳ Waiting for cookies: ${cookiesToWait.join(', ')}`);
-
-    const sapCookies = await new Promise<CookieData[]>((resolve, reject) => {
-      const cookieTimeout = setTimeout(() => {
-        reject(new Error(`Timeout waiting for cookies: ${cookiesToWait.join(', ')}`));
-      }, timeout);
-
-      // Handle browser close during cookie wait
-      adapter.onPageClose(() => {
-        clearTimeout(cookieTimeout);
-        reject(new Error('Authentication cancelled - browser was closed'));
-      });
-
-      // Check cookies on every response
-      adapter.onResponse(async () => {
-        try {
+          // Got 200 from target URL - now check if cookies are set
           const allCookies = await adapter.getCookies();
           const domainCookies = allCookies.filter(c =>
             c.domain.includes(sapHost) || sapHost.includes(c.domain.replace(/^\./, ''))
           );
-
-          // Check if all required patterns are matched
           const matchedCookies = domainCookies.filter(c => cookieMatchesAny(c.name, cookiesToWait));
           const allFound = cookiesToWait.every(pattern =>
             matchedCookies.some(c => matchesCookiePattern(c.name, pattern))
           );
 
           if (allFound) {
-            clearTimeout(cookieTimeout);
+            clearTimeout(timeoutId);
+            log('✅ Authentication complete!');
             log(`🍪 Found required cookies: ${matchedCookies.map(c => c.name).join(', ')}`);
             resolve(matchedCookies);
           }
-        } catch {
-          // Ignore errors during cookie check
+          // If cookies not found yet, keep waiting for more responses
         }
       });
+
+      // Navigate - events are already set up
+      adapter.goto(targetUrl, { timeout: 30000 }).catch(() => {});
     });
 
     await adapter.closePage();

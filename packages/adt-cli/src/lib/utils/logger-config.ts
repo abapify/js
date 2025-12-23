@@ -12,7 +12,7 @@ export interface LoggerOptions {
  * @returns Configured Pino logger instance
  */
 export function createCliLogger(options: LoggerOptions = {}): Logger {
-  const { verbose = false, components } = options;
+  const { verbose = false, components: _components } = options;
 
   // Determine log level and components from verbose option
   let level: string;

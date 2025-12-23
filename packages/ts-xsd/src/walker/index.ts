@@ -57,6 +57,8 @@ export type AttributeEntry = {
   readonly attribute: AttributeLike;
   /** Attribute is required (use="required") */
   readonly required: boolean;
+  /** Schema where the attribute is defined (for namespace prefix resolution) */
+  readonly schema: SchemaLike;
 };
 
 /** Result of walking top-level elements */
@@ -473,7 +475,7 @@ export function* walkAttributes(
       for (const attr of ext.attribute) {
         const resolved = resolveAttribute(attr, schema);
         if (resolved) {
-          yield { attribute: resolved, required: resolved.use === 'required' };
+          yield { attribute: resolved, required: resolved.use === 'required', schema };
         }
       }
     }
@@ -490,7 +492,7 @@ export function* walkAttributes(
       for (const attr of ext.attribute) {
         const resolved = resolveAttribute(attr, schema);
         if (resolved) {
-          yield { attribute: resolved, required: resolved.use === 'required' };
+          yield { attribute: resolved, required: resolved.use === 'required', schema };
         }
       }
     }
@@ -503,7 +505,7 @@ export function* walkAttributes(
     for (const attr of ct.attribute) {
       const resolved = resolveAttribute(attr, schema);
       if (resolved) {
-        yield { attribute: resolved, required: resolved.use === 'required' };
+        yield { attribute: resolved, required: resolved.use === 'required', schema };
       }
     }
   }
@@ -528,7 +530,7 @@ function* walkAttributeGroupRefs(
       const group = findAttributeGroup(groupName, schema);
       if (group?.attribute) {
         for (const attribute of group.attribute as AttributeLike[]) {
-          yield { attribute, required: attribute.use === 'required' };
+          yield { attribute, required: attribute.use === 'required', schema };
         }
       }
     }

@@ -1,6 +1,8 @@
 import { createPlugin, type AdtPlugin } from '@abapify/adt-plugin';
+import type { AdtClient } from '@abapify/adk';
 import { AbapGitSerializer } from './serializer';
 import { getSupportedTypes, isSupported } from './handlers';
+import { deserialize } from './deserializer';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -98,7 +100,16 @@ export const abapGitPlugin: AdtPlugin = createPlugin({
       }
     },
 
-    // export: not yet implemented
+    /**
+     * Export abapGit files to SAP
+     * 
+     * Reads abapGit format files from FileTree and yields AdkObject instances.
+     * True generator - streams objects one at a time for memory efficiency.
+     * 
+     * @param fileTree - Virtual file system abstraction
+     * @param client - ADT client for creating ADK objects
+     */
+    export: (fileTree, client) => deserialize(fileTree, client as AdtClient),
   },
 
   // Lifecycle hooks
