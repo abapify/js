@@ -1,14 +1,16 @@
 // Export all commands directly
 export { importPackageCommand } from './import/package';
 export { importTransportCommand } from './import/transport';
-export { exportPackageCommand } from './export/package';
+// Export commands moved to @abapify/adt-export plugin
+// Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 export { searchCommand } from './search';
 export { discoveryCommand } from './discovery';
 export { infoCommand } from './info';
 export { fetchCommand } from './fetch';
 export { getCommand } from './get';
 export { outlineCommand } from './outline';
-export { atcCommand } from './atc';
+// ATC command moved to @abapify/adt-atc plugin
+// Add '@abapify/adt-atc/commands/atc' to adt.config.ts commands array to enable
 export { loginCommand } from './auth/login';
 export { logoutCommand } from './auth/logout';
 export { statusCommand } from './auth/status';

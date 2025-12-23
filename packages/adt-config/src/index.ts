@@ -18,7 +18,16 @@
  */
 
 // Types
-export type { Destination, DestinationInput, AdtConfig, AuthPlugin, AuthTestResult } from './types';
+export type { 
+  Destination, 
+  DestinationInput, 
+  AdtConfig, 
+  AuthPlugin, 
+  AuthTestResult,
+  ContractsConfig,
+  ContentTypeMapping,
+  EnabledEndpoints,
+} from './types';
 export type { LoadedConfig } from './config-loader';
 
 // Config Loader

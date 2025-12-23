@@ -1,34 +1,22 @@
 /**
  * Contract Testing Framework
  * 
- * Type-safe contract validation without HTTP calls.
  * Tests contract definitions: method, path, headers, body, responses.
+ * Uses speci's RestEndpointDescriptor - no duplicate types.
  */
 
 import { describe, it, expect } from 'vitest';
 import { type FixtureHandle } from 'adt-fixtures';
+import type { RestEndpointDescriptor, RestMethod } from 'speci/rest';
 
-/** HTTP methods */
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-
-/** Contract descriptor returned by http.get/post/etc - loosely typed for flexibility */
-export interface ContractDescriptor {
-  method: HttpMethod;
-  path: string;
-  query?: unknown;
-  headers?: Record<string, string>;
-  body?: unknown;
-  responses: Record<number, unknown>;
-}
-
-/** Contract operation definition */
+/** Contract operation definition for testing */
 export interface ContractOperation {
   /** Human-readable name */
   name: string;
-  /** Function that returns the contract descriptor */
-  contract: () => ContractDescriptor;
+  /** Function that returns the speci endpoint descriptor */
+  contract: () => RestEndpointDescriptor;
   /** Expected HTTP method */
-  method: HttpMethod;
+  method: RestMethod;
   /** Expected path (can be exact or pattern) */
   path: string | RegExp;
   /** Expected headers (partial match) */
@@ -83,56 +71,63 @@ export function runScenario(scenario: ContractScenario): void {
           }
         });
         
-        if (op.headers) {
+        // Capture values to avoid non-null assertions in callbacks
+        const { headers, query, body, response } = op;
+        
+        if (headers) {
           it('has correct headers', () => {
-            expect(contract.headers).toMatchObject(op.headers!);
+            expect(contract.headers).toMatchObject(headers);
           });
         }
         
-        if (op.query) {
+        if (query) {
           it('has correct query params', () => {
-            expect(contract.query).toEqual(op.query);
+            expect(contract.query).toEqual(query);
           });
         }
         
-        if (op.body) {
+        if (body) {
+          const bodySchema = body.schema as { 
+            parse: (xml: string) => unknown; 
+            build?: (data: unknown) => string;
+          };
+          const bodyFixture = body.fixture;
+          
           it('has body schema', () => {
-            expect(contract.body).toBe(op.body!.schema);
+            expect(contract.body).toBe(body.schema);
           });
           
-          if (op.body.fixture) {
+          if (bodyFixture) {
             it('body schema parses fixture', async () => {
-              const xml = await op.body!.fixture!.load();
-              const schema = op.body!.schema as { parse: (xml: string) => unknown };
-              const parsed = schema.parse(xml);
+              const xml = await bodyFixture.load();
+              const parsed = bodySchema.parse(xml);
               expect(parsed).toBeDefined();
             });
             
             it('body schema round-trips', async () => {
-              const xml = await op.body!.fixture!.load();
-              const schema = op.body!.schema as { 
-                parse: (xml: string) => unknown; 
-                build?: (data: unknown) => string;
-              };
-              const parsed = schema.parse(xml);
-              if (schema.build) {
-                const rebuilt = schema.build(parsed);
+              const xml = await bodyFixture.load();
+              const parsed = bodySchema.parse(xml);
+              if (bodySchema.build) {
+                const rebuilt = bodySchema.build(parsed);
                 expect(rebuilt).toContain('<?xml');
               }
             });
           }
         }
         
-        if (op.response) {
-          it(`has response schema for ${op.response.status}`, () => {
-            expect(contract.responses[op.response!.status]).toBe(op.response!.schema);
+        if (response) {
+          const responseSchema = response.schema as { parse: (xml: string) => unknown };
+          const responseFixture = response.fixture;
+          const responseStatus = response.status;
+          
+          it(`has response schema for ${responseStatus}`, () => {
+            expect(contract.responses[responseStatus]).toBe(response.schema);
           });
           
-          if (op.response.fixture) {
+          if (responseFixture) {
             it('response schema parses fixture', async () => {
-              const xml = await op.response!.fixture!.load();
-              const schema = op.response!.schema as { parse: (xml: string) => unknown };
-              const parsed = schema.parse(xml);
+              const xml = await responseFixture.load();
+              const parsed = responseSchema.parse(xml);
               expect(parsed).toBeDefined();
             });
           }
@@ -144,3 +139,10 @@ export function runScenario(scenario: ContractScenario): void {
 
 /** Re-export FixtureHandle for convenience */
 export type { FixtureHandle };
+
+// Re-export speci createClient for use in specific contract tests
+export { createClient } from 'speci/rest';
+
+// Re-export mock adapter for client tests
+export { createMockAdapter, createSimpleMockAdapter } from './mock-adapter';
+export type { MockMatcher, MockResponse } from './mock-adapter';

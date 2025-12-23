@@ -10,7 +10,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseXml, buildXml } from '../../src/xml';
-import type { SchemaLike } from '../../src/infer/types';
+import type { SchemaLike } from '../../src/xsd/schema-like';
 
 describe('Cross-schema XML parsing', () => {
   describe('Element ref from $imports', () => {
@@ -70,13 +70,14 @@ describe('Cross-schema XML parsing', () => {
       `;
       const result = parseXml(mainSchema, xml);
 
-      assert.strictEqual(result.id, 'obj-1');
-      assert.strictEqual(result.title, 'My Object');
-      assert.ok(Array.isArray(result.link), 'link should be an array');
-      assert.strictEqual(result.link.length, 2);
-      assert.strictEqual(result.link[0].href, '/path/1');
-      assert.strictEqual(result.link[0].rel, 'self');
-      assert.strictEqual(result.link[1].href, '/path/2');
+      // parse() now returns wrapped format: { ElementName: content }
+      assert.strictEqual(result.Object.id, 'obj-1');
+      assert.strictEqual(result.Object.title, 'My Object');
+      assert.ok(Array.isArray(result.Object.link), 'link should be an array');
+      assert.strictEqual(result.Object.link.length, 2);
+      assert.strictEqual(result.Object.link[0].href, '/path/1');
+      assert.strictEqual(result.Object.link[0].rel, 'self');
+      assert.strictEqual(result.Object.link[1].href, '/path/2');
     });
 
     it('should build elements referenced via ref', () => {
@@ -145,9 +146,11 @@ describe('Cross-schema XML parsing', () => {
       const result = parseXml(derivedSchema, xml);
 
       assert.deepStrictEqual(result, {
-        id: '123',
-        name: 'Test',
-        status: 'active',
+        DerivedObject: {
+          id: '123',
+          name: 'Test',
+          status: 'active',
+        },
       });
     });
 
@@ -164,9 +167,11 @@ describe('Cross-schema XML parsing', () => {
       const result = parseXml(derivedSchema, xml);
 
       assert.deepStrictEqual(result, {
-        id: '456',
-        name: 'Namespaced',
-        status: 'pending',
+        DerivedObject: {
+          id: '456',
+          name: 'Namespaced',
+          status: 'pending',
+        },
       });
     });
   });
@@ -224,11 +229,13 @@ describe('Cross-schema XML parsing', () => {
       const result = parseXml(mainSchema, xml);
 
       assert.deepStrictEqual(result, {
-        name: 'MyObject',
-        packageRef: {
-          uri: '/path/to/pkg',
-          type: 'DEVC/K',
-          name: '$TMP',
+        MainObject: {
+          name: 'MyObject',
+          packageRef: {
+            uri: '/path/to/pkg',
+            type: 'DEVC/K',
+            name: '$TMP',
+          },
         },
       });
     });
@@ -304,12 +311,13 @@ describe('Cross-schema XML parsing', () => {
       `;
       const result = parseXml(derivedSchema, xml);
 
-      assert.strictEqual(result.name, 'test');
-      assert.strictEqual(result.extra, 'value');
+      // parse() returns wrapped format: { ElementName: content }
+      assert.strictEqual(result.DerivedObject.name, 'test');
+      assert.strictEqual(result.DerivedObject.extra, 'value');
       // This is the key test - link should be parsed from inherited base type
-      assert.ok(Array.isArray(result.link), 'link should be an array');
-      assert.strictEqual(result.link.length, 2);
-      assert.strictEqual(result.link[0].href, '/path/1');
+      assert.ok(Array.isArray(result.DerivedObject.link), 'link should be an array');
+      assert.strictEqual(result.DerivedObject.link.length, 2);
+      assert.strictEqual(result.DerivedObject.link[0].href, '/path/1');
     });
   });
 
@@ -373,11 +381,12 @@ describe('Cross-schema XML parsing', () => {
       `;
       const result = parseXml(adtcoreSchema, xml);
 
-      assert.strictEqual(result.name, 'TEST');
+      // parse() returns wrapped format: { ElementName: content }
+      assert.strictEqual(result.mainObject.name, 'TEST');
       // Key assertion: link should be parsed from base type AdtObject
-      assert.ok(Array.isArray(result.link), 'link should be an array (from base type AdtObject)');
-      assert.strictEqual(result.link.length, 1);
-      assert.strictEqual(result.link[0].href, '/test');
+      assert.ok(Array.isArray(result.mainObject.link), 'link should be an array (from base type AdtObject)');
+      assert.strictEqual(result.mainObject.link.length, 1);
+      assert.strictEqual(result.mainObject.link[0].href, '/test');
     });
   });
 
@@ -500,12 +509,13 @@ describe('Cross-schema XML parsing', () => {
       `;
       const result = parseXml(interfacesSchema, xml);
 
-      assert.strictEqual(result.name, 'ZIF_TEST');
+      // parse() returns wrapped format: { ElementName: content }
+      assert.strictEqual(result.abapInterface.name, 'ZIF_TEST');
       // Key assertion: link should be parsed even though interfaces doesn't directly import atom
-      assert.ok(Array.isArray(result.link), 'link should be an array (inherited from AdtObject via deep chain)');
-      assert.strictEqual(result.link.length, 2);
-      assert.strictEqual(result.link[0].href, '/sap/bc/adt/oo/interfaces/zif_test');
-      assert.strictEqual(result.link[0].rel, 'self');
+      assert.ok(Array.isArray(result.abapInterface.link), 'link should be an array (inherited from AdtObject via deep chain)');
+      assert.strictEqual(result.abapInterface.link.length, 2);
+      assert.strictEqual(result.abapInterface.link[0].href, '/sap/bc/adt/oo/interfaces/zif_test');
+      assert.strictEqual(result.abapInterface.link[0].rel, 'self');
     });
   });
 
@@ -636,11 +646,12 @@ describe('Cross-schema XML parsing', () => {
       
       const result = parseXml(interfacesSchema, xml);
 
-      assert.strictEqual(result.name, 'ZIF_TEST');
+      // parse() returns wrapped format: { ElementName: content }
+      assert.strictEqual(result.abapInterface.name, 'ZIF_TEST');
       // Key assertion: link should be parsed from base type AdtObject
-      assert.ok(Array.isArray(result.link), 'link should be an array (from base type AdtObject)');
-      assert.strictEqual(result.link.length, 1);
-      assert.strictEqual(result.link[0].href, '/test');
+      assert.ok(Array.isArray(result.abapInterface.link), 'link should be an array (from base type AdtObject)');
+      assert.strictEqual(result.abapInterface.link.length, 1);
+      assert.strictEqual(result.abapInterface.link[0].href, '/test');
     });
   });
 
@@ -706,9 +717,11 @@ describe('Cross-schema XML parsing', () => {
       const result = parseXml(level3Schema, xml);
 
       assert.deepStrictEqual(result, {
-        l1Attr: 'val1',
-        l2Attr: 'val2',
-        l3Attr: 'val3',
+        Level3Object: {
+          l1Attr: 'val1',
+          l2Attr: 'val2',
+          l3Attr: 'val3',
+        },
       });
     });
   });
@@ -873,7 +886,8 @@ describe('Cross-schema XML building', () => {
       const xml = buildXml(derivedSchema, original);
       const parsed = parseXml(derivedSchema, xml);
 
-      assert.deepStrictEqual(parsed, original);
+      // parse() returns wrapped format: { ElementName: content }
+      assert.deepStrictEqual(parsed, { DerivedObject: original });
     });
   });
 });

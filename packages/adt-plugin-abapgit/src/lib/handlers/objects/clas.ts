@@ -8,6 +8,7 @@ import { createHandler } from '../base';
 
 /**
  * Map ADK ClassIncludeType to abapGit file suffix convention
+ * Used for serialization (SAP → Git)
  */
 const ABAPGIT_SUFFIX: Record<ClassIncludeType, string | undefined> = {
   main: undefined, // main has no suffix
@@ -18,32 +19,125 @@ const ABAPGIT_SUFFIX: Record<ClassIncludeType, string | undefined> = {
   testclasses: 'testclasses',
 };
 
+/**
+ * Reverse mapping: abapGit file suffix to ADK source key
+ * Derived from ABAPGIT_SUFFIX to avoid duplication
+ */
+const SUFFIX_TO_SOURCE_KEY = Object.fromEntries(
+  Object.entries(ABAPGIT_SUFFIX)
+    .filter(([, suffix]) => suffix !== undefined)
+    .map(([key, suffix]) => [suffix, key])
+) as Record<string, ClassIncludeType>;
+
+/**
+ * Map visibility to EXPOSURE code (ADK → abapGit)
+ */
+const VISIBILITY_TO_EXPOSURE: Record<string, string> = {
+  'private': '0',
+  'protected': '1',
+  'public': '2',
+};
+
+/**
+ * Reverse mapping: EXPOSURE code to visibility (abapGit → ADK)
+ */
+const EXPOSURE_TO_VISIBILITY = Object.fromEntries(
+  Object.entries(VISIBILITY_TO_EXPOSURE).map(([k, v]) => [v, k])
+) as Record<string, 'private' | 'protected' | 'public'>;
+
 export const classHandler = createHandler(AdkClass, {
   schema: clas,
   version: 'v1.0.0',
   serializer: 'LCL_OBJECT_CLAS',
   serializer_version: 'v1.0.0',
+  
+  // Reverse mapping for deserialization (Git → SAP)
+  suffixToSourceKey: SUFFIX_TO_SOURCE_KEY,
 
   toAbapGit: (cls) => {
-    const hasTestClasses = cls.includes.some((inc) => inc.includeType === 'testclasses');
+    const includes = cls.data.include ?? [];
+    const hasTestClasses = includes.some((inc) => inc.includeType === 'testclasses');
 
     return {
       VSEOCLASS: {
+        // Required
         CLSNAME: cls.name ?? '',
-        LANGU: 'E',
-        DESCRIPT: cls.description ?? '',
-        STATE: '1',
-        CLSCCINCL: 'X',
-        FIXPT: 'X',
-        UNICODE: 'X',
+        
+        // Basic metadata
+        LANGU: cls.data.language ?? 'E',
+        DESCRIPT: cls.data.description ?? '',
+        STATE: '1', // Active
+        
+        // Class attributes - access via data.*
+        CATEGORY: cls.data.category ?? '00',
+        EXPOSURE: VISIBILITY_TO_EXPOSURE[cls.data.visibility ?? 'public'] ?? '2',
+        CLSFINAL: cls.data.final ? 'X' : undefined,
+        CLSABSTRCT: cls.data.abstract ? 'X' : undefined,
+        SHRM_ENABLED: cls.data.sharedMemoryEnabled ? 'X' : undefined,
+        
+        // Source attributes
+        CLSCCINCL: 'X', // Class constructor include
+        FIXPT: cls.data.fixPointArithmetic ? 'X' : undefined,
+        UNICODE: cls.data.activeUnicodeCheck ? 'X' : undefined,
+        
+        // References
+        REFCLSNAME: cls.data.superClassRef?.name,
+        MSG_ID: cls.data.messageClassRef?.name,
+        
+        // ABAP language version
+        ABAP_LANGUAGE_VERSION: cls.data.abapLanguageVersion,
+        
+        // Test classes flag
         ...(hasTestClasses ? { WITH_UNIT_TESTS: 'X' } : {}),
       },
     };
   },
 
-  getSources: (cls) =>
-    cls.includes.map((inc) => ({
-      suffix: ABAPGIT_SUFFIX[inc.includeType],
-      content: cls.getIncludeSource(inc.includeType),
-    })),
+  getSources: (cls) => {
+    const includes = cls.data.include ?? [];
+    return includes.map((inc) => ({
+      suffix: ABAPGIT_SUFFIX[inc.includeType as ClassIncludeType],
+      content: cls.getIncludeSource(inc.includeType as ClassIncludeType),
+    }));
+  },
+
+  // Git → SAP: Map abapGit values to ADK data (type inferred from AdkClass)
+  fromAbapGit: ({ VSEOCLASS }) => ({
+    // Required - uppercase for SAP
+    name: (VSEOCLASS?.CLSNAME ?? '').toUpperCase(),
+    type: 'CLAS/OC', // ADT object type
+      
+      // Basic metadata
+      description: VSEOCLASS?.DESCRIPT,
+      language: VSEOCLASS?.LANGU,
+      
+      // Class attributes
+      category: VSEOCLASS?.CATEGORY,
+      final: VSEOCLASS?.CLSFINAL === 'X',
+      abstract: VSEOCLASS?.CLSABSTRCT === 'X',
+      visibility: EXPOSURE_TO_VISIBILITY[VSEOCLASS?.EXPOSURE ?? '2'] ?? 'public',
+      sharedMemoryEnabled: VSEOCLASS?.SHRM_ENABLED === 'X',
+      
+      // Source attributes
+      fixPointArithmetic: VSEOCLASS?.FIXPT === 'X',
+      activeUnicodeCheck: VSEOCLASS?.UNICODE === 'X',
+      
+      // References (name only - URI resolved by ADK)
+      superClassRef: VSEOCLASS?.REFCLSNAME ? { name: VSEOCLASS.REFCLSNAME } : undefined,
+      messageClassRef: VSEOCLASS?.MSG_ID ? { name: VSEOCLASS.MSG_ID } : undefined,
+      
+    // ABAP language version
+    abapLanguageVersion: VSEOCLASS?.ABAP_LANGUAGE_VERSION,
+  }),
+  
+  // Git → SAP: Set source files on ADK object (symmetric with getSources)
+  // Stores sources as pending for later deploy via ADT
+  setSources: (cls, sources) => {
+    // Store all sources as pending (will be saved during deploy)
+    (cls as unknown as { _pendingSources: Record<string, string> })._pendingSources = sources;
+    // Also set main source shortcut for simple access
+    if (sources.main) {
+      (cls as unknown as { _pendingSource: string })._pendingSource = sources.main;
+    }
+  },
 });

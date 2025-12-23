@@ -4,7 +4,7 @@
  * Helper to render the TUI and wait for exit.
  */
 
-import React from 'react';
+// React import not needed with JSX transform
 import { render } from 'ink';
 import { App } from './App';
 import type { FetchFn } from './lib/types';

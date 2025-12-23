@@ -105,7 +105,13 @@ function createLoadedConfig(config: AdtConfig): LoadedConfig {
     raw: config,
     
     getDestination(name: string): Destination | undefined {
-      return config.destinations?.[name];
+      const dest = config.destinations?.[name];
+      if (!dest) return undefined;
+      // Handle string shorthand (URL) by converting to Destination object
+      if (typeof dest === 'string') {
+        return { type: 'url', options: { url: dest } };
+      }
+      return dest;
     },
     
     listDestinations(): string[] {

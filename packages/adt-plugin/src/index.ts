@@ -17,16 +17,28 @@
  * ```
  */
 
-// Types
+// Format Plugin Types
 export type {
   AbapObjectType,
   ImportContext,
   ImportResult,
   ExportContext,
   ExportResult,
+  FileTree,
   AdtPlugin,
   AdtPluginDefinition,
 } from './types';
+
+// CLI Command Plugin Types
+export type {
+  CliOption,
+  CliArgument,
+  CliContext,
+  CliLogger,
+  CliCommandPlugin,
+  CliCommandModule,
+  AdtCliConfig,
+} from './cli-types';
 
 // Factory
 export { createPlugin } from './factory';

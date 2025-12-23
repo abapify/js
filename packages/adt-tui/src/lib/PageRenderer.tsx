@@ -8,7 +8,7 @@
  * - Footer
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { PageResult, MenuItem } from './types';
 

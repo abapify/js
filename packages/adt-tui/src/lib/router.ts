@@ -4,15 +4,14 @@
  * Matches URLs to page components.
  */
 
-import type { Route, PageProps } from './types';
-import type { ComponentType } from 'react';
+import type { Route, PageComponent } from './types';
 
 /**
  * Router class for URL pattern matching
  */
 export class Router {
   private routes: Route[] = [];
-  private fallback: ComponentType<PageProps> | null = null;
+  private fallback: PageComponent | null = null;
 
   /**
    * Register a route
@@ -23,29 +22,29 @@ export class Router {
   }
 
   /**
-   * Set fallback component for unmatched routes
+   * Set fallback page for unmatched routes
    */
-  setFallback(component: ComponentType<PageProps>): this {
-    this.fallback = component;
+  setFallback(page: PageComponent): this {
+    this.fallback = page;
     return this;
   }
 
   /**
    * Match URL to a route
    */
-  match(url: string): { component: ComponentType<PageProps>; name?: string } | null {
+  match(url: string): { page: PageComponent; name?: string } | null {
     for (const route of this.routes) {
       if (typeof route.pattern === 'string') {
         if (url === route.pattern || url.startsWith(route.pattern)) {
-          return { component: route.component, name: route.name };
+          return { page: route.page, name: route.name };
         }
       } else if (route.pattern.test(url)) {
-        return { component: route.component, name: route.name };
+        return { page: route.page, name: route.name };
       }
     }
 
     if (this.fallback) {
-      return { component: this.fallback, name: 'fallback' };
+      return { page: this.fallback, name: 'fallback' };
     }
 
     return null;
