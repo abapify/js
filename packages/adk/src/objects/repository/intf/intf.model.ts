@@ -8,7 +8,6 @@ import { AdkMainObject } from '../../../base/model';
 import { Interface as InterfaceKind } from '../../../base/kinds';
 import { getGlobalContext } from '../../../base/global-context';
 import type { AdkContext } from '../../../base/context';
-import type { AbapInterface } from './intf.types';
 
 // Import response type from ADT integration layer
 import type { InterfaceResponse } from '../../../base/adt';
@@ -27,23 +26,16 @@ export type InterfaceXml = InterfaceResponse['abapInterface'];
  * Inherits from AdkMainObject which provides:
  * - AdkObject: name, type, description, version, language, changedBy/At, createdBy/At, links
  * - AdkMainObject: package, packageRef, responsible, masterLanguage, masterSystem, abapLanguageVersion
+ * 
+ * Access interface-specific properties via `data`:
+ * - data.modeled, data.sourceUri, data.fixPointArithmetic, data.activeUnicodeCheck
  */
-export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceXml> implements AbapInterface {
+export class AdkInterface extends AdkMainObject<typeof InterfaceKind, InterfaceXml> {
   static readonly kind = InterfaceKind;
   readonly kind = AdkInterface.kind;
   
-  // ADT object URI
+  // ADT object URI (computed - not in data)
   get objectUri(): string { return `/sap/bc/adt/oo/interfaces/${encodeURIComponent(this.name.toLowerCase())}`; }
-  
-  // abapoo:* attributes (interface-specific)
-  get modeled(): boolean { return this.dataSync.modeled ?? false; }
-  
-  // abapsource:* attributes
-  get sourceUri(): string { return this.dataSync.sourceUri ?? 'source/main'; }
-  get fixPointArithmetic(): boolean { return this.dataSync.fixPointArithmetic ?? false; }
-  get activeUnicodeCheck(): boolean { return this.dataSync.activeUnicodeCheck ?? false; }
-  
-  // packageRef is inherited from AdkMainObject
   
   // Lazy segments - source code
   

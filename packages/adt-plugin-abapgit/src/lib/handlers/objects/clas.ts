@@ -55,7 +55,8 @@ export const classHandler = createHandler(AdkClass, {
   suffixToSourceKey: SUFFIX_TO_SOURCE_KEY,
 
   toAbapGit: (cls) => {
-    const hasTestClasses = cls.includes.some((inc) => inc.includeType === 'testclasses');
+    const includes = cls.data.include ?? [];
+    const hasTestClasses = includes.some((inc) => inc.includeType === 'testclasses');
 
     return {
       VSEOCLASS: {
@@ -63,28 +64,28 @@ export const classHandler = createHandler(AdkClass, {
         CLSNAME: cls.name ?? '',
         
         // Basic metadata
-        LANGU: cls.language ?? 'E',
-        DESCRIPT: cls.description ?? '',
+        LANGU: cls.data.language ?? 'E',
+        DESCRIPT: cls.data.description ?? '',
         STATE: '1', // Active
         
-        // Class attributes
-        CATEGORY: cls.category ?? '00',
-        EXPOSURE: VISIBILITY_TO_EXPOSURE[cls.visibility ?? 'public'] ?? '2',
-        CLSFINAL: cls.final ? 'X' : undefined,
-        CLSABSTRCT: cls.abstract ? 'X' : undefined,
-        SHRM_ENABLED: cls.sharedMemoryEnabled ? 'X' : undefined,
+        // Class attributes - access via data.*
+        CATEGORY: cls.data.category ?? '00',
+        EXPOSURE: VISIBILITY_TO_EXPOSURE[cls.data.visibility ?? 'public'] ?? '2',
+        CLSFINAL: cls.data.final ? 'X' : undefined,
+        CLSABSTRCT: cls.data.abstract ? 'X' : undefined,
+        SHRM_ENABLED: cls.data.sharedMemoryEnabled ? 'X' : undefined,
         
         // Source attributes
         CLSCCINCL: 'X', // Class constructor include
-        FIXPT: cls.fixPointArithmetic ? 'X' : undefined,
-        UNICODE: cls.activeUnicodeCheck ? 'X' : undefined,
+        FIXPT: cls.data.fixPointArithmetic ? 'X' : undefined,
+        UNICODE: cls.data.activeUnicodeCheck ? 'X' : undefined,
         
         // References
-        REFCLSNAME: cls.superClassRef?.name,
-        MSG_ID: cls.messageClassRef?.name,
+        REFCLSNAME: cls.data.superClassRef?.name,
+        MSG_ID: cls.data.messageClassRef?.name,
         
         // ABAP language version
-        ABAP_LANGUAGE_VERSION: cls.abapLanguageVersion,
+        ABAP_LANGUAGE_VERSION: cls.data.abapLanguageVersion,
         
         // Test classes flag
         ...(hasTestClasses ? { WITH_UNIT_TESTS: 'X' } : {}),
@@ -92,11 +93,13 @@ export const classHandler = createHandler(AdkClass, {
     };
   },
 
-  getSources: (cls) =>
-    cls.includes.map((inc) => ({
-      suffix: ABAPGIT_SUFFIX[inc.includeType],
-      content: cls.getIncludeSource(inc.includeType),
-    })),
+  getSources: (cls) => {
+    const includes = cls.data.include ?? [];
+    return includes.map((inc) => ({
+      suffix: ABAPGIT_SUFFIX[inc.includeType as ClassIncludeType],
+      content: cls.getIncludeSource(inc.includeType as ClassIncludeType),
+    }));
+  },
 
   // Git → SAP: Map abapGit values to ADK data (type inferred from AdkClass)
   fromAbapGit: ({ VSEOCLASS }) => ({

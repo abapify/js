@@ -24,10 +24,6 @@ export { referenceContract } from './sap/bc/adt/cts/transportrequests/reference'
 export { configurationsContract } from './sap/bc/adt/cts/transportrequests/searchconfiguration/configurations';
 export { metadataContract } from './sap/bc/adt/cts/transportrequests/searchconfiguration/metadata';
 
-// sap/bc/adt/oo
-export { classesContract } from './sap/bc/adt/oo/classes';
-export { interfacesContract } from './sap/bc/adt/oo/interfaces';
-
 // sap/bc/adt/packages
 export { settingsContract } from './sap/bc/adt/packages/settings';
 export { validationContract } from './sap/bc/adt/packages/validation';

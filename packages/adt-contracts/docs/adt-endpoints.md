@@ -3,7 +3,7 @@
 > Auto-generated from SAP ADT discovery data.
 > To enable an endpoint, add it to `adt-codegen` config/enabled-endpoints.json
 
-## Enabled Endpoints (11)
+## Enabled Endpoints (9)
 
 These endpoints have generated contracts in `src/generated/adt/`:
 
@@ -15,13 +15,11 @@ These endpoints have generated contracts in `src/generated/adt/`:
 | `/sap/bc/adt/cts/transportrequests/reference` | Transport Management | transportmanagementref |
 | `/sap/bc/adt/cts/transportrequests/searchconfiguration/configurations` | Transport Search Configurations | transportconfigurations |
 | `/sap/bc/adt/cts/transportrequests/searchconfiguration/metadata` | Transport Search Configurations (Metadata) | transportconfigurationsmetadata |
-| `/sap/bc/adt/oo/classes` | Classes | classes |
-| `/sap/bc/adt/oo/interfaces` | Interfaces | interfaces |
 | `/sap/bc/adt/packages` | Package | devck |
 | `/sap/bc/adt/packages/settings` | Package Settings | settings |
 | `/sap/bc/adt/packages/validation` | Package Name Validation | devck/validation |
 
-## Available Endpoints (Not Yet Enabled) (528)
+## Available Endpoints (Not Yet Enabled) (530)
 
 These endpoints were discovered but no contracts are generated yet:
 
@@ -895,14 +893,16 @@ These endpoints were discovered but no contracts are generated yet:
 
 </details>
 
-### /sap/bc/adt/oo (2 endpoints)
+### /sap/bc/adt/oo (4 endpoints)
 
 <details>
 <summary>Click to expand</summary>
 
 | Endpoint | Title |
 |----------|-------|
+| `/sap/bc/adt/oo/classes` | Classes |
 | `/sap/bc/adt/oo/classrun` | Run a class |
+| `/sap/bc/adt/oo/interfaces` | Interfaces |
 | `/sap/bc/adt/oo/validation/objectname` | Validation of Object Name |
 
 </details>

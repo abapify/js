@@ -30,9 +30,8 @@ export const enabledEndpoints: EndpointDefinition[] = [
   // CTS - Transport management
   '/sap/bc/adt/cts/transportrequests/**',
   
-  // OO - Classes and interfaces
-  '/sap/bc/adt/oo/classes',
-  '/sap/bc/adt/oo/interfaces',
+  // NOTE: OO classes/interfaces use manual contracts in src/adt/oo/
+  // They use the crud() helper which is simpler than code generation
   
   // Packages
   '/sap/bc/adt/packages',

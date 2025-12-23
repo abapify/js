@@ -37,6 +37,19 @@ export type {
   TransportGetResponse,
 } from '@abapify/adt-client';
 
+// CRUD contract types for typed ADK base model
+export type {
+  CrudContract,
+  CrudContractBase,
+  CrudQueryParams,
+  LockOptions,
+  UnlockOptions,
+  ObjectStructureOptions,
+  SourceOperations,
+  SourcesContract,
+  IncludesContract,
+} from '@abapify/adt-client';
+
 import type { 
   ClassResponse as _ClassResponse,
   InterfaceResponse as _InterfaceResponse,

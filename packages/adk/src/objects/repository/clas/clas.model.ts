@@ -9,14 +9,7 @@ import { Class as ClassKind } from '../../../base/kinds';
 import { getGlobalContext } from '../../../base/global-context';
 import { invalidateLazy } from '../../../decorators';
 import type { AdkContext } from '../../../base/context';
-import type {
-  AbapClass,
-  ClassCategory,
-  ClassVisibility,
-  ClassInclude,
-  ClassIncludeType,
-  ObjectReference,
-} from './clas.types';
+import type { ClassIncludeType } from './clas.types';
 
 // Import response type from ADT integration layer
 import type { ClassResponse } from '../../../base/adt';
@@ -35,108 +28,34 @@ export type ClassXml = ClassResponse['abapClass'];
  * Inherits from AdkMainObject which provides:
  * - AdkObject: name, type, description, version, language, changedBy/At, createdBy/At, links
  * - AdkMainObject: package, packageRef, responsible, masterLanguage, masterSystem, abapLanguageVersion
+ * 
+ * Access class-specific properties via `data`:
+ * - data.category, data.final, data.abstract, data.visibility
+ * - data.sharedMemoryEnabled, data.modeled, data.fixPointArithmetic
+ * - data.superClassRef, data.messageClassRef, data.include
  */
-export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> implements AbapClass {
+export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> {
   static readonly kind = ClassKind;
   readonly kind = AdkClass.kind;
   
-  // ADT object URI
+  // ADT object URI (computed - not in data)
   get objectUri(): string { return `/sap/bc/adt/oo/classes/${encodeURIComponent(this.name.toLowerCase())}`; }
-  
-  // class:* attributes (class-specific, not inherited)
-  get category(): ClassCategory { 
-    return (this.dataSync.category ?? 'generalObjectType') as ClassCategory; 
-  }
-  get final(): boolean { return this.dataSync.final ?? false; }
-  get abstract(): boolean { return this.dataSync.abstract ?? false; }
-  get visibility(): ClassVisibility { 
-    return (this.dataSync.visibility ?? 'public') as ClassVisibility; 
-  }
-  get sharedMemoryEnabled(): boolean { return this.dataSync.sharedMemoryEnabled ?? false; }
-  
-  // abapoo:* attributes
-  get modeled(): boolean { return this.dataSync.modeled ?? false; }
-  
-  // abapsource:* attributes
-  get fixPointArithmetic(): boolean { return this.dataSync.fixPointArithmetic ?? true; }
-  get activeUnicodeCheck(): boolean { return this.dataSync.activeUnicodeCheck ?? true; }
-  
-  // References
-  get superClassRef(): ObjectReference | undefined {
-    const ref = this.dataSync.superClassRef;
-    if (!ref?.name) return undefined;
-    return {
-      uri: ref.uri ?? '',
-      type: ref.type ?? 'CLAS/OC',
-      name: ref.name,
-      description: ref.description,
-    };
-  }
-  
-  get messageClassRef(): ObjectReference | undefined {
-    const ref = this.dataSync.messageClassRef;
-    if (!ref?.name) return undefined;
-    return {
-      uri: ref.uri ?? '',
-      type: ref.type ?? 'MSAG/N',
-      name: ref.name,
-      description: ref.description,
-    };
-  }
-  
-  override get packageRef(): ObjectReference | undefined {
-    const ref = this.dataSync.packageRef;
-    if (!ref?.name) return undefined;
-    return {
-      uri: ref.uri ?? '',
-      type: ref.type ?? 'DEVC/K',
-      name: ref.name,
-      description: ref.description,
-    };
-  }
-  
-  // Includes
-  get includes(): ClassInclude[] {
-    const rawIncludes = this.dataSync.include ?? [];
-    return rawIncludes.map((inc: NonNullable<ClassXml['include']>[number]) => ({
-      includeType: (inc.includeType ?? 'main') as ClassIncludeType,
-      sourceUri: inc.sourceUri ?? '',
-      name: inc.name ?? '',
-      type: inc.type ?? 'CLAS/I',
-      version: inc.version ?? '',
-      changedAt: inc.changedAt ? new Date(inc.changedAt as string | number | Date) : new Date(0),
-      createdAt: inc.createdAt ? new Date(inc.createdAt as string | number | Date) : new Date(0),
-      changedBy: inc.changedBy ?? '',
-      createdBy: inc.createdBy ?? '',
-    }));
-  }
   
   // Lazy segments - source code
   
   async getMainSource(): Promise<string> {
     return this.lazy('source:main', async () => {
-      return this.ctx.client.adt.oo.classes.source.main.get(this.name);
+      return this.crudContract.source.main.get(this.name);
     });
   }
   
   async getIncludeSource(includeType: ClassIncludeType): Promise<string> {
     return this.lazy(`source:${includeType}`, async () => {
-      switch (includeType) {
-        case 'definitions':
-          return this.ctx.client.adt.oo.classes.includes.definitions.get(this.name);
-        case 'implementations':
-          return this.ctx.client.adt.oo.classes.includes.implementations.get(this.name);
-        case 'macros':
-          return this.ctx.client.adt.oo.classes.includes.macros.get(this.name);
-        case 'main':
-          return this.ctx.client.adt.oo.classes.source.main.get(this.name);
-        case 'testclasses':
-        case 'localtypes':
-        default:
-          // These include types exist in SAP but don't have dedicated contract endpoints
-          // Use generic include fetch with type assertion
-          return this.ctx.client.adt.oo.classes.includes.get(this.name, includeType as 'definitions');
+      if (includeType === 'main') {
+        return this.crudContract.source.main.get(this.name);
       }
+      // Use contract's generic includes.get() - works for all include types
+      return this.crudContract.includes.get(this.name, includeType);
     });
   }
   
@@ -277,3 +196,4 @@ export const AbapClassModel = AdkClass;
 // Self-register with ADK registry
 import { registerObjectType } from '../../../base/registry';
 registerObjectType('CLAS', ClassKind, AdkClass);
+             

@@ -65,6 +65,25 @@ export interface EndpointConfig {
    * Custom description for the generated contract
    */
   description?: string;
+  
+  /**
+   * Generate a full CRUD contract using the crud() helper.
+   * When true, generates get/post/put/delete methods following the ADT URL template:
+   *   {basePath}/{object_name}{?corrNr,lockHandle,version,accessMode,_action}
+   * 
+   * Requires `schema` and `accept` to be specified.
+   * 
+   * @example
+   * ```typescript
+   * defineEndpoint({
+   *   path: '/sap/bc/adt/oo/classes',
+   *   schema: 'classes',
+   *   accept: 'application/vnd.sap.adt.oo.classes.v4+xml',
+   *   crud: true,
+   * })
+   * ```
+   */
+  crud?: boolean;
 }
 
 /**
@@ -81,6 +100,7 @@ export interface NormalizedEndpointConfig {
   schema?: string;
   accept?: string;
   description?: string;
+  crud?: boolean;
 }
 
 /**
@@ -132,6 +152,7 @@ export function normalizeEndpoint(def: EndpointDefinition): NormalizedEndpointCo
       schema: def.schema,
       accept: def.accept,
       description: def.description,
+      crud: def.crud,
     };
   }
   return { pattern: def };
