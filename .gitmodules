@@ -1,3 +1,6 @@
 [submodule "git_modules/abap-file-formats"]
 	path = git_modules/abap-file-formats
 	url = https://github.com/SAP/abap-file-formats
+[submodule "git_modules/abapgit-examples"]
+	path = git_modules/abapgit-examples
+	url = https://github.com/abapify/abapgit-examples
