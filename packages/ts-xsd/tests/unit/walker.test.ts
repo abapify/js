@@ -15,7 +15,7 @@ import {
   findElement,
   stripNsPrefix,
 } from '../../src/walker';
-import type { SchemaLike, ComplexTypeLike } from '../../src/infer/types';
+import type { SchemaLike, ComplexTypeLike } from '../../src/xsd/schema-like';
 
 describe('Schema Walker', () => {
   // ==========================================================================

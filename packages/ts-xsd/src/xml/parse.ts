@@ -6,7 +6,7 @@
  */
 
 import { DOMParser } from '@xmldom/xmldom';
-import type { InferSchema, SchemaLike, ComplexTypeLike, ElementLike } from '../infer';
+import type { InferParsedSchema, SchemaLike, ComplexTypeLike, ElementLike } from '../infer';
 import {
   findComplexType,
   findElement,
@@ -102,7 +102,7 @@ type XmlElement = Element;
 export function parse<T extends SchemaLike>(
   schema: T,
   xml: string
-): InferSchema<T> {
+): InferParsedSchema<T> {
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
   const root = doc.documentElement;
 
@@ -123,7 +123,9 @@ export function parse<T extends SchemaLike>(
   // Check for inline complexType first
   const inlineComplexType = (elementEntry.element as { complexType?: ComplexTypeLike }).complexType;
   if (inlineComplexType) {
-    return parseElement(root, inlineComplexType, elementEntry.schema, schema) as InferSchema<T>;
+    const content = parseElement(root, inlineComplexType, elementEntry.schema, schema);
+    // Wrap result with root element name for type discrimination
+    return { [rootLocalName]: content } as InferParsedSchema<T>;
   }
 
   // Get the type name (strip namespace prefix if present)
@@ -136,7 +138,9 @@ export function parse<T extends SchemaLike>(
     throw new Error(`Schema missing complexType for: ${typeName}`);
   }
 
-  return parseElement(root, typeEntry.ct, typeEntry.schema, schema) as InferSchema<T>;
+  const content = parseElement(root, typeEntry.ct, typeEntry.schema, schema);
+  // Wrap result with root element name for type discrimination
+  return { [rootLocalName]: content } as InferParsedSchema<T>;
 }
 
 /**

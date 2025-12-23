@@ -13,7 +13,7 @@ import {
   normalizeTransportFindResponse,
   type CtsReqHeader,
   type TransportFindParams,
-} from 'adt-contracts';
+} from '@abapify/adt-contracts';
 
 // Status icons
 const STATUS_ICONS: Record<string, string> = {

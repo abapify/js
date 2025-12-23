@@ -14,6 +14,25 @@
 // Contract definition utilities
 export { http, type RestContract } from 'speci/rest';
 
+// CRUD helper for repository objects
+// Note: SourceType and IncludeType were removed - crud() now accepts generic strings
+// and callers define valid values based on SAP XSD schema for each object type
+export { 
+  crud, 
+  repo, 
+  type CrudOptions, 
+  type CrudContract,
+  type CrudContractBase,
+  type CrudQueryParams,
+  type LockOptions,
+  type UnlockOptions,
+  type ObjectStructureOptions,
+  type SourcePutOptions,
+  type SourceOperations,
+  type SourcesContract,
+  type IncludesContract,
+} from './helpers/crud';
+
 // Client creation utilities (for consumers like adt-client)
 import { createClient as speciCreateClient, type HttpAdapter } from 'speci/rest';
 
@@ -38,6 +57,12 @@ export type {
   RestClient,
   Serializable,
   RestEndpointDescriptor,
+} from 'speci/rest';
+
+// Type utilities for extracting types from contracts
+export type {
+  ExtractResponse,
+  InferSuccessResponse,
 } from 'speci/rest';
 
 // Import RestClient for use in return type

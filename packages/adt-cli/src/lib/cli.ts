@@ -4,14 +4,13 @@ import { Command } from 'commander';
 import {
   importPackageCommand,
   importTransportCommand,
-  exportPackageCommand,
   searchCommand,
   discoveryCommand,
   infoCommand,
   fetchCommand,
   getCommand,
   outlineCommand,
-  atcCommand,
+  // ATC command moved to @abapify/adt-atc plugin
   loginCommand,
   logoutCommand,
   statusCommand,
@@ -25,11 +24,13 @@ import {
   packageGetCommand,
 } from './commands';
 import { refreshCommand } from './commands/auth/refresh';
-import { deployCommand } from './commands/deploy/index';
+// Deploy command moved to @abapify/adt-export plugin
+// Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 import { createUnlockCommand } from './commands/unlock/index';
 import { createLockCommand } from './commands/lock';
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setCliContext } from './utils/adt-client-v2';
+import { loadCommandPlugins } from './plugin-loader';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -160,8 +161,8 @@ export async function createCLI(): Promise<Command> {
   // Object outline command
   program.addCommand(outlineCommand);
 
-  // ATC (ABAP Test Cockpit) command
-  program.addCommand(atcCommand);
+  // ATC (ABAP Test Cockpit) command - now loaded as plugin from @abapify/adt-atc
+  // Add '@abapify/adt-atc/commands/atc' to adt.config.ts commands array to enable
 
   // Search command
   program.addCommand(searchCommand);
@@ -179,15 +180,11 @@ export async function createCLI(): Promise<Command> {
   importCmd.addCommand(importPackageCommand);
   importCmd.addCommand(importTransportCommand);
 
-  // Export commands
-  const exportCmd = program
-    .command('export')
-    .description('Export ABAP objects from various formats to SAP systems');
+  // Export commands - moved to @abapify/adt-export plugin
+  // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 
-  exportCmd.addCommand(exportPackageCommand);
-
-  // Deploy command (now unified - supports files, folders, and glob patterns)
-  program.addCommand(deployCommand);
+  // Deploy command moved to @abapify/adt-export plugin
+  // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 
   // Lock command
   program.addCommand(createLockCommand());
@@ -204,6 +201,9 @@ export async function createCLI(): Promise<Command> {
   // Test commands for debugging
   program.addCommand(createTestLogCommand());
   program.addCommand(createTestAdtCommand());
+
+  // Load command plugins from config (adt.config.ts)
+  await loadCommandPlugins(program, process.cwd());
 
   // Apply global options help to all commands using afterAll hook
   addGlobalOptionsHelpToAll(program);

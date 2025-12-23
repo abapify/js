@@ -6,6 +6,8 @@ scripts/
 # Ignore e2e tests at root level (they have their own project)
 e2e/
 
-# NOTE: Do NOT ignore *.config.ts files here!
-# The nx-tsdown and nx-vitest plugins need to detect tsdown.config.ts and vitest.config.ts
-# False circular dependencies from config imports are handled via namedInputs in nx.json
+# Ignore ADT config files from Nx source analysis
+# - Contains SAP connection secrets (should not be committed)
+# - Imports @abapify/adt-codegen which creates false circular dependencies
+#   (adt-contracts:codegen → adt-codegen:build → ... → adt-contracts:build)
+**/adt.config.ts

@@ -1,0 +1,4 @@
+# Ignore config files from Nx dependency analysis
+config/
+*.config.ts
+adt.config.ts

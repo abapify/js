@@ -16,16 +16,6 @@ export type AdtcoreSchema = {
             packageName?: string;
             description?: string;
         };
-        link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-        }[];
         adtTemplate?: {
             adtProperty?: {
                 _text?: string;
@@ -56,5 +46,34 @@ export type AdtcoreSchema = {
         masterLanguage?: string;
         responsible?: string;
         abapLanguageVersion?: string;
+    };
+} | {
+    objectReferences: {
+        objectReference: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+        }[];
+        name?: string;
+    };
+} | {
+    objectReference: {
+        extension?: unknown;
+        uri?: string;
+        parentUri?: string;
+        type?: string;
+        name?: string;
+        packageName?: string;
+        description?: string;
+    };
+} | {
+    content: {
+        _text?: string;
+        type?: string;
+        encoding?: string;
     };
 };

@@ -18,11 +18,21 @@ export {
   AdkObject, 
   AdkMainObject,
   type LockHandle,
+  type SaveOptions,
+  type ActivationResult,
   type AtomLink,
   type AdtObjectReference,
   type AdkObjectData,
   type AdkMainObjectData,
 } from './base/model';
+
+// Object Set - bulk operations service
+export {
+  AdkObjectSet,
+  type BulkSaveResult,
+  type BulkSaveOptions,
+  type BulkActivateOptions,
+} from './base/object-set';
 
 // ADT integration layer - single point for adt-client types
 export type {

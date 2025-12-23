@@ -20,16 +20,6 @@ export type AtcworklistSchema = {
                 findings: {
                     finding?: {
                         extension?: unknown;
-                        link?: {
-                            href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
-                        }[];
                         quickfixes: {
                             manual?: boolean;
                             automatic?: boolean;
@@ -78,17 +68,6 @@ export type AtcworklistSchema = {
                 objectTypeId?: string;
             }[];
         };
-        descriptionTags: {
-            tagWithDescription?: {
-                name: string;
-                descriptions: {
-                    description?: {
-                        value?: string;
-                        description?: string;
-                    }[];
-                };
-            }[];
-        };
         infos: {
             info?: {
                 type: string;
@@ -99,5 +78,16 @@ export type AtcworklistSchema = {
         timestamp: string;
         usedObjectSet?: string;
         objectSetIsComplete?: boolean;
+    };
+} | {
+    worklistRun: {
+        worklistId: string;
+        worklistTimestamp: string;
+        infos: {
+            info?: {
+                type: string;
+                description: string;
+            }[];
+        };
     };
 };

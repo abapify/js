@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { parseXml } from '../../src/xml';
-import type { SchemaLike } from '../../src/infer/types';
+import type { SchemaLike } from '../../src/xsd/schema-like';
 
 describe('parseXml', () => {
   describe('Basic parsing', () => {
@@ -27,7 +27,7 @@ describe('parseXml', () => {
       const xml = `<Person><name>John</name></Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'John' });
+      assert.deepStrictEqual(result, { Person: { name: 'John' } });
     });
 
     it('should parse multiple elements in sequence', () => {
@@ -49,7 +49,7 @@ describe('parseXml', () => {
       const xml = `<Person><firstName>John</firstName><lastName>Doe</lastName></Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { firstName: 'John', lastName: 'Doe' });
+      assert.deepStrictEqual(result, { Person: { firstName: 'John', lastName: 'Doe' } });
     });
 
     it('should handle missing optional elements', () => {
@@ -71,7 +71,7 @@ describe('parseXml', () => {
       const xml = `<Person><name>John</name></Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'John' });
+      assert.deepStrictEqual(result, { Person: { name: 'John' } });
     });
   });
 
@@ -92,7 +92,7 @@ describe('parseXml', () => {
       const xml = `<Person id="123"/>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { id: '123' });
+      assert.deepStrictEqual(result, { Person: { id: '123' } });
     });
 
     it('should apply default attribute values', () => {
@@ -111,7 +111,7 @@ describe('parseXml', () => {
       const xml = `<Person/>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { status: 'active' });
+      assert.deepStrictEqual(result, { Person: { status: 'active' } });
     });
 
     it('should parse namespaced attributes', () => {
@@ -130,7 +130,7 @@ describe('parseXml', () => {
       const xml = `<Person xmlns:custom="http://example.com" custom:id="456"/>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { id: '456' });
+      assert.deepStrictEqual(result, { Person: { id: '456' } });
     });
   });
 
@@ -154,8 +154,8 @@ describe('parseXml', () => {
       const xml = `<Data><count>42</count><total>100</total></Data>`;
       const result = parseXml(schema, xml);
 
-      assert.strictEqual(result.count, 42);
-      assert.strictEqual(result.total, 100);
+      assert.strictEqual(result.Data.count, 42);
+      assert.strictEqual(result.Data.total, 100);
     });
 
     it('should convert boolean types', () => {
@@ -177,8 +177,8 @@ describe('parseXml', () => {
       const xml = `<Data><active>true</active><enabled>1</enabled></Data>`;
       const result = parseXml(schema, xml);
 
-      assert.strictEqual(result.active, true);
-      assert.strictEqual(result.enabled, true);
+      assert.strictEqual(result.Data.active, true);
+      assert.strictEqual(result.Data.enabled, true);
     });
 
     it('should convert numeric types', () => {
@@ -201,9 +201,9 @@ describe('parseXml', () => {
       const xml = `<Data><price>19.99</price><rate>3.14</rate><value>2.718</value></Data>`;
       const result = parseXml(schema, xml);
 
-      assert.strictEqual(result.price, 19.99);
-      assert.strictEqual(result.rate, 3.14);
-      assert.strictEqual(result.value, 2.718);
+      assert.strictEqual(result.Data.price, 19.99);
+      assert.strictEqual(result.Data.rate, 3.14);
+      assert.strictEqual(result.Data.value, 2.718);
     });
 
     it('should keep date types as strings', () => {
@@ -225,8 +225,9 @@ describe('parseXml', () => {
       const xml = `<Data><date>2024-01-15</date><timestamp>2024-01-15T10:30:00Z</timestamp></Data>`;
       const result = parseXml(schema, xml);
 
-      assert.strictEqual(result.date, '2024-01-15');
-      assert.strictEqual(result.timestamp, '2024-01-15T10:30:00Z');
+      // parse() returns wrapped format: { ElementName: content }
+      assert.strictEqual(result.Data.date, '2024-01-15');
+      assert.strictEqual(result.Data.timestamp, '2024-01-15T10:30:00Z');
     });
   });
 
@@ -249,7 +250,7 @@ describe('parseXml', () => {
       const xml = `<List><item>a</item><item>b</item><item>c</item></List>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { item: ['a', 'b', 'c'] });
+      assert.deepStrictEqual(result, { List: { item: ['a', 'b', 'c'] } });
     });
 
     it('should parse maxOccurs > 1 as arrays', () => {
@@ -270,7 +271,7 @@ describe('parseXml', () => {
       const xml = `<List><item>a</item><item>b</item></List>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { item: ['a', 'b'] });
+      assert.deepStrictEqual(result, { List: { item: ['a', 'b'] } });
     });
 
     it('should parse string maxOccurs as arrays', () => {
@@ -291,7 +292,7 @@ describe('parseXml', () => {
       const xml = `<List><item>x</item></List>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { item: ['x'] });
+      assert.deepStrictEqual(result, { List: { item: ['x'] } });
     });
   });
 
@@ -322,7 +323,7 @@ describe('parseXml', () => {
       const xml = `<Order><customer><name>John</name></customer></Order>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { customer: { name: 'John' } });
+      assert.deepStrictEqual(result, { Order: { customer: { name: 'John' } } });
     });
 
     it('should parse arrays of complex types', () => {
@@ -353,10 +354,12 @@ describe('parseXml', () => {
       const result = parseXml(schema, xml);
 
       assert.deepStrictEqual(result, {
-        item: [
-          { sku: 'A1', qty: 2 },
-          { sku: 'B2', qty: 3 },
-        ],
+        Order: {
+          item: [
+            { sku: 'A1', qty: 2 },
+            { sku: 'B2', qty: 3 },
+          ],
+        },
       });
     });
   });
@@ -378,7 +381,7 @@ describe('parseXml', () => {
       const xml = `<ns:Person xmlns:ns="http://example.com"><ns:name>John</ns:name></ns:Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'John' });
+      assert.deepStrictEqual(result, { Person: { name: 'John' } });
     });
 
     it('should handle type names with namespace prefix', () => {
@@ -397,7 +400,7 @@ describe('parseXml', () => {
       const xml = `<Person><name>Jane</name></Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'Jane' });
+      assert.deepStrictEqual(result, { Person: { name: 'Jane' } });
     });
   });
 
@@ -421,7 +424,7 @@ describe('parseXml', () => {
       const xml = `<Data><optionA>selected</optionA></Data>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { optionA: 'selected' });
+      assert.deepStrictEqual(result, { Data: { optionA: 'selected' } });
     });
 
     it('should parse all elements', () => {
@@ -443,7 +446,7 @@ describe('parseXml', () => {
       const xml = `<Data><field2>b</field2><field1>a</field1></Data>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { field1: 'a', field2: 'b' });
+      assert.deepStrictEqual(result, { Data: { field1: 'a', field2: 'b' } });
     });
   });
 
@@ -475,7 +478,7 @@ describe('parseXml', () => {
       const xml = `<Employee><name>John</name><department>Engineering</department></Employee>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'John', department: 'Engineering' });
+      assert.deepStrictEqual(result, { Employee: { name: 'John', department: 'Engineering' } });
     });
 
     it('should merge inherited attributes', () => {
@@ -501,7 +504,7 @@ describe('parseXml', () => {
       const xml = `<Employee id="P1" empId="E1"/>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { id: 'P1', empId: 'E1' });
+      assert.deepStrictEqual(result, { Employee: { id: 'P1', empId: 'E1' } });
     });
   });
 
@@ -521,7 +524,7 @@ describe('parseXml', () => {
       const xml = `<Person><name>Bob</name></Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'Bob' });
+      assert.deepStrictEqual(result, { Person: { name: 'Bob' } });
     });
   });
 
@@ -577,7 +580,7 @@ describe('parseXml', () => {
       const xml = `<Person><name>Test</name></Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'Test' });
+      assert.deepStrictEqual(result, { Person: { name: 'Test' } });
     });
   });
 
@@ -600,7 +603,7 @@ describe('parseXml', () => {
       const xml = `<Person id="123"><name>John</name></Person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { id: '123', name: 'John' });
+      assert.deepStrictEqual(result, { Person: { id: '123', name: 'John' } });
     });
 
     it('should parse nested inline complexType', () => {
@@ -629,7 +632,7 @@ describe('parseXml', () => {
       const xml = `<Envelope version="1.0"><body><content>Hello</content></body></Envelope>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { version: '1.0', body: { content: 'Hello' } });
+      assert.deepStrictEqual(result, { Envelope: { version: '1.0', body: { content: 'Hello' } } });
     });
   });
 
@@ -665,7 +668,7 @@ describe('parseXml', () => {
       const xml = `<Document><header><title>Test</title></header></Document>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { header: { title: 'Test' } });
+      assert.deepStrictEqual(result, { Document: { header: { title: 'Test' } } });
     });
 
     it('should resolve element ref to imported schema element', () => {
@@ -709,10 +712,12 @@ describe('parseXml', () => {
       const result = parseXml(schema, xml);
 
       assert.deepStrictEqual(result, {
-        id: 'W1',
-        abap: {
-          version: '1.0',
-          values: { data: 'test' },
+        wrapper: {
+          id: 'W1',
+          abap: {
+            version: '1.0',
+            values: { data: 'test' },
+          },
         },
       });
     });
@@ -786,11 +791,13 @@ describe('parseXml', () => {
       const result = parseXml(combinedSchema, xml);
 
       assert.deepStrictEqual(result, {
-        version: '1.0',
-        abap: {
+        abapGit: {
           version: '1.0',
-          values: {
-            DD01V: { DOMNAME: 'TEST' },
+          abap: {
+            version: '1.0',
+            values: {
+              DD01V: { DOMNAME: 'TEST' },
+            },
           },
         },
       });
@@ -822,9 +829,11 @@ describe('parseXml', () => {
       const result = parseXml(schema, xml);
 
       assert.deepStrictEqual(result, {
-        $value: 99.99,
-        currency: 'USD',
-        discount: true,
+        Price: {
+          $value: 99.99,
+          currency: 'USD',
+          discount: true,
+        },
       });
     });
 
@@ -851,8 +860,10 @@ describe('parseXml', () => {
       const result = parseXml(schema, xml);
 
       assert.deepStrictEqual(result, {
-        $value: 42,
-        unit: 'pieces',
+        Amount: {
+          $value: 42,
+          unit: 'pieces',
+        },
       });
     });
 
@@ -878,8 +889,10 @@ describe('parseXml', () => {
       const result = parseXml(schema, xml);
 
       assert.deepStrictEqual(result, {
-        $value: 'Hello World',
-        lang: 'en',
+        Label: {
+          $value: 'Hello World',
+          lang: 'en',
+        },
       });
     });
   });
@@ -903,7 +916,8 @@ describe('parseXml', () => {
       const xml = `<person><name>John</name></person>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { name: 'John' });
+      // Wrapper uses actual XML element name (lowercase 'person')
+      assert.deepStrictEqual(result, { person: { name: 'John' } });
     });
 
     it('should match element name with different casing', () => {
@@ -923,7 +937,7 @@ describe('parseXml', () => {
       const xml = `<Employee><id>E123</id></Employee>`;
       const result = parseXml(schema, xml);
 
-      assert.deepStrictEqual(result, { id: 'E123' });
+      assert.deepStrictEqual(result, { Employee: { id: 'E123' } });
     });
   });
 });

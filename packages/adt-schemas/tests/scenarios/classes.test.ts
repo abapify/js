@@ -1,11 +1,7 @@
 import { expect } from 'vitest';
 import { fixtures } from 'adt-fixtures';
-import type { InferElement } from 'ts-xsd';
-import { Scenario, runScenario } from './base/scenario';
-import { classes, _classes } from '../../src/schemas/index';
-
-/** Type for AbapClass element specifically (not the union) */
-type AbapClass = InferElement<typeof _classes, 'abapClass'>;
+import { Scenario, runScenario, type SchemaType } from './base/scenario';
+import { classes } from '../../src/schemas/index';
 
 /**
  * Test for ABAP class response - GET /sap/bc/adt/oo/classes/{name}
@@ -20,48 +16,52 @@ class ClassesScenario extends Scenario<typeof classes> {
   readonly schema = classes;
   readonly fixtures = [fixtures.oo.class];
 
-  validateParsed(data: AbapClass): void {
+  validateParsed(data: SchemaType<typeof classes>): void {
+    // parse() now returns wrapped format: { elementName: content }
+    const abapClass = (data as any).abapClass;
+    expect(abapClass).toBeDefined();
+    
     // Root class: attributes
-    expect(data.final).toBe(true);
-    expect(data.abstract).toBe(false);
-    expect(data.visibility).toBe('public');
-    expect(data.category).toBe('generalObjectType');
-    expect(data.sharedMemoryEnabled).toBe(false);
+    expect(abapClass.final).toBe(true);
+    expect(abapClass.abstract).toBe(false);
+    expect(abapClass.visibility).toBe('public');
+    expect(abapClass.category).toBe('generalObjectType');
+    expect(abapClass.sharedMemoryEnabled).toBe(false);
     
     // Inherited abapoo: attributes
-    expect(data.modeled).toBe(false);
+    expect(abapClass.modeled).toBe(false);
     
     // Inherited abapsource: attributes
-    expect(data.fixPointArithmetic).toBe(true);
-    expect(data.activeUnicodeCheck).toBe(true);
+    expect(abapClass.fixPointArithmetic).toBe(true);
+    expect(abapClass.activeUnicodeCheck).toBe(true);
     
     // Inherited adtcore: attributes
-    expect(data.name).toBe('ZCL_SAMPLE_CLASS');
-    expect(data.type).toBe('CLAS/OC');
-    expect(data.description).toBe('Sample class');
-    expect(data.responsible).toBe('DEVELOPER');
-    expect(data.masterLanguage).toBe('EN');
-    expect(data.version).toBe('active');
-    expect(data.changedBy).toBe('DEVELOPER');
-    expect(data.createdBy).toBe('DEVELOPER');
+    expect(abapClass.name).toBe('ZCL_SAMPLE_CLASS');
+    expect(abapClass.type).toBe('CLAS/OC');
+    expect(abapClass.description).toBe('Sample class');
+    expect(abapClass.responsible).toBe('DEVELOPER');
+    expect(abapClass.masterLanguage).toBe('EN');
+    expect(abapClass.version).toBe('active');
+    expect(abapClass.changedBy).toBe('DEVELOPER');
+    expect(abapClass.createdBy).toBe('DEVELOPER');
     
     // Package reference
-    expect(data.packageRef).toBeDefined();
-    expect(data.packageRef?.name).toBe('$TMP');
-    expect(data.packageRef?.type).toBe('DEVC/K');
+    expect(abapClass.packageRef).toBeDefined();
+    expect(abapClass.packageRef?.name).toBe('$TMP');
+    expect(abapClass.packageRef?.type).toBe('DEVC/K');
     
     // Syntax configuration
-    expect(data.syntaxConfiguration).toBeDefined();
-    expect(data.syntaxConfiguration?.language?.version).toBe('X');
-    expect(data.syntaxConfiguration?.language?.description).toBe('Standard ABAP');
+    expect(abapClass.syntaxConfiguration).toBeDefined();
+    expect(abapClass.syntaxConfiguration?.language?.version).toBe('X');
+    expect(abapClass.syntaxConfiguration?.language?.description).toBe('Standard ABAP');
     
     // Class includes (definitions, implementations, macros, testclasses, main)
-    expect(data.include).toBeDefined();
-    expect(data.include).toHaveLength(5);
+    expect(abapClass.include).toBeDefined();
+    expect(abapClass.include).toHaveLength(5);
     
     // Verify include types
     // Note: Using 'any' because TypeScript hits recursion limit on deeply nested schema types
-    const includeTypes = data.include?.map((inc: any) => inc.includeType);
+    const includeTypes = abapClass.include?.map((inc: any) => inc.includeType);
     expect(includeTypes).toContain('definitions');
     expect(includeTypes).toContain('implementations');
     expect(includeTypes).toContain('macros');
@@ -69,13 +69,13 @@ class ClassesScenario extends Scenario<typeof classes> {
     expect(includeTypes).toContain('main');
     
     // Check main include details
-    const mainInclude = data.include?.find((inc: any) => inc.includeType === 'main');
+    const mainInclude = abapClass.include?.find((inc: any) => inc.includeType === 'main');
     expect(mainInclude).toBeDefined();
     expect(mainInclude?.sourceUri).toBe('source/main');
     expect(mainInclude?.type).toBe('CLAS/I');
   }
 
-  validateBuilt(xml: string): void {
+  override validateBuilt(xml: string): void {
     // Root element with namespace (schema uses 'class' prefix per $xmlns)
     expect(xml).toContain('xmlns:class="http://www.sap.com/adt/oo/classes"');
     

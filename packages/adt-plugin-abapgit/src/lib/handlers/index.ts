@@ -13,6 +13,7 @@ export type {
   AbapObjectType,
   HandlerDefinition,
   HandlerContext,
+  ObjectPayload,
 } from './base';
 
 // Export registry functions (also triggers handler loading)

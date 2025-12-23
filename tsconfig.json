@@ -71,6 +71,12 @@
     },
     {
       "path": "./packages/adt-plugin"
+    },
+    {
+      "path": "./packages/adt-atc"
+    },
+    {
+      "path": "./packages/adt-export"
     }
   ]
 }

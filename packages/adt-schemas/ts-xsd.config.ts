@@ -33,6 +33,7 @@ const targetSchemas = [
   // SAP schemas
   'sap/atom',
   'sap/adtcore',
+  'sap/exception', // ADT error response format
   'sap/classes',
   'sap/interfaces',
   'sap/packagesV1',
@@ -65,6 +66,7 @@ const targetSchemas = [
   'custom/transportfind',
   'custom/transportmanagmentCreate',
   'custom/transportmanagmentSingle',
+  'custom/atcRun',
 ];
 
 export default defineConfig({

@@ -26,6 +26,40 @@ export interface LockHandle {
 }
 
 /**
+ * Save mode for create/update operations
+ * - 'update': PUT to existing object (default, fails if doesn't exist)
+ * - 'create': POST to create new object (fails if already exists)
+ * - 'upsert': Try PUT first, fall back to POST if 404
+ */
+export type SaveMode = 'update' | 'create' | 'upsert';
+
+/**
+ * Options for save operations
+ */
+export interface SaveOptions {
+  /** Transport request for the change */
+  transport?: string;
+  /** Save as inactive (default: false) */
+  inactive?: boolean;
+  /** Save mode: 'update' (default), 'create', or 'upsert' */
+  mode?: SaveMode;
+}
+
+/**
+ * Result of bulk activation
+ */
+export interface ActivationResult {
+  /** Number of successfully activated objects */
+  success: number;
+  /** Number of objects that failed activation */
+  failed: number;
+  /** Activation messages (errors, warnings) */
+  messages: string[];
+  /** Raw response from SAP (for debugging) */
+  response?: string;
+}
+
+/**
  * Atom link (from atom:link element)
  * Used for HATEOAS-style navigation in ADT responses
  */
@@ -47,6 +81,7 @@ export interface AdtObjectReference {
   description?: string;
   packageName?: string;
 }
+
 
 /**
  * Base data contract for all ADK objects
@@ -102,9 +137,21 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   
   /** 
    * ADT object URI - base path for all operations.
-   * Example: `/sap/bc/adt/cts/transportrequests/TRKORR`
+   * Example: `/sap/bc/adt/oo/classes/zcl_my_class`
    */
   abstract get objectUri(): string;
+  
+  /**
+   * ADT collection URI - base path for creating new objects.
+   * Example: `/sap/bc/adt/oo/classes`
+   * Default: derived from objectUri by removing the object name
+   */
+  get collectionUri(): string {
+    // Default: strip the last path segment from objectUri
+    const uri = this.objectUri;
+    const lastSlash = uri.lastIndexOf('/');
+    return lastSlash > 0 ? uri.substring(0, lastSlash) : uri;
+  }
   
   protected readonly ctx: AdkContext;
   protected _data?: D;
@@ -136,11 +183,30 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   // ============================================
 
   /**
-   * Load data from SAP (for deferred loading pattern)
-   * Subclasses must implement this to fetch their specific data
+   * Load object data from SAP
+   * 
+   * Default implementation uses crudContract.get() and unwraps with wrapperKey.
+   * Objects without crudContract must override this.
+   * 
    * @returns this (for chaining)
    */
-  abstract load(): Promise<this>;
+  async load(): Promise<this> {
+    const contract = this.crudContract;
+    const wrapperKey = this.wrapperKey;
+    
+    if (!contract || !wrapperKey) {
+      throw new Error(`Load not implemented for ${this.kind}. Override load() or provide crudContract/wrapperKey.`);
+    }
+    
+    const response = await contract.get(this.name);
+    
+    if (!response || !(wrapperKey in response)) {
+      throw new Error(`${this.kind} '${this.name}' not found or returned empty response`);
+    }
+    
+    this.setData((response as Record<string, unknown>)[wrapperKey] as D);
+    return this;
+  }
 
   /** Whether data has been loaded */
   get isLoaded(): boolean {
@@ -256,40 +322,71 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   /** 
    * Lock the object for modification
    * 
-   * TODO: Implement via ADT lock API when contract is available
-   * Uses: POST {objectUri}?_action=LOCK
+   * Uses the CRUD contract's lock() method.
+   * 
+   * The lock response contains:
+   * - LOCK_HANDLE: Required for subsequent PUT/unlock operations
+   * - CORRNR: Transport request assigned to this object (use for PUT if no explicit transport)
+   * - CORRUSER: User who owns the transport
+   * 
+   * @param transport - Optional transport request to use for locking.
+   *                    Required when object is already in a transport.
    */
-  async lock(): Promise<LockHandle> {
+  async lock(transport?: string): Promise<LockHandle> {
     if (this._lockHandle) return this._lockHandle;
     
-    // TODO: Implement when lock contract is added to adt-client
-    // For now, use client.fetch() as workaround
-    const response = await this.ctx.client.fetch(`${this.objectUri}?_action=LOCK`, {
-      method: 'POST',
-      headers: { 'X-sap-adt-sessiontype': 'stateful' },
-    });
+    const contract = this.crudContract;
+    if (!contract?.lock) {
+      throw new Error(`Lock not supported for ${this.kind}. Provide crudContract with lock() method.`);
+    }
     
-    // Parse lock handle from response
-    // Lock handle is typically in X-sap-adt-lock header or response body
-    this._lockHandle = { handle: String(response) };
+    // Use contract's lock method
+    const response = await contract.lock(this.name, { corrNr: transport });
+    
+    // Parse lock response XML
+    // Response format: <asx:abap>...<DATA><LOCK_HANDLE>xxx</LOCK_HANDLE><CORRNR>yyy</CORRNR>...</DATA>...</asx:abap>
+    const responseText = String(response);
+    this._lockHandle = this.parseLockResponse(responseText);
     return this._lockHandle;
   }
   
   /** 
-   * Unlock the object 
+   * Unlock the object
    * 
-   * TODO: Implement via ADT lock API when contract is available
-   * Uses: POST {objectUri}?_action=UNLOCK
+   * Uses the CRUD contract's unlock() method.
    */
   async unlock(): Promise<void> {
     if (!this._lockHandle) return;
     
-    // TODO: Implement when lock contract is added to adt-client
-    await this.ctx.client.fetch(`${this.objectUri}?_action=UNLOCK&lockHandle=${encodeURIComponent(this._lockHandle.handle)}`, {
-      method: 'POST',
-    });
+    const contract = this.crudContract;
+    if (!contract?.unlock) {
+      throw new Error(`Unlock not supported for ${this.kind}. Provide crudContract with unlock() method.`);
+    }
     
+    // Use contract's unlock method
+    await contract.unlock(this.name, { lockHandle: this._lockHandle.handle });
     this._lockHandle = undefined;
+  }
+  
+  /**
+   * Parse lock response XML to extract lock handle and correlation info
+   */
+  protected parseLockResponse(responseText: string): LockHandle {
+    const lockHandleMatch = responseText.match(/<LOCK_HANDLE>([^<]+)<\/LOCK_HANDLE>/);
+    
+    if (!lockHandleMatch) {
+      throw new Error(`Failed to parse lock handle from response: ${responseText.substring(0, 200)}`);
+    }
+    
+    // Extract CORRNR (transport request) - this is the transport assigned to the object
+    const corrNrMatch = responseText.match(/<CORRNR>([^<]+)<\/CORRNR>/);
+    const corrUserMatch = responseText.match(/<CORRUSER>([^<]+)<\/CORRUSER>/);
+    
+    return { 
+      handle: lockHandleMatch[1],
+      correlationNumber: corrNrMatch?.[1],
+      correlationUser: corrUserMatch?.[1],
+    };
   }
   
   /**
@@ -297,6 +394,250 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
    */
   protected setLockHandle(handle: LockHandle | undefined): void {
     this._lockHandle = handle;
+  }
+  
+  // ============================================
+  // Save Operations
+  // ============================================
+  
+  /**
+   * Save the object to SAP
+   * 
+   * Generic implementation that handles:
+   * - Lock/unlock lifecycle
+   * - Mode switching (create/update/upsert)
+   * - Error handling
+   * 
+   * Subclasses implement `saveViaContract()` to provide the typed contract call.
+   * 
+   * Modes:
+   * - 'update' (default): PUT to existing object
+   * - 'create': POST to create new object
+   * - 'upsert': Try PUT first, fall back to POST if 404
+   * 
+   * @param options - Save options
+   * @returns this (for chaining)
+   */
+  async save(options: SaveOptions = {}): Promise<this> {
+    const { transport, mode = 'update' } = options;
+    
+    // Lock if not already locked (skip for create mode - object doesn't exist yet)
+    const wasLocked = this.isLocked;
+    const needsLock = mode !== 'create';
+    if (needsLock && !wasLocked) {
+      try {
+        await this.lock(transport);
+      } catch (e) {
+        // For upsert, lock failure means object doesn't exist - switch to create
+        if (mode === 'upsert') {
+          return this.save({ ...options, mode: 'create' });
+        }
+        throw e;
+      }
+    }
+    
+    try {
+      // Check if object has pending sources (from abapGit deserialization)
+      // For existing objects with sources, save sources instead of metadata
+      const hasPendingSources = this.hasPendingSources();
+      
+      // Use transport from lock response if not explicitly provided
+      // The lock response contains CORRNR which is the transport assigned to this object
+      const effectiveTransport = transport ?? this._lockHandle?.correlationNumber;
+      
+      if (hasPendingSources && mode !== 'create') {
+        // Save sources only - skip metadata PUT which SAP often rejects
+        await this.savePendingSources({ 
+          lockHandle: this._lockHandle?.handle,
+          transport: effectiveTransport,
+        });
+      } else {
+        // Delegate to subclass for typed contract call
+        // Note: 'upsert' is handled by the retry logic, so we pass the effective mode
+        const effectiveMode = mode === 'upsert' ? 'update' : mode;
+        await this.saveViaContract(effectiveMode, {
+          transport: effectiveTransport,
+          lockHandle: this._lockHandle?.handle,
+        });
+      }
+      
+      // Clear dirty flags
+      this.dirty.clear();
+      
+      return this;
+    } catch (e: unknown) {
+      // For upsert with PUT failure (404), try POST
+      if (mode === 'upsert' && this.isNotFoundError(e)) {
+        return this.save({ ...options, mode: 'create' });
+      }
+      throw e;
+    } finally {
+      // Unlock if we locked it
+      if (needsLock && !wasLocked) {
+        await this.unlock();
+      }
+    }
+  }
+  
+  /**
+   * Wrapper key for the data in contract requests/responses
+   * 
+   * Contracts wrap data like { abapClass: ... } or { abapInterface: ... }.
+   * Subclasses that support save override this.
+   */
+  protected get wrapperKey(): string | undefined {
+    return undefined;
+  }
+  
+  /**
+   * CRUD contract for this object type
+   * 
+   * Subclasses that support save override this to return their contract.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected get crudContract(): any {
+    return undefined;
+  }
+  
+  /**
+   * Execute the typed contract call for save
+   * 
+   * Generic implementation using wrapperKey and crudContract.
+   * Objects that don't support save leave wrapperKey/crudContract undefined.
+   * 
+   * @param mode - 'create' (POST) or 'update' (PUT)
+   * @param options - Contract options (transport, lockHandle)
+   */
+  protected async saveViaContract(
+    mode: 'create' | 'update',
+    options: { transport?: string; lockHandle?: string }
+  ): Promise<void> {
+    const wrapperKey = this.wrapperKey;
+    const contract = this.crudContract;
+    
+    if (!wrapperKey || !contract) {
+      throw new Error(`Save not supported for ${this.kind}.`);
+    }
+    
+    const data = { [wrapperKey]: await this.data() };
+    
+    if (mode === 'create') {
+      await contract.post({ corrNr: options.transport }, data);
+    } else {
+      await contract.put(this.name, { corrNr: options.transport, lockHandle: options.lockHandle }, data);
+    }
+  }
+  
+  /**
+   * Check if error is a 404 Not Found
+   */
+  protected isNotFoundError(e: unknown): boolean {
+    if (e instanceof Error) {
+      return e.message.includes('404') || e.message.includes('Not Found');
+    }
+    return false;
+  }
+  
+  /**
+   * Check if object has pending sources to save
+   * Subclasses with source code (classes, interfaces) override this
+   */
+  protected hasPendingSources(): boolean {
+    const self = this as unknown as { 
+      _pendingSources?: Record<string, string>;
+      _pendingSource?: string;
+    };
+    return !!(self._pendingSources || self._pendingSource);
+  }
+  
+  /**
+   * Save pending sources
+   * Subclasses with source code (classes, interfaces) override this
+   * Default implementation does nothing
+   */
+  protected async savePendingSources(_options?: { lockHandle?: string; transport?: string }): Promise<void> {
+    // Default: no-op. Subclasses like AdkClass override this.
+  }
+  
+  /**
+   * Set source content for a source-based object
+   * 
+   * Generic implementation for objects with source code (classes, includes, etc.)
+   * Subclasses should override if they need custom source handling.
+   * 
+   * @param sourcePath - Relative path to source (e.g., '/source/main')
+   * @param content - Source code content
+   * @param options - Save options
+   */
+  async setSource(
+    sourcePath: string,
+    content: string,
+    options: SaveOptions = {}
+  ): Promise<void> {
+    const { transport } = options;
+    
+    // Lock if not already locked
+    const wasLocked = this.isLocked;
+    if (!wasLocked) {
+      await this.lock();
+    }
+    
+    try {
+      // Build URL
+      const params = new URLSearchParams();
+      if (transport) {
+        params.set('corrNr', transport);
+      }
+      if (this._lockHandle) {
+        params.set('lockHandle', this._lockHandle.handle);
+      }
+      
+      const fullPath = `${this.objectUri}${sourcePath}`;
+      const url = params.toString() 
+        ? `${fullPath}?${params.toString()}`
+        : fullPath;
+      
+      // PUT source content
+      await this.ctx.client.fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+        body: content,
+      });
+    } finally {
+      // Unlock if we locked it
+      if (!wasLocked) {
+        await this.unlock();
+      }
+    }
+  }
+  
+  /**
+   * Activate this object
+   * 
+   * Activates a single object. For bulk activation of multiple objects,
+   * use `AdkObjectSet.activateAll()`.
+   * 
+   * @returns this (for chaining)
+   */
+  async activate(): Promise<this> {
+    // Build activation request XML for single object
+    const activationXml = `<?xml version="1.0" encoding="UTF-8"?>
+<adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core">
+  <adtcore:objectReference adtcore:uri="${this.objectUri}" adtcore:type="${this.type}" adtcore:name="${this.name}"/>
+</adtcore:objectReferences>`;
+
+    await this.ctx.client.fetch('/sap/bc/adt/activation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/xml',
+        'Accept': 'application/xml',
+      },
+      body: activationXml,
+    });
+    
+    return this;
   }
   
   // ============================================

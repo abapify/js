@@ -25,4 +25,44 @@ export type CheckrunSchema = {
             version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
         }[];
     };
+} | {
+    checkRunReports: {
+        checkReport?: {
+            checkMessageList?: {
+                checkMessage?: {
+                    t100Key?: {
+                        msgno?: number;
+                        msgid?: string;
+                        msgv1?: string;
+                        msgv2?: string;
+                        msgv3?: string;
+                        msgv4?: string;
+                    };
+                    correctionHint?: {
+                        number?: number;
+                        kind?: string;
+                        line?: number;
+                        column?: number;
+                        word?: string;
+                    }[];
+                    uri?: string;
+                    type?: unknown;
+                    shortText?: string;
+                    category?: string;
+                    code?: string;
+                }[];
+            };
+            reporter?: string;
+            triggeringUri?: string;
+            status?: string;
+            statusText?: string;
+        }[];
+    };
+} | {
+    checkReporters: {
+        reporter?: {
+            supportedType?: string[];
+            name?: string;
+        }[];
+    };
 };

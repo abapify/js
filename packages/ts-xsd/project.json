@@ -17,6 +17,13 @@
         "command": "npx tsx --test --experimental-test-coverage --test-coverage-exclude='**/types.ts' --test-coverage-exclude='tests/**' tests/**/*.test.ts",
         "cwd": "{projectRoot}"
       }
+    },
+    "typecheck:test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc -p tsconfig.test.json --noEmit",
+        "cwd": "{projectRoot}"
+      }
     }
   }
 }

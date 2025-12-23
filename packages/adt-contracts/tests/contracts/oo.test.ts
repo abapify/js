@@ -27,24 +27,26 @@ class ClassesScenario extends ContractScenario {
     },
     {
       name: 'create class',
-      contract: () => ooContract.classes.post('<class/>'),
+      contract: () => ooContract.classes.post(),
       method: 'POST',
       path: '/sap/bc/adt/oo/classes',
       headers: {
         Accept: 'application/vnd.sap.adt.oo.classes.v4+xml',
         'Content-Type': 'application/vnd.sap.adt.oo.classes.v4+xml',
       },
+      body: { schema: classesSchema },
       response: { status: 200, schema: classesSchema },
     },
     {
       name: 'update class',
-      contract: () => ooContract.classes.put('ZCL_TEST', '<class/>'),
+      contract: () => ooContract.classes.put('ZCL_TEST'),
       method: 'PUT',
       path: '/sap/bc/adt/oo/classes/zcl_test',
       headers: {
         Accept: 'application/vnd.sap.adt.oo.classes.v4+xml',
         'Content-Type': 'application/vnd.sap.adt.oo.classes.v4+xml',
       },
+      body: { schema: classesSchema },
       response: { status: 200, schema: classesSchema },
     },
     {
@@ -124,24 +126,26 @@ class InterfacesScenario extends ContractScenario {
     },
     {
       name: 'create interface',
-      contract: () => ooContract.interfaces.post('<interface/>'),
+      contract: () => ooContract.interfaces.post(),
       method: 'POST',
       path: '/sap/bc/adt/oo/interfaces',
       headers: {
         Accept: 'application/vnd.sap.adt.oo.interfaces.v5+xml',
         'Content-Type': 'application/vnd.sap.adt.oo.interfaces.v5+xml',
       },
+      body: { schema: interfacesSchema },
       response: { status: 200, schema: interfacesSchema },
     },
     {
       name: 'update interface',
-      contract: () => ooContract.interfaces.put('ZIF_TEST', '<interface/>'),
+      contract: () => ooContract.interfaces.put('ZIF_TEST'),
       method: 'PUT',
       path: '/sap/bc/adt/oo/interfaces/zif_test',
       headers: {
         Accept: 'application/vnd.sap.adt.oo.interfaces.v5+xml',
         'Content-Type': 'application/vnd.sap.adt.oo.interfaces.v5+xml',
       },
+      body: { schema: interfacesSchema },
       response: { status: 200, schema: interfacesSchema },
     },
     {

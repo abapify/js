@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { generateInterfaces } from '../../src/codegen/interface-generator';
+import type { Schema } from '../../src/xsd/types';
 
 describe('Interface Generator', () => {
   // Simple schema with one complex type
@@ -22,8 +23,8 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should generate interface for simple complex type', () => {
-    const { code: output } = generateInterfaces(simpleSchema, {
-      rootElement: 'person',
+    const { code: output } = generateInterfaces(simpleSchema as unknown as Schema, {
+      
     });
     
     assert.ok(output.includes('export interface Person'));
@@ -62,8 +63,8 @@ describe('Interface Generator', () => {
   it('should generate interface with extends clause', () => {
     // NOTE: The simplified generator flattens inheritance instead of using extends.
     // This produces simpler, self-contained interfaces.
-    const { code: output } = generateInterfaces(inheritanceSchema, {
-      rootElement: 'employee',
+    const { code: output } = generateInterfaces(inheritanceSchema as unknown as Schema, {
+      
     });
     
     // Employee should have all properties flattened (name from Person + role)
@@ -103,9 +104,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should generate interface with array types', () => {
-    const { code: output } = generateInterfaces(nestedSchema, {
-      rootElement: 'order',
-    });
+    const { code: output } = generateInterfaces(nestedSchema as unknown as Schema);
     
     // New generator adds 'Type' suffix to interface names
     assert.ok(output.includes('export interface ItemType'), 'Should have ItemType');
@@ -137,9 +136,7 @@ describe('Interface Generator', () => {
       ],
     } as const;
 
-    const { code: output } = generateInterfaces(mergedDeepSchema, {
-      rootElement: 'obj',
-    });
+    const { code: output } = generateInterfaces(mergedDeepSchema as unknown as Schema);
     
     // The simplified generator flattens inheritance
     // L4Obj should have all properties from all levels
@@ -155,8 +152,8 @@ describe('Interface Generator', () => {
   });
 
   it('should generate all types when generateAllTypes is true', () => {
-    const { code: output } = generateInterfaces(simpleSchema, {
-      generateAllTypes: true,
+    const { code: output } = generateInterfaces(simpleSchema as unknown as Schema, {
+      
     });
     
     assert.ok(output.includes('export interface Person'));
@@ -193,8 +190,8 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should generate type alias for simpleType enum', () => {
-    const { code: output } = generateInterfaces(enumSchema, {
-      generateAllTypes: true,
+    const { code: output } = generateInterfaces(enumSchema as unknown as Schema, {
+      
     });
     
     assert.ok(output.includes("export type StatusType = 'active' | 'inactive' | 'pending'"), 'Should have enum type');
@@ -226,9 +223,7 @@ describe('Interface Generator', () => {
 
   it('should generate interface for simpleContent with _text', () => {
     // NOTE: The simplified generator uses _text instead of $value for simpleContent
-    const { code: output } = generateInterfaces(simpleContentSchema, {
-      rootElement: 'price',
-    });
+    const { code: output } = generateInterfaces(simpleContentSchema as unknown as Schema);
     
     assert.ok(output.includes('export interface PriceType'), 'Should have PriceType');
     assert.ok(output.includes('_text?: number'), 'Should have _text for text content');
@@ -262,9 +257,7 @@ describe('Interface Generator', () => {
   it('should resolve types from include schemas', () => {
     // NOTE: The simplified generator flattens inheritance instead of using extends.
     // This is by design - it produces simpler, self-contained interfaces.
-    const { code: output } = generateInterfaces(mergedIncludeSchema, {
-      rootElement: 'item',
-    });
+    const { code: output } = generateInterfaces(mergedIncludeSchema as unknown as Schema);
     
     // ItemType should have all properties (flattened from BaseType)
     assert.ok(output.includes('export interface ItemType'), 'Should have ItemType');
@@ -300,7 +293,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should resolve group references', () => {
-    const { code: output } = generateInterfaces(groupSchema, { rootElement: 'item' });
+    const { code: output } = generateInterfaces(groupSchema as unknown as Schema);
     
     assert.ok(output.includes('export interface ItemType'), 'Should have ItemType');
     assert.ok(output.includes('name: string'), 'Should have name');
@@ -325,7 +318,7 @@ describe('Interface Generator', () => {
   } as const;
 
   it('should handle any wildcard element', () => {
-    const { code: output } = generateInterfaces(anySchema, { rootElement: 'container' });
+    const { code: output } = generateInterfaces(anySchema as unknown as Schema);
     
     assert.ok(output.includes('export interface ContainerType'), 'Should have ContainerType');
     assert.ok(output.includes('header: string'), 'Should have header');
@@ -371,9 +364,7 @@ describe('Interface Generator', () => {
     } as const;
 
     it('should use element type (LinkType), not element name (TemplateLink)', () => {
-      const { code: output } = generateInterfaces(mergedSchema, {
-        rootElement: 'container',
-      });
+      const { code: output } = generateInterfaces(mergedSchema as unknown as Schema);
       
       // Should generate LinkType interface
       assert.ok(output.includes('export interface LinkType'), 'Should have LinkType interface');
@@ -414,9 +405,7 @@ describe('Interface Generator', () => {
     } as const;
 
     it('should ignore ecore:name and use W3C name attribute only', () => {
-      const { code: output } = generateInterfaces(schemaWithEcoreName, {
-        rootElement: 'item',
-      });
+      const { code: output } = generateInterfaces(schemaWithEcoreName as unknown as Schema);
       
       // Should use 'name' attribute (ItemType), not 'ecore:name' (EcoreItemType)
       assert.ok(

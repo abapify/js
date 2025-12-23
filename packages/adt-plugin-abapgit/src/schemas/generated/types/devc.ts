@@ -19,4 +19,13 @@ export type DevcSchema = {
         serializer: string;
         serializer_version: string;
     };
+} | {
+    abap: {
+        values: {
+            DEVC?: {
+                CTEXT: string;
+            };
+        };
+        version?: string;
+    };
 };

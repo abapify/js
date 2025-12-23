@@ -57,7 +57,7 @@ function renderPackagePage(pkg: PackageXml, _params: NavParams): Page {
   
   // Package attributes section
   const attrFields: Component[] = [
-    Field('Package Type', attrs?.packageType ?? '-'),
+    Field('Package Type', String(attrs?.packageType ?? '-')),
     Field('Software Component', transport?.softwareComponent?.name ?? '-'),
     Field('Application Component', appComponent?.name ?? '-'),
     Field('Transport Layer', transport?.transportLayer?.name ?? '-'),
@@ -90,9 +90,9 @@ function renderPackagePage(pkg: PackageXml, _params: NavParams): Page {
     Field('Language', language),
     Field('Version', version),
     Field('Created By', createdBy),
-    Field('Created At', formatDate(createdAt instanceof Date ? createdAt : createdAt ? new Date(createdAt) : undefined)),
+    Field('Created At', formatDate(createdAt ? new Date(createdAt as string) : undefined)),
     Field('Changed By', changedBy),
-    Field('Changed At', formatDate(changedAt instanceof Date ? changedAt : changedAt ? new Date(changedAt) : undefined)),
+    Field('Changed At', formatDate(changedAt ? new Date(changedAt as string) : undefined)),
   ];
   sections.push(Section('▼ Metadata', ...metaFields));
   
@@ -100,7 +100,8 @@ function renderPackagePage(pkg: PackageXml, _params: NavParams): Page {
   // Note: Subpackages are included in the package data if present
   const subPkgs = pkg?.subPackages?.packageRef ?? [];
   if (subPkgs.length > 0) {
-    const subPkgFields = subPkgs.map(ref => 
+    type PackageRef = { name?: string; uri?: string; type?: string; description?: string };
+    const subPkgFields = subPkgs.map((ref: PackageRef) => 
       Field(adtLink(ref), ref.description ?? '')
     );
     sections.push(Section(`▼ Subpackages (${subPkgs.length})`, ...subPkgFields));
@@ -143,7 +144,9 @@ export default definePage<PackageXml>({
   // Use client's packages contract to fetch data
   fetch: async (client, params) => {
     if (!params.name) throw new Error('Package name is required');
-    return await client.adt.packages.get(params.name) as PackageXml;
+    const response = await client.adt.packages.get(params.name);
+    // Extract package data from response - the API returns { package: PackageXml }
+    return (response as unknown as { package: PackageXml }).package;
   },
 
   render: renderPackagePage,

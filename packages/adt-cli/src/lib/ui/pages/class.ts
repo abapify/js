@@ -98,7 +98,8 @@ function renderClassPage(cls: any, _params: NavParams): Page {
   // Implemented interfaces (very useful navigation!)
   const interfaces = cls?.interfaceRef ?? [];
   if (interfaces.length > 0) {
-    const intfFields = interfaces.map(ref => 
+    type InterfaceRef = { name?: string; uri?: string; type?: string; description?: string };
+    const intfFields = interfaces.map((ref: InterfaceRef) => 
       Field(adtLink({ ...ref, type: ref.type || 'INTF/OI' }), ref.description ?? '')
     );
     sections.push(Section(`▼ Implemented Interfaces (${interfaces.length})`, ...intfFields));

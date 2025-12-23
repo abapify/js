@@ -34,6 +34,11 @@ export default [
       // Exclude scripts from dependency analysis to prevent false circular dependencies
       'scripts/**',
       'e2e/**',
+      // Generated contracts use package imports intentionally (not relative)
+      'packages/adt-contracts/src/generated/**',
+      // Config files are build-time only, not runtime dependencies
+      '**/*.config.ts',
+      '**/*.config.mts',
     ],
   },
   {

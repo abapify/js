@@ -19,6 +19,13 @@
       "dependsOn": ["download", "ts-xsd:build"],
       "inputs": ["{projectRoot}/.xsd/**/*.xsd", "{projectRoot}/ts-xsd.config.ts"],
       "outputs": ["{projectRoot}/src/schemas/generated"]
+    },
+    "typecheck:test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc -p tsconfig.test.json --noEmit",
+        "cwd": "{projectRoot}"
+      }
     }
   }
 }

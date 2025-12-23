@@ -26,16 +26,6 @@ export type AtcresultSchema = {
                     findings: {
                         finding?: {
                             extension?: unknown;
-                            link?: {
-                                href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
-                            }[];
                             quickfixes: {
                                 manual?: boolean;
                                 automatic?: boolean;
@@ -84,17 +74,6 @@ export type AtcresultSchema = {
                     objectTypeId?: string;
                 }[];
             };
-            descriptionTags: {
-                tagWithDescription?: {
-                    name: string;
-                    descriptions: {
-                        description?: {
-                            value?: string;
-                            description?: string;
-                        }[];
-                    };
-                }[];
-            };
             infos: {
                 info?: {
                     type: string;
@@ -103,4 +82,6 @@ export type AtcresultSchema = {
             };
         }[];
     };
+} | {
+    queryChoice: unknown;
 };

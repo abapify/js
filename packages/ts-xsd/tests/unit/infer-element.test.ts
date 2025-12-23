@@ -16,7 +16,7 @@ import type {
   InferSchema, 
   FindByName, 
   FindComplexTypeWithSchema,
-} from '../../src/infer/types';
+} from '../../src/infer/infer';
 
 // =============================================================================
 // Layer 1: Base schema (like adtcore) - defined inline with as const

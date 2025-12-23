@@ -882,33 +882,48 @@ function generateSimpleType(
 // =============================================================================
 
 function generateRootType(rootTypeName: string, ctx: GeneratorContext): void {
-  // Find the primary root element - prefer elements with inline complexType
-  // (like abapGit, abapClass) over abstract elements (Schema) or typed refs (abap)
   const elements = ctx.schema.element ?? [];
   
-  // Priority: elements with inline complexType > elements with type ref > others
-  const primaryElement = elements.find(el => el.name && el.complexType)
-    ?? elements.find(el => el.name && el.type && !el.abstract)
-    ?? elements.find(el => el.name && !el.abstract);
+  // Filter to non-abstract elements that have a name
+  const concreteElements = elements.filter(el => el.name && !el.abstract);
   
-  if (!primaryElement?.name) return;
+  if (concreteElements.length === 0) return;
 
-  // Determine the type for this element
-  let elementType: string;
-  if (primaryElement.type) {
-    elementType = resolveTypeName(primaryElement.type, ctx);
-  } else if (primaryElement.complexType) {
-    // For inline complexType, use the generated interface name
-    const interfaceName = toInterfaceName(primaryElement.name);
-    elementType = ctx.generatedTypes.has(interfaceName) ? interfaceName : 'unknown';
-  } else {
-    elementType = 'string';
+  // Build type for each element
+  const elementTypes: string[] = [];
+  const elementNames: string[] = [];
+  
+  for (const el of concreteElements) {
+    let elementType: string;
+    if (el.type) {
+      elementType = resolveTypeName(el.type, ctx);
+    } else if (el.complexType) {
+      // For inline complexType, use the generated interface name
+      const interfaceName = toInterfaceName(el.name!);
+      elementType = ctx.generatedTypes.has(interfaceName) ? interfaceName : 'unknown';
+    } else {
+      elementType = 'string';
+    }
+    elementTypes.push(elementType);
+    elementNames.push(el.name!);
   }
+
+  // For single root: wrap with element name { elementName: Type }
+  // For multi-root: union of wrapped types { el1: Type1 } | { el2: Type2 }
+  // Root type matches what parse() returns - wrapped with element name for type discrimination
+  const wrappedTypes = elementNames.map((name, i) => `{ ${name}: ${elementTypes[i]} }`);
+  const rootType = wrappedTypes.length === 1 
+    ? wrappedTypes[0] 
+    : wrappedTypes.join(' | ');
+  
+  const description = elementNames.length === 1
+    ? `Root schema type (${elementNames[0]} element)`
+    : `Root schema type (${elementNames.join(' | ')} elements)`;
 
   ctx.sourceFile.addTypeAlias({
     name: rootTypeName,
     isExported: true,
-    type: `{ ${primaryElement.name}: ${elementType} }`,
-    docs: ctx.addJsDoc ? [{ description: `Root schema type (${primaryElement.name} element)` }] : undefined,
+    type: rootType,
+    docs: ctx.addJsDoc ? [{ description }] : undefined,
   });
 }

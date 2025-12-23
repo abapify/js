@@ -18,8 +18,12 @@ class InterfacesScenario extends Scenario<typeof interfaces> {
   readonly fixtures = [fixtures.oo.interface];
 
   validateParsed(data: SchemaType<typeof interfaces>): void {
+    // parse() now returns wrapped format: { elementName: content }
+    const abapInterface = (data as any).abapInterface;
+    expect(abapInterface).toBeDefined();
+    
     // Cast to any for runtime property access (inherited properties not inferred)
-    const parsed = data as unknown as Record<string, unknown>;
+    const parsed = abapInterface as unknown as Record<string, unknown>;
     
     // Inherited abapoo: attributes
     expect(parsed.modeled).toBe(false);
@@ -58,7 +62,7 @@ class InterfacesScenario extends Scenario<typeof interfaces> {
     expect((parsed.link as unknown[])?.length).toBeGreaterThan(0);
   }
 
-  validateBuilt(xml: string): void {
+  override validateBuilt(xml: string): void {
     // Root element with namespace (schema uses 'intf' prefix from XSD)
     expect(xml).toContain('xmlns:intf="http://www.sap.com/adt/oo/interfaces"');
     

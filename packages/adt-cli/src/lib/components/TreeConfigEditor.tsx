@@ -4,7 +4,7 @@
  * Mimics the SAP ADT Eclipse dialog for configuring the transport tree search.
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 
 // Configuration state interface

@@ -1,5 +1,9 @@
 /**
  * CTS (Change and Transport System) Contract Scenarios
+ * 
+ * NOTE: CTS contracts use plain objects with methods (not wrapped with contract()),
+ * so client call tests are not applicable here. The contract definition tests
+ * verify the structure is correct.
  */
 
 import { fixtures } from 'adt-fixtures';

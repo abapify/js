@@ -14,16 +14,6 @@ export type ConfigurationSchema = {
                 isMandatory?: boolean;
             }[];
         };
-        link?: {
-            href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
-        };
         client?: string;
         configName?: string;
         createdBy?: string;

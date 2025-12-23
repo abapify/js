@@ -11,30 +11,20 @@ export type AbapsourceSchema = {
             language?: {
                 version?: string;
                 description?: string;
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
             };
             objectUsage?: {
-                link?: {
-                    href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
-                }[];
                 restricted?: boolean;
             };
         }[];
+    };
+} | {
+    syntaxConfiguration: {
+        language?: {
+            version?: string;
+            description?: string;
+        };
+        objectUsage?: {
+            restricted?: boolean;
+        };
     };
 };

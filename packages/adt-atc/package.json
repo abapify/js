@@ -1,0 +1,31 @@
+{
+  "name": "@abapify/adt-atc",
+  "version": "0.1.0",
+  "description": "ABAP Test Cockpit (ATC) CLI plugin for adt-cli",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./commands/atc": "./dist/commands/atc.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "atc",
+    "code-quality",
+    "sarif",
+    "gitlab"
+  ],
+  "dependencies": {
+    "@abapify/adt-plugin": "workspace:*",
+    "chalk": "^5.3.0"
+  },
+  "module": "./dist/index.mjs"
+}

@@ -3,9 +3,12 @@
  *
  * Endpoint: /sap/bc/adt/oo/interfaces
  * Full CRUD operations for ABAP interfaces including source code management.
+ * 
+ * Uses the crud() helper with sources option for complete
+ * interface operations including metadata and source code.
  */
 
-import { http, contract } from '../../base';
+import { crud } from '../../base';
 import {
   interfaces as interfacesSchema,
   type InferTypedSchema,
@@ -22,92 +25,19 @@ export type InterfaceResponse = InferTypedSchema<typeof interfacesSchema>;
 /**
  * /sap/bc/adt/oo/interfaces
  * Full CRUD operations for ABAP interfaces
+ * 
+ * Includes:
+ * - Basic CRUD: get, post, put, delete
+ * - Lock/Unlock: lock, unlock
+ * - Object structure: objectstructure
+ * - Source code: source.main.get/put
  */
-const _interfacesContract = contract({
-  /**
-   * GET /sap/bc/adt/oo/interfaces/{name}
-   * Retrieve interface metadata
-   */
-  get: (name: string) =>
-    http.get(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`, {
-      responses: { 200: interfacesSchema },
-      headers: { Accept: 'application/vnd.sap.adt.oo.interfaces.v5+xml' },
-    }),
-
-  /**
-   * POST /sap/bc/adt/oo/interfaces
-   * Create a new interface
-   */
-  post: (body: string) =>
-    http.post('/sap/bc/adt/oo/interfaces', {
-      body,
-      responses: { 200: interfacesSchema },
-      headers: {
-        Accept: 'application/vnd.sap.adt.oo.interfaces.v5+xml',
-        'Content-Type': 'application/vnd.sap.adt.oo.interfaces.v5+xml',
-      },
-    }),
-
-  /**
-   * PUT /sap/bc/adt/oo/interfaces/{name}
-   * Update interface metadata (properties)
-   */
-  put: (name: string, body: string) =>
-    http.put(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`, {
-      body,
-      responses: { 200: interfacesSchema },
-      headers: {
-        Accept: 'application/vnd.sap.adt.oo.interfaces.v5+xml',
-        'Content-Type': 'application/vnd.sap.adt.oo.interfaces.v5+xml',
-      },
-    }),
-
-  /**
-   * DELETE /sap/bc/adt/oo/interfaces/{name}
-   * Delete an interface
-   */
-  delete: (name: string) =>
-    http.delete(`/sap/bc/adt/oo/interfaces/${name.toLowerCase()}`, {
-      responses: { 204: undefined },
-    }),
-
-  /**
-   * /sap/bc/adt/oo/interfaces/{name}/source
-   * Source code operations for interface
-   */
-  source: {
-    /**
-     * /sap/bc/adt/oo/interfaces/{name}/source/main
-     * Interface source code
-     */
-    main: {
-      get: (name: string) =>
-        http.get(
-          `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`,
-          {
-            responses: { 200: undefined as unknown as string },
-            headers: { Accept: 'text/plain' },
-          }
-        ),
-
-      put: (name: string, source: string) =>
-        http.put(
-          `/sap/bc/adt/oo/interfaces/${name.toLowerCase()}/source/main`,
-          {
-            body: source,
-            responses: { 200: undefined as unknown as string },
-            headers: {
-              Accept: 'text/plain',
-              'Content-Type': 'text/plain',
-            },
-          }
-        ),
-    },
-  },
+export const interfacesContract = crud({
+  basePath: '/sap/bc/adt/oo/interfaces',
+  schema: interfacesSchema,
+  contentType: 'application/vnd.sap.adt.oo.interfaces.v5+xml',
+  sources: ['main'] as const,
 });
-
-/** Exported contract for interfaces operations */
-export const interfacesContract = _interfacesContract;
 
 /** Type alias for the interfaces contract */
 export type InterfacesContract = typeof interfacesContract;

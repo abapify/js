@@ -16,18 +16,22 @@ class SessionsScenario extends Scenario<typeof http> {
   validateParsed(data: SchemaType<typeof http>): void {
     console.log('Parsed data:', JSON.stringify(data, null, 2));
     
+    // parse() now returns wrapped format: { elementName: content }
+    const session = (data as any).session;
+    expect(session).toBeDefined();
+    
     // Validate properties structure
-    expect(data.properties).toBeDefined();
-    expect(data.properties?.property).toBeDefined();
-    expect(Array.isArray(data.properties?.property)).toBe(true);
+    expect(session.properties).toBeDefined();
+    expect(session.properties?.property).toBeDefined();
+    expect(Array.isArray(session.properties?.property)).toBe(true);
 
     // Validate inactivity timeout property
-    const timeoutProp = data.properties?.property?.find((p: any) => p.name === 'inactivityTimeout');
+    const timeoutProp = session.properties?.property?.find((p: any) => p.name === 'inactivityTimeout');
     expect(timeoutProp).toBeDefined();
     expect(timeoutProp?.name).toBe('inactivityTimeout');
 
     // Type assertions - verify full typing (using actual parsed structure)
-    const propName: string | undefined = data.properties?.property?.[0]?.name;
+    const propName: string | undefined = session.properties?.property?.[0]?.name;
 
     // Suppress unused variable warnings
     void propName;

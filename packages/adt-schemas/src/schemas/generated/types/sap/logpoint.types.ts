@@ -60,4 +60,90 @@ export type LogpointSchema = {
             inactiveSince?: string;
         };
     };
+} | {
+    logpointList: {
+        logpoint: {
+            summary?: {
+                shortInfo: string;
+                executions: number;
+            };
+            definition?: {
+                description?: string;
+                subKey?: string;
+                fields?: string;
+                condition?: string;
+                rollareaCounter?: number;
+                usageType?: string;
+                createdBy?: string;
+                changedBy?: string;
+                changedAt?: string;
+                expiresAt?: string;
+                activityType?: string;
+                retentionTimeInDays?: number;
+            };
+            activation?: {
+                users?: {
+                    user?: {
+                        name?: string;
+                    }[];
+                };
+                servers?: {
+                    server?: {
+                        name?: string;
+                    }[];
+                };
+                state?: string;
+                activatedBy?: string;
+                activeSince?: string;
+                activeUntil?: string;
+                inactivatedBy?: string;
+                inactiveSince?: string;
+            };
+            location?: {
+                includePosition?: {
+                    extension?: unknown;
+                    uri?: string;
+                    parentUri?: string;
+                    type?: string;
+                    name?: string;
+                    packageName?: string;
+                    description?: string;
+                };
+                mainProgram?: {
+                    extension?: unknown;
+                    uri?: string;
+                    parentUri?: string;
+                    type?: string;
+                    name?: string;
+                    packageName?: string;
+                    description?: string;
+                };
+            };
+        };
+    };
+} | {
+    locationCheck: {
+        location?: {
+            includePosition?: {
+                extension?: unknown;
+                uri?: string;
+                parentUri?: string;
+                type?: string;
+                name?: string;
+                packageName?: string;
+                description?: string;
+            };
+            mainProgram?: {
+                extension?: unknown;
+                uri?: string;
+                parentUri?: string;
+                type?: string;
+                name?: string;
+                packageName?: string;
+                description?: string;
+            };
+        };
+        message?: string;
+        possible?: boolean;
+    };
 };

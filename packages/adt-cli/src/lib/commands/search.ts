@@ -19,11 +19,11 @@ export const searchCommand = new Command('search')
         maxResults,
       });
 
-      // Handle results
-      const objects = results.objectReference
-        ? (Array.isArray(results.objectReference)
-            ? results.objectReference
-            : [results.objectReference])
+      // Handle results - define type for search objects
+      type SearchObject = { name?: string; type?: string; uri?: string; description?: string; packageName?: string };
+      const rawObjects = results.objectReference;
+      const objects: SearchObject[] = rawObjects
+        ? (Array.isArray(rawObjects) ? rawObjects : [rawObjects])
         : [];
 
       if (objects.length === 0) {

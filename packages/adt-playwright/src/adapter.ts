@@ -81,6 +81,18 @@ export function createPlaywrightAdapter(): BrowserAdapter {
       return cookies.map(convertCookie);
     },
 
+    async clearCookies(domain: string) {
+      if (!context) throw new Error('Browser not launched');
+      const cookies = await context.cookies();
+      const toRemove = cookies.filter(c => 
+        c.domain.includes(domain) || domain.includes(c.domain.replace(/^\./, ''))
+      );
+      // Clear each matching cookie individually
+      for (const cookie of toRemove) {
+        await context.clearCookies({ name: cookie.name, domain: cookie.domain });
+      }
+    },
+
     async getUserAgent() {
       if (!context) throw new Error('Browser not launched');
       const uaPage = await context.newPage();

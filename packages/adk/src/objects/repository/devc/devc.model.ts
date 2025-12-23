@@ -20,10 +20,11 @@ import type {
 
 /**
  * Package data type - inferred from packagesContract response
- * NonNullable ensures it satisfies AdkObjectData constraint (name & type required)
- * Re-exported for consumers who need the raw API response type
+ * 
+ * The schema wraps everything in a 'package' element, so we unwrap it here
+ * to provide a flat structure for ADK consumers.
  */
-export type PackageXml = NonNullable<PackageResponse>;
+export type PackageXml = NonNullable<PackageResponse['package']>;
 
 /**
  * ADK Package object
@@ -127,14 +128,20 @@ export class AdkPackage extends AdkMainObject<typeof PackageKind, PackageXml> im
   // Deferred Loading (implements abstract from AdkObject)
   // ============================================
   
-  async load(): Promise<this> {
-    const data = await this.ctx.client.adt.packages.get(this.name);
-    if (!data) {
+  override async load(): Promise<this> {
+    const response = await this.ctx.client.adt.packages.get(this.name);
+    // Type guard: response is a union of { package } | { packageTree }
+    // ADK Package objects only use the package variant
+    if (!response || !('package' in response) || !response.package) {
       throw new Error(`Package '${this.name}' not found or returned empty response`);
     }
-    this.setData(data as PackageXml);
+    // Unwrap the package element from the response
+    this.setData(response.package);
     return this;
   }
+
+  // Note: save() not yet implemented - no crudContract defined
+  // Package creation requires transport handling
   
   // Lock/unlock inherited from AdkObject using generic lock service
   

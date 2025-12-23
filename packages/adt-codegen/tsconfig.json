@@ -5,5 +5,13 @@
     "rootDir": "./src",
     "moduleResolution": "bundler"
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../adt-config"
+    },
+    {
+      "path": "../adt-plugin"
+    }
+  ]
 }
