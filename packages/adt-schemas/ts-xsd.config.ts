@@ -33,6 +33,7 @@ const targetSchemas = [
   // SAP schemas
   'sap/atom',
   'sap/adtcore',
+  'sap/exception', // ADT error response format
   'sap/classes',
   'sap/interfaces',
   'sap/packagesV1',

@@ -24,6 +24,8 @@ export const ctsListCommand = new Command('list')
       const displayTransports = transports.slice(0, maxResults);
 
       if (options.json) {
+        // Clear the loading line first
+        process.stdout.write('\r\x1b[K');
         console.log(JSON.stringify(displayTransports, null, 2));
       } else {
         // Clear the loading line
