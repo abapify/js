@@ -38,7 +38,8 @@ function MenuItemRow({
       {item.label}
       {item.status && (
         <Text color={item.status.color} dimColor={!isSelected}>
-          {' '}[{item.status.text}]
+          {' '}
+          [{item.status.text}]
         </Text>
       )}
       {item.info && <Text dimColor> {item.info}</Text>}
@@ -54,7 +55,7 @@ export function PageRenderer({
   onNavigate,
   onBack,
   onAction,
-}: PageRendererProps) {
+}: PageRendererProps): React.ReactNode {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Handle keyboard input

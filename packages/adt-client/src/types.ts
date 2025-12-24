@@ -3,7 +3,6 @@
  */
 
 import type { Logger } from '@abapify/logger';
-import type { RestContract } from '@abapify/adt-contracts';
 
 // Re-export Logger for convenience
 export type { Logger };
@@ -18,12 +17,6 @@ export interface AdtConnectionConfig {
   language?: string;
   logger?: Logger;
 }
-
-/**
- * ADT REST Contract
- * @deprecated Use RestContract from @abapify/adt-contracts directly
- */
-export type AdtRestContract = RestContract;
 
 // Note: Class/Interface types are available from adt-schemas via InferXsd
 // Example: import { classes, InferXsd } from 'adt-schemas';

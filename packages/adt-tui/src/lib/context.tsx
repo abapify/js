@@ -4,7 +4,13 @@
  * React context for sharing navigation state across components.
  */
 
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import type { NavigationEntry, ParsedResponse, FetchFn } from './types';
 
 interface NavigationContextValue {
@@ -41,7 +47,7 @@ export function NavigationProvider({
   fetch,
   parseResponse,
   initialUrl,
-}: NavigationProviderProps) {
+}: NavigationProviderProps): React.ReactNode {
   const [current, setCurrent] = useState<NavigationEntry | null>(null);
   const [history, setHistory] = useState<NavigationEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,7 +83,7 @@ export function NavigationProvider({
         setLoading(false);
       }
     },
-    [current, fetch, parseResponse]
+    [current, fetch, parseResponse],
   );
 
   const back = useCallback(() => {

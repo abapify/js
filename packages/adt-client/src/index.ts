@@ -7,18 +7,12 @@
 // Export main client factory
 export { createAdtClient, type AdtClient } from './client';
 
-// Legacy compatibility - AdtClientImpl was the old class name
-// TODO: Migrate CLI commands to use createAdtClient() and remove this
-/** @deprecated Use createAdtClient() instead */
-export { createAdtClient as AdtClientImpl } from './client';
-
 // Export contract for advanced use cases
 export { adtContract, type AdtContract } from '@abapify/adt-contracts';
 
 // Export types
 export type {
   AdtConnectionConfig,
-  AdtRestContract,
   OperationResult,
   LockHandle,
   AdtError,
@@ -46,14 +40,14 @@ export {
 } from './plugins';
 
 // Export session management
-export {
-  SessionManager,
-  CookieStore,
-  CsrfTokenManager,
-} from './utils/session';
+export { SessionManager, CookieStore, CsrfTokenManager } from './utils/session';
 
 // Re-export contract types needed for declaration generation
-export type { RestEndpointDescriptor, Serializable, RestContract } from '@abapify/adt-contracts';
+export type {
+  RestEndpointDescriptor,
+  Serializable,
+  RestContract,
+} from '@abapify/adt-contracts';
 
 // Re-export CRUD contract types for ADK consumers
 // This allows ADK to use typed CRUD contracts without depending on adt-contracts directly

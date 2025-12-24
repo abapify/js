@@ -1,4 +1,9 @@
-import { type CreateNodesV2, logger, workspaceRoot } from '@nx/devkit';
+import {
+  type CreateNodesV2,
+  type CreateNodesResult,
+  logger,
+  workspaceRoot,
+} from '@nx/devkit';
 import { dirname, relative, basename, join } from 'node:path';
 import { existsSync } from 'node:fs';
 
@@ -65,11 +70,11 @@ export const createNodesV2: CreateNodesV2<NxTypecheckPluginOptions> = [
     const cleanEnabled = options.clean ?? false;
 
     const filteredConfigFiles = configFiles.filter(
-      (configFile) => basename(configFile) === configFileName
+      (configFile) => basename(configFile) === configFileName,
     );
 
     logDebug(
-      `Detected ${filteredConfigFiles.length} ${configFileName} files for typecheck targets`
+      `Detected ${filteredConfigFiles.length} ${configFileName} files for typecheck targets`,
     );
 
     return filteredConfigFiles
@@ -105,7 +110,7 @@ export const createNodesV2: CreateNodesV2<NxTypecheckPluginOptions> = [
           ],
         };
 
-        return [
+        const result: [string, CreateNodesResult] = [
           configFile,
           {
             projects: {
@@ -117,10 +122,10 @@ export const createNodesV2: CreateNodesV2<NxTypecheckPluginOptions> = [
             },
           },
         ];
+        return result;
       })
       .filter(
-        (result): result is [string, { projects: Record<string, unknown> }] =>
-          result !== null
+        (result): result is [string, CreateNodesResult] => result !== null,
       );
   },
 ];

@@ -1,17 +1,21 @@
 /**
  * Test for DTEL (Data Element) schema
- * 
+ *
  * Fixture-driven: parses XML, validates content, round-trips
  */
 
 import assert from 'node:assert';
-import { runSchemaTests, createTypedSchema, type SchemaScenario } from './base/scenario.ts';
+import {
+  runSchemaTests,
+  createTypedSchema,
+  type SchemaScenario,
+} from './base/scenario.ts';
 import { dtel as dtelSchema } from '../../src/schemas/generated/schemas/index.ts';
-import type { AbapGitType } from '../../src/schemas/generated/types/dtel.ts';
+import type { DtelSchema } from '../../src/schemas/generated/types/dtel.ts';
 
-const schema = createTypedSchema<AbapGitType>(dtelSchema);
+const schema = createTypedSchema<DtelSchema>(dtelSchema);
 
-const scenario: SchemaScenario<AbapGitType> = {
+const scenario: SchemaScenario<DtelSchema> = {
   name: 'DTEL',
   xsdName: 'dtel',
   schema,
@@ -19,14 +23,17 @@ const scenario: SchemaScenario<AbapGitType> = {
     {
       path: 'dtel/zage_dtel_with_domain.dtel.xml',
       validate: (data) => {
+        // Schema is union type - assert to the abapGit variant
+        const root = (data as any).abapGit;
+
         // Envelope
-        assert.strictEqual(data.version, 'v1.0.0');
-        assert.strictEqual(data.serializer, 'LCL_OBJECT_DTEL');
-        assert.strictEqual(data.serializer_version, 'v1.0.0');
-        assert.strictEqual(data.abap.version, '1.0');
-        
+        assert.strictEqual(root.version, 'v1.0.0');
+        assert.strictEqual(root.serializer, 'LCL_OBJECT_DTEL');
+        assert.strictEqual(root.serializer_version, 'v1.0.0');
+        assert.strictEqual(root.abap.version, '1.0');
+
         // DD04V content (data element)
-        const dd04v = data.abap.values.DD04V!;
+        const dd04v = root.abap.values.DD04V!;
         assert.strictEqual(dd04v.ROLLNAME, 'ZAGE_DTEL_WITH_DOMAIN');
         assert.strictEqual(dd04v.DDLANGUAGE, 'E');
         assert.strictEqual(dd04v.DOMNAME, 'ZAGE_CHAR_WITH_LENGTH');

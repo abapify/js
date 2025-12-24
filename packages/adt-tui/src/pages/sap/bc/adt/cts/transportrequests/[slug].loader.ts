@@ -4,7 +4,10 @@
  * Uses adt-contracts for type-safe XML parsing.
  */
 
-import { transportmanagmentSingle, type TransportResponse } from '@abapify/adt-contracts';
+import {
+  transportmanagmentSingle,
+  type TransportResponse,
+} from '@abapify/adt-contracts';
 
 // Re-export the schema for type inference
 export { transportmanagmentSingle as schema };
@@ -12,8 +15,10 @@ export { transportmanagmentSingle as schema };
 // Use type from contracts package
 type TransportRoot = TransportResponse;
 
-// Extract nested types
-export type Request = NonNullable<TransportRoot['request']>;
+// Extract nested types - TransportResponse has root.request structure
+export type Request = NonNullable<
+  NonNullable<TransportRoot['root']>['request']
+>;
 export type Task = NonNullable<Request['task']>[number];
 export type AbapObject = NonNullable<Task['abap_object']>[number];
 
@@ -79,8 +84,8 @@ export function load(xml: string): TransportData {
  * Transform parsed XSD data to TransportData
  */
 function transformToTransportData(data: TransportRoot): TransportData {
-  const request = data.request;
-  
+  const request = data.root?.request;
+
   if (!request) {
     throw new Error('No request element found in transport data');
   }
@@ -91,7 +96,9 @@ function transformToTransportData(data: TransportRoot): TransportData {
   // Extract tasks
   const tasks: TaskInfo[] = [];
   if (request.task && !isTask) {
-    const taskArray = Array.isArray(request.task) ? request.task : [request.task];
+    const taskArray = Array.isArray(request.task)
+      ? request.task
+      : [request.task];
     for (const task of taskArray) {
       tasks.push({
         number: task.number ?? '',
@@ -108,10 +115,14 @@ function transformToTransportData(data: TransportRoot): TransportData {
   const objects: ObjectInfo[] = [];
   if (request.task && isTask) {
     // When viewing a task, the task element contains objects
-    const taskArray = Array.isArray(request.task) ? request.task : [request.task];
+    const taskArray = Array.isArray(request.task)
+      ? request.task
+      : [request.task];
     for (const task of taskArray) {
       if (task.abap_object) {
-        const objArray = Array.isArray(task.abap_object) ? task.abap_object : [task.abap_object];
+        const objArray = Array.isArray(task.abap_object)
+          ? task.abap_object
+          : [task.abap_object];
         for (const obj of objArray) {
           objects.push({
             pgmid: obj.pgmid ?? '',

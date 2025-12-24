@@ -4,15 +4,24 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { createHandler, getHandler, getSupportedTypes } from '../../src/lib/handlers/base.ts';
+import {
+  createHandler,
+  getHandler,
+  getSupportedTypes,
+} from '../../src/lib/handlers/base.ts';
 
 describe('createHandler factory', () => {
   it('creates handler with string type', () => {
     // Use a mock schema with build method
-    const mockSchema = { build: (data: unknown) => `<xml>${JSON.stringify(data)}</xml>` };
-    
+    const mockSchema = {
+      build: (data: unknown) => `<xml>${JSON.stringify(data)}</xml>`,
+    };
+
     const handler = createHandler('TEST', {
       schema: mockSchema as any,
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_TEST',
+      serializer_version: 'v1.0.0',
       toAbapGit: (obj) => ({ NAME: obj.name ?? '' }),
     });
 
@@ -41,7 +50,10 @@ describe('createHandler factory', () => {
 
 describe('default serialize behavior', () => {
   // Mock schema that returns XML-like content
-  const mockSchema = { build: (data: unknown) => `<?xml version="1.0"?><root>${JSON.stringify(data)}</root>` };
+  const mockSchema = {
+    build: (data: unknown) =>
+      `<?xml version="1.0"?><root>${JSON.stringify(data)}</root>`,
+  };
 
   it('creates XML file when no getSource provided', async () => {
     const mockObject = {
@@ -52,11 +64,14 @@ describe('default serialize behavior', () => {
 
     const handler = createHandler('XMLONLY', {
       schema: mockSchema as any,
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_XMLONLY',
+      serializer_version: 'v1.0.0',
       toAbapGit: (obj) => ({ CTEXT: obj.description ?? '' }),
     });
 
     const files = await handler.serialize(mockObject as any);
-    
+
     assert.strictEqual(files.length, 1);
     assert.ok(files[0].path.endsWith('.xmlonly.xml'));
     assert.ok(files[0].content.includes('<?xml'));
@@ -71,17 +86,20 @@ describe('default serialize behavior', () => {
 
     const handler = createHandler('WITHSRC', {
       schema: mockSchema as any,
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_WITHSRC',
+      serializer_version: 'v1.0.0',
       toAbapGit: (obj) => ({ CTEXT: obj.description ?? '' }),
       getSource: async () => '* ABAP source code',
     });
 
     const files = await handler.serialize(mockObject as any);
-    
+
     assert.strictEqual(files.length, 2);
-    
-    const abapFile = files.find(f => f.path.endsWith('.abap'));
-    const xmlFile = files.find(f => f.path.endsWith('.xml'));
-    
+
+    const abapFile = files.find((f) => f.path.endsWith('.abap'));
+    const xmlFile = files.find((f) => f.path.endsWith('.xml'));
+
     assert.ok(abapFile, 'Should have ABAP file');
     assert.ok(xmlFile, 'Should have XML file');
     assert.strictEqual(abapFile?.content, '* ABAP source code');
@@ -91,31 +109,50 @@ describe('default serialize behavior', () => {
     const mockObject = {
       name: 'TEST_MULTI',
       description: 'Test with multiple sources',
-      dataSync: { name: 'TEST_MULTI', description: 'Test with multiple sources' },
+      dataSync: {
+        name: 'TEST_MULTI',
+        description: 'Test with multiple sources',
+      },
     };
 
     const handler = createHandler('MULTISRC', {
       schema: mockSchema as any,
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_MULTISRC',
+      serializer_version: 'v1.0.0',
       toAbapGit: (obj) => ({ CTEXT: obj.description ?? '' }),
       getSources: () => [
         { content: Promise.resolve('* Main source') },
-        { suffix: 'locals_def', content: Promise.resolve('* Local definitions') },
+        {
+          suffix: 'locals_def',
+          content: Promise.resolve('* Local definitions'),
+        },
         { suffix: 'testclasses', content: Promise.resolve('') }, // Empty - should be filtered
       ],
     });
 
     const files = await handler.serialize(mockObject as any);
-    
+
     // Should have 2 ABAP files (empty one filtered) + 1 XML
-    const abapFiles = files.filter(f => f.path.endsWith('.abap'));
-    const xmlFiles = files.filter(f => f.path.endsWith('.xml'));
-    
-    assert.strictEqual(abapFiles.length, 2, 'Should have 2 non-empty ABAP files');
+    const abapFiles = files.filter((f) => f.path.endsWith('.abap'));
+    const xmlFiles = files.filter((f) => f.path.endsWith('.xml'));
+
+    assert.strictEqual(
+      abapFiles.length,
+      2,
+      'Should have 2 non-empty ABAP files',
+    );
     assert.strictEqual(xmlFiles.length, 1, 'Should have 1 XML file');
-    
+
     // Check suffixes
-    assert.ok(abapFiles.some(f => f.path === 'test_multi.multisrc.abap'), 'Main file');
-    assert.ok(abapFiles.some(f => f.path === 'test_multi.multisrc.locals_def.abap'), 'Locals def file');
+    assert.ok(
+      abapFiles.some((f) => f.path === 'test_multi.multisrc.abap'),
+      'Main file',
+    );
+    assert.ok(
+      abapFiles.some((f) => f.path === 'test_multi.multisrc.locals_def.abap'),
+      'Locals def file',
+    );
   });
 
   it('uses custom xmlFileName when provided', async () => {
@@ -127,12 +164,15 @@ describe('default serialize behavior', () => {
 
     const handler = createHandler('CUSTXML', {
       schema: mockSchema as any,
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_CUSTXML',
+      serializer_version: 'v1.0.0',
       xmlFileName: 'package.devc.xml',
       toAbapGit: (obj) => ({ CTEXT: obj.description ?? '' }),
     });
 
     const files = await handler.serialize(mockObject as any);
-    
+
     assert.strictEqual(files.length, 1);
     assert.strictEqual(files[0].path, 'package.devc.xml');
   });

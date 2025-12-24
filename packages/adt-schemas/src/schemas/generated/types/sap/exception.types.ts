@@ -6,26 +6,26 @@
  */
 
 export type ExceptionSchema = {
-    exception: {
-        namespace?: {
-            id?: string;
-        };
-        type?: {
-            id?: string;
-        };
-        message?: {
-            _text?: string;
-            lang?: string;
-        };
-        localizedMessage?: {
-            _text?: string;
-            lang?: string;
-        };
-        properties?: {
-            entry?: {
-                _text?: string;
-                key?: string;
-            }[];
-        };
+  exception: {
+    namespace?: {
+      id?: string;
     };
+    type?: {
+      id?: string;
+    };
+    message?: {
+      $value?: string;
+      lang?: string;
+    };
+    localizedMessage?: {
+      $value?: string;
+      lang?: string;
+    };
+    properties?: {
+      entry?: {
+        $value?: string;
+        key?: string;
+      }[];
+    };
+  };
 };

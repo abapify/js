@@ -1,6 +1,6 @@
 /**
  * @abapify/adt-auth
- * 
+ *
  * Authentication package for SAP ADT systems
  * Single source of truth for session management across all consumers
  */
@@ -25,11 +25,4 @@ export type {
   CookieAuthResult,
   BasicAuthResult,
   ConnectionTestResult,
-} from './types';
-
-// Legacy types (for backward compatibility during migration)
-export type {
-  AuthMethodType,
-  BasicAuthCredentials,
-  BasicAuth,
 } from './types';

@@ -3,8 +3,8 @@
  */
 
 // Public types
-export type { 
-  AbapPackage, 
+export type {
+  AbapPackage,
   PackageType,
   PackageAttributes,
   ObjectReference,
@@ -15,7 +15,7 @@ export type {
 } from './devc.types';
 
 // ADK object (internal implementation)
-export { AdkPackage, AbapPackageModel } from './devc.model';
+export { AdkPackage } from './devc.model';
 
 // Schema-inferred type for raw API response
 export type { PackageXml } from './devc.model';

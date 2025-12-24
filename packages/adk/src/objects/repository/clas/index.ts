@@ -3,8 +3,8 @@
  */
 
 // Public types
-export type { 
-  AbapClass, 
+export type {
+  AbapClass,
   ClassCategory,
   ClassVisibility,
   ClassInclude,
@@ -13,7 +13,7 @@ export type {
 } from './clas.types';
 
 // ADK object (internal implementation)
-export { AdkClass, AbapClassModel } from './clas.model';
+export { AdkClass } from './clas.model';
 
 // Schema-inferred type for raw API response
 export type { ClassXml } from './clas.model';
