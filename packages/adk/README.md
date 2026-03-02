@@ -1,6 +1,6 @@
 # @abapify/adk
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adk/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adk)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adk/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadk)
 
 ABAP Development Kit — schema-driven construction and serialization of ABAP objects.
 

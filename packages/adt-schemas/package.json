@@ -12,10 +12,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@abapify/ts-xsd": "*"
+    "@abapify/ts-xsd": "^0.1.7"
   },
   "devDependencies": {
-    "@abapify/adt-fixtures": "*"
+    "@abapify/adt-fixtures": "^0.1.7"
   },
   "files": [
     "dist"
