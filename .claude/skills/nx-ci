@@ -63,7 +63,9 @@ The most common cause is a package depending on another package that already
 depends on it (e.g. `adt-client` ↔ `adk`). Fix by removing the erroneous
 dependency from the package that should NOT depend on the other.
 
-## e2e-ci target
-
-`e2e-ci` is included in the CI run. If no project defines this target, Nx will
-skip it silently. If it is defined, make sure it passes locally before pushing.
+> **Why CI may still fail after the fix**: If the PR was branched from an older
+> commit of `main` (before the bad dep was introduced), GitHub's auto-created
+> merge commit (`refs/pull/N/merge`) re-adds the dep via 3-way merge semantics
+> (base has no dep, main added it, your branch didn't touch it → merge keeps it).
+> The CI workflow uses `ref: github.event.pull_request.head.sha` to check out
+> the PR head instead of the merge commit, which avoids this problem.
