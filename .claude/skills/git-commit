@@ -1,0 +1,31 @@
+# Git Commit Skill
+
+Before making any commit, ensure the following steps are completed:
+
+## 1. Install dependencies
+
+Dependencies must be installed so that husky and all dev tools are available:
+
+```bash
+npm install --legacy-peer-deps
+```
+
+## 2. Set up husky git hooks
+
+The `prepare` script initialises husky and installs the git hooks into `.git/hooks/`.
+Run it explicitly if hooks are not yet installed:
+
+```bash
+npm run prepare
+```
+
+You can verify that the pre-commit hook is in place:
+
+```bash
+ls .git/hooks/pre-commit
+```
+
+## 3. Never bypass hooks
+
+Do **not** use `git commit --no-verify` or `HUSKY=0` to skip hooks.
+The pre-commit hook (`npx nx format:write --uncommitted && git update-index --again`) must run on every commit to keep formatting consistent.
