@@ -9,10 +9,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "ts-xsd": "*"
+    "@abapify/ts-xsd": "*"
   },
   "devDependencies": {
-    "adt-fixtures": "*"
+    "@abapify/adt-fixtures": "*"
   },
   "files": [
     "dist"

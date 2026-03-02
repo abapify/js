@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { fixtures } from 'adt-fixtures';
+ * import { fixtures } from '@abapify/adt-fixtures';
  *
  * // Nothing loads on import!
  * // Explicitly load when needed:

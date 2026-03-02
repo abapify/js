@@ -7,7 +7,7 @@
  * Uses manual ts-xsd schema from adt-schemas for proper XML parsing.
  */
 
-import { http } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
 import { transportfind } from '../../schemas';
 
 // ============================================================================

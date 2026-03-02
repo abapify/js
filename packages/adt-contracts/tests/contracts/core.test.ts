@@ -2,7 +2,7 @@
  * Core HTTP Contract Scenarios
  */
 
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import {
   http as sessions,
   systeminformationSchema as systeminformation,

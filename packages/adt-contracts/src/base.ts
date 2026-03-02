@@ -12,7 +12,7 @@
  */
 
 // Contract definition utilities
-export { http, type RestContract } from 'speci/rest';
+export { http, type RestContract } from '@abapify/speci/rest';
 
 // CRUD helper for repository objects
 // Note: SourceType and IncludeType were removed - crud() now accepts generic strings
@@ -37,7 +37,7 @@ export {
 import {
   createClient as speciCreateClient,
   type HttpAdapter,
-} from 'speci/rest';
+} from '@abapify/speci/rest';
 
 // Import contract and type for client creation
 import { adtContract, type AdtContract } from './adt';
@@ -61,13 +61,16 @@ export type {
   RestClient,
   Serializable,
   RestEndpointDescriptor,
-} from 'speci/rest';
+} from '@abapify/speci/rest';
 
 // Type utilities for extracting types from contracts
-export type { ExtractResponse, InferSuccessResponse } from 'speci/rest';
+export type {
+  ExtractResponse,
+  InferSuccessResponse,
+} from '@abapify/speci/rest';
 
 // Import RestClient for use in return type
-import type { RestClient } from 'speci/rest';
+import type { RestClient } from '@abapify/speci/rest';
 
 /**
  * Identity function for contract definitions.

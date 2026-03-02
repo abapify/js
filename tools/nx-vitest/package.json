@@ -1,5 +1,5 @@
 {
-  "name": "nx-vitest",
+  "name": "@abapify/nx-vitest",
   "version": "0.0.1",
   "private": true,
   "type": "module",

@@ -5,7 +5,7 @@
  * This tests the full contract flow: input types → HTTP → XML → parsed output types.
  */
 
-import type { HttpAdapter, HttpRequestOptions } from 'speci/rest';
+import type { HttpAdapter, HttpRequestOptions } from '@abapify/speci/rest';
 
 /**
  * Captured request details for assertions
