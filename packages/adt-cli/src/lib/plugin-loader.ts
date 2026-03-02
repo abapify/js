@@ -209,3 +209,34 @@ export async function loadCommandPlugins(
     }
   }
 }
+
+/**
+ * Register pre-loaded (statically imported) plugins with Commander.
+ *
+ * Use this instead of {@link loadCommandPlugins} when building a standalone
+ * binary with `bun build --compile`. Because Bun's bundler resolves imports
+ * at compile time, dynamic `import(path)` calls with runtime-computed paths
+ * (as used in `loadCommandPlugins`) cannot be embedded in the binary. By
+ * passing statically-imported plugin objects here, every module is visible to
+ * the bundler and gets embedded into the executable.
+ *
+ * Unlike `loadCommandPlugins`, this function does **not** read the `commands`
+ * array from `adt.config.ts`; plugins are provided directly by the caller.
+ * The config file is still loaded (if present) so its other settings are
+ * available to plugins via `ctx.config`.
+ */
+export async function loadStaticPlugins(
+  program: Command,
+  plugins: CliCommandPlugin[],
+  cwd: string,
+  explicitConfigPath?: string,
+): Promise<void> {
+  // Load config for context data (e.g. system settings); fall back to empty
+  const config = (await loadCliConfig(cwd, explicitConfigPath)) ?? {
+    commands: [],
+  };
+
+  for (const plugin of plugins) {
+    program.addCommand(pluginToCommand(plugin, config));
+  }
+}
