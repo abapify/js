@@ -1,5 +1,8 @@
 {
   "name": "@abapify/adt-plugin",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.1.6",
   "type": "module",
   "description": "ADT Plugin interface and factory for abapify",
