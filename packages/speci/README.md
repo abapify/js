@@ -1,6 +1,6 @@
 # speci
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/speci/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/speci)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/speci/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fspeci)
 
 **Minimal arrow-function-based contract specification system for TypeScript**
 
@@ -178,7 +178,7 @@ const endpoint = (...params) => ({
 
 ### HTTP Helper Object
 
-The `speci/rest` module provides an `http` object with all HTTP methods:
+The `@abapify/speci/rest` module provides an `http` object with all HTTP methods:
 
 ```typescript
 import { http } from '@abapify/speci/rest';

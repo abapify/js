@@ -1,6 +1,6 @@
 # @abapify/logger
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/logger/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/logger)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/logger/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Flogger)
 
 Shared logger interface for `@abapify` packages.
 

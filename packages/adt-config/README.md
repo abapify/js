@@ -1,6 +1,6 @@
 # @abapify/adt-config
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-config/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-config)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-config/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-config)
 
 Configuration loader for ADT CLI. Loads destinations from `adt.config.ts/json` files.
 

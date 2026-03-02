@@ -1,6 +1,6 @@
 # @abapify/adt-contracts
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-contracts/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-contracts)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-contracts/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-contracts)
 
 **SAP ADT REST API contracts** — typed endpoint definitions using `speci` + `ts-xsd` schemas.
 
