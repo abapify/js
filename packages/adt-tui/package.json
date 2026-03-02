@@ -1,5 +1,8 @@
 {
   "name": "@abapify/adt-tui",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "version": "0.1.6",
   "description": "Terminal UI components for ADT - page-based navigation with Ink",

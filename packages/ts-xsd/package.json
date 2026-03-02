@@ -1,5 +1,8 @@
 {
   "name": "@abapify/ts-xsd",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.1.6",
   "description": "Core XSD parser and builder - W3C XMLSchema 1:1 TypeScript representation",
   "type": "module",

@@ -1,5 +1,8 @@
 {
   "name": "@abapify/adt-schemas",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.1.6",
   "description": "ADT XML schemas generated from SAP XSD definitions",
   "type": "module",
@@ -16,6 +19,5 @@
   },
   "files": [
     "dist"
-  ],
-  "private": true
+  ]
 }

@@ -1,5 +1,8 @@
 {
   "name": "@abapify/browser-auth",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.1.6",
   "type": "module",
   "description": "Browser-based SSO authentication core - shared logic for Playwright/Puppeteer plugins",
