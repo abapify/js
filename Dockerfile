@@ -24,8 +24,7 @@ ENV NX_DAEMON=false
 ENV NX_TUI=false
 
 # Build every package (Nx respects the dependency graph, so output is correct)
-# Exclude the root "abapify" project (nx:noop, no entry point for tsdown)
-RUN npx nx run-many -t build --parallel=2 --exclude=abapify
+RUN npx nx run-many -t build --parallel=2
 
 # ── Stage 2: runner ──────────────────────────────────────────────────────────
 # Lean image that ships only the built artifacts and their runtime deps.
