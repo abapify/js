@@ -6,8 +6,8 @@
  *
  * @example
  * ```typescript
- * import { typed } from 'ts-xsd';
- * import type { InferSchema } from 'ts-xsd';
+ * import { typed } from '@abapify/ts-xsd';
+ * import type { InferSchema } from '@abapify/ts-xsd';
  *
  * const rawSchema = { ... } as const;
  *

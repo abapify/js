@@ -144,7 +144,7 @@ function runSingleFileMode(options: SingleFileModeOptions) {
   console.log(
     `  import { ${options.name} } from './${basename(options.output, '.ts')}';`,
   );
-  console.log(`  import type { InferSchema } from 'ts-xsd';`);
+  console.log(`  import type { InferSchema } from '@abapify/ts-xsd';`);
   console.log(`  type MyType = InferSchema<typeof ${options.name}>;`);
 }
 
