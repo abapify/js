@@ -27,9 +27,9 @@
     "oat"
   ],
   "dependencies": {
-    "@abapify/adt-plugin": "*",
-    "@abapify/adk": "*",
-    "@abapify/adt-plugin-abapgit": "*"
+    "@abapify/adt-plugin": "^0.1.7",
+    "@abapify/adk": "^0.1.7",
+    "@abapify/adt-plugin-abapgit": "^0.1.7"
   },
   "module": "./dist/index.mjs"
 }

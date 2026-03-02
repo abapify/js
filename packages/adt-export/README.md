@@ -1,6 +1,6 @@
 # @abapify/adt-export
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-export/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-export)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-export/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-export)
 
 Export CLI plugin for adt-cli — deploy local serialized files to SAP.
 

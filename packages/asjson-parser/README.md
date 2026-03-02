@@ -1,6 +1,6 @@
 # @abapify/asjson-parser
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/asjson-parser/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/asjson-parser)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/asjson-parser/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fasjson-parser)
 
 ABAP asJSON (canonical JSON representation) parser.
 
