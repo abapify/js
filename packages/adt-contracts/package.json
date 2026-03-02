@@ -1,6 +1,9 @@
 {
   "name": "@abapify/adt-contracts",
-  "version": "0.1.6",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.7",
   "description": "SAP ADT REST API contracts using speci + ts-xsd",
   "type": "module",
   "types": "./dist/index.d.mts",
@@ -19,6 +22,5 @@
   },
   "files": [
     "dist"
-  ],
-  "private": true
+  ]
 }

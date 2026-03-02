@@ -1,8 +1,6 @@
 # @abapify/adt-client
 
-[![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-client)](https://www.npmjs.com/package/@abapify/adt-client)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](../../LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6)](https://www.typescriptlang.org/)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-client/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-client)
 
 **Contract-driven SAP ADT REST client** — uses `speci` + `ts-xsd` for full type safety.
 
