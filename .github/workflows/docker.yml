@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version tag to build (e.g. v1.2.3), defaults to latest release'
+        description: 'Release version tag to build (e.g. v1.2.3), defaults to the ref that triggered the workflow'
         required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Release version tag to build (e.g. v1.2.3), defaults to latest release'
+        description: 'Release version tag to build (e.g. v1.2.3), defaults to the ref that triggered the workflow'
         required: false
         type: string
 
@@ -22,25 +22,10 @@ jobs:
       contents: read
       packages: write # needed to push to GHCR
     steps:
-      - name: Resolve ref
-        id: resolve-ref
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          if [ -n "$INPUT_VERSION" ]; then
-            resolved="$INPUT_VERSION"
-          else
-            # Default to the ref that triggered the workflow (branch or tag)
-            resolved="${{ github.ref_name }}"
-          fi
-          echo "Resolved ref: ${resolved}"
-          echo "ref=${resolved}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ steps.resolve-ref.outputs.ref }}
+          ref: ${{ inputs.version || github.ref_name }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
