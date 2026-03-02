@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
+FROM mcr.microsoft.com/devcontainers/typescript-node:4-24-bookworm
 
 COPY --from=cloudfoundry/cli /usr/local/bin/cf /usr/local/bin/cf
 # Copy the binary from the previous stage
@@ -42,6 +42,9 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     wget \
     xdg-utils
+
+# # Get latest npm
+# RUN npm install -g npm@latest
 
 USER node
 # Install uv Python package manager
