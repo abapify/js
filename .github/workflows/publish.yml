@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version tag to publish (e.g. v1.2.3)'
-        required: true
+        description: 'Release version tag to publish (e.g. v1.2.3), defaults to latest release'
+        required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Release version tag to publish (e.g. v1.2.3)'
-        required: true
+        description: 'Release version tag to publish (e.g. v1.2.3), defaults to latest release'
+        required: false
         type: string
 
 jobs:
@@ -23,10 +23,24 @@ jobs:
       id-token: write # needed for provenance data generation
     timeout-minutes: 15
     steps:
-      - name: Checkout repository at tag
+      - name: Resolve ref
+        id: resolve-ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            resolved="$INPUT_VERSION"
+          else
+            resolved=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || echo "main")
+          fi
+          echo "Resolved ref: ${resolved}"
+          echo "ref=${resolved}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.version }}
+          ref: ${{ steps.resolve-ref.outputs.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
