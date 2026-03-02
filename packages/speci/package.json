@@ -1,5 +1,8 @@
 {
   "name": "@abapify/speci",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.1.6",
   "type": "module",
   "description": "Minimal arrow-function-based contract specification system for TypeScript",

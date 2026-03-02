@@ -1,5 +1,8 @@
 {
   "name": "@abapify/adt-auth",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.1.6",
   "description": "Authentication package for SAP ADT systems - supports multiple auth methods",
   "type": "module",
