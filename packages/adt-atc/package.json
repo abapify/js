@@ -1,5 +1,8 @@
 {
   "name": "@abapify/adt-atc",
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.1.6",
   "description": "ABAP Test Cockpit (ATC) CLI plugin for adt-cli",
   "type": "module",
