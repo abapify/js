@@ -8,14 +8,14 @@ TypeScript monorepo providing a CLI and supporting libraries for [SAP ABAP Devel
 
 ### CLI
 
-| Package                           | version                                                                                                         | Description                           |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Package                           | version                                                                                                                                                                             | Description                           |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | **[adt-cli](./packages/adt-cli)** | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-cli/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-cli) | Command-line interface — `adt` binary |
 
 ### Core Libraries
 
-| Package                                       | version                                                                                                                     | Description                                                  |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Package                                       | version                                                                                                                                                                                         | Description                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | **[adt-client](./packages/adt-client)**       | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-client/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-client)       | Contract-driven HTTP client for ADT REST APIs                |
 | **[adt-contracts](./packages/adt-contracts)** | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-contracts/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-contracts) | Typed ADT REST API contract definitions                      |
 | **[adt-schemas](./packages/adt-schemas)**     | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-schemas/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-schemas)     | SAP ADT XML schemas generated from XSD                       |
@@ -25,8 +25,8 @@ TypeScript monorepo providing a CLI and supporting libraries for [SAP ABAP Devel
 
 ### CLI Plugins
 
-| Package                                                 | version                                                                                                                               | Description                                                       |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Package                                                 | version                                                                                                                                                                                                   | Description                                                       |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | **[adt-atc](./packages/adt-atc)**                       | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-atc/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-atc)                       | ABAP Test Cockpit — runs ATC, outputs SARIF / GitLab Code Quality |
 | **[adt-export](./packages/adt-export)**                 | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-export/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-export)                 | Export plugin — deploy local files to SAP                         |
 | **[adt-plugin](./packages/adt-plugin)**                 | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-plugin/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-plugin)                 | Plugin interface contract                                         |
@@ -34,18 +34,18 @@ TypeScript monorepo providing a CLI and supporting libraries for [SAP ABAP Devel
 
 ### Authentication Adapters
 
-| Package                                         | version                                                                                                                       | Description                          |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Package                                         | version                                                                                                                                                                                           | Description                          |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | **[browser-auth](./packages/browser-auth)**     | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/browser-auth/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fbrowser-auth)     | Shared browser SSO logic             |
 | **[adt-playwright](./packages/adt-playwright)** | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-playwright/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-playwright) | Playwright SSO authentication plugin |
 | **[adt-puppeteer](./packages/adt-puppeteer)**   | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-puppeteer/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-puppeteer)   | Puppeteer SSO authentication plugin  |
 
 ### Foundation Libraries
 
-| Package                                       | version                                                                                                                     | Description                                        |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| **[speci](./packages/speci)**                 | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/speci/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fspeci)                                       | Arrow-function REST contract specification         |
-| **[ts-xsd](./packages/ts-xsd)**               | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/ts-xsd/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fts-xsd)                                     | XSD parser, builder, and TypeScript type inference |
+| Package                                       | version                                                                                                                                                                                         | Description                                        |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **[speci](./packages/speci)**                 | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/speci/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fspeci)                 | Arrow-function REST contract specification         |
+| **[ts-xsd](./packages/ts-xsd)**               | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/ts-xsd/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fts-xsd)               | XSD parser, builder, and TypeScript type inference |
 | **[adt-codegen](./packages/adt-codegen)**     | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-codegen/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-codegen)     | Hook-based code generation toolkit                 |
 | **[asjson-parser](./packages/asjson-parser)** | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/asjson-parser/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fasjson-parser) | ABAP asJSON canonical format parser                |
 | **[logger](./packages/logger)**               | [![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/logger/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Flogger)               | Shared logger interface                            |
