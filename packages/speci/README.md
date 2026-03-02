@@ -13,7 +13,7 @@ Part of the **ADT Toolkit** foundation - see [main README](../../README.md) for 
 An endpoint = an arrow function whose parameters define the contract and whose return value defines the operation.
 
 ```typescript
-import { http } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
 
 // Shortcut syntax - super clean!
 const updateUser = (id: string, user: UserInput) =>
@@ -28,7 +28,7 @@ Speci was developed in tight combination with [ts-xsd](../ts-xsd) to support **X
 
 ```typescript
 import { parse, build, type XsdSchema, type InferXsd } from 'ts-xsd';
-import { http } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
 
 // ts-xsd schema with parse/build
 const TransportSchema = {
@@ -71,7 +71,7 @@ bun add speci
 ### 1. Define Your Contract
 
 ```typescript
-import { http, type RestContract } from 'speci/rest';
+import { http, type RestContract } from '@abapify/speci/rest';
 
 // Define schemas (use any schema library: Zod, JSON Schema, etc.)
 interface User {
@@ -127,7 +127,7 @@ export const api = {
 ### 2. Generate a Typed Client
 
 ```typescript
-import { createClient, createFetchAdapter, HttpError } from 'speci/rest';
+import { createClient, createFetchAdapter, HttpError } from '@abapify/speci/rest';
 
 const client = createClient(api, {
   baseUrl: 'https://api.example.com',
@@ -181,7 +181,7 @@ const endpoint = (...params) => ({
 The `speci/rest` module provides an `http` object with all HTTP methods:
 
 ```typescript
-import { http } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
 
 // Shortcut syntax - super clean!
 http.get<SuccessType>(path); // GET with 200 response
@@ -207,7 +207,7 @@ Speci supports **any schema library** - Zod, JSON Schema, custom schemas, etc. U
 
 ```typescript
 import { z } from 'zod';
-import { schema } from 'speci/rest';
+import { schema } from '@abapify/speci/rest';
 
 // Zod schemas
 const UserSchema = z.object({
@@ -260,7 +260,7 @@ This makes Speci **schema-agnostic** - use whatever validation library you prefe
 Avoid repeating error types across all endpoints:
 
 ```typescript
-import { createHttp } from 'speci/rest';
+import { createHttp } from '@abapify/speci/rest';
 
 // 1. Define global error responses
 const globalErrors = {
@@ -305,7 +305,7 @@ const getPost = (userId: string, postId: string) =>
 Errors are thrown as `HttpError` with typed payloads:
 
 ```typescript
-import { HttpError } from 'speci/rest';
+import { HttpError } from '@abapify/speci/rest';
 
 try {
   const user = await client.users.get('123');
@@ -334,7 +334,7 @@ try {
 Speci is adapter-agnostic. Bring your own HTTP client:
 
 ```typescript
-import type { HttpAdapter } from 'speci/client';
+import type { HttpAdapter } from '@abapify/speci/rest';
 
 const myAdapter: HttpAdapter = {
   async request({ method, url, body, query, headers }) {
