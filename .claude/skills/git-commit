@@ -12,17 +12,19 @@ npm install --legacy-peer-deps
 
 ## 2. Set up husky git hooks
 
-The `prepare` script initialises husky and installs the git hooks into `.git/hooks/`.
+The `prepare` script initialises husky (sets `core.hooksPath` to `.husky/_`).
 Run it explicitly if hooks are not yet installed:
 
 ```bash
 npm run prepare
 ```
 
-You can verify that the pre-commit hook is in place:
+You can verify that the hook chain is in place:
 
 ```bash
-ls .git/hooks/pre-commit
+git config core.hooksPath   # should print: .husky/_
+ls .husky/_/pre-commit       # the hook entry-point
+ls .husky/pre-commit         # the actual script that runs
 ```
 
 ## 3. Never bypass hooks
