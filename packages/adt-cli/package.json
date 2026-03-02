@@ -1,5 +1,8 @@
 {
   "name": "@abapify/adt-cli",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "version": "0.1.6",
   "types": "./dist/index.d.mts",
