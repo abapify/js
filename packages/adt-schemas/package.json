@@ -16,6 +16,5 @@
   },
   "files": [
     "dist"
-  ],
-  "private": true
+  ]
 }
