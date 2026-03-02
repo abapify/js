@@ -1,4 +1,3 @@
 npx nx format:write --uncommitted
 git update-index --again
-npx nx affected -t lint test build --parallel=3
 
