@@ -31,7 +31,8 @@ jobs:
           if [ -n "$INPUT_VERSION" ]; then
             resolved="$INPUT_VERSION"
           else
-            resolved=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+            # Default to the ref that triggered the workflow (branch or tag)
+            resolved="${{ github.ref_name }}"
           fi
           echo "Resolved ref: ${resolved}"
           echo "ref=${resolved}" >> "$GITHUB_OUTPUT"
