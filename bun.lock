@@ -74,7 +74,7 @@
     },
     "packages/adk": {
       "name": "@abapify/adk",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adt-client": "*",
         "@abapify/adt-schemas": "*",
@@ -82,15 +82,15 @@
     },
     "packages/adt-atc": {
       "name": "@abapify/adt-atc",
-      "version": "0.1.0",
+      "version": "0.1.6",
       "dependencies": {
-        "@abapify/adt-plugin": "workspace:*",
+        "@abapify/adt-plugin": "*",
         "chalk": "^5.3.0",
       },
     },
     "packages/adt-auth": {
       "name": "@abapify/adt-auth",
-      "version": "0.1.0",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/logger": "*",
         "proxy-agent": "^6.4.0",
@@ -98,7 +98,7 @@
     },
     "packages/adt-cli": {
       "name": "@abapify/adt-cli",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "bin": {
         "adt": "./dist/bin/adt.mjs",
       },
@@ -133,7 +133,7 @@
     },
     "packages/adt-client": {
       "name": "@abapify/adt-client",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adt-contracts": "*",
         "@abapify/adt-schemas": "*",
@@ -142,7 +142,7 @@
     },
     "packages/adt-codegen": {
       "name": "@abapify/adt-codegen",
-      "version": "0.1.0",
+      "version": "0.1.6",
       "bin": {
         "adt-codegen": "./dist/cli.mjs",
       },
@@ -156,22 +156,22 @@
     },
     "packages/adt-config": {
       "name": "@abapify/adt-config",
-      "version": "0.0.1",
+      "version": "0.1.6",
     },
     "packages/adt-contracts": {
       "name": "@abapify/adt-contracts",
-      "version": "0.1.0",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adt-schemas": "*",
-        "speci": "*",
+        "@abapify/speci": "*",
       },
       "devDependencies": {
-        "adt-fixtures": "*",
+        "@abapify/adt-fixtures": "*",
       },
     },
     "packages/adt-export": {
       "name": "@abapify/adt-export",
-      "version": "0.1.0",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adk": "workspace:*",
         "@abapify/adt-plugin": "workspace:*",
@@ -179,12 +179,12 @@
       },
     },
     "packages/adt-fixtures": {
-      "name": "adt-fixtures",
-      "version": "0.0.1",
+      "name": "@abapify/adt-fixtures",
+      "version": "0.1.6",
     },
     "packages/adt-playwright": {
       "name": "@abapify/adt-playwright",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adt-auth": "*",
         "@abapify/adt-config": "*",
@@ -197,24 +197,24 @@
     },
     "packages/adt-plugin": {
       "name": "@abapify/adt-plugin",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adk": "*",
       },
     },
     "packages/adt-plugin-abapgit": {
       "name": "@abapify/adt-plugin-abapgit",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adk": "*",
-        "@abapify/adt-atc": "workspace:*",
+        "@abapify/adt-atc": "*",
         "@abapify/adt-plugin": "*",
-        "ts-xsd": "workspace:*",
+        "@abapify/ts-xsd": "*",
       },
     },
     "packages/adt-puppeteer": {
       "name": "@abapify/adt-puppeteer",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adt-auth": "*",
         "@abapify/adt-config": "*",
@@ -227,17 +227,17 @@
     },
     "packages/adt-schemas": {
       "name": "@abapify/adt-schemas",
-      "version": "0.1.0",
+      "version": "0.1.6",
       "dependencies": {
-        "ts-xsd": "*",
+        "@abapify/ts-xsd": "*",
       },
       "devDependencies": {
-        "adt-fixtures": "*",
+        "@abapify/adt-fixtures": "*",
       },
     },
     "packages/adt-tui": {
       "name": "@abapify/adt-tui",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adt-contracts": "workspace:*",
         "fast-xml-parser": "^5.3.1",
@@ -256,14 +256,14 @@
     },
     "packages/asjson-parser": {
       "name": "@abapify/asjson-parser",
-      "version": "0.1.1",
+      "version": "0.1.6",
       "dependencies": {
         "jsonc-eslint-parser": "^2.1.0",
       },
     },
     "packages/browser-auth": {
       "name": "@abapify/browser-auth",
-      "version": "0.0.1",
+      "version": "0.1.6",
       "dependencies": {
         "@abapify/adt-config": "*",
       },
@@ -273,15 +273,15 @@
     },
     "packages/logger": {
       "name": "@abapify/logger",
-      "version": "0.1.0",
+      "version": "0.1.6",
     },
     "packages/speci": {
-      "name": "speci",
-      "version": "0.1.0",
+      "name": "@abapify/speci",
+      "version": "0.1.6",
     },
     "packages/ts-xsd": {
-      "name": "ts-xsd",
-      "version": "0.1.0",
+      "name": "@abapify/ts-xsd",
+      "version": "0.1.6",
       "bin": {
         "ts-xsd": "./dist/codegen/cli.mjs",
       },
@@ -290,33 +290,33 @@
       },
     },
     "samples/sample-tsdown": {
-      "name": "sample-tsdown",
+      "name": "@abapify/sample-tsdown",
       "version": "0.0.1",
       "dependencies": {
         "tslib": "^2.3.0",
       },
     },
     "tools/nx-sync": {
-      "name": "nx-sync",
+      "name": "@abapify/nx-sync",
       "version": "0.0.1",
     },
     "tools/nx-tsdown": {
-      "name": "nx-tsdown",
+      "name": "@abapify/nx-tsdown",
       "version": "0.0.1",
     },
     "tools/nx-typecheck": {
-      "name": "nx-typecheck",
+      "name": "@abapify/nx-typecheck",
       "version": "0.0.1",
     },
     "tools/nx-vitest": {
-      "name": "nx-vitest",
+      "name": "@abapify/nx-vitest",
       "version": "0.0.1",
       "dependencies": {
         "glob": "^10.0.0",
       },
     },
     "tools/p2-cli": {
-      "name": "p2-cli",
+      "name": "@abapify/p2-cli",
       "version": "0.1.0",
       "bin": {
         "p2": "./dist/cli.mjs",
@@ -345,6 +345,8 @@
 
     "@abapify/adt-export": ["@abapify/adt-export@workspace:packages/adt-export"],
 
+    "@abapify/adt-fixtures": ["@abapify/adt-fixtures@workspace:packages/adt-fixtures"],
+
     "@abapify/adt-playwright": ["@abapify/adt-playwright@workspace:packages/adt-playwright"],
 
     "@abapify/adt-plugin": ["@abapify/adt-plugin@workspace:packages/adt-plugin"],
@@ -362,6 +364,22 @@
     "@abapify/browser-auth": ["@abapify/browser-auth@workspace:packages/browser-auth"],
 
     "@abapify/logger": ["@abapify/logger@workspace:packages/logger"],
+
+    "@abapify/nx-sync": ["@abapify/nx-sync@workspace:tools/nx-sync"],
+
+    "@abapify/nx-tsdown": ["@abapify/nx-tsdown@workspace:tools/nx-tsdown"],
+
+    "@abapify/nx-typecheck": ["@abapify/nx-typecheck@workspace:tools/nx-typecheck"],
+
+    "@abapify/nx-vitest": ["@abapify/nx-vitest@workspace:tools/nx-vitest"],
+
+    "@abapify/p2-cli": ["@abapify/p2-cli@workspace:tools/p2-cli"],
+
+    "@abapify/sample-tsdown": ["@abapify/sample-tsdown@workspace:samples/sample-tsdown"],
+
+    "@abapify/speci": ["@abapify/speci@workspace:packages/speci"],
+
+    "@abapify/ts-xsd": ["@abapify/ts-xsd@workspace:packages/ts-xsd"],
 
     "@alcalzone/ansi-tokenize": ["@alcalzone/ansi-tokenize@0.1.3", "", { "dependencies": { "ansi-styles": "^6.2.1", "is-fullwidth-code-point": "^4.0.0" } }, "sha512-3yWxPTq3UQ/FY9p1ErPxIyfT64elWaMvM9lIHnaqpyft63tkxodF5aUElYHrdisWve5cETkh1+KBw1yJuW0aRw=="],
 
@@ -1358,8 +1376,6 @@
     "acorn-walk": ["acorn-walk@8.3.5", "", { "dependencies": { "acorn": "^8.11.0" } }, "sha512-HEHNfbars9v4pgpW6SO1KSPkfoS0xVOM/9UzkJltjlsHZmJasxg8aXkuZa7SMf8vKGIBhpUsPluQSqhJFCqebw=="],
 
     "address": ["address@1.2.2", "", {}, "sha512-4B/qKCfeE/ODUaAUpSwfzazo5x29WD4r3vXiWsB7I2mSDAihwEqKO+g8GELZUQSSAo5e1XTYh3ZVfLyxBc12nA=="],
-
-    "adt-fixtures": ["adt-fixtures@workspace:packages/adt-fixtures"],
 
     "agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
 
@@ -2433,14 +2449,6 @@
 
     "nx-mcp": ["nx-mcp@0.22.2", "", { "bin": { "nx-mcp": "main.js" } }, "sha512-Y43y62uBej1eyarwMG0Iv6xp7tViJl1LmU72+Rm1HN3b65TuCj/808LMV7poAinmIXrgyxSYUaLTpH3D52icmg=="],
 
-    "nx-sync": ["nx-sync@workspace:tools/nx-sync"],
-
-    "nx-tsdown": ["nx-tsdown@workspace:tools/nx-tsdown"],
-
-    "nx-typecheck": ["nx-typecheck@workspace:tools/nx-typecheck"],
-
-    "nx-vitest": ["nx-vitest@workspace:tools/nx-vitest"],
-
     "oauth4webapi": ["oauth4webapi@3.8.5", "", {}, "sha512-A8jmyUckVhRJj5lspguklcl90Ydqk61H3dcU0oLhH3Yv13KpAliKTt5hknpGGPZSSfOwGyraNEFmofDYH+1kSg=="],
 
     "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
@@ -2490,8 +2498,6 @@
     "p-locate": ["p-locate@5.0.0", "", { "dependencies": { "p-limit": "^3.0.2" } }, "sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw=="],
 
     "p-try": ["p-try@2.2.0", "", {}, "sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ=="],
-
-    "p2-cli": ["p2-cli@workspace:tools/p2-cli"],
 
     "pac-proxy-agent": ["pac-proxy-agent@7.2.0", "", { "dependencies": { "@tootallnate/quickjs-emscripten": "^0.23.0", "agent-base": "^7.1.2", "debug": "^4.3.4", "get-uri": "^6.0.1", "http-proxy-agent": "^7.0.0", "https-proxy-agent": "^7.0.6", "pac-resolver": "^7.0.1", "socks-proxy-agent": "^8.0.5" } }, "sha512-TEB8ESquiLMc0lV8vcd5Ql/JAKAoyzHFXaStwjkzpOpC5Yv+pIzLfHvjTSdf3vpa2bMiUQrg9i6276yn8666aA=="],
 
@@ -2705,8 +2711,6 @@
 
     "safer-buffer": ["safer-buffer@2.1.2", "", {}, "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg=="],
 
-    "sample-tsdown": ["sample-tsdown@workspace:samples/sample-tsdown"],
-
     "saxes": ["saxes@6.0.0", "", { "dependencies": { "xmlchars": "^2.2.0" } }, "sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA=="],
 
     "scheduler": ["scheduler@0.23.2", "", { "dependencies": { "loose-envify": "^1.1.0" } }, "sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ=="],
@@ -2782,8 +2786,6 @@
     "source-map-js": ["source-map-js@1.2.1", "", {}, "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="],
 
     "source-map-support": ["source-map-support@0.5.19", "", { "dependencies": { "buffer-from": "^1.0.0", "source-map": "^0.6.0" } }, "sha512-Wonm7zOCIJzBGQdB+thsPar0kYuCIzYvxZwlBa87yi/Mdjv7Tip2cyVbLj5o0cFPN4EVkuTwb3GDDyUx2DGnGw=="],
-
-    "speci": ["speci@workspace:packages/speci"],
 
     "split2": ["split2@4.2.0", "", {}, "sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg=="],
 
@@ -2914,8 +2916,6 @@
     "ts-morph": ["ts-morph@27.0.2", "", { "dependencies": { "@ts-morph/common": "~0.28.1", "code-block-writer": "^13.0.3" } }, "sha512-fhUhgeljcrdZ+9DZND1De1029PrE+cMkIP7ooqkLRTrRLTqcki2AstsyJm0vRNbTbVCNJ0idGlbBrfqc7/nA8w=="],
 
     "ts-node": ["ts-node@10.9.2", "", { "dependencies": { "@cspotcode/source-map-support": "^0.8.0", "@tsconfig/node10": "^1.0.7", "@tsconfig/node12": "^1.0.7", "@tsconfig/node14": "^1.0.0", "@tsconfig/node16": "^1.0.2", "acorn": "^8.4.1", "acorn-walk": "^8.1.1", "arg": "^4.1.0", "create-require": "^1.1.0", "diff": "^4.0.1", "make-error": "^1.1.1", "v8-compile-cache-lib": "^3.0.1", "yn": "3.1.1" }, "peerDependencies": { "@swc/core": ">=1.2.50", "@swc/wasm": ">=1.2.50", "@types/node": "*", "typescript": ">=2.7" }, "optionalPeers": ["@swc/core", "@swc/wasm"], "bin": { "ts-node": "dist/bin.js", "ts-script": "dist/bin-script-deprecated.js", "ts-node-cwd": "dist/bin-cwd.js", "ts-node-esm": "dist/bin-esm.js", "ts-node-script": "dist/bin-script.js", "ts-node-transpile-only": "dist/bin-transpile.js" } }, "sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ=="],
-
-    "ts-xsd": ["ts-xsd@workspace:packages/ts-xsd"],
 
     "tsconfig-paths": ["tsconfig-paths@4.2.0", "", { "dependencies": { "json5": "^2.2.2", "minimist": "^1.2.6", "strip-bom": "^3.0.0" } }, "sha512-NoZ4roiN7LnbKn9QqE1amc9DJfzvZXxF4xDavcOWt1BPkdx+m+0gJuPM+S0vCe7zTJMYUP0R8pO2XMr+Y8oLIg=="],
 
@@ -3108,6 +3108,8 @@
     "@abapify/asjson-parser/jsonc-eslint-parser": ["jsonc-eslint-parser@2.4.2", "", { "dependencies": { "acorn": "^8.5.0", "eslint-visitor-keys": "^3.0.0", "espree": "^9.0.0", "semver": "^7.3.5" } }, "sha512-1e4qoRgnn448pRuMvKGsFFymUCquZV0mpGgOyIKNgD3JVDTsVJyRBGH/Fm0tBb8WsWGgmB1mDe6/yJMQM37DUA=="],
 
     "@abapify/browser-auth/@types/node": ["@types/node@22.19.13", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-akNQMv0wW5uyRpD2v2IEyRSZiR+BeGuoB6L310EgGObO44HSMNT8z1xzio28V8qOrgYaopIDNA18YgdXd+qTiw=="],
+
+    "@abapify/ts-xsd/@xmldom/xmldom": ["@xmldom/xmldom@0.9.8", "", {}, "sha512-p96FSY54r+WJ50FIOsCOjyj/wavs8921hG5+kVMmZgKcvIKxMXHTrjNJvRgWa/zuX3B6t2lijLNFaOyuxUH+2A=="],
 
     "@alcalzone/ansi-tokenize/is-fullwidth-code-point": ["is-fullwidth-code-point@4.0.0", "", {}, "sha512-O4L094N2/dZ7xqVdrXhh9r1KODPJpFms8B5sGdJLPy664AgvXsreZUyCQQNItZRDlYug4xStLjNp/sz3HvBowQ=="],
 
@@ -3538,8 +3540,6 @@
     "through2/readable-stream": ["readable-stream@2.3.8", "", { "dependencies": { "core-util-is": "~1.0.0", "inherits": "~2.0.3", "isarray": "~1.0.0", "process-nextick-args": "~2.0.0", "safe-buffer": "~5.1.1", "string_decoder": "~1.1.1", "util-deprecate": "~1.0.1" } }, "sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA=="],
 
     "tinyglobby/picomatch": ["picomatch@4.0.3", "", {}, "sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q=="],
-
-    "ts-xsd/@xmldom/xmldom": ["@xmldom/xmldom@0.9.8", "", {}, "sha512-p96FSY54r+WJ50FIOsCOjyj/wavs8921hG5+kVMmZgKcvIKxMXHTrjNJvRgWa/zuX3B6t2lijLNFaOyuxUH+2A=="],
 
     "tsdown/picomatch": ["picomatch@4.0.3", "", {}, "sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q=="],
 
