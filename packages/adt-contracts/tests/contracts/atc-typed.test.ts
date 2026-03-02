@@ -5,7 +5,7 @@
  * If this file compiles, type inference is working correctly!
  */
 
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import {
   TypedContractScenario,
   runTypedScenario,

@@ -25,8 +25,8 @@
  * ```
  */
 
-import { http } from 'speci/rest';
-import type { Serializable } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
+import type { Serializable } from '@abapify/speci/rest';
 
 /**
  * Common ADT query parameters for CRUD operations
