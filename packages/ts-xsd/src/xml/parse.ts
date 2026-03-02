@@ -112,10 +112,10 @@ export function parse<T extends SchemaLike>(
   xml: string,
 ): InferParsedSchema<T> {
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  const root = doc.documentElement;
+  const root = doc?.documentElement;
 
   if (!root) {
-    throw new Error('Invalid XML: no root element');
+    throw new Error('Invalid XML: missing root element');
   }
 
   // Get root element name from XML (strip namespace prefix)

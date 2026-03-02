@@ -100,7 +100,8 @@ class SchemaCollector extends SchemaTraverser {
     // - Chameleon schemas (no targetNamespace) adopt the importing schema's namespace
     const rootNs = this.rootSchema.targetNamespace;
     const currentNs = this.currentSchema.targetNamespace;
-    const sameOrNoNamespace = currentNs === rootNs || currentNs === undefined;
+    // Treat empty string as "no namespace" — XSD parser sets "" when targetNamespace is absent
+    const sameOrNoNamespace = currentNs === rootNs || !currentNs;
     const hasSubstitutionGroup = !!element.substitutionGroup;
     const isAbstract = !!(element as { abstract?: boolean }).abstract;
 

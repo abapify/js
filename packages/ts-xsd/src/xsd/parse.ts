@@ -1164,8 +1164,9 @@ function extractXmlns(el: Element): Record<string, string> | undefined {
   const xmlns: Record<string, string> = {};
   let hasXmlns = false;
 
-  // NamedNodeMap is iterable in xmldom
-  for (const attr of el.attributes) {
+  // NamedNodeMap is not iterable in xmldom — use index-based access
+  for (let i = 0; i < el.attributes.length; i++) {
+    const attr = el.attributes[i];
     const name = attr.name;
     const value = attr.value;
 
