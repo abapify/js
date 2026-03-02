@@ -1,6 +1,6 @@
 # speci
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/speci/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/speci)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/speci/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fspeci)
 
 **Minimal arrow-function-based contract specification system for TypeScript**
 
@@ -127,7 +127,11 @@ export const api = {
 ### 2. Generate a Typed Client
 
 ```typescript
-import { createClient, createFetchAdapter, HttpError } from '@abapify/speci/rest';
+import {
+  createClient,
+  createFetchAdapter,
+  HttpError,
+} from '@abapify/speci/rest';
 
 const client = createClient(api, {
   baseUrl: 'https://api.example.com',
@@ -178,7 +182,7 @@ const endpoint = (...params) => ({
 
 ### HTTP Helper Object
 
-The `speci/rest` module provides an `http` object with all HTTP methods:
+The `@abapify/speci/rest` module provides an `http` object with all HTTP methods:
 
 ```typescript
 import { http } from '@abapify/speci/rest';
