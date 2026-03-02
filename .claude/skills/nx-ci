@@ -1,0 +1,71 @@
+# Nx CI Skill
+
+Before committing, simulate what CI would do by running the same affected tasks locally.
+This catches failures that would only surface after pushing.
+
+## How CI works
+
+The main CI workflow (`.github/workflows/ci.yml`) runs these steps on every push/PR:
+
+1. `npx nx format:check` — checks formatting for all files
+2. `npx nx affected -t lint test build e2e-ci --parallel=3` — runs lint, test, build, e2e-ci
+   only for projects affected by the change (using `NX_BASE`/`NX_HEAD` set by `nrwl/nx-set-shas`)
+
+## Pre-commit: replicate CI locally with `nx affected`
+
+Run these commands **before committing**, using the same targets CI uses:
+
+```bash
+# 1. Check formatting (same as CI)
+npx nx format:check
+
+# 2. Find what is affected by your changes vs the base branch
+#    (omit --base if origin/main is already the default — check nx.json "defaultBase")
+npx nx affected -t lint test build e2e-ci --parallel=3 --base=origin/main --head=HEAD
+```
+
+> **Why `affected` and not `run-many`?**
+> `nx affected` only rebuilds and retests the projects touched by your diff,
+> matching exactly what CI will do. `run-many` runs everything regardless of
+> whether it changed, which is much slower and doesn't match CI behaviour.
+
+> **`e2e-ci` locally**: The `e2e-ci` target is included to match CI faithfully.
+> If no project in your workspace defines this target, Nx skips it silently.
+> Remove it from the command if you want a faster pre-commit check that skips e2e.
+
+## Determine what is affected before running
+
+To preview which projects and tasks will run without executing them:
+
+```bash
+# Show affected projects
+npx nx show projects --affected --base=origin/main --head=HEAD
+
+# Dry-run to see the exact task list
+npx nx affected -t lint test build e2e-ci --base=origin/main --head=HEAD --dry-run
+```
+
+> **Default base**: `nx affected` uses `defaultBase` from `nx.json` when `--base` is
+> omitted. In this repo `nx.json` sets `"defaultBase": "main"`. On CI, `nrwl/nx-set-shas`
+> overrides it via the `NX_BASE` / `NX_HEAD` environment variables.
+
+## Circular dependency check
+
+If CI fails with "Could not execute command because the task graph has a circular
+dependency", check for circular package dependencies:
+
+```bash
+npx nx graph --file=/tmp/nx-graph.json
+# then inspect /tmp/nx-graph.json for cycles
+```
+
+The most common cause is a package depending on another package that already
+depends on it (e.g. `adt-client` ↔ `adk`). Fix by removing the erroneous
+dependency from the package that should NOT depend on the other.
+
+> **Why CI may still fail after the fix**: If the PR was branched from an older
+> commit of `main` (before the bad dep was introduced), GitHub's auto-created
+> merge commit (`refs/pull/N/merge`) re-adds the dep via 3-way merge semantics
+> (base has no dep, main added it, your branch didn't touch it → merge keeps it).
+> The CI workflow uses `ref: github.event.pull_request.head.sha` to check out
+> the PR head instead of the merge commit, which avoids this problem.
