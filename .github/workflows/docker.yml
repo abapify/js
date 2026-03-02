@@ -2,11 +2,6 @@ name: Docker
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version tag to build (e.g. v1.2.3), defaults to the ref that triggered the workflow'
-        required: false
-        type: string
   workflow_call:
     inputs:
       version:
