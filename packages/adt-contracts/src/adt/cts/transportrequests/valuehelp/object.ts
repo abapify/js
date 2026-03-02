@@ -2,7 +2,7 @@
  * /sap/bc/adt/cts/transportrequests/valuehelp/object
  */
 
-import { http } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
 
 export const object = {
   /**

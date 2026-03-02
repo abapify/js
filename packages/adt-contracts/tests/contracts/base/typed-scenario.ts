@@ -24,14 +24,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { FixtureHandle } from 'adt-fixtures';
+import type { FixtureHandle } from '@abapify/adt-fixtures';
 import type {
   RestEndpointDescriptor,
   InferSuccessResponse,
   InferSchema,
-} from 'speci/rest';
+} from '@abapify/speci/rest';
 import { createMockAdapter } from './mock-adapter';
-import { createClient } from 'speci/rest';
+import { createClient } from '@abapify/speci/rest';
 
 /**
  * Extract the descriptor type from a contract operation function

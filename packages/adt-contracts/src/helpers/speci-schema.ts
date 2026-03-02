@@ -10,7 +10,7 @@ import type {
   InferTypedSchema,
   SchemaLike,
 } from '@abapify/adt-schemas';
-import type { Serializable } from 'speci/rest';
+import type { Serializable } from '@abapify/speci/rest';
 
 // Re-export types for convenience
 export type { InferTypedSchema, TypedSchema } from '@abapify/adt-schemas';

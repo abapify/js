@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@abapify/adk": "*",
-    "@abapify/adt-atc": "workspace:*",
+    "@abapify/adt-atc": "*",
     "@abapify/adt-plugin": "*",
-    "ts-xsd": "workspace:*"
+    "@abapify/ts-xsd": "*"
   }
 }

@@ -41,7 +41,7 @@ export interface IndexBarrelOptions {
  *
  * @example
  * ```ts
- * import { rawSchema, indexBarrel } from 'ts-xsd/generators';
+ * import { rawSchema, indexBarrel } from '@abapify/ts-xsd/generators';
  *
  * export default defineConfig({
  *   generators: [

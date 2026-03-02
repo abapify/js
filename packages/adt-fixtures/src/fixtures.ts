@@ -55,7 +55,7 @@ function createProxy<T extends object>(
  *
  * @example
  * ```typescript
- * import { fixtures } from 'adt-fixtures';
+ * import { fixtures } from '@abapify/adt-fixtures';
  *
  * // Get handle (no loading yet!)
  * const handle = fixtures.transport.single;

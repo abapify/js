@@ -10,7 +10,7 @@ import {
 } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { ooContract } from '../../src/adt/oo';
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 
 class ClassesScenario extends ContractScenario {
   readonly name = 'OO Classes';

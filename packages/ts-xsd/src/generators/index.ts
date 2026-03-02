@@ -5,8 +5,8 @@
  *
  * @example
  * ```ts
- * import { defineConfig } from 'ts-xsd/generators';
- * import { rawSchema, inferredTypes, indexBarrel } from 'ts-xsd/generators';
+ * import { defineConfig } from '@abapify/ts-xsd/generators';
+ * import { rawSchema, inferredTypes, indexBarrel } from '@abapify/ts-xsd/generators';
  *
  * export default defineConfig({
  *   sources: {

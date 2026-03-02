@@ -3,7 +3,7 @@
  */
 
 import { packagesV1 } from '../../src/schemas';
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { packagesContract } from '../../src/adt/packages';
 

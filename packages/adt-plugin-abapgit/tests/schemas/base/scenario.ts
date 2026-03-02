@@ -15,7 +15,12 @@ import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseXml, buildXml, type Schema, type SchemaLike } from 'ts-xsd';
+import {
+  parseXml,
+  buildXml,
+  type Schema,
+  type SchemaLike,
+} from '@abapify/ts-xsd';
 
 // ESM-compatible __dirname for this module
 const __filename = fileURLToPath(import.meta.url);

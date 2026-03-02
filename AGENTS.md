@@ -54,8 +54,8 @@ npx nx lint
 │   ├── browser-auth/     # Browser SSO core (@abapify/browser-auth)
 │   ├── adt-playwright/   # Playwright adapter (@abapify/adt-playwright)
 │   ├── adt-puppeteer/    # Puppeteer adapter (@abapify/adt-puppeteer)
-│   ├── speci/            # Contract spec (speci)
-│   ├── ts-xsd/           # XSD tools (ts-xsd)
+│   ├── speci/            # Contract spec (@abapify/speci)
+│   ├── ts-xsd/           # XSD tools (@abapify/ts-xsd)
 │   ├── adt-codegen/      # Code gen (@abapify/adt-codegen)
 │   ├── asjson-parser/    # asJSON parser (@abapify/asjson-parser)
 │   └── logger/           # Logger (@abapify/logger)
@@ -68,7 +68,6 @@ npx nx lint
 ## Package Naming Rules
 
 - Cross-package imports: `@abapify/<package-name>`
-- Exceptions (no scope): `speci`, `ts-xsd`, `adt-fixtures`
 - Internal file imports: relative paths, no extension (`../utils/parse`)
 - `workspace:*` is **not** supported by npm — use `"*"` for local deps
 
@@ -86,7 +85,7 @@ Ensure `skipNodeModulesBundle: true` in `tsdown.config.ts`.
 
 ```
 adt-cli
-  └── adt-client ──► adt-contracts ──► adt-schemas ──► ts-xsd
+  └── adt-client ──► adt-contracts ──► adt-schemas ──► @abapify/ts-xsd
   └── adk        ──► adt-schemas
   └── adt-auth   ──► browser-auth ──► adt-playwright / adt-puppeteer
   └── adt-config
@@ -94,7 +93,7 @@ adt-cli
                 └── adt-plugin (interface)
 ```
 
-Foundation packages with no `@abapify` dependencies: `ts-xsd`, `speci`, `logger`.
+Foundation packages with no `@abapify` dependencies: `@abapify/ts-xsd`, `@abapify/speci`, `@abapify/logger`.
 
 ## Key Architectural Decisions
 

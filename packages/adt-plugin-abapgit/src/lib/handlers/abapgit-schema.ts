@@ -6,7 +6,11 @@
  * - _values: Inner values type (for handler mapping)
  */
 
-import { typedSchema, type TypedSchema, type SchemaLike } from 'ts-xsd';
+import {
+  typedSchema,
+  type TypedSchema,
+  type SchemaLike,
+} from '@abapify/ts-xsd';
 
 /**
  * AbapGit schema instance with both full type and values type

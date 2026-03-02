@@ -53,7 +53,7 @@ export interface TypedSchemasOptions {
  *
  * @example
  * ```ts
- * import { rawSchema, interfaces, typedSchemas } from 'ts-xsd/generators';
+ * import { rawSchema, interfaces, typedSchemas } from '@abapify/ts-xsd/generators';
  *
  * export default defineConfig({
  *   generators: [
