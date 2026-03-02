@@ -41,6 +41,12 @@ COPY --from=builder /build/node_modules ./node_modules
 # Copy the root package.json so npm workspace resolution works at runtime
 COPY --from=builder /build/package.json ./
 
+# Create bin symlinks for workspace packages (bun workspace install
+# doesn't create these automatically in node_modules/.bin/)
+RUN ln -sf ../packages/adt-cli/dist/bin/adt.mjs node_modules/.bin/adt \
+ && ln -sf ../packages/adt-cli/dist/bin/adt-all.mjs node_modules/.bin/adt-all \
+ && chmod +x packages/adt-cli/dist/bin/adt.mjs packages/adt-cli/dist/bin/adt-all.mjs
+
 # Expose workspace binaries (adt, adt-codegen, …) as global commands
 ENV PATH="/app/node_modules/.bin:$PATH"
 
