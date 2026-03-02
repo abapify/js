@@ -1,6 +1,6 @@
 # @abapify/adt-schemas
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-schemas/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-schemas)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-schemas/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-schemas)
 
 **Type-safe SAP ADT schemas** generated from official XSD definitions with **shared types** and **optimal tree-shaking**.
 

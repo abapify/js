@@ -1,6 +1,6 @@
 # @abapify/adt-playwright
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-playwright/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-playwright)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-playwright/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-playwright)
 
 Playwright-based SSO authentication plugin for SAP ADT systems. Modern alternative to Puppeteer with better API and maintenance.
 

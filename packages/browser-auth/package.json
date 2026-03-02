@@ -16,7 +16,7 @@
     "README.md"
   ],
   "dependencies": {
-    "@abapify/adt-config": "*"
+    "@abapify/adt-config": "^0.1.7"
   },
   "devDependencies": {
     "@types/node": "^22.10.2"

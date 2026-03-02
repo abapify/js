@@ -1,6 +1,6 @@
 # @abapify/adt-atc
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-atc/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-atc)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-atc/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-atc)
 
 ABAP Test Cockpit (ATC) CLI plugin for `@abapify/adt-cli`.
 

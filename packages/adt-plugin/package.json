@@ -18,6 +18,6 @@
     "dist"
   ],
   "dependencies": {
-    "@abapify/adk": "*"
+    "@abapify/adk": "^0.1.7"
   }
 }

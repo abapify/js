@@ -15,17 +15,16 @@
  *
  * @example
  * ```typescript
- * import { get, post } from '@abapify/speci/rest';
- * import { createClient, createFetchAdapter } from '@abapify/speci/rest';
+ * import { http, createClient, createFetchAdapter } from '@abapify/speci/rest';
  *
  * // Define your contract
  * const api = {
  *   users: {
- *     get: (id: string) => get(`/users/${id}`, {
+ *     get: (id: string) => http.get(`/users/${id}`, {
  *       responses: { 200: UserSchema }
  *     }),
  *
- *     create: (user: UserInput) => post('/users', {
+ *     create: (user: UserInput) => http.post('/users', {
  *       body: user,
  *       responses: { 201: UserSchema }
  *     })

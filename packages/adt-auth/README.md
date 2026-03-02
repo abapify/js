@@ -1,6 +1,6 @@
 # @abapify/adt-auth
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-auth/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-auth)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-auth/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-auth)
 
 Authentication package for SAP ADT systems supporting multiple authentication methods.
 
