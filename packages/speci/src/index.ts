@@ -9,15 +9,14 @@
  * Speci is organized into protocol-specific modules:
  *
  * - `@abapify/speci` - Core types and utilities
- * - `@abapify/speci/rest` - REST API helpers (GET, POST, PUT, DELETE, etc.)
- * - `@abapify/speci/client` - Client generation utilities
+ * - `@abapify/speci/rest` - REST API helpers (GET, POST, PUT, DELETE, etc.) and client generation utilities
  * - `@abapify/speci/openapi` - OpenAPI generation (planned)
  * - `@abapify/speci/cli` - CLI generation (planned)
  *
  * @example
  * ```typescript
  * import { get, post } from '@abapify/speci/rest';
- * import { createClient, createFetchAdapter } from '@abapify/speci/client';
+ * import { createClient, createFetchAdapter } from '@abapify/speci/rest';
  *
  * // Define your contract
  * const api = {
