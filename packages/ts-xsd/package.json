@@ -17,6 +17,9 @@
     "dist",
     "README.md"
   ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
   "dependencies": {
     "@xmldom/xmldom": "*"
   }
