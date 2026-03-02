@@ -25,7 +25,8 @@ import { refreshCommand } from './commands/auth/refresh';
 // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setCliContext } from './utils/adt-client-v2';
-import { loadCommandPlugins } from './plugin-loader';
+import { loadCommandPlugins, loadStaticPlugins } from './plugin-loader';
+import type { CliCommandPlugin } from '@abapify/adt-plugin';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -77,7 +78,12 @@ ${globalOptions}
 }
 
 // Create main program
-export async function createCLI(): Promise<Command> {
+export async function createCLI(options?: {
+  /** Pre-loaded plugins to register instead of loading from config.
+   *  Pass this when building a bundled/standalone binary so that Bun
+   *  can statically analyse the imports. */
+  preloadedPlugins?: CliCommandPlugin[];
+}): Promise<Command> {
   const program = new Command();
 
   program
@@ -190,7 +196,18 @@ export async function createCLI(): Promise<Command> {
   const configArgIndex = process.argv.findIndex((arg) => arg === '--config');
   const configPath =
     configArgIndex !== -1 ? process.argv[configArgIndex + 1] : undefined;
-  await loadCommandPlugins(program, process.cwd(), configPath);
+
+  if (options?.preloadedPlugins !== undefined) {
+    // Bundled mode: register statically imported plugins (no dynamic import needed)
+    await loadStaticPlugins(
+      program,
+      options.preloadedPlugins,
+      process.cwd(),
+      configPath,
+    );
+  } else {
+    await loadCommandPlugins(program, process.cwd(), configPath);
+  }
 
   // Apply global options help to all commands using afterAll hook
   addGlobalOptionsHelpToAll(program);
@@ -199,11 +216,13 @@ export async function createCLI(): Promise<Command> {
 }
 
 // Main execution function
-export async function main(): Promise<void> {
+export async function main(options?: {
+  preloadedPlugins?: CliCommandPlugin[];
+}): Promise<void> {
   // Apply insecure SSL flag from session if present
   applyInsecureSslFlag();
 
-  const program = await createCLI();
+  const program = await createCLI(options);
 
   // Add a hook to set up logger before command execution
   program.hook('preAction', (thisCommand, actionCommand) => {
