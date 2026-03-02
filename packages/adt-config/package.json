@@ -4,7 +4,7 @@
     "access": "public"
   },
   "type": "module",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Configuration loader for ADT CLI",
   "types": "./dist/index.d.mts",
   "exports": {
