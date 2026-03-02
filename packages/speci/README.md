@@ -127,7 +127,11 @@ export const api = {
 ### 2. Generate a Typed Client
 
 ```typescript
-import { createClient, createFetchAdapter, HttpError } from '@abapify/speci/rest';
+import {
+  createClient,
+  createFetchAdapter,
+  HttpError,
+} from '@abapify/speci/rest';
 
 const client = createClient(api, {
   baseUrl: 'https://api.example.com',
