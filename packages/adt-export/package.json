@@ -24,9 +24,9 @@
     "oat"
   ],
   "dependencies": {
-    "@abapify/adt-plugin": "workspace:*",
-    "@abapify/adk": "workspace:*",
-    "@abapify/adt-plugin-abapgit": "workspace:*"
+    "@abapify/adt-plugin": "*",
+    "@abapify/adk": "*",
+    "@abapify/adt-plugin-abapgit": "*"
   },
   "module": "./dist/index.mjs"
 }

@@ -20,8 +20,12 @@
  *   npx nx run adt-schemas:codegen
  */
 
-import { defineConfig, rawSchema, interfaces } from 'ts-xsd/generators';
-import { deriveRootTypeName } from 'ts-xsd';
+import {
+  defineConfig,
+  rawSchema,
+  interfaces,
+} from '@abapify/ts-xsd/generators';
+import { deriveRootTypeName } from '@abapify/ts-xsd';
 
 // Target schemas - exported with typed wrappers
 // Dependencies are auto-discovered via autoLink from XSD imports
@@ -227,7 +231,7 @@ export default defineConfig({
       ' * const data = classes.parse(xml);  // data is fully typed!',
       ' */',
       '',
-      `import { typedSchema, type TypedSchema } from 'ts-xsd';`,
+      `import { typedSchema, type TypedSchema } from '@abapify/ts-xsd';`,
       '',
     ];
 

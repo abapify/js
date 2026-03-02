@@ -9,7 +9,7 @@
  * Parser auto-detects root from XML.
  */
 
-import { http } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
 import { packagesV1 } from '../../schemas';
 
 // ============================================================================

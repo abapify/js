@@ -24,7 +24,7 @@
     "gitlab"
   ],
   "dependencies": {
-    "@abapify/adt-plugin": "workspace:*",
+    "@abapify/adt-plugin": "*",
     "chalk": "^5.3.0"
   },
   "module": "./dist/index.mjs"

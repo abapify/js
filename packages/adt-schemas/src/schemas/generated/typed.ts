@@ -11,7 +11,7 @@
  * const data = classes.parse(xml);  // data is fully typed!
  */
 
-import { typedSchema, type TypedSchema } from 'ts-xsd';
+import { typedSchema, type TypedSchema } from '@abapify/ts-xsd';
 
 // Pre-generated root schema types (imported from individual files)
 import type { AtomSchema } from './types/sap/atom.types';

@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import { Scenario, runScenario, type SchemaType } from './base/scenario';
 import { adtcore } from '../../src/schemas/index';
 

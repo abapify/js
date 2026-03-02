@@ -64,7 +64,7 @@ function deriveRootTypeName(schemaName: string, pattern: string): string {
  *
  * @example
  * ```ts
- * import { interfaces } from 'ts-xsd/generators';
+ * import { interfaces } from '@abapify/ts-xsd/generators';
  *
  * export default defineConfig({
  *   generators: [
