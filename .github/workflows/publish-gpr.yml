@@ -35,6 +35,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Build all packages
+        run: npx nx run-many --target=build --all
+
       - name: Publish packages
         run: |
           rm -f bun.lock
