@@ -28,7 +28,6 @@ jobs:
         with:
           node-version: 24
           registry-url: https://npm.pkg.github.com/
-          scope: '@abapify'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
