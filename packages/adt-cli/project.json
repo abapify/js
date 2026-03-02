@@ -9,5 +9,22 @@
     }
   },
   "tags": [],
-  "targets": {}
+  "targets": {
+    "bundle": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bun build --compile ./src/bin/adt-all.ts --outfile ./dist/adt --target bun",
+        "cwd": "{projectRoot}"
+      },
+      "outputs": ["{projectRoot}/dist/adt"],
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{workspaceRoot}/packages/adt-atc/src/**/*.ts",
+        "{workspaceRoot}/packages/adt-export/src/**/*.ts",
+        "{workspaceRoot}/packages/adt-codegen/src/**/*.ts"
+      ],
+      "dependsOn": ["^build"]
+    }
+  }
 }
