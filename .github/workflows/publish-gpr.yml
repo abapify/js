@@ -1,0 +1,63 @@
+name: Publish to GitHub Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag to publish (e.g. v1.2.3), defaults to latest release'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Release version tag to publish (e.g. v1.2.3), defaults to latest release'
+        required: false
+        type: string
+
+jobs:
+  publish-gpr:
+    name: Publish packages to GitHub Packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    timeout-minutes: 15
+    steps:
+      - name: Resolve ref
+        id: resolve-ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            resolved="$INPUT_VERSION"
+          else
+            resolved=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || echo "main")
+          fi
+          echo "Resolved ref: ${resolved}"
+          echo "ref=${resolved}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.resolve-ref.outputs.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://npm.pkg.github.com/
+          scope: '@abapify'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Publish packages
+        run: npx nx release publish
+        shell: bash
+        env:
+          NPM_CONFIG_ACCESS: public
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
