@@ -1,8 +1,6 @@
 # @abapify/adk
 
-[![npm](https://img.shields.io/npm/v/%40abapify%2Fadk)](https://www.npmjs.com/package/@abapify/adk)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](../../LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6)](https://www.typescriptlang.org/)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adk/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adk)
 
 ABAP Development Kit — schema-driven construction and serialization of ABAP objects.
 

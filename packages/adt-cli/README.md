@@ -1,8 +1,6 @@
 # @abapify/adt-cli
 
-[![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-cli)](https://www.npmjs.com/package/@abapify/adt-cli)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](../../LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6)](https://www.typescriptlang.org/)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-cli/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-cli)
 
 Command-line interface for SAP ABAP Development Tools (ADT) REST APIs.
 
