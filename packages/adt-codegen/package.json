@@ -1,6 +1,9 @@
 {
   "name": "@abapify/adt-codegen",
-  "version": "0.1.6",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.7",
   "description": "Code generation toolkit for SAP ADT APIs",
   "type": "module",
   "types": "./dist/index.d.mts",

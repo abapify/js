@@ -1,6 +1,9 @@
 {
   "name": "@abapify/logger",
-  "version": "0.1.6",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.7",
   "description": "Shared logger interface for abapify packages",
   "type": "module",
   "types": "./dist/index.d.mts",

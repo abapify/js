@@ -23,6 +23,16 @@ on:
         required: false
         default: false
         type: boolean
+      publish_gpr:
+        description: 'Publish packages to GitHub Packages after releasing'
+        required: false
+        default: true
+        type: boolean
+      publish_docker:
+        description: 'Build and push Docker image after releasing'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   release:
@@ -105,7 +115,7 @@ jobs:
   publish-gpr:
     name: Publish packages to GitHub Packages
     needs: release
-    if: ${{ !inputs.dry_run && inputs.publish }}
+    if: ${{ !inputs.dry_run && inputs.publish_gpr }}
     uses: ./.github/workflows/publish-gpr.yml
     with:
       version: ${{ needs.release.outputs.tag }}
@@ -116,7 +126,7 @@ jobs:
   docker:
     name: Build and push Docker image
     needs: release
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && inputs.publish_docker }}
     uses: ./.github/workflows/docker.yml
     with:
       version: ${{ needs.release.outputs.tag }}
