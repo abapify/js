@@ -1,7 +1,7 @@
 {
   "name": "@abapify/adt-cli",
   "type": "module",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "types": "./dist/index.d.mts",
   "exports": {
     ".": "./dist/index.mjs",

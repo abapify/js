@@ -1,3 +1,28 @@
+## 0.1.6 (2026-03-02)
+
+### 🚀 Features
+
+- make publish workflow version input optional, default to latest release tag ([c11fa28](https://github.com/abapify/adt-cli/commit/c11fa28))
+- add Docker image CI workflow and Dockerfile ([8f3f970](https://github.com/abapify/adt-cli/commit/8f3f970))
+- add Bun standalone executable support with all plugins bundled ([62c53a9](https://github.com/abapify/adt-cli/commit/62c53a9))
+
+### 🩹 Fixes
+
+- separate release and publish pipelines; mark adt-fixtures as private ([0836c32](https://github.com/abapify/adt-cli/commit/0836c32))
+- add configVersion to bun.lock ([92a5f1f](https://github.com/abapify/adt-cli/commit/92a5f1f))
+- remove redundant test dependency from nx-release-publish ([6f0b8c8](https://github.com/abapify/adt-cli/commit/6f0b8c8))
+- update tsdown configuration to use deps for bundling options ([56ef0e7](https://github.com/abapify/adt-cli/commit/56ef0e7))
+- update nxCloudId and rename nx-release-publish target ([96066fd](https://github.com/abapify/adt-cli/commit/96066fd))
+- remove unnecessary type assertion from tsdown configuration ([0268f3a](https://github.com/abapify/adt-cli/commit/0268f3a))
+- remove unused UserConfig import from tsdown configuration ([30a2d2e](https://github.com/abapify/adt-cli/commit/30a2d2e))
+- restrict Docker image builds to releases only ([0cee55a](https://github.com/abapify/adt-cli/commit/0cee55a))
+- update nxCloudId and ensure nx-cloud fix-ci runs always ([b1b7561](https://github.com/abapify/adt-cli/commit/b1b7561))
+
+### ❤️ Thank You
+
+- Petr Plenkov
+- ThePlenkov @ThePlenkov
+
 ## 0.1.5 (2026-02-28)
 
 ### 🩹 Fixes
