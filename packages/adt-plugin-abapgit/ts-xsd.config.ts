@@ -15,7 +15,7 @@ import {
   rawSchema,
   interfaces,
   indexBarrel,
-} from 'ts-xsd/generators';
+} from '@abapify/ts-xsd/generators';
 
 export default defineConfig({
   // Use extensionless imports for bundler compatibility
