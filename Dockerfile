@@ -19,8 +19,12 @@ COPY samples/  ./samples/
 # Install all dependencies (including dev deps needed for the build)
 RUN bun install --frozen-lockfile
 
+# Disable the Nx daemon and TUI (not needed / unsupported in Docker builds)
+ENV NX_DAEMON=false
+ENV NX_TUI=false
+
 # Build every package (Nx respects the dependency graph, so output is correct)
-RUN npx nx run-many -t build --all --parallel=4
+RUN npx nx run-many -t build --parallel=2
 
 # ── Stage 2: runner ──────────────────────────────────────────────────────────
 # Lean image that ships only the built artifacts and their runtime deps.
