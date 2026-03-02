@@ -6,6 +6,7 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./bin/adt": "./dist/bin/adt.mjs",
+    "./bin/adt-all": "./dist/bin/adt-all.mjs",
     "./package.json": "./package.json"
   },
   "files": [
