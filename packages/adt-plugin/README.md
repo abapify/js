@@ -1,6 +1,6 @@
 # @abapify/adt-plugin
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-plugin/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-plugin)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-plugin/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-plugin)
 
 Core plugin interface for ADT format serialization.
 
