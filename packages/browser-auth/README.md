@@ -1,6 +1,6 @@
 # @abapify/browser-auth
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/browser-auth/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/browser-auth)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/browser-auth/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fbrowser-auth)
 
 Core browser-based SSO authentication logic for SAP ADT systems. This package provides the shared authentication flow used by browser-specific adapters like Playwright and Puppeteer.
 

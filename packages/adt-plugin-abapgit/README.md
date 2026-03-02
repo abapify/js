@@ -1,6 +1,6 @@
 # @abapify/adt-plugin-abapgit
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-plugin-abapgit/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-plugin-abapgit)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-plugin-abapgit/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-plugin-abapgit)
 
 abapGit format plugin for ADT — serializes ABAP objects to Git-compatible XML/ABAP files.
 

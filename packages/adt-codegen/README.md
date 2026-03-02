@@ -1,6 +1,6 @@
 # @abapify/adt-codegen
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-codegen/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/adt-codegen)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/adt-codegen/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fadt-codegen)
 
 Hook-based code generation toolkit for SAP ADT APIs.
 

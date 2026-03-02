@@ -1,6 +1,6 @@
 # ts-xsd
 
-[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/ts-xsd/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/ts-xsd)
+[![version](https://img.shields.io/github/package-json/v/abapify/adt-cli?filename=packages/ts-xsd/package.json)](https://github.com/abapify/adt-cli/pkgs/npm/%40abapify%2Fts-xsd)
 
 **Core XSD parser, builder, and type inference** with **1:1 TypeScript representation** of W3C XML Schema Definition (XSD) 1.1.
 
