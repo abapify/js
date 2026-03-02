@@ -1,3 +1,21 @@
+## 0.1.7 (2026-03-02)
+
+### 🚀 Features
+
+- add GitHub Packages publish workflow ([94f75e3](https://github.com/abapify/adt-cli/commit/94f75e3))
+- move all packages to @abapify namespace for GitHub Registry publishing ([e54b934](https://github.com/abapify/adt-cli/commit/e54b934))
+
+### 🩹 Fixes
+
+- use github.ref_name as fallback in Resolve ref step ([ed8d8b9](https://github.com/abapify/adt-cli/commit/ed8d8b9))
+- simplify ref resolution and update version input descriptions ([c2fa443](https://github.com/abapify/adt-cli/commit/c2fa443))
+- remove version input from workflow_dispatch - use built-in branch/tag selector ([b2aa7d7](https://github.com/abapify/adt-cli/commit/b2aa7d7))
+- remove scope restriction in publish-gpr workflow so unscoped packages go to GitHub Packages ([b85984e](https://github.com/abapify/adt-cli/commit/b85984e))
+
+### ❤️ Thank You
+
+- ThePlenkov @ThePlenkov
+
 ## 0.1.6 (2026-03-02)
 
 ### 🚀 Features
