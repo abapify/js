@@ -44,39 +44,41 @@ export const createNodesV2: CreateNodesV2 = [
       );
     }
 
-    return configFiles.map((configFile) => {
-      const projectRoot = dirname(configFile);
-      logDebug(`Found tsdown.config.ts in ${projectRoot}`);
+    return configFiles
+      .filter((configFile) => dirname(configFile) !== '.')
+      .map((configFile) => {
+        const projectRoot = dirname(configFile);
+        logDebug(`Found tsdown.config.ts in ${projectRoot}`);
 
-      const buildTarget = {
-        executor: 'nx:run-commands',
-        options: {
-          command: 'npx tsdown',
-          cwd: projectRoot,
-        },
-        outputs: [`{projectRoot}/dist`],
-        cache: true,
-        inputs: [
-          `{projectRoot}/src/**/*.ts`,
-          `{projectRoot}/tsconfig.lib.json`,
-          `{projectRoot}/tsdown.config.ts`,
-          `{projectRoot}/package.json`,
-        ],
-        dependsOn: ['^build'],
-      };
+        const buildTarget = {
+          executor: 'nx:run-commands',
+          options: {
+            command: 'npx tsdown',
+            cwd: projectRoot,
+          },
+          outputs: [`{projectRoot}/dist`],
+          cache: true,
+          inputs: [
+            `{projectRoot}/src/**/*.ts`,
+            `{projectRoot}/tsconfig.lib.json`,
+            `{projectRoot}/tsdown.config.ts`,
+            `{projectRoot}/package.json`,
+          ],
+          dependsOn: ['^build'],
+        };
 
-      return [
-        configFile,
-        {
-          projects: {
-            [projectRoot]: {
-              targets: {
-                build: buildTarget,
+        return [
+          configFile,
+          {
+            projects: {
+              [projectRoot]: {
+                targets: {
+                  build: buildTarget,
+                },
               },
             },
           },
-        },
-      ];
-    });
+        ];
+      });
   },
 ];

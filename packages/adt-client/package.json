@@ -18,7 +18,6 @@
   "dependencies": {
     "@abapify/logger": "^0.1.7",
     "@abapify/adt-contracts": "^0.1.7",
-    "@abapify/adt-schemas": "^0.1.7",
-    "@abapify/adk": "*"
+    "@abapify/adt-schemas": "^0.1.7"
   }
 }

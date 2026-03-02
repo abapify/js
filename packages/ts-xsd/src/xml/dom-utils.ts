@@ -26,8 +26,9 @@ export function getAttributeValue(node: Element, name: string): string | null {
   }
 
   // Try with any namespace prefix (search by local name)
-  // NamedNodeMap is iterable in xmldom
-  for (const attr of node.attributes) {
+  // NamedNodeMap is not iterable in xmldom — use index-based access
+  for (let i = 0; i < node.attributes.length; i++) {
+    const attr = node.attributes[i];
     const localName = attr.localName || attr.name.split(':').pop();
     if (localName === name) {
       return attr.value;
@@ -39,12 +40,12 @@ export function getAttributeValue(node: Element, name: string): string | null {
 
 /**
  * Get child elements by local name (namespace-agnostic)
- * Uses for...of since NodeList is iterable in xmldom
  */
 export function getChildElements(parent: Element, name: string): Element[] {
   const result: Element[] = [];
-  // NodeList implements Iterable<Node> in xmldom
-  for (const child of parent.childNodes) {
+  // NodeList is not iterable in xmldom — use index-based access
+  for (let i = 0; i < parent.childNodes.length; i++) {
+    const child = parent.childNodes[i];
     if (isElement(child)) {
       const localName = child.localName || child.tagName.split(':').pop();
       if (localName === name) {
@@ -57,11 +58,12 @@ export function getChildElements(parent: Element, name: string): Element[] {
 
 /**
  * Get all child elements (any name)
- * Uses for...of since NodeList is iterable in xmldom
  */
 export function getAllChildElements(parent: Element): Element[] {
   const result: Element[] = [];
-  for (const child of parent.childNodes) {
+  // NodeList is not iterable in xmldom — use index-based access
+  for (let i = 0; i < parent.childNodes.length; i++) {
+    const child = parent.childNodes[i];
     if (isElement(child)) {
       result.push(child);
     }
@@ -74,7 +76,9 @@ export function getAllChildElements(parent: Element): Element[] {
  */
 export function getTextContent(node: Element): string {
   let text = '';
-  for (const child of node.childNodes) {
+  // NodeList is not iterable in xmldom — use index-based access
+  for (let i = 0; i < node.childNodes.length; i++) {
+    const child = node.childNodes[i];
     if (child.nodeType === 3) {
       // TEXT_NODE
       text += child.textContent || '';
