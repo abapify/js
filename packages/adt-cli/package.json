@@ -1,7 +1,10 @@
 {
   "name": "@abapify/adt-cli",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "types": "./dist/index.d.mts",
   "exports": {
     ".": "./dist/index.mjs",
