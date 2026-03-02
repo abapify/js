@@ -102,6 +102,17 @@ jobs:
       contents: read
       id-token: write
 
+  publish-gpr:
+    name: Publish packages to GitHub Packages
+    needs: release
+    if: ${{ !inputs.dry_run && inputs.publish }}
+    uses: ./.github/workflows/publish-gpr.yml
+    with:
+      version: ${{ needs.release.outputs.tag }}
+    permissions:
+      contents: read
+      packages: write
+
   docker:
     name: Build and push Docker image
     needs: release
