@@ -38,7 +38,7 @@ export interface InferredTypesOptions {
  *
  * @example
  * ```ts
- * import { rawSchema, inferredTypes } from 'ts-xsd/generators';
+ * import { rawSchema, inferredTypes } from '@abapify/ts-xsd/generators';
  *
  * export default defineConfig({
  *   generators: [

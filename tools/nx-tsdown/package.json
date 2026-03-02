@@ -1,5 +1,5 @@
 {
-  "name": "nx-tsdown",
+  "name": "@abapify/nx-tsdown",
   "version": "0.0.1",
   "private": true,
   "type": "module",

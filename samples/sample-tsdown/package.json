@@ -1,5 +1,5 @@
 {
-  "name": "sample-tsdown",
+  "name": "@abapify/sample-tsdown",
   "version": "0.0.1",
   "private": true,
   "main": "./dist/index.js",

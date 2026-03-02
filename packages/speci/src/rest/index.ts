@@ -5,8 +5,8 @@
  *
  * @example
  * ```typescript
- * import { get, post, put, del } from 'speci/rest';
- * import { createClient, createFetchAdapter } from 'speci/rest';
+ * import { get, post, put, del } from '@abapify/speci/rest';
+ * import { createClient, createFetchAdapter } from '@abapify/speci/rest';
  *
  * // Define contract
  * const api = {
