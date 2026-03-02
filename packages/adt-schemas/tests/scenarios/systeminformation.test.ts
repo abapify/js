@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import {
   systeminformation,
   type SystemInformationJson,

@@ -6,7 +6,7 @@
  * verify the structure is correct.
  */
 
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import {
   transportmanagmentSingle,
   transportmanagmentCreate,

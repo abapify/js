@@ -1,5 +1,5 @@
 {
-  "name": "nx-typecheck",
+  "name": "@abapify/nx-typecheck",
   "version": "0.0.1",
   "private": true,
   "type": "module",

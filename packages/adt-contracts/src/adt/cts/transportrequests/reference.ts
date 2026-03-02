@@ -3,7 +3,7 @@
  * @source transportmanagementref.json
  */
 
-import { http } from 'speci/rest';
+import { http } from '@abapify/speci/rest';
 
 export const reference = {
   get: () =>

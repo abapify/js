@@ -72,7 +72,7 @@ export interface RawSchemaOptions {
  *
  * @example
  * ```ts
- * import { rawSchema } from 'ts-xsd/generators';
+ * import { rawSchema } from '@abapify/ts-xsd/generators';
  *
  * export default defineConfig({
  *   generators: [
@@ -159,7 +159,7 @@ export function rawSchema(options: RawSchemaOptions = {}): GeneratorPlugin {
 
       // Add Schema type import for isolatedDeclarations mode
       if (isolatedDeclarations) {
-        lines.push("import type { Schema } from 'ts-xsd';");
+        lines.push("import type { Schema } from '@abapify/ts-xsd';");
       }
 
       // Imports for $imports/$includes (skip if resolve/resolveIncludes/resolveAll is enabled - schema is self-contained)

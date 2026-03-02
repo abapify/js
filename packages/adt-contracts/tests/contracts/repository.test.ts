@@ -2,7 +2,7 @@
  * Repository Information System Contract Scenarios
  */
 
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import { adtcore } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { searchContract } from '../../src/adt/repository/informationsystem/search';

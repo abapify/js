@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { type FixtureHandle } from 'adt-fixtures';
-import type { TypedSchema } from 'ts-xsd';
+import { type FixtureHandle } from '@abapify/adt-fixtures';
+import type { TypedSchema } from '@abapify/ts-xsd';
 
 /** Schema with parse/build methods */
 export type TestableSchema<T = unknown> = TypedSchema<T>;

@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { type FixtureHandle } from 'adt-fixtures';
-import type { RestEndpointDescriptor, RestMethod } from 'speci/rest';
+import { type FixtureHandle } from '@abapify/adt-fixtures';
+import type { RestEndpointDescriptor, RestMethod } from '@abapify/speci/rest';
 
 /** Contract operation definition for testing */
 export interface ContractOperation {
@@ -143,7 +143,7 @@ export function runScenario(scenario: ContractScenario): void {
 export type { FixtureHandle };
 
 // Re-export speci createClient for use in specific contract tests
-export { createClient } from 'speci/rest';
+export { createClient } from '@abapify/speci/rest';
 
 // Re-export mock adapter for client tests
 export { createMockAdapter, createSimpleMockAdapter } from './mock-adapter';

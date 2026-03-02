@@ -10,8 +10,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createClient } from 'speci/rest';
-import { fixtures } from 'adt-fixtures';
+import { createClient } from '@abapify/speci/rest';
+import { fixtures } from '@abapify/adt-fixtures';
 import { createMockAdapter } from './contracts/base/mock-adapter';
 
 // Import contracts - using actual generated contracts

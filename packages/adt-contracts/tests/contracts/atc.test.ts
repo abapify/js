@@ -8,7 +8,7 @@
  * 2. Client Call Tests - test FULLY TYPED client calls with mock adapter
  */
 
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import { atcworklist } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 

@@ -21,10 +21,10 @@
 export * from './schemas';
 
 // Re-export ts-xsd types for consumers (single point of entry)
-export { typedSchema, parseXml, buildXml } from 'ts-xsd';
+export { typedSchema, parseXml, buildXml } from '@abapify/ts-xsd';
 export type {
   TypedSchema,
   InferTypedSchema,
   SchemaLike,
   InferSchema,
-} from 'ts-xsd';
+} from '@abapify/ts-xsd';

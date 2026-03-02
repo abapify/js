@@ -5,8 +5,8 @@
  * Tests the full speci client flow: request → schema parsing → typed response.
  */
 
-import type { HttpAdapter, HttpRequestOptions } from 'speci/rest';
-import type { FixtureHandle } from 'adt-fixtures';
+import type { HttpAdapter, HttpRequestOptions } from '@abapify/speci/rest';
+import type { FixtureHandle } from '@abapify/adt-fixtures';
 
 /**
  * Mock response configuration

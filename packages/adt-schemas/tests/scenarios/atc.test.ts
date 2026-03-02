@@ -1,8 +1,8 @@
 import { expect } from 'vitest';
-import { fixtures } from 'adt-fixtures';
+import { fixtures } from '@abapify/adt-fixtures';
 import { Scenario, runScenario } from './base/scenario';
 import { atc, atcworklist } from '../../src/schemas/index';
-import type { InferTypedSchema } from 'ts-xsd';
+import type { InferTypedSchema } from '@abapify/ts-xsd';
 
 // Extract types from schemas using ts-xsd's official type extractor
 // Generated types now match parse() behavior - content directly without wrapper

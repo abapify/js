@@ -268,7 +268,7 @@ export function createHttp<TGlobalResponses extends ResponseMap = {}>(
  * Default HTTP helper object
  *
  * @example
- * import { http } from 'speci/rest'
+ * import { http } from '@abapify/speci/rest'
  *
  * http.get('/users', {
  *   responses: { 200: User[], 404: NotFoundError }
