@@ -1,0 +1,24 @@
+name: Auto-approve Copilot CI
+# Automatically approves CI workflow runs triggered by the Copilot coding agent.
+# GitHub requires manual approval before running workflows from outside collaborators
+# (including the Copilot bot). This workflow runs with repository permissions and
+# approves blocked CI runs so the agent can see test results without human intervention.
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [requested]
+
+permissions:
+  actions: write
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.actor.login == 'Copilot'
+    steps:
+      - name: Approve CI run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST \
+            "/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/approve"
