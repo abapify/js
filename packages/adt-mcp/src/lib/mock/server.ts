@@ -15,6 +15,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
+import { randomBytes } from 'node:crypto';
 import { fixtures } from './fixtures.js';
 
 export interface MockAdtServer {
@@ -134,6 +135,9 @@ function matchRoute(
 export function createMockAdtServer(): MockAdtServer {
   let server: Server | undefined;
 
+  // Generate a random CSRF token per server instance (avoids hardcoded credentials)
+  const csrfToken = randomBytes(16).toString('hex');
+
   return {
     async start() {
       return new Promise<{ port: number }>((resolve, reject) => {
@@ -142,7 +146,7 @@ export function createMockAdtServer(): MockAdtServer {
           if (route) {
             res.writeHead(route.status, {
               'Content-Type': route.contentType,
-              'x-csrf-token': 'mock-csrf-token',
+              'x-csrf-token': csrfToken,
             });
             res.end(route.body);
           } else {
@@ -151,7 +155,7 @@ export function createMockAdtServer(): MockAdtServer {
           }
         });
 
-        server.listen(0, () => {
+        server.listen(0, '127.0.0.1', () => {
           const addr = server?.address();
           if (!addr || typeof addr !== 'object') {
             reject(new Error('Failed to get server address'));
