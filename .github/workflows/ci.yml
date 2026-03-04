@@ -41,5 +41,9 @@ jobs:
         shell: bash
       - run: npx nx format:check
       - run: npx nx affected -t lint test build e2e-ci --verbose=false --parallel=3
+      - uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
       - run: npx nx-cloud fix-ci
         if: always()
