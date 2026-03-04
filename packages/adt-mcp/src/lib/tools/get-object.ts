@@ -8,6 +8,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types.js';
 import { connectionShape } from './shared-schemas.js';
+import { extractObjectReferences } from './utils.js';
 
 export function registerGetObjectTool(
   server: McpServer,
@@ -31,21 +32,7 @@ export function registerGetObjectTool(
             maxResults: 10,
           });
 
-        type SearchObject = {
-          name?: string;
-          type?: string;
-          uri?: string;
-          description?: string;
-          packageName?: string;
-        };
-
-        const rawObjects =
-          'objectReference' in searchResult ? searchResult.objectReference : [];
-        const objects: SearchObject[] = Array.isArray(rawObjects)
-          ? rawObjects
-          : rawObjects
-            ? [rawObjects as SearchObject]
-            : [];
+        const objects = extractObjectReferences(searchResult);
 
         // Find exact match
         const exactMatch = objects.find(
