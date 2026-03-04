@@ -1,0 +1,251 @@
+/**
+ * Integration tests for the adt-mcp package.
+ *
+ * Uses node:test (native Node.js test runner) and the MCP SDK's
+ * InMemoryTransport so we can exercise every tool without stdio.
+ *
+ * A lightweight mock ADT HTTP server provides fixture responses.
+ */
+
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert';
+import { randomBytes } from 'node:crypto';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { createMcpServer } from '../src/lib/server.js';
+import {
+  createMockAdtServer,
+  type MockAdtServer,
+} from '../src/lib/mock/server.js';
+import { createAdtClient, type AdtClient } from '@abapify/adt-client';
+import type { ConnectionParams } from '../src/lib/types.js';
+
+let mockAdt: MockAdtServer;
+let mockPort: number;
+let client: Client;
+
+/**
+ * Helper – call a tool and return the first text content block parsed as JSON.
+ */
+async function callTool(
+  name: string,
+  args: Record<string, unknown>,
+): Promise<{ json: unknown; raw: unknown }> {
+  const result = await client.callTool({ name, arguments: args });
+  const text = (result.content as Array<{ type: string; text: string }>)[0]
+    ?.text;
+  try {
+    return { json: JSON.parse(text), raw: result };
+  } catch {
+    return { json: text, raw: result };
+  }
+}
+
+// Generate a random credential per test run – avoids hardcoded credential lint
+const mockCredential = randomBytes(16).toString('hex');
+
+/**
+ * Build connection args pointing at the mock server.
+ */
+function connArgs(): Record<string, string> {
+  return {
+    baseUrl: `http://localhost:${mockPort}`,
+    username: 'DEVELOPER',
+    password: mockCredential,
+    client: '100',
+  };
+}
+
+describe('adt-mcp integration tests', () => {
+  before(async () => {
+    // 1. Start mock ADT backend
+    mockAdt = createMockAdtServer();
+    const info = await mockAdt.start();
+    mockPort = info.port;
+
+    // 2. Create MCP server with a client factory that points at mock
+    const server = createMcpServer({
+      clientFactory: (params: ConnectionParams): AdtClient =>
+        createAdtClient({
+          baseUrl: params.baseUrl,
+          username: params.username ?? '',
+          password: params.password ?? '',
+          client: params.client,
+        }),
+    });
+
+    // 3. Wire up in-memory transport
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+
+    client = new Client({ name: 'test-client', version: '0.0.1' });
+    await client.connect(clientTransport);
+  });
+
+  after(async () => {
+    await client.close();
+    await mockAdt.stop();
+  });
+
+  // ── discovery ──────────────────────────────────────────────────
+
+  describe('discovery tool', () => {
+    it('returns workspaces from mock', async () => {
+      const { json } = await callTool('discovery', connArgs());
+      const data = json as Record<string, unknown>;
+      assert.ok(data.workspaces, 'should contain workspaces');
+      assert.ok(
+        Array.isArray(data.workspaces),
+        'workspaces should be an array',
+      );
+    });
+
+    it('filters workspaces by title', async () => {
+      const { json } = await callTool('discovery', {
+        ...connArgs(),
+        filter: 'CTS',
+      });
+      const data = json as Array<Record<string, unknown>>;
+      assert.ok(Array.isArray(data));
+      assert.strictEqual(data.length, 1);
+      assert.strictEqual(data[0].title, 'CTS Services');
+    });
+  });
+
+  // ── system_info ────────────────────────────────────────────────
+
+  describe('system_info tool', () => {
+    it('returns both session and system info by default', async () => {
+      const { json } = await callTool('system_info', connArgs());
+      const data = json as Record<string, unknown>;
+      assert.ok(data.session, 'should have session');
+      assert.ok(data.system, 'should have system');
+    });
+
+    it('returns only system info when scope=system', async () => {
+      const { json } = await callTool('system_info', {
+        ...connArgs(),
+        scope: 'system',
+      });
+      const data = json as Record<string, unknown>;
+      assert.ok(data.system);
+      assert.strictEqual(data.session, undefined);
+    });
+  });
+
+  // ── search_objects ─────────────────────────────────────────────
+
+  describe('search_objects tool', () => {
+    it('returns matching objects', async () => {
+      const { json } = await callTool('search_objects', {
+        ...connArgs(),
+        query: 'ZCL*',
+      });
+      const data = json as { count: number; objects: unknown[] };
+      assert.ok(data.count >= 1, 'should find at least 1 object');
+      assert.ok(Array.isArray(data.objects));
+    });
+  });
+
+  // ── get_object ─────────────────────────────────────────────────
+
+  describe('get_object tool', () => {
+    it('finds an exact-match object', async () => {
+      const { json } = await callTool('get_object', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+      });
+      const data = json as { found: boolean; object?: { name: string } };
+      assert.strictEqual(data.found, true);
+      assert.strictEqual(data.object?.name, 'ZCL_EXAMPLE');
+    });
+
+    it('reports not-found for unknown object', async () => {
+      // The mock always returns the same search results; searching for a
+      // name that doesn't match the fixture exercises the not-found path.
+      const { json } = await callTool('get_object', {
+        ...connArgs(),
+        objectName: 'DOES_NOT_EXIST',
+      });
+      const data = json as { found: boolean; message?: string };
+      assert.strictEqual(data.found, false);
+      assert.ok(data.message?.includes('not found'));
+    });
+  });
+
+  // ── cts_list_transports ────────────────────────────────────────
+
+  describe('cts_list_transports tool', () => {
+    it('returns a list of transports', async () => {
+      const { json } = await callTool('cts_list_transports', connArgs());
+      const data = json as { count: number; transports: unknown[] };
+      assert.strictEqual(data.count, 2);
+      assert.ok(Array.isArray(data.transports));
+    });
+  });
+
+  // ── cts_get_transport ──────────────────────────────────────────
+
+  describe('cts_get_transport tool', () => {
+    it('returns transport details', async () => {
+      const { json } = await callTool('cts_get_transport', {
+        ...connArgs(),
+        transport: 'DEVK900001',
+      });
+      const data = json as { number: string; desc?: string };
+      assert.ok(data.number, 'should have transport number');
+    });
+  });
+
+  // ── cts_delete_transport ───────────────────────────────────────
+
+  describe('cts_delete_transport tool', () => {
+    it('deletes a transport', async () => {
+      const { json } = await callTool('cts_delete_transport', {
+        ...connArgs(),
+        transport: 'DEVK900001',
+      });
+      const data = json as { transport: string; status: string };
+      assert.strictEqual(data.status, 'deleted');
+    });
+  });
+
+  // ── atc_run ────────────────────────────────────────────────────
+
+  describe('atc_run tool', () => {
+    it('runs ATC and returns worklist', async () => {
+      const { json } = await callTool('atc_run', {
+        ...connArgs(),
+        objectUri: '/sap/bc/adt/packages/ZPACKAGE',
+      });
+      const data = json as { status: string; worklist?: unknown };
+      assert.strictEqual(data.status, 'completed');
+      assert.ok(data.worklist, 'should contain worklist');
+    });
+  });
+
+  // ── tool listing ───────────────────────────────────────────────
+
+  describe('tool listing', () => {
+    it('lists all registered tools', async () => {
+      const tools = await client.listTools();
+      const names = new Set(tools.tools.map((t) => t.name));
+      const expected = [
+        'discovery',
+        'system_info',
+        'search_objects',
+        'get_object',
+        'cts_list_transports',
+        'cts_get_transport',
+        'cts_create_transport',
+        'cts_release_transport',
+        'cts_delete_transport',
+        'atc_run',
+      ];
+      for (const name of expected) {
+        assert.ok(names.has(name), `tool "${name}" should be listed`);
+      }
+    });
+  });
+});
