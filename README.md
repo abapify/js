@@ -1,6 +1,7 @@
 # abapify — ADT CLI Monorepo
 
 [![CI](https://github.com/abapify/adt-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/abapify/adt-cli/actions/workflows/ci.yml)
+[![Pipeline Status](https://github.com/abapify/adt-cli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/abapify/adt-cli/actions/workflows/ci.yml)
 
 TypeScript monorepo providing a CLI and supporting libraries for [SAP ABAP Development Tools (ADT)](https://help.sap.com/docs/ABAP_PLATFORM_NEW/c238d694b825421f940829321ffa326a/4ec8641126391014adc9fffe4e204223.html) REST APIs.
 
