@@ -2,6 +2,9 @@
  * Tool: cts_release_transport – release a transport request
  *
  * CLI equivalent: `adt cts tr release <transport>`
+ *
+ * Note: The underlying ADT client transport service `release()` method is not
+ * yet implemented. This tool returns a clear error until it is.
  */
 
 import { z } from 'zod';
@@ -11,7 +14,7 @@ import { connectionShape } from './shared-schemas.js';
 
 export function registerCtsReleaseTransportTool(
   server: McpServer,
-  ctx: ToolContext,
+  _ctx: ToolContext,
 ): void {
   server.tool(
     'cts_release_transport',
@@ -22,34 +25,16 @@ export function registerCtsReleaseTransportTool(
         .string()
         .describe('Transport number to release (e.g. S0DK900001)'),
     },
-    async (args) => {
-      try {
-        const client = ctx.getClient(args);
-        await client.services.transports.release(args.transport);
-
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify(
-                { transport: args.transport, status: 'released' },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text: `Release transport failed: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-        };
-      }
+    async (_args) => {
+      return {
+        isError: true,
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Transport release is not supported: the ADT client transports.release() method is not yet implemented.',
+          },
+        ],
+      };
     },
   );
 }
