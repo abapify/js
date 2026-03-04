@@ -36,8 +36,7 @@ export function registerDiscoveryTool(
             ? result.workspaces
             : [result.workspaces];
           const filtered = workspaces.filter((ws: Record<string, unknown>) => {
-            const title =
-              typeof ws['title'] === 'string' ? ws['title'] : '';
+            const title = typeof ws['title'] === 'string' ? ws['title'] : '';
             return title.toLowerCase().includes(args.filter!.toLowerCase());
           });
           return {
