@@ -8,6 +8,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types.js';
 import { connectionShape } from './shared-schemas.js';
+import { extractObjectReferences } from './utils.js';
 
 export function registerSearchObjectsTool(
   server: McpServer,
@@ -35,36 +36,7 @@ export function registerSearchObjectsTool(
             maxResults,
           });
 
-        type SearchObject = {
-          name?: string;
-          type?: string;
-          uri?: string;
-          description?: string;
-          packageName?: string;
-        };
-
-        const resultsAny = results as Record<string, unknown>;
-        let rawObjects: SearchObject | SearchObject[] | undefined;
-        if ('objectReferences' in resultsAny && resultsAny.objectReferences) {
-          const refs = resultsAny.objectReferences as {
-            objectReference?: SearchObject | SearchObject[];
-          };
-          rawObjects = refs.objectReference;
-        } else if ('objectReference' in resultsAny) {
-          rawObjects = resultsAny.objectReference as
-            | SearchObject
-            | SearchObject[];
-        } else if ('mainObject' in resultsAny && resultsAny.mainObject) {
-          const main = resultsAny.mainObject as {
-            objectReference?: SearchObject | SearchObject[];
-          };
-          rawObjects = main.objectReference;
-        }
-        const objects: SearchObject[] = rawObjects
-          ? Array.isArray(rawObjects)
-            ? rawObjects
-            : [rawObjects]
-          : [];
+        const objects = extractObjectReferences(results);
 
         return {
           content: [
