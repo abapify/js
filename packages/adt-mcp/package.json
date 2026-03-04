@@ -1,0 +1,35 @@
+{
+  "name": "@abapify/adt-mcp",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.0",
+  "description": "MCP server for SAP ADT operations – exposes adt-cli features as MCP tools",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "adt-mcp": "./dist/bin/adt-mcp.mjs"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./bin/adt-mcp": "./dist/bin/adt-mcp.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "@abapify/adt-client": "*",
+    "@abapify/adt-contracts": "*",
+    "zod": "^3.24.0"
+  }
+}
