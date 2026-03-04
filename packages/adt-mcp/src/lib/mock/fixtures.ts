@@ -2,7 +2,8 @@
  * Fixture data returned by the mock ADT server.
  *
  * Shapes are kept minimal but realistic enough to exercise
- * all response-parsing paths in the MCP tools.
+ * the primary response-parsing paths in the MCP tools using
+ * simplified JSON representations of typical ADT responses.
  */
 
 export const fixtures = {
