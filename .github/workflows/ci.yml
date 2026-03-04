@@ -4,6 +4,7 @@ on:
     branches:
       # Change this if your primary branch is not main
       - main
+      - 'copilot/**'
   pull_request:
 
 # Needed for nx-set-shas when run on the main branch
