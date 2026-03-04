@@ -1,0 +1,8 @@
+{
+  "name": "adt-mcp",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-mcp/src",
+  "projectType": "library",
+  "tags": ["scope:adt", "type:mcp"],
+  "targets": {}
+}
