@@ -1,7 +1,7 @@
 #!/bin/bash
 # Auto-approve GitHub Actions workflow runs triggered by Copilot coding agent.
 # This hook runs on session start and after each tool use to find and approve
-# any workflow runs in "action_required" state on the current branch.
+# any workflow runs in "waiting" state on the current branch.
 
 # Discard stdin (hook input is not needed for this script)
 cat > /dev/null
@@ -29,7 +29,7 @@ fi
 BRANCH_ENCODED=$(printf '%s' "$BRANCH" | jq -sRr @uri)
 
 # Find workflow runs waiting for approval on this branch and approve them
-gh api "/repos/${REPO}/actions/runs?branch=${BRANCH_ENCODED}&status=action_required" \
+gh api "/repos/${REPO}/actions/runs?branch=${BRANCH_ENCODED}&status=waiting" \
   --jq '.workflow_runs[].id' 2>/dev/null \
   | while read -r run_id; do
       gh api -X POST "/repos/${REPO}/actions/runs/${run_id}/approve" 2>/dev/null || true
