@@ -121,22 +121,52 @@ fi
 
 # ── Tests for approve-workflows.sh ─────────────────────────────────────────
 # These tests verify behavioural logic without requiring real GitHub credentials.
-# We stub 'gh' with a no-op so the script exits cleanly and we can observe
-# stderr messages that reveal which code path was taken.
+# We stub 'gh' and 'git' so the script runs to completion in any environment
+# (including GitHub Actions, which uses a detached HEAD checkout where
+# `git rev-parse --abbrev-ref HEAD` returns "HEAD", causing the script to exit
+# early before the retry logic is ever reached).
+#
+# PATH must be set as a prefix of the bash invocation (right-hand side of the
+# pipe), NOT of the echo command (left-hand side), so that bash inherits the
+# stub directory.
 
-# Create a stub gh that does nothing (simulates no pending runs)
 mkdir -p "$WORKDIR/bin"
+
+# Stub gh: always succeed but emit no output (simulates no pending workflow runs)
 cat > "$WORKDIR/bin/gh" << 'EOF'
 #!/bin/bash
-# Stub gh: always succeed but emit no output (no pending workflow runs)
 exit 0
 EOF
 chmod +x "$WORKDIR/bin/gh"
 
+# Stub git: return a predictable branch name and remote URL so the script does
+# not exit early (GitHub Actions runs in detached HEAD, returning "HEAD" for
+# `git rev-parse --abbrev-ref HEAD`, which causes the script's early-exit guard
+# to fire before any retry logic is exercised).
+# Only the two subcommands used by approve-workflows.sh are overridden; all
+# other subcommands fall through to the real git binary.
+cat > "$WORKDIR/bin/git" << 'EOF'
+#!/bin/bash
+case "$1" in
+  "rev-parse") echo "main" ;;
+  "remote")    echo "https://github.com/test-owner/test-repo.git" ;;
+  *)           command git "$@" ;;
+esac
+EOF
+chmod +x "$WORKDIR/bin/git"
+
+# run_approve: helper that invokes approve-workflows.sh with the stub PATH
+# applied to bash (not to echo) and captures all output including stderr.
+# Any extra KEY=VAL arguments are forwarded via `env` so they are visible to
+# the script as environment variables.
+run_approve() {
+  local input="$1"
+  shift
+  echo "$input" | env PATH="$WORKDIR/bin:$PATH" "$@" bash "$APPROVE_SCRIPT" 2>&1
+}
+
 # ── Test 8: regular tool call — approve-workflows exits cleanly ─────────────
-APPROVE_OUT=$(PATH="$WORKDIR/bin:$PATH" \
-  echo '{"toolName":"bash","toolArgs":"{}"}' \
-  | bash "$APPROVE_SCRIPT" 2>&1)
+APPROVE_OUT=$(run_approve '{"toolName":"bash","toolArgs":"{}"}')
 APPROVE_EC=$?
 if [ "$APPROVE_EC" -eq 0 ]; then
   ok "approve-workflows: exits 0 for regular tool call"
@@ -152,9 +182,8 @@ else
 fi
 
 # ── Test 9: report_progress — approve-workflows retries ────────────────────
-APPROVE_OUT=$(PATH="$WORKDIR/bin:$PATH" \
-  echo '{"toolName":"report_progress","toolArgs":"{}"}' \
-  | RETRY_DELAY_SEC=0 bash "$APPROVE_SCRIPT" 2>&1)
+# RETRY_DELAY_SEC=0 speeds up the test; RETRY_COUNT defaults to 5.
+APPROVE_OUT=$(run_approve '{"toolName":"report_progress","toolArgs":"{}"}' RETRY_DELAY_SEC=0)
 APPROVE_EC=$?
 if [ "$APPROVE_EC" -eq 0 ]; then
   ok "approve-workflows: exits 0 for report_progress tool call"
@@ -170,9 +199,7 @@ else
 fi
 
 # ── Test 10: sessionStart (empty stdin) — exits cleanly ────────────────────
-APPROVE_OUT=$(PATH="$WORKDIR/bin:$PATH" \
-  echo "" \
-  | bash "$APPROVE_SCRIPT" 2>&1)
+APPROVE_OUT=$(run_approve "")
 APPROVE_EC=$?
 if [ "$APPROVE_EC" -eq 0 ]; then
   ok "approve-workflows: exits 0 for empty stdin (sessionStart)"
