@@ -37,6 +37,9 @@ jobs:
 
       - uses: nrwl/nx-set-shas@v4
 
+      - name: Test tool-call hook scripts
+        run: bash .github/hooks/scripts/test-hooks.sh
+        shell: bash
       - name: Print Environment Info
         run: npx nx report
         shell: bash
