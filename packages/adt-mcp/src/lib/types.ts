@@ -6,8 +6,11 @@ import type { AdtClient } from '@abapify/adt-client';
 
 /**
  * Connection parameters that every tool receives.
- * When `mockBaseUrl` is set the tool connects to a local mock server
- * instead of a real SAP system.
+ *
+ * - `baseUrl`: Base ADT endpoint of the SAP system.
+ * - `client`: Optional SAP client to connect to.
+ * - `username`: Optional username for authentication.
+ * - `password`: Optional password for authentication.
  */
 export interface ConnectionParams {
   baseUrl: string;

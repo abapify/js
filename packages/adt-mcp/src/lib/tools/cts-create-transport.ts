@@ -3,8 +3,8 @@
  *
  * CLI equivalent: `adt cts tr create`
  *
- * Note: The service layer delegates to ADK for full create logic.
- * This tool wraps the service for structured JSON I/O.
+ * Note: The underlying ADT client transport service `create()` method is not
+ * yet implemented. This tool returns a clear error until it is.
  */
 
 import { z } from 'zod';
@@ -14,7 +14,7 @@ import { connectionShape } from './shared-schemas.js';
 
 export function registerCtsCreateTransportTool(
   server: McpServer,
-  ctx: ToolContext,
+  _ctx: ToolContext,
 ): void {
   server.tool(
     'cts_create_transport',
@@ -31,32 +31,16 @@ export function registerCtsCreateTransportTool(
       target: z.string().optional().describe('Target system (default: LOCAL)'),
       project: z.string().optional().describe('CTS project name'),
     },
-    async (args) => {
-      try {
-        const client = ctx.getClient(args);
-        const transport = await client.services.transports.create({
-          description: args.description,
-          type: args.type ?? 'K',
-          target: args.target ?? 'LOCAL',
-          project: args.project,
-        });
-
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify(transport, null, 2) },
-          ],
-        };
-      } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text: `Create transport failed: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-        };
-      }
+    async (_args) => {
+      return {
+        isError: true,
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Create transport is not supported: the underlying ADT client transport service "create" method is not yet implemented.',
+          },
+        ],
+      };
     },
   );
 }

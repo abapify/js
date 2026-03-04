@@ -119,9 +119,13 @@ function matchRoute(
     };
   }
 
-  // CSRF token fetch (used by many write operations) and other fallback GETs
-  if (m === 'HEAD' || m === 'GET') {
-    // Return a generic 200 with CSRF token for any unmatched GET/HEAD
+  // CSRF token fetch (used by write operations) – only for known write endpoints
+  if (
+    m === 'HEAD' &&
+    (url.startsWith('/sap/bc/adt/cts/transportrequests') ||
+      url.startsWith('/sap/bc/adt/atc/runs') ||
+      url.startsWith('/sap/bc/adt/atc/worklists'))
+  ) {
     return {
       status: 200,
       body: '',

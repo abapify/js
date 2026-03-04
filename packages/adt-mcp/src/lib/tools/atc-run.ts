@@ -27,11 +27,18 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
       try {
         const client = ctx.getClient(args);
 
-        // ATC run: POST to /sap/bc/adt/atc/runs then fetch worklist
-        const runResult = (await client.adt.atc.runs.post()) as Record<
-          string,
-          unknown
-        >;
+        // ATC run: POST to /sap/bc/adt/atc/runs with the target object,
+        // then fetch the resulting worklist.
+        // Note: speci contracts accept (queryParams, body) even when the TS
+        // signature only declares query params – mirrors the CLI ATC flow.
+        const atcRun = {
+          objectUri: args.objectUri,
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const runResult = (await (client.adt.atc.runs.post as any)(
+          {},
+          atcRun,
+        )) as Record<string, unknown>;
 
         const rawId = runResult['worklistId'] ?? runResult['id'];
         const worklistId =
