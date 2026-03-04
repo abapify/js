@@ -152,9 +152,12 @@ export function createMockAdtServer(): MockAdtServer {
         });
 
         server.listen(0, () => {
-          const addr = server!.address();
-          const port = typeof addr === 'object' && addr ? addr.port : 0;
-          resolve({ port });
+          const addr = server?.address();
+          if (!addr || typeof addr !== 'object') {
+            reject(new Error('Failed to get server address'));
+            return;
+          }
+          resolve({ port: addr.port });
         });
 
         server.on('error', reject);
