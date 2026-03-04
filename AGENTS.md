@@ -177,3 +177,41 @@ npx nx lint              # fix lint issues
 ```
 
 <!-- nx configuration end-->
+
+## SonarCloud MCP Server
+
+The project uses the [SonarQube MCP Server](https://docs.sonarsource.com/sonarqube-mcp-server) so the GitHub Copilot Coding Agent can query SonarCloud findings (issues, quality gate status, metrics) directly.
+
+### GitHub Copilot Coding Agent setup
+
+The Copilot Coding Agent reads its MCP configuration from the repository settings on GitHub.com, not from a committed file. A repository administrator must:
+
+1. Paste the following JSON into **Settings → Copilot → Coding agent → MCP configuration**:
+
+```json
+{
+  "mcpServers": {
+    "sonarqube": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "sonarqube-mcp-server@latest"],
+      "tools": ["*"],
+      "env": {
+        "SONARQUBE_URL": "https://sonarcloud.io",
+        "SONARQUBE_TOKEN": "COPILOT_MCP_SONAR_TOKEN",
+        "SONARQUBE_ORGANIZATION": "abapify"
+      }
+    }
+  }
+}
+```
+
+2. Add the SonarCloud token as a secret in the `copilot` GitHub environment (**Settings → Environments → copilot → Add environment secret**):
+
+| Secret name               | Value                             |
+| ------------------------- | --------------------------------- |
+| `COPILOT_MCP_SONAR_TOKEN` | SonarCloud personal access token  |
+
+> Only secrets prefixed with `COPILOT_MCP_` are passed to MCP servers by the Copilot Coding Agent runtime.
+
+
