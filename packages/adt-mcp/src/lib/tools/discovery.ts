@@ -35,11 +35,11 @@ export function registerDiscoveryTool(
           const workspaces = Array.isArray(result.workspaces)
             ? result.workspaces
             : [result.workspaces];
-          const filtered = workspaces.filter((ws: Record<string, unknown>) =>
-            String(ws.title ?? '')
-              .toLowerCase()
-              .includes(args.filter!.toLowerCase()),
-          );
+          const filtered = workspaces.filter((ws: Record<string, unknown>) => {
+            const title =
+              typeof ws['title'] === 'string' ? ws['title'] : '';
+            return title.toLowerCase().includes(args.filter!.toLowerCase());
+          });
           return {
             content: [
               {

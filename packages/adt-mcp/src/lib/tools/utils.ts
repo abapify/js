@@ -31,9 +31,6 @@ export function extractObjectReferences(results: unknown): SearchObject[] {
     rawObjects = main.objectReference;
   }
 
-  return rawObjects
-    ? Array.isArray(rawObjects)
-      ? rawObjects
-      : [rawObjects]
-    : [];
+  if (!rawObjects) return [];
+  return Array.isArray(rawObjects) ? rawObjects : [rawObjects];
 }

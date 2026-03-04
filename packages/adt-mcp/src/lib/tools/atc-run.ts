@@ -33,7 +33,11 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           unknown
         >;
 
-        const worklistId = String(runResult.worklistId ?? runResult.id ?? '');
+        const rawId = runResult['worklistId'] ?? runResult['id'];
+        const worklistId =
+          typeof rawId === 'string' || typeof rawId === 'number'
+            ? String(rawId)
+            : '';
 
         if (!worklistId) {
           return {
