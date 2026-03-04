@@ -9,6 +9,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
+import { randomBytes } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from '../src/lib/server.js';
@@ -16,7 +17,6 @@ import {
   createMockAdtServer,
   type MockAdtServer,
 } from '../src/lib/mock/server.js';
-import { fixtures } from '../src/lib/mock/fixtures.js';
 import { createAdtClient, type AdtClient } from '@abapify/adt-client';
 import type { ConnectionParams } from '../src/lib/types.js';
 
@@ -41,6 +41,9 @@ async function callTool(
   }
 }
 
+// Generate a random credential per test run – avoids hardcoded credential lint
+const mockCredential = randomBytes(16).toString('hex');
+
 /**
  * Build connection args pointing at the mock server.
  */
@@ -48,7 +51,7 @@ function connArgs(): Record<string, string> {
   return {
     baseUrl: `http://localhost:${mockPort}`,
     username: 'DEVELOPER',
-    password: 'secret',
+    password: mockCredential,
     client: '100',
   };
 }
@@ -227,7 +230,7 @@ describe('adt-mcp integration tests', () => {
   describe('tool listing', () => {
     it('lists all registered tools', async () => {
       const tools = await client.listTools();
-      const names = tools.tools.map((t) => t.name);
+      const names = new Set(tools.tools.map((t) => t.name));
       const expected = [
         'discovery',
         'system_info',
@@ -241,7 +244,7 @@ describe('adt-mcp integration tests', () => {
         'atc_run',
       ];
       for (const name of expected) {
-        assert.ok(names.includes(name), `tool "${name}" should be listed`);
+        assert.ok(names.has(name), `tool "${name}" should be listed`);
       }
     });
   });
