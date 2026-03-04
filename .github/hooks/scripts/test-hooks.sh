@@ -1,6 +1,6 @@
 #!/bin/bash
-# Tests for log-tool-calls.sh and print-tool-log.sh
-# Verifies tool call logging and printing work correctly.
+# Tests for log-tool-calls.sh, print-tool-log.sh, and approve-workflows.sh
+# Verifies tool call logging, printing and the approval-retry logic work correctly.
 # Exit code 0 = all tests passed; non-zero = failure.
 
 set -euo pipefail
@@ -25,6 +25,7 @@ trap 'rm -rf "$WORKDIR"' EXIT
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_SCRIPT="$SCRIPT_DIR/log-tool-calls.sh"
 PRINT_SCRIPT="$SCRIPT_DIR/print-tool-log.sh"
+APPROVE_SCRIPT="$SCRIPT_DIR/approve-workflows.sh"
 
 # ── helper: run log-tool-calls.sh with a given JSON input ──────────────────
 run_log() {
@@ -116,6 +117,73 @@ if [ "$OUTPUT_EMPTY" = "[]" ]; then
   ok "print-tool-log: returns [] when log file absent"
 else
   fail "print-tool-log: expected '[]' when no log file, got: $OUTPUT_EMPTY"
+fi
+
+# ── Tests for approve-workflows.sh ─────────────────────────────────────────
+# These tests verify behavioural logic without requiring real GitHub credentials.
+# We stub 'gh' with a no-op so the script exits cleanly and we can observe
+# stderr messages that reveal which code path was taken.
+
+# Create a stub gh that does nothing (simulates no pending runs)
+mkdir -p "$WORKDIR/bin"
+cat > "$WORKDIR/bin/gh" << 'EOF'
+#!/bin/bash
+# Stub gh: always succeed but emit no output (no pending workflow runs)
+exit 0
+EOF
+chmod +x "$WORKDIR/bin/gh"
+
+# ── Test 8: regular tool call — approve-workflows exits cleanly ─────────────
+APPROVE_OUT=$(PATH="$WORKDIR/bin:$PATH" \
+  echo '{"toolName":"bash","toolArgs":"{}"}' \
+  | bash "$APPROVE_SCRIPT" 2>&1)
+APPROVE_EC=$?
+if [ "$APPROVE_EC" -eq 0 ]; then
+  ok "approve-workflows: exits 0 for regular tool call"
+else
+  fail "approve-workflows: non-zero exit for regular tool call (got $APPROVE_EC)"
+fi
+
+# Regular tool call must NOT produce retry messages
+if echo "$APPROVE_OUT" | grep -q "retrying"; then
+  fail "approve-workflows: unexpected retry messages for regular tool call"
+else
+  ok "approve-workflows: no retry messages for regular tool call"
+fi
+
+# ── Test 9: report_progress — approve-workflows retries ────────────────────
+APPROVE_OUT=$(PATH="$WORKDIR/bin:$PATH" \
+  echo '{"toolName":"report_progress","toolArgs":"{}"}' \
+  | RETRY_DELAY_SEC=0 bash "$APPROVE_SCRIPT" 2>&1)
+APPROVE_EC=$?
+if [ "$APPROVE_EC" -eq 0 ]; then
+  ok "approve-workflows: exits 0 for report_progress tool call"
+else
+  fail "approve-workflows: non-zero exit for report_progress tool call (got $APPROVE_EC)"
+fi
+
+# report_progress path must print retry messages (stub gh returns no runs → retries)
+if echo "$APPROVE_OUT" | grep -q "retrying"; then
+  ok "approve-workflows: retry messages emitted after report_progress"
+else
+  fail "approve-workflows: expected retry messages after report_progress, got: $APPROVE_OUT"
+fi
+
+# ── Test 10: sessionStart (empty stdin) — exits cleanly ────────────────────
+APPROVE_OUT=$(PATH="$WORKDIR/bin:$PATH" \
+  echo "" \
+  | bash "$APPROVE_SCRIPT" 2>&1)
+APPROVE_EC=$?
+if [ "$APPROVE_EC" -eq 0 ]; then
+  ok "approve-workflows: exits 0 for empty stdin (sessionStart)"
+else
+  fail "approve-workflows: non-zero exit for empty stdin (got $APPROVE_EC)"
+fi
+
+if echo "$APPROVE_OUT" | grep -q "retrying"; then
+  fail "approve-workflows: unexpected retry messages for empty stdin"
+else
+  ok "approve-workflows: no retry messages for empty stdin"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────
