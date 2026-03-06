@@ -119,8 +119,8 @@ export async function createCLI(options?: {
     )
     .option('--config <path>', 'Path to config file (default: adt.config.ts)')
     .option(
-      '--service-key <value>',
-      'BTP service key: JSON string or path to a JSON file. Auto-authenticates before running the command.',
+      '--service-key <path>',
+      'Path to a BTP service key JSON file. Auto-authenticates before running the command.',
     )
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.optsWithGlobals();
