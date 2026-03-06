@@ -46,25 +46,5 @@
   },
   "bin": {
     "adt": "./dist/bin/adt.mjs"
-  },
-  "inlinedDependencies": {
-    "@xmldom/xmldom": "0.8.11",
-    "tsdown": "0.21.0-beta.4",
-    "source-map": "0.6.1",
-    "buffer-from": "1.1.2",
-    "source-map-support": "0.5.19",
-    "@ts-morph/common": "0.28.1",
-    "balanced-match": "4.0.4",
-    "brace-expansion": "5.0.4",
-    "minimatch": "10.2.1",
-    "path-browserify": "1.0.1",
-    "picomatch": [
-      "4.0.2",
-      "4.0.3"
-    ],
-    "fdir": "6.5.0",
-    "tinyglobby": "0.2.15",
-    "code-block-writer": "13.0.3",
-    "ts-morph": "27.0.2"
   }
 }
