@@ -1,0 +1,28 @@
+{
+  "name": "@abapify/ts-xsd",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "description": "Core XSD parser and builder - W3C XMLSchema 1:1 TypeScript representation",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "ts-xsd": "./dist/codegen/cli.mjs"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./codegen/cli": "./dist/codegen/cli.mjs",
+    "./generators": "./dist/generators/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@xmldom/xmldom": "*",
+    "zod": "^3.24.0 || ^4.0.0",
+    "ts-morph": "*"
+  }
+}

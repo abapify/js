@@ -1,0 +1,28 @@
+{
+  "name": "@abapify/speci",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "type": "module",
+  "description": "Minimal arrow-function-based contract specification system for TypeScript",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./rest": "./dist/rest/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "api",
+    "contract",
+    "specification",
+    "typescript",
+    "client-generation",
+    "openapi"
+  ],
+  "dependencies": {}
+}

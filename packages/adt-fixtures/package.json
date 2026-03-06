@@ -1,0 +1,15 @@
+{
+  "name": "@abapify/adt-fixtures",
+  "version": "0.1.10",
+  "private": true,
+  "description": "SAP ADT XML fixtures for testing",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ]
+}
