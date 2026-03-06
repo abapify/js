@@ -16,7 +16,7 @@ export { default as basicAuthPlugin } from './plugins/basic';
 export { default as serviceKeyAuthPlugin } from './plugins/service-key';
 
 // Utilities
-export { resolveServiceKeyFromEnv } from './utils/env';
+export { resolveServiceKeyFromEnv, readServiceKey } from './utils/env';
 
 // Types - New format (single source of truth)
 export type {
