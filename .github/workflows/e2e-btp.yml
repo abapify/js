@@ -1,11 +1,12 @@
 name: E2E BTP
 on:
-  # Triggered manually from the Actions tab (shows up in PR checks when run against a PR branch)
+  # Allow manual runs from the Actions tab
   workflow_dispatch:
-  # Also runs after merge to main as a post-merge gate
+  # Run automatically on pushes to the feature branch and main
   push:
     branches:
       - main
+      - copilot/add-service-key-auth-plugin
 
 permissions:
   actions: read
@@ -53,5 +54,5 @@ jobs:
           ADT_SERVICE_KEY: ${{ secrets.ADT_SERVICE_KEY }}
         run: |
           echo "🔑 Testing BTP service key authentication..."
-          npx adt --service-key="$ADT_SERVICE_KEY" info --system
+          node packages/adt-cli/dist/bin/adt.mjs --service-key="$ADT_SERVICE_KEY" info --system
           echo "✅ Service key auth e2e test passed"
