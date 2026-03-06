@@ -4,6 +4,7 @@ on:
     branches:
       # Change this if your primary branch is not main
       - main
+      - 'copilot/**'
   pull_request:
 
 # Needed for nx-set-shas when run on the main branch
@@ -15,25 +16,34 @@ jobs:
   main:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v3
+          # For pull_request events, check out the PR head (not GitHub's auto-created
+          # merge commit). This prevents 3-way merge from re-introducing deps that
+          # the PR is supposed to remove. nrwl/nx-set-shas still computes the correct
+          # affected range from git history. Falls back to github.sha for push events.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
-          cache: 'npm'
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.9
       # This line enables distribution
       # The "--stop-agents-after" is optional, but allows idle agents to shut down once the "e2e-ci" targets have been requested
       # - run: npx nx-cloud start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
-      - run: npm ci
+      - run: bun install
 
       - uses: nrwl/nx-set-shas@v4
 
+      - name: Test tool-call hook scripts
+        run: bash .github/hooks/scripts/test-hooks.sh
+        shell: bash
       - name: Print Environment Info
         run: npx nx report
         shell: bash
-      - run: npx nx-cloud record -- nx format:check
-      - run: npx nx affected -t lint test build e2e-ci
-
-      - run: npx nx fix-ci
-      if: always()
+      - run: npx nx format:check
+      - run: npx nx affected -t lint test build e2e-ci --verbose=false --parallel=3
+      - run: npx nx-cloud fix-ci
+        if: always()

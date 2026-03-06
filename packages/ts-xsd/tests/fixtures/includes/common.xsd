@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <!-- Common types to be included by other schemas -->
+  
+  <xs:element name="wrapper">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="content"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="required"/>
+      <xs:attribute name="format" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="author" type="xs:string" minOccurs="0"/>
+      <xs:element name="created" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:element name="content" abstract="true"/>
+  
+</xs:schema>

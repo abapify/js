@@ -1,43 +1,46 @@
-# ./.github/workflows/publish.yml
 name: Publish
 
 on:
-  push:
-    tags:
-      - v*.*.*
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Release version tag to publish (e.g. v1.2.3), defaults to the ref that triggered the workflow'
+        required: false
+        type: string
 
 jobs:
-  test:
-    name: Publish
+  publish:
+    name: Publish packages
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write # needed for provenance data generation
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          ref: ${{ inputs.version || github.ref_name }}
 
-      - name: Install Node
-        uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org/
 
-      - name: Install dependencies
-        run: npm install
-        shell: bash
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
-      - name: Print Environment Info
-        run: npx nx report
-        shell: bash
+      - name: Install dependencies
+        run: bun install
 
       - name: Publish packages
-        run: npx nx release publish
+        run: |
+          rm -f bun.lock
+          npx nx release publish
         shell: bash
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
           NPM_CONFIG_ACCESS: public
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

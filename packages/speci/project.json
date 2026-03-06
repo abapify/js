@@ -1,0 +1,13 @@
+{
+  "name": "speci",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/speci/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["{projectRoot}"]
+    }
+  },
+  "tags": ["type:library", "scope:speci"],
+  "targets": {}
+}

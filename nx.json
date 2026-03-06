@@ -1,26 +1,96 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "defaultBase": "main",
-  "nxCloudId": "69ab0980542defed8d2aa8f4",
+  "nxCloudId": "69ab0980542defed8d2aa8f4",  
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.config.ts",
+      "!{projectRoot}/**/*.config.js",
+      "!{projectRoot}/**/*.config.mjs",
+      "!{projectRoot}/**/tsdown.config.*",
+      "!{projectRoot}/**/vitest.config.*",
+      "!{projectRoot}/**/vite.config.*",
+      "!{projectRoot}/**/*.spec.ts",
+      "!{projectRoot}/**/*.test.ts",
+      "!{projectRoot}/**/tests/**/*"
+    ],
+    "sharedGlobals": []
+  },
+  "pluginsConfig": {
+    "@nx/js": {
+      "analyzeSourceFiles": true,
+      "analyzePackageJson": true
+    }
+  },
   "plugins": [
     {
       "plugin": "@nx/js/typescript",
       "options": {
-        "typecheck": { "targetName": "typecheck" },
-        "build": { "targetName": "build", "configName": "tsconfig.lib.json" }
+        "typecheck": {
+          "targetName": "typecheck"
+        },
+        "build": {
+          "targetName": "build",
+          "configName": "tsconfig.lib.json"
+        }
       },
-      "exclude": ["samples/cds/*"]
+      "exclude": ["packages/xmld/*"]
     },
     {
-      "plugin": "@nx/rollup/plugin",
-      "options": { "buildTargetName": "build" }
+      "plugin": "./tools/nx-tsdown/src/index.ts"
     },
-    { "plugin": "@nx/eslint/plugin", "options": { "targetName": "lint" } }
+    {
+      "plugin": "./tools/nx-vitest/src/index.ts"
+    },
+    {
+      "plugin": "@nx/vite/plugin",
+      "exclude": ["**/*"]
+    },
+    {
+      "plugin": "@nx/eslint/plugin",
+      "options": {
+        "targetName": "lint"
+      }
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "include": ["packages/xmld/*"],
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        }
+      }
+    }
   ],
-  "release": { "version": { "preVersionCommand": "npx nx run-many -t build" } },
+  "release": {
+    "projects": ["packages/*"],
+    "releaseTagPattern": "v{version}",
+    "version": {
+      "preVersionCommand": "npx nx run-many -t build",
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk"
+    },
+    "changelog": {
+      "workspaceChangelog": {
+        "createRelease": "github",
+        "file": "CHANGELOG.md"
+      },
+      "projectChangelogs": false
+    },
+    "git": {
+      "commitMessage": "chore(release): publish {version} [skip ci]",
+      "tag": true
+    }
+  },
   "targetDefaults": {
-    "@nx/vite:test": { "cache": true, "inputs": ["default", "^default"] },
-    "nx-release-publish": { "dependsOn": ["build", "test"] },
+    "build": {
+      "dependsOn": ["^build"]
+    },
+    "_nx-release-publish": {
+      "dependsOn": ["build"]
+    },
     "@nx/js:swc": {
       "cache": true,
       "dependsOn": ["^build"],
@@ -29,14 +99,31 @@
     "@nx/jest:jest": {
       "cache": true,
       "inputs": ["default", "^default", "{workspaceRoot}/jest.preset.js"],
-      "options": { "passWithNoTests": true },
-      "configurations": { "ci": { "ci": true, "codeCoverage": true } }
+      "options": {
+        "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "codeCoverage": true
+        }
+      }
     },
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": ["^build"],
+      "dependsOn": [],
       "inputs": ["default", "^default"]
+    },
+    "typecheck": {
+      "cache": true,
+      "dependsOn": [],
+      "inputs": ["default", "^default"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
     }
   },
-  "useLegacyCache": true
+  "tui": {
+    "enabled": false
+  }
 }

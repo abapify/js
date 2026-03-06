@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Common Schema - Will be INCLUDED (same namespace as main)
+  
+  xs:include merges content into the including schema's namespace.
+  Unlike xs:import, included schemas share the same targetNamespace.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:main="http://example.com/main"
+           targetNamespace="http://example.com/main"
+           elementFormDefault="qualified">
+
+  <!-- ============================================================ -->
+  <!-- Types shared via xs:include -->
+  <!-- ============================================================ -->
+
+  <!-- Simple types -->
+  <xs:simpleType name="EmailType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[^@]+@[^@]+\.[^@]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PhoneType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\+?[0-9\-\s]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Complex type -->
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="key" type="xs:string"/>
+      <xs:element name="value" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Named group -->
+  <xs:group name="TimestampGroup">
+    <xs:sequence>
+      <xs:element name="createdAt" type="xs:dateTime"/>
+      <xs:element name="updatedAt" type="xs:dateTime" minOccurs="0"/>
+    </xs:sequence>
+  </xs:group>
+
+</xs:schema>

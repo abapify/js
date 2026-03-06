@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "paths": {
+      "#schemas": ["./src/schemas.ts"],
+      "#base": ["./src/base.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "references": [
+    {
+      "path": "../speci"
+    },
+    {
+      "path": "../adt-schemas"
+    },
+    {
+      "path": "../adt-fixtures"
+    }
+  ]
+}

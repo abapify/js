@@ -1,0 +1,27 @@
+{
+  "name": "@abapify/adt-puppeteer",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "type": "module",
+  "description": "Puppeteer-based authentication for SAP ADT (SSO/IDP)",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@abapify/adt-auth": "^0.1.7",
+    "@abapify/adt-config": "^0.1.7",
+    "@abapify/browser-auth": "^0.1.7",
+    "puppeteer": "^24.0.0"
+  },
+  "peerDependencies": {
+    "puppeteer": ">=22.0.0"
+  }
+}

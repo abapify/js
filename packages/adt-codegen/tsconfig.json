@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "moduleResolution": "bundler"
+  },
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../adt-config"
+    },
+    {
+      "path": "../adt-plugin"
+    }
+  ]
+}

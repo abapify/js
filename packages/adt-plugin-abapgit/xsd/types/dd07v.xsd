@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DD07V - Domain fixed values type (SAP DDIC table DD07V) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:complexType name="Dd07vType">
+    <xs:all>
+      <xs:element name="DOMNAME" type="xs:string" minOccurs="0"/>
+      <xs:element name="VALPOS" type="xs:string" minOccurs="0"/>
+      <xs:element name="DDLANGUAGE" type="xs:string" minOccurs="0"/>
+      <xs:element name="DOMVALUE_L" type="xs:string" minOccurs="0"/>
+      <xs:element name="DOMVALUE_H" type="xs:string" minOccurs="0"/>
+      <xs:element name="DDTEXT" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+  <xs:complexType name="Dd07vTabType">
+    <xs:sequence>
+      <xs:element name="DD07V" type="Dd07vType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

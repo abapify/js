@@ -9,6 +9,18 @@
         "config": ".verdaccio/config.yml",
         "storage": "tmp/local-registry/storage"
       }
+    },
+    "lint": {
+      "executor": "nx:noop"
+    },
+    "test": {
+      "executor": "nx:noop"
+    },
+    "typecheck": {
+      "executor": "nx:noop"
+    },
+    "e2e-ci": {
+      "executor": "nx:noop"
     }
   }
 }

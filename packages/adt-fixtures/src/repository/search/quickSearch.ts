@@ -1,0 +1,7 @@
+/**
+ * Quick Search Fixture
+ *
+ * Real SAP response from GET /sap/bc/adt/repository/informationsystem/search?operation=quickSearch
+ */
+
+export const quickSearch = `<?xml version="1.0" encoding="utf-8"?><adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core"><adtcore:objectReference adtcore:uri="/sap/bc/adt/oo/classes/zcl_test" adtcore:type="CLAS/OC" adtcore:name="ZCL_TEST" adtcore:packageName="$TMP" adtcore:description="Test class"/><adtcore:objectReference adtcore:uri="/sap/bc/adt/oo/classes/zcl_another" adtcore:type="CLAS/OC" adtcore:name="ZCL_ANOTHER" adtcore:description="Another class"/></adtcore:objectReferences>`;

@@ -1,0 +1,15 @@
+{
+  "name": "adt-tui",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-tui/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "generate-routes": {
+      "command": "npx tsx scripts/generate-routes.ts",
+      "options": {
+        "cwd": "packages/adt-tui"
+      }
+    }
+  }
+}

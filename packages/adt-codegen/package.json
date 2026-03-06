@@ -1,0 +1,39 @@
+{
+  "name": "@abapify/adt-codegen",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "description": "Code generation toolkit for SAP ADT APIs",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "adt-codegen": "./dist/cli.mjs"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./cli": "./dist/cli.mjs",
+    "./commands/codegen": "./dist/commands/codegen.mjs",
+    "./plugins": "./dist/plugins/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "codegen",
+    "code-generation",
+    "typescript"
+  ],
+  "dependencies": {
+    "@abapify/adt-config": "^0.1.7",
+    "@abapify/adt-plugin": "^0.1.7",
+    "fast-xml-parser": "^4.3.2",
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0"
+  }
+}

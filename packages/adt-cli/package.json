@@ -1,0 +1,50 @@
+{
+  "name": "@abapify/adt-cli",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "version": "0.1.10",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./bin/adt": "./dist/bin/adt.mjs",
+    "./bin/adt-all": "./dist/bin/adt-all.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@abapify/adk": "^0.1.7",
+    "@abapify/adt-auth": "^0.1.7",
+    "@abapify/adt-client": "^0.1.7",
+    "@abapify/adt-config": "^0.1.7",
+    "@abapify/adt-plugin": "^0.1.7",
+    "@abapify/adt-plugin-abapgit": "^0.1.7",
+    "@abapify/adt-tui": "^0.1.7",
+    "@abapify/logger": "^0.1.7",
+    "@inquirer/prompts": "^7.9.0",
+    "@abapify/adt-contracts": "^0.1.7",
+    "@abapify/adt-codegen": "^0.1.7",
+    "@abapify/adt-atc": "^0.1.7",
+    "@abapify/adt-export": "^0.1.7",
+    "chalk": "^5.6.2",
+    "commander": "^12.0.0",
+    "fast-xml-parser": "^5.3.1",
+    "ink": "5.1.0",
+    "ink-select-input": "^6.0.0",
+    "ink-text-input": "^6.0.0",
+    "js-yaml": "^4.1.0",
+    "pino": "^8.17.2",
+    "proxy-agent": "^6.4.0",
+    "react": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.0"
+  },
+  "bin": {
+    "adt": "./dist/bin/adt.mjs"
+  }
+}

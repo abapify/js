@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Types Schema - Same namespace as main, will be REDEFINED
+  
+  xs:redefine can only modify types from schemas with the same namespace.
+  This schema provides types that main.xsd will redefine.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:main="http://example.com/main"
+           targetNamespace="http://example.com/main"
+           elementFormDefault="qualified">
+
+  <!-- Complex type that will be redefined (extended) -->
+  <xs:complexType name="AddressType">
+    <xs:sequence>
+      <xs:element name="street" type="xs:string"/>
+      <xs:element name="city" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Simple type that could be restricted in redefine -->
+  <xs:simpleType name="PriorityType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="LOW"/>
+      <xs:enumeration value="MEDIUM"/>
+      <xs:enumeration value="HIGH"/>
+      <xs:enumeration value="CRITICAL"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

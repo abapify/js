@@ -1,9 +1,21 @@
 {
   "name": "@abapify/asjson-parser",
-  "version": "0.1.1",
-  "dependencies": {},
-  "main": "./index.cjs",
-  "module": "./index.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "jsonc-eslint-parser": "^2.1.0"
+  },
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abapify/js.git",

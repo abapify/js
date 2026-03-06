@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:main="http://example.com/main"
+           xmlns:base="http://example.com/base"
+           targetNamespace="http://example.com/main"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="common.xsd"/>
+  <xs:import namespace="http://example.com/base" schemaLocation="base.xsd"/>
+
+  <xs:redefine schemaLocation="types.xsd">
+    <xs:complexType name="AddressType">
+      <xs:complexContent>
+        <xs:extension base="main:AddressType">
+          <xs:sequence>
+            <xs:element name="country" type="xs:string"/>
+            <xs:element name="postalCode" type="xs:string"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+    <xs:simpleType name="PriorityType">
+      <xs:restriction base="main:PriorityType">
+        <xs:enumeration value="LOW"/>
+        <xs:enumeration value="HIGH"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:redefine>
+
+  <xs:complexType name="PersonType">
+    <xs:complexContent>
+      <xs:extension base="base:BaseEntityType">
+        <xs:sequence>
+          <xs:element name="firstName" type="xs:string"/>
+          <xs:element name="lastName" type="xs:string"/>
+          <xs:element name="email" type="main:EmailType"/>
+          <xs:element name="phone" type="main:PhoneType" minOccurs="0"/>
+          <xs:element name="address" type="main:AddressType" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attributeGroup ref="base:AuditAttributes"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="CompanyType">
+    <xs:complexContent>
+      <xs:extension base="base:BaseEntityType">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string"/>
+          <xs:element name="taxId" type="xs:string" minOccurs="0"/>
+          <xs:group ref="base:ContactInfoGroup"/>
+          <xs:element name="address" type="main:AddressType"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="OrderType">
+    <xs:sequence>
+      <xs:element name="orderId" type="xs:string"/>
+      <xs:element name="customer" type="main:PersonType"/>
+      <xs:element ref="base:AbstractItem" maxOccurs="unbounded"/>
+      <xs:element name="total" type="xs:decimal"/>
+      <xs:element name="priority" type="main:PriorityType"/>
+      <xs:group ref="main:TimestampGroup"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="Person" type="main:PersonType"/>
+  <xs:element name="Company" type="main:CompanyType"/>
+  <xs:element name="Order" type="main:OrderType"/>
+
+  <xs:element name="DataExport">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="main:Person" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="main:Company" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="main:Order" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="metadata" type="main:MetadataType" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="exportDate" type="xs:dateTime" use="required"/>
+      <xs:attribute name="version" type="xs:string" default="1.0"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

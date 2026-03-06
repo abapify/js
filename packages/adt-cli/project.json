@@ -1,0 +1,30 @@
+{
+  "name": "adt-cli",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-cli/src",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["{projectRoot}"]
+    }
+  },
+  "tags": [],
+  "targets": {
+    "bundle": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bun build --compile ./src/bin/adt-all.ts --outfile ./dist/adt --target bun",
+        "cwd": "{projectRoot}"
+      },
+      "outputs": ["{projectRoot}/dist/adt"],
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{workspaceRoot}/packages/adt-atc/src/**/*.ts",
+        "{workspaceRoot}/packages/adt-export/src/**/*.ts",
+        "{workspaceRoot}/packages/adt-codegen/src/**/*.ts"
+      ],
+      "dependsOn": ["^build"]
+    }
+  }
+}

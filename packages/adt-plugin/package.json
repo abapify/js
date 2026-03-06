@@ -1,0 +1,23 @@
+{
+  "name": "@abapify/adt-plugin",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "type": "module",
+  "description": "ADT Plugin interface and factory for abapify",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "nx": {
+    "name": "adt-plugin"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@abapify/adk": "^0.1.7"
+  }
+}

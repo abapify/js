@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://example.com/order"
+           xmlns:tns="http://example.com/order"
+           elementFormDefault="qualified">
+
+  <!-- Root element -->
+  <xs:element name="Order" type="tns:OrderType"/>
+
+  <!-- Order complex type -->
+  <xs:complexType name="OrderType">
+    <xs:sequence>
+      <xs:element name="orderId" type="xs:string"/>
+      <xs:element name="orderDate" type="xs:date"/>
+      <xs:element name="status" type="tns:OrderStatusType"/>
+      <xs:element name="customer" type="tns:CustomerType"/>
+      <xs:element name="items" type="tns:ItemListType"/>
+      <xs:element name="total" type="xs:decimal"/>
+      <xs:element name="notes" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:string" default="1.0"/>
+  </xs:complexType>
+
+  <!-- Customer type -->
+  <xs:complexType name="CustomerType">
+    <xs:sequence>
+      <xs:element name="customerId" type="xs:string"/>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="email" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Item list type -->
+  <xs:complexType name="ItemListType">
+    <xs:sequence>
+      <xs:element name="item" type="tns:ItemType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Item type -->
+  <xs:complexType name="ItemType">
+    <xs:sequence>
+      <xs:element name="sku" type="xs:string"/>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="quantity" type="xs:int"/>
+      <xs:element name="price" type="xs:decimal"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Order status enum -->
+  <xs:simpleType name="OrderStatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="pending"/>
+      <xs:enumeration value="confirmed"/>
+      <xs:enumeration value="shipped"/>
+      <xs:enumeration value="delivered"/>
+      <xs:enumeration value="cancelled"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>
