@@ -1,12 +1,11 @@
 name: E2E BTP
 on:
-  # Run on PRs and after merge to main so the auth gate covers both
-  pull_request:
+  # Triggered manually from the Actions tab (shows up in PR checks when run against a PR branch)
+  workflow_dispatch:
+  # Also runs after merge to main as a post-merge gate
   push:
     branches:
       - main
-  # Allow manual runs from the Actions tab
-  workflow_dispatch:
 
 permissions:
   actions: read
@@ -17,8 +16,7 @@ jobs:
     name: Service Key Auth Test
     runs-on: ubuntu-latest
     steps:
-      # Job always runs so it appears as a PR check.
-      # The secret availability is detected here; all subsequent steps are gated on it.
+      # Guard against environments where the secret is unavailable (e.g. push from a fork)
       - name: Check secret availability
         id: secret-check
         env:
@@ -35,7 +33,6 @@ jobs:
         if: steps.secret-check.outputs.available == 'true'
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v6
         if: steps.secret-check.outputs.available == 'true'
         with:
