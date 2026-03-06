@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "isolatedDeclarations": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", ".cache", ".xsd"],
+  "references": [
+    {
+      "path": "../ts-xsd"
+    },
+    {
+      "path": "../adt-fixtures"
+    }
+  ]
+}

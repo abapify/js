@@ -1,0 +1,26 @@
+{
+  "name": "@abapify/logger",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "description": "Shared logger interface for abapify packages",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "logger",
+    "abap",
+    "sap",
+    "adt"
+  ],
+  "author": "abapify",
+  "license": "MIT"
+}

@@ -1,0 +1,44 @@
+# Build artifacts and caches
+.nx/
+node_modules/
+**/node_modules/
+**/dist/
+
+# Source control
+.git/
+.gitmodules
+
+# CI/CD configuration (not needed inside the image)
+.github/
+.gitlab-ci.yml
+
+# Dev tooling
+.devcontainer/
+.vscode/
+.windsurf/
+.husky/
+.agents/
+.kilocode/
+
+# Documentation and local scratch
+docs/
+tmp/
+
+# Lockfiles other than bun.lock (only bun.lock is used by the builder stage)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Miscellaneous
+*.log
+.prettierrc
+.prettierignore
+.nxignore
+eslint.config.mjs
+jest.config.ts
+jest.preset.js
+vitest.config.ts
+knip.json
+CHANGELOG.md
+README.md
+AGENTS.md

@@ -1,0 +1,52 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "emitDeclarationOnly": false,
+    "types": ["node"],
+    "lib": ["es2022", "dom"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    {
+      "path": "../adt-export"
+    },
+    {
+      "path": "../adt-atc"
+    },
+    {
+      "path": "../adt-codegen"
+    },
+    {
+      "path": "../adt-contracts"
+    },
+    {
+      "path": "../logger"
+    },
+    {
+      "path": "../adt-tui/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-plugin-abapgit/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-plugin/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-config/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-client"
+    },
+    {
+      "path": "../adt-auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../adk/tsconfig.lib.json"
+    }
+  ]
+}

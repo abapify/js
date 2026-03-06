@@ -1,3 +1,82 @@
 {
-  "extends": "./tsconfig.base.json"
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/adt-client"
+    },
+    {
+      "path": "./packages/adt-cli"
+    },
+    {
+      "path": "./packages/adt-playwright"
+    },
+    {
+      "path": "./packages/adt-puppeteer"
+    },
+    {
+      "path": "./packages/adt-contracts"
+    },
+    {
+      "path": "./packages/asjson-parser"
+    },
+    {
+      "path": "./packages/browser-auth"
+    },
+    {
+      "path": "./packages/adt-fixtures"
+    },
+    {
+      "path": "./samples/sample-tsdown"
+    },
+    {
+      "path": "./packages/adt-codegen"
+    },
+    {
+      "path": "./packages/adt-config"
+    },
+    {
+      "path": "./tools/nx-typecheck"
+    },
+    {
+      "path": "./packages/adt-auth"
+    },
+    {
+      "path": "./packages/logger"
+    },
+    {
+      "path": "./tools/nx-tsdown"
+    },
+    {
+      "path": "./tools/nx-vitest"
+    },
+    {
+      "path": "./packages/ts-xsd"
+    },
+    {
+      "path": "./packages/speci"
+    },
+    {
+      "path": "./tools/nx-sync"
+    },
+    {
+      "path": "./packages/adk"
+    },
+    {
+      "path": "./packages/adt-schemas"
+    },
+    {
+      "path": "./packages/adt-plugin-abapgit"
+    },
+    {
+      "path": "./packages/adt-plugin"
+    },
+    {
+      "path": "./packages/adt-atc"
+    },
+    {
+      "path": "./packages/adt-export"
+    }
+  ]
 }

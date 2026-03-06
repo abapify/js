@@ -1,7 +1,21 @@
 {
   "name": "@abapify/adk",
-  "version": "0.0.1",
-  "dependencies": {},
-  "main": "./index.cjs",
-  "module": "./index.js"
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@abapify/adt-client": "^0.1.7",
+    "@abapify/adt-schemas": "^0.1.7"
+  }
 }

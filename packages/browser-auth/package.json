@@ -1,0 +1,24 @@
+{
+  "name": "@abapify/browser-auth",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "type": "module",
+  "description": "Browser-based SSO authentication core - shared logic for Playwright/Puppeteer plugins",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@abapify/adt-config": "^0.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  }
+}
