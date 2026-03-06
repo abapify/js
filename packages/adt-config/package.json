@@ -1,0 +1,18 @@
+{
+  "name": "@abapify/adt-config",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "version": "0.1.10",
+  "description": "Configuration loader for ADT CLI",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

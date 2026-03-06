@@ -1,9 +1,0 @@
-{
-  "name": "@abapify/components",
-  "version": "0.1.1",
-  "main": "./index.cjs",
-  "module": "./index.js",
-  "dependencies": {
-    "fast-xml-parser": "^4.5.0"
-  }
-}

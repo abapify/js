@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Base Schema - Demonstrates types that will be:
+  - Included (same namespace)
+  - Imported (different namespace)
+  - Redefined (modified in redefine block)
+  - Extended (via complexContent/extension)
+  - Substituted (via substitutionGroup)
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:base="http://example.com/base"
+           targetNamespace="http://example.com/base"
+           elementFormDefault="qualified">
+
+  <!-- ============================================================ -->
+  <!-- Base Types - Will be extended/redefined -->
+  <!-- ============================================================ -->
+
+  <!-- Simple type that will be redefined -->
+  <xs:simpleType name="StatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ACTIVE"/>
+      <xs:enumeration value="INACTIVE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Complex type that will be extended -->
+  <xs:complexType name="BaseEntityType">
+    <xs:sequence>
+      <xs:element name="id" type="xs:string"/>
+      <xs:element name="createdAt" type="xs:dateTime" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:int" default="1"/>
+  </xs:complexType>
+
+  <!-- Complex type that will be redefined -->
+  <xs:complexType name="AddressType">
+    <xs:sequence>
+      <xs:element name="street" type="xs:string"/>
+      <xs:element name="city" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ============================================================ -->
+  <!-- Abstract Element + Substitution Group -->
+  <!-- ============================================================ -->
+
+  <!-- Abstract element - cannot be used directly -->
+  <xs:element name="AbstractItem" type="base:BaseEntityType" abstract="true"/>
+
+  <!-- Concrete substitutes -->
+  <xs:element name="Product" substitutionGroup="base:AbstractItem">
+    <xs:complexType>
+      <xs:complexContent>
+        <xs:extension base="base:BaseEntityType">
+          <xs:sequence>
+            <xs:element name="productName" type="xs:string"/>
+            <xs:element name="price" type="xs:decimal"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="Service" substitutionGroup="base:AbstractItem">
+    <xs:complexType>
+      <xs:complexContent>
+        <xs:extension base="base:BaseEntityType">
+          <xs:sequence>
+            <xs:element name="serviceName" type="xs:string"/>
+            <xs:element name="hourlyRate" type="xs:decimal"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ============================================================ -->
+  <!-- Named Groups -->
+  <!-- ============================================================ -->
+
+  <xs:group name="ContactInfoGroup">
+    <xs:sequence>
+      <xs:element name="email" type="xs:string"/>
+      <xs:element name="phone" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:group>
+
+  <xs:attributeGroup name="AuditAttributes">
+    <xs:attribute name="createdBy" type="xs:string"/>
+    <xs:attribute name="modifiedBy" type="xs:string"/>
+  </xs:attributeGroup>
+
+</xs:schema>

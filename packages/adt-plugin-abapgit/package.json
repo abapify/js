@@ -1,0 +1,26 @@
+{
+  "name": "@abapify/adt-plugin-abapgit",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.10",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "nx": {
+    "name": "adt-plugin-abapgit"
+  },
+  "files": [
+    "dist",
+    "xsd"
+  ],
+  "dependencies": {
+    "@abapify/adk": "^0.1.7",
+    "@abapify/adt-atc": "^0.1.7",
+    "@abapify/adt-plugin": "^0.1.7",
+    "@abapify/ts-xsd": "^0.1.7"
+  }
+}

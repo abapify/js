@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  abapGit DOMA (Domain) Schema
+
+  Defines the DD01V and DD07V_TAB structures used in *.doma.xml files.
+  Based on SAP DDIC tables DD01V (domain header) and DD07V (fixed values).
+
+  Uses xs:redefine to extend AbapValuesType with DOMA-specific elements.
+  This ensures DD01V/DD07V_TAB can only appear inside asx:values, not as root.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sap.com/abapxml"
+           xmlns:asx="http://www.sap.com/abapxml"
+           elementFormDefault="unqualified">
+
+  <!-- Include types (brought into asx namespace) -->
+  <xs:include schemaLocation="types/dd01v.xsd"/>
+  <xs:include schemaLocation="types/dd07v.xsd"/>
+
+  <!-- Redefine AbapValuesType to include DOMA-specific elements -->
+  <xs:redefine schemaLocation="asx.xsd">
+    <xs:complexType name="AbapValuesType">
+      <xs:complexContent>
+        <xs:extension base="asx:AbapValuesType">
+          <xs:sequence>
+            <xs:element name="DD01V" type="asx:Dd01vType" minOccurs="0"/>
+            <xs:element name="DD07V_TAB" type="asx:Dd07vTabType" minOccurs="0"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:redefine>
+
+  <!-- Import abapGit root element -->
+  <xs:import schemaLocation="abapgit.xsd"/>
+
+</xs:schema>

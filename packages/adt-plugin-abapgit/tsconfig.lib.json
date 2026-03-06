@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../ts-xsd"
+    },
+    {
+      "path": "../adt-plugin/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-atc"
+    },
+    {
+      "path": "../adk/tsconfig.lib.json"
+    }
+  ]
+}
