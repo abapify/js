@@ -2,9 +2,8 @@ name: CI
 on:
   push:
     branches:
-      # Change this if your primary branch is not main
+      # Runs on merge to main only
       - main
-      - 'copilot/**'
   pull_request:
 
 # Needed for nx-set-shas when run on the main branch
@@ -45,17 +44,5 @@ jobs:
         shell: bash
       - run: npx nx format:check
       - run: npx nx affected -t lint test build e2e-ci --verbose=false --parallel=3
-      - name: E2E - Service Key Auth Test
-        env:
-          ADT_SERVICE_KEY: ${{ secrets.ADT_SERVICE_KEY }}
-        run: |
-          if [ -z "$ADT_SERVICE_KEY" ]; then
-            echo "⏭️  ADT_SERVICE_KEY not set, skipping service key auth e2e test"
-            exit 0
-          fi
-          echo "🔑 Testing service key authentication..."
-          npx nx build adt-cli
-          npx adt --service-key="$ADT_SERVICE_KEY" info --system
-          echo "✅ Service key auth e2e test passed"
       - run: npx nx-cloud fix-ci
         if: always()

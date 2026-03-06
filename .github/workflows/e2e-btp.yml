@@ -1,0 +1,39 @@
+name: E2E BTP
+on:
+  # Run on PRs and after merge to main so the auth gate covers both
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  service-key-auth:
+    name: Service Key Auth Test
+    runs-on: ubuntu-latest
+    # Only run when the secret is available (skips forks / external PRs without secrets)
+    if: ${{ secrets.ADT_SERVICE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.9
+      - run: bun install
+      - name: Build adt-cli
+        run: npx nx build adt-cli
+      - name: Test service key authentication
+        env:
+          ADT_SERVICE_KEY: ${{ secrets.ADT_SERVICE_KEY }}
+        run: |
+          echo "🔑 Testing BTP service key authentication..."
+          npx adt --service-key="$ADT_SERVICE_KEY" info --system
+          echo "✅ Service key auth e2e test passed"
