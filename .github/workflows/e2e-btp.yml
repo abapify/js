@@ -16,23 +16,42 @@ jobs:
   service-key-auth:
     name: Service Key Auth Test
     runs-on: ubuntu-latest
-    # Only run when the secret is available (skips forks / external PRs without secrets)
-    if: ${{ secrets.ADT_SERVICE_KEY != '' }}
     steps:
+      # Job always runs so it appears as a PR check.
+      # The secret availability is detected here; all subsequent steps are gated on it.
+      - name: Check secret availability
+        id: secret-check
+        env:
+          SECRET: ${{ secrets.ADT_SERVICE_KEY }}
+        run: |
+          if [ -n "$SECRET" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️ ADT_SERVICE_KEY not configured – skipping e2e test"
+          fi
+
       - uses: actions/checkout@v6
+        if: steps.secret-check.outputs.available == 'true'
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v6
+        if: steps.secret-check.outputs.available == 'true'
         with:
           node-version: 24
       - uses: oven-sh/setup-bun@v2
+        if: steps.secret-check.outputs.available == 'true'
         with:
           bun-version: 1.2.9
-      - run: bun install
+      - name: Install dependencies
+        if: steps.secret-check.outputs.available == 'true'
+        run: bun install
       - name: Build adt-cli
+        if: steps.secret-check.outputs.available == 'true'
         run: npx nx build adt-cli
       - name: Test service key authentication
+        if: steps.secret-check.outputs.available == 'true'
         env:
           ADT_SERVICE_KEY: ${{ secrets.ADT_SERVICE_KEY }}
         run: |
