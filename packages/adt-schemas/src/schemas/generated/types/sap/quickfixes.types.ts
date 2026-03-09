@@ -11,6 +11,25 @@ export type QuickfixesSchema =
         affectedObjects?: {
           unit?: {
             content: string;
+            objectReference: {
+              extension?: unknown;
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              name?: string;
+              packageName?: string;
+              description?: string;
+            };
+            link?: {
+              href: string;
+              rel?: string;
+              type?: string;
+              hreflang?: string;
+              title?: string;
+              length?: number;
+              etag?: string;
+              _text?: string;
+            }[];
           }[];
         };
       };
@@ -18,8 +37,27 @@ export type QuickfixesSchema =
   | {
       evaluationResults: {
         evaluationResult?: {
+          objectReference: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+          };
           userContent?: string;
-          affectedObjects?: unknown;
+          affectedObjects?: {
+            objectReference?: {
+              extension?: unknown;
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              name?: string;
+              packageName?: string;
+              description?: string;
+            }[];
+          };
         }[];
       };
     }
@@ -27,10 +65,48 @@ export type QuickfixesSchema =
       proposalRequest: {
         input: {
           content: string;
+          objectReference: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+          };
+          link?: {
+            href: string;
+            rel?: string;
+            type?: string;
+            hreflang?: string;
+            title?: string;
+            length?: number;
+            etag?: string;
+            _text?: string;
+          }[];
         };
         affectedObjects?: {
           unit?: {
             content: string;
+            objectReference: {
+              extension?: unknown;
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              name?: string;
+              packageName?: string;
+              description?: string;
+            };
+            link?: {
+              href: string;
+              rel?: string;
+              type?: string;
+              hreflang?: string;
+              title?: string;
+              length?: number;
+              etag?: string;
+              _text?: string;
+            }[];
           }[];
         };
         userContent?: string;
@@ -41,6 +117,25 @@ export type QuickfixesSchema =
         deltas: {
           unit?: {
             content: string;
+            objectReference: {
+              extension?: unknown;
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              name?: string;
+              packageName?: string;
+              description?: string;
+            };
+            link?: {
+              href: string;
+              rel?: string;
+              type?: string;
+              hreflang?: string;
+              title?: string;
+              length?: number;
+              etag?: string;
+              _text?: string;
+            }[];
           }[];
         };
         selection?: {
@@ -53,6 +148,18 @@ export type QuickfixesSchema =
           description?: string;
         };
         variableSourceStates?: {
+          objectReferences?: {
+            objectReference: {
+              extension?: unknown;
+              uri?: string;
+              parentUri?: string;
+              type?: string;
+              name?: string;
+              packageName?: string;
+              description?: string;
+            }[];
+            name?: string;
+          }[];
           keepCursor?: boolean;
         };
         statusMessages?: {

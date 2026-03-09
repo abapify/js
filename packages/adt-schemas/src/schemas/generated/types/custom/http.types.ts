@@ -7,6 +7,16 @@
 
 export type HttpSchema = {
   session: {
+    link?: {
+      href: string;
+      rel?: string;
+      type?: string;
+      hreflang?: string;
+      title?: string;
+      length?: number;
+      etag?: string;
+      _text?: string;
+    }[];
     properties?: {
       property?: {
         $value?: string;

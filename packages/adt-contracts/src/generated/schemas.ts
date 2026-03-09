@@ -51,6 +51,8 @@ export const transportmanagmentSingle = toSpeciSchema(
   adtSchemas.transportmanagmentSingle,
 );
 export const transportsearch = toSpeciSchema(adtSchemas.transportsearch);
+export const aunitRun = toSpeciSchema(adtSchemas.aunitRun);
+export const aunitResult = toSpeciSchema(adtSchemas.aunitResult);
 
 // ============================================================================
 // JSON Schemas (re-exported directly - they use zod, not ts-xsd)
