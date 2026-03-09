@@ -55,6 +55,12 @@ export interface ServiceKeyPluginOptions {
   url: string;
   client?: string;
   serviceKey: string | object;
+  /** Callback to open a URL in the user's browser. Falls back to dynamic import of 'open'. */
+  openBrowser?: (url: string) => Promise<void>;
+  /** Port for the local OAuth callback server (default: 3000) */
+  callbackPort?: number;
+  /** Timeout for the auth flow in ms (default: 300000 = 5 min) */
+  timeoutMs?: number;
   [key: string]: unknown;
 }
 

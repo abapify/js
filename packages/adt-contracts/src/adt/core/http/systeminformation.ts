@@ -22,7 +22,7 @@ export const systeminformationContract: {
         200: systeminformationSchema,
       },
       headers: {
-        Accept: 'application/json',
+        Accept: 'application/vnd.sap.adt.core.http.systeminformation.v1+json',
       },
     }),
 };

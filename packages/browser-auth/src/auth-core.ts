@@ -36,6 +36,7 @@ export async function authenticate(
 ): Promise<BrowserCredentials> {
   const {
     url,
+    loginUrl,
     headless = false,
     timeout = DEFAULT_TIMEOUT,
     userAgent,
@@ -45,7 +46,8 @@ export async function authenticate(
     log = console.log,
   } = options;
 
-  const targetUrl = new URL(SYSTEM_INFO_PATH, url).toString();
+  // URL to navigate to for SSO login
+  const targetUrl = loginUrl || new URL(SYSTEM_INFO_PATH, url).toString();
   const sapHost = new URL(url).hostname;
   const profileDir = resolveUserDataDir(userDataDir);
 
@@ -70,7 +72,7 @@ export async function authenticate(
     log('🧹 Clearing old SAP cookies...');
     await adapter.clearCookies(sapHost);
 
-    // Step 3: Wait for authentication (200 response from target URL AND required cookies)
+    // Step 3: Wait for authentication (required cookies appear after SSO)
     log('🌐 Complete SSO login if prompted...');
 
     const cookiesToWait =
@@ -92,11 +94,17 @@ export async function authenticate(
         reject(new Error('Authentication cancelled - browser was closed'));
       });
 
-      // Check for both 200 response AND required cookies on every response
+      // Check for required cookies on every response from SAP domain
       adapter.onResponse(async (event) => {
-        // Only check on 200 responses from the target URL
-        if (event.url === targetUrl && event.status === 200) {
-          // Got 200 from target URL - now check if cookies are set
+        // Check responses from SAP domain (not just targetUrl, since SSO may redirect)
+        const eventHost = new URL(event.url).hostname;
+        const isSapDomain =
+          eventHost === sapHost ||
+          eventHost.endsWith('.' + sapHost) ||
+          sapHost.endsWith('.' + eventHost);
+
+        if (isSapDomain && event.status === 200) {
+          // Got 200 from SAP domain - check if required cookies are set
           const allCookies = await adapter.getCookies();
           const domainCookies = allCookies.filter(
             (c) =>

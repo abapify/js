@@ -19,8 +19,8 @@ export const importPackageCommand = new Command('package')
   .option('--sub-packages', 'Include subpackages', false)
   .option(
     '--format <format>',
-    'Output format: oat | abapgit | @abapify/oat | @abapify/abapgit',
-    'oat',
+    'Output format: abapgit | oat | @abapify/abapgit | @abapify/oat',
+    'abapgit',
   )
   .option('--debug', 'Enable debug output', false)
   .action(async (packageName, targetFolder, options) => {
@@ -34,7 +34,7 @@ export const importPackageCommand = new Command('package')
       const outputPath =
         options.output ||
         targetFolder ||
-        `./oat-${packageName.toLowerCase().replace('$', '')}`;
+        `./src`;
 
       // Show start message
       console.log(`🚀 Starting import of package: ${packageName}`);

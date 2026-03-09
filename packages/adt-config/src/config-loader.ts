@@ -108,8 +108,9 @@ function createLoadedConfig(config: AdtConfig): LoadedConfig {
       const dest = config.destinations?.[name];
       if (!dest) return undefined;
       // Handle string shorthand (URL) by converting to Destination object
+      // Uses built-in basic auth plugin as the default
       if (typeof dest === 'string') {
-        return { type: 'url', options: { url: dest } };
+        return { type: '@abapify/adt-auth/plugins/basic', options: { url: dest } };
       }
       return dest;
     },

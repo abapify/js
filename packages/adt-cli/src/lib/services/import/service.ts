@@ -298,6 +298,9 @@ export class ImportService {
 
     // Load format plugin
     const plugin = await loadFormatPlugin(options.format);
+    const configFormatOptions = await this.getConfigFormatOptions(
+      options.format,
+    );
 
     if (options.debug) {
       console.log(`✅ Loaded plugin: ${plugin.name}`);
@@ -333,23 +336,90 @@ export class ImportService {
     const results = { success: 0, skipped: 0, failed: 0 };
     const objectsByType: Record<string, number> = {};
 
+    /**
+     * Resolve full package path from root to the given package.
+     * Uses ADK to load package → super package → etc until root.
+     */
+    async function resolvePackagePath(packageName: string): Promise<string[]> {
+      const path: string[] = [];
+      let currentPackage = packageName;
+
+      while (currentPackage) {
+        path.unshift(currentPackage);
+        try {
+          const pkgData = await AdkPackage.get(currentPackage);
+          const superPkg = pkgData.superPackage;
+          if (superPkg?.name) {
+            currentPackage = superPkg.name;
+          } else {
+            break;
+          }
+        } catch {
+          break;
+        }
+      }
+      return path;
+    }
+
     if (options.debug) {
       console.log(`📦 Processing ${objectsToImport.length} objects...`);
     }
 
-    // Process each object - AbapObject has type and name
+    // Process each object - AbapObject has type, name, uri
     for (const obj of objectsToImport) {
       try {
+        // Check if plugin supports this object type
+        if (!plugin.instance.registry.isSupported(obj.type)) {
+          results.skipped++;
+          if (options.debug) {
+            console.log(`  ⏭️ ${obj.type} ${obj.name}: type not supported`);
+          }
+          continue;
+        }
+
+        // Load the ADK object using the factory
+        const { getGlobalContext, createAdkFactory } = await import(
+          '@abapify/adk'
+        );
+        const ctx = getGlobalContext();
+        const factory = createAdkFactory(ctx);
+        const adkObject = factory.get(obj.name, obj.type);
+        await (adkObject as any).load();
+
+        if (!adkObject) {
+          results.skipped++;
+          if (options.debug) {
+            console.log(`  ⏭️ ${obj.type} ${obj.name}: failed to load`);
+          }
+          continue;
+        }
+
+        // Build import context
+        const context: ImportContext = {
+          resolvePackagePath,
+          configFormatOptions,
+        };
+
         // Delegate to plugin - import object from SAP to local files
-        // Note: AbapObject from getObjects() may need to be loaded first
-        await plugin.instance.importObject(obj, options.outputPath);
+        const result = await plugin.instance.format.import(
+          adkObject as any,
+          options.outputPath,
+          context,
+        );
 
-        // Track statistics
-        objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
-        results.success++;
-
-        if (options.debug) {
-          console.log(`  ✅ ${obj.type} ${obj.name}`);
+        if (result.success) {
+          objectsByType[obj.type] = (objectsByType[obj.type] || 0) + 1;
+          results.success++;
+          if (options.debug) {
+            console.log(`  ✅ ${obj.type} ${obj.name}`);
+          }
+        } else {
+          results.failed++;
+          if (options.debug) {
+            console.log(
+              `  ❌ ${obj.type} ${obj.name}: ${result.errors?.join(', ') || 'unknown error'}`,
+            );
+          }
         }
       } catch (error) {
         results.failed++;
@@ -359,6 +429,11 @@ export class ImportService {
           );
         }
       }
+    }
+
+    // Call afterImport hook if available
+    if (plugin.instance.hooks?.afterImport) {
+      await plugin.instance.hooks.afterImport(options.outputPath);
     }
 
     return {
