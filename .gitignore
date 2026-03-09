@@ -146,4 +146,3 @@ secrets
 .adt
 
 bun.lock
-package-lock.json
