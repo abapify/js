@@ -69,6 +69,27 @@ export type AtcworklistSchema =
             objectTypeId?: string;
           }[];
         };
+        scaAttributes?: {
+          scaAttribute?: {
+            attributeName?: string;
+            refAttributeName?: string;
+            label?: boolean;
+            labelS?: string;
+            labelM?: string;
+            labelL?: string;
+          }[];
+        };
+        descriptionTags: {
+          tagWithDescription?: {
+            name: string;
+            descriptions: {
+              description?: {
+                value?: string;
+                description?: string;
+              }[];
+            };
+          }[];
+        };
         infos: {
           info?: {
             type: string;

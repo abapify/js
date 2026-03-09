@@ -13,7 +13,36 @@
 
 ## 🚨 Critical Rules
 
-### 1. NEVER Edit Generated Files
+### 1. NEVER Edit Downloaded XSD Files
+
+`.xsd/sap/` files are **downloaded from SAP** via `npx nx run adt-schemas:download`. They will be overwritten. Never edit them.
+
+| Directory      | Ownership        | Editable? |
+| -------------- | ---------------- | --------- |
+| `.xsd/sap/`    | SAP (downloaded) | ❌ NEVER  |
+| `.xsd/custom/` | Hand-maintained  | ✅ Yes    |
+
+**If SAP's XSD is missing types you need:**
+
+1. Create a custom extension XSD in `.xsd/custom/` with the **same `targetNamespace`** as the SAP schema
+2. Use `xs:include` to bring in the SAP schema
+3. Add new types/elements in the extension
+4. Have consumers import the extension instead of the SAP schema directly
+
+Example: `adtcoreObjectSets.xsd` extends `adtcore.xsd` with `objectSets` types.
+
+### 2. XSD Files Must Be Valid
+
+Every XSD in `.xsd/` must be a **valid W3C XML Schema**. Never create broken XSDs and patch tooling to handle them.
+
+Key rules:
+
+- `xs:import` = different namespace. Only ONE per namespace.
+- `xs:include` = same namespace (composition/extension).
+- Every `ref="prefix:name"` must resolve to an in-scope element declaration.
+- Every `type="prefix:TypeName"` must resolve to an in-scope type definition.
+
+### 3. NEVER Edit Generated TypeScript Files
 
 Generated files are in `src/schemas/generated/`:
 

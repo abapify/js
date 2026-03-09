@@ -12,7 +12,7 @@
       "cache": false
     },
     "codegen": {
-      "command": "npx ts-xsd codegen --verbose",
+      "command": "npx ts-xsd codegen --verbose && cd ../.. && npx prettier --write \"packages/adt-schemas/src/schemas/generated/**/*.{ts,js,json}\"",
       "options": {
         "cwd": "{projectRoot}"
       },

@@ -8,6 +8,7 @@
 import atcinfo from './atcinfo';
 import atcobject from './atcobject';
 import atctagdescription from './atctagdescription';
+import atc from './atc';
 
 export default {
   $xmlns: {
@@ -17,8 +18,9 @@ export default {
     atcobject: 'http://www.sap.com/adt/atc/object',
     atctd: 'http://www.sap.com/adt/atc/tagdescription',
     atcworklist: 'http://www.sap.com/adt/atc/worklist',
+    atc: 'http://www.sap.com/adt/atc',
   },
-  $imports: [atcinfo, atcobject, atctagdescription],
+  $imports: [atcinfo, atcobject, atctagdescription, atc],
   targetNamespace: 'http://www.sap.com/adt/atc/worklist',
   attributeFormDefault: 'qualified',
   elementFormDefault: 'qualified',
@@ -34,6 +36,12 @@ export default {
           {
             name: 'objects',
             type: 'atcobject:AtcObjectList',
+          },
+          {
+            name: 'scaAttributes',
+            type: 'atc:ScaAttributes',
+            minOccurs: '0',
+            maxOccurs: '1',
           },
           {
             ref: 'atctd:descriptionTags',

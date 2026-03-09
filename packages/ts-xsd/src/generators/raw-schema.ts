@@ -61,6 +61,8 @@ export interface RawSchemaOptions {
    * Also adds `import type { Schema } from '@abapify/ts-xsd';`
    */
   isolatedDeclarations?: boolean;
+  /** Use single quotes for string literals and property names */
+  singleQuote?: boolean;
 }
 
 // ============================================================================
@@ -95,6 +97,7 @@ export function rawSchema(options: RawSchemaOptions = {}): GeneratorPlugin {
     resolveIncludes = false,
     resolveAll = false,
     isolatedDeclarations = false,
+    singleQuote = false,
   } = options;
 
   return {
@@ -202,7 +205,7 @@ export function rawSchema(options: RawSchemaOptions = {}): GeneratorPlugin {
       }
 
       // Schema literal
-      const literal = objectToLiteral(outputSchema, true, '  ', 0);
+      const literal = objectToLiteral(outputSchema, true, '  ', 0, singleQuote);
 
       // For isolatedDeclarations, use named export with `as const satisfies Schema`
       // This is required because default exports can't be inferred with --isolatedDeclarations
@@ -424,6 +427,7 @@ function objectToLiteral(
   pretty: boolean,
   indent: string,
   depth: number,
+  singleQuote: boolean = false,
 ): string {
   if (value === null || value === undefined) {
     return 'undefined';
@@ -434,7 +438,11 @@ function objectToLiteral(
   }
 
   if (typeof value === 'string') {
-    return JSON.stringify(value);
+    const json = JSON.stringify(value);
+    if (singleQuote) {
+      return `'${json.slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'")}'`;
+    }
+    return json;
   }
 
   if (typeof value === 'number' || typeof value === 'boolean') {
@@ -445,7 +453,7 @@ function objectToLiteral(
     if (value.length === 0) return '[]';
 
     const items = value.map((item) =>
-      objectToLiteral(item, pretty, indent, depth + 1),
+      objectToLiteral(item, pretty, indent, depth + 1, singleQuote),
     );
 
     if (pretty) {
@@ -466,8 +474,20 @@ function objectToLiteral(
     if (entries.length === 0) return '{}';
 
     const props = entries.map(([key, val]) => {
-      const keyStr = isValidIdentifier(key) ? key : JSON.stringify(key);
-      const valStr = objectToLiteral(val, pretty, indent, depth + 1);
+      let keyStr = key;
+      if (!isValidIdentifier(key)) {
+        const json = JSON.stringify(key);
+        keyStr = singleQuote
+          ? `'${json.slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'")}'`
+          : json;
+      }
+      const valStr = objectToLiteral(
+        val,
+        pretty,
+        indent,
+        depth + 1,
+        singleQuote,
+      );
       return `${keyStr}: ${valStr}`;
     });
 

@@ -8,8 +8,16 @@
 export type DiscoverySchema = {
   service: {
     workspace?: {
+      title?: string;
       collection?: {
+        title?: string;
         accept?: string[];
+        category?: {
+          term?: string;
+          scheme?: string;
+          label?: string;
+        }[];
+        templateLinks?: unknown;
         href: string;
       }[];
     }[];

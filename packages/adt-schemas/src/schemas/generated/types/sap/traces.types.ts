@@ -233,5 +233,15 @@ export type TracesSchema =
       };
     }
   | {
-      uriMapping: unknown;
+      uriMapping: {
+        objectReference: {
+          extension?: unknown;
+          uri?: string;
+          parentUri?: string;
+          type?: string;
+          name?: string;
+          packageName?: string;
+          description?: string;
+        };
+      };
     };

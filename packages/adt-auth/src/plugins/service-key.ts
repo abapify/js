@@ -115,7 +115,12 @@ async function performPkceFlow(
           return;
         }
 
-        const { code, state: returnedState, error, error_description } = url.query;
+        const {
+          code,
+          state: returnedState,
+          error,
+          error_description,
+        } = url.query;
 
         if (error) {
           throw new Error(
@@ -172,7 +177,9 @@ async function performPkceFlow(
         clearTimeout(timeout);
         server.close();
         reject(
-          new Error('Could not open browser for authentication', { cause: err }),
+          new Error('Could not open browser for authentication', {
+            cause: err,
+          }),
         );
       });
     });

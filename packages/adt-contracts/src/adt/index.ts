@@ -4,6 +4,7 @@
 
 export * from './cts';
 export * from './atc';
+export * from './aunit';
 export * from './oo';
 export * from './discovery';
 export * from './packages';
@@ -15,6 +16,7 @@ export * from './repository';
  */
 import { ctsContract, type CtsContract } from './cts';
 import { atcContract, type AtcContract } from './atc';
+import { aunitContract, type AunitContract } from './aunit';
 import { ooContract, type OoContract } from './oo';
 import { discoveryContract, type DiscoveryContract } from './discovery';
 import { packagesContract, type PackagesContract } from './packages';
@@ -27,6 +29,7 @@ import { repositoryContract, type RepositoryContract } from './repository';
 export interface AdtContract {
   cts: CtsContract;
   atc: AtcContract;
+  aunit: AunitContract;
   oo: OoContract;
   discovery: DiscoveryContract;
   packages: PackagesContract;
@@ -37,6 +40,7 @@ export interface AdtContract {
 export const adtContract: AdtContract = {
   cts: ctsContract,
   atc: atcContract,
+  aunit: aunitContract,
   oo: ooContract,
   discovery: discoveryContract,
   packages: packagesContract,

@@ -6,6 +6,7 @@
  */
 
 import atcfinding from './atcfinding';
+import atc from './atc';
 
 export default {
   $xmlns: {
@@ -13,8 +14,9 @@ export default {
     ecore: 'http://www.eclipse.org/emf/2002/Ecore',
     atcexmpt: 'http://www.sap.com/adt/atc/exemption',
     atcfinding: 'http://www.sap.com/adt/atc/finding',
+    atc: 'http://www.sap.com/adt/atc',
   },
-  $imports: [atcfinding],
+  $imports: [atcfinding, atc],
   targetNamespace: 'http://www.sap.com/adt/atc/exemption',
   attributeFormDefault: 'unqualified',
   elementFormDefault: 'qualified',
@@ -241,6 +243,18 @@ export default {
           {
             name: 'supportPackage',
             type: 'xsd:string',
+            minOccurs: '0',
+            maxOccurs: '1',
+          },
+          {
+            name: 'reasons',
+            type: 'atc:AtcReasons',
+            minOccurs: '0',
+            maxOccurs: '1',
+          },
+          {
+            name: 'validities',
+            type: 'atc:AtcValidities',
             minOccurs: '0',
             maxOccurs: '1',
           },

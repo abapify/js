@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AUnit Run Configuration Schema (Request)
+  
+  POST /sap/bc/adt/abapunit/testruns
+  Content-Type: application/vnd.sap.adt.abapunit.testruns.config.v4+xml
+  
+  The run configuration body contains:
+  - aunit:runConfiguration root element
+  - external/coverage settings
+  - options (uriType, testDeterminationStrategy, testRiskLevels, testDurations, withNavigationUri)
+  - objectSets containing objectSet elements with adtcore:objectReferences
+  
+  Example:
+  <aunit:runConfiguration xmlns:aunit="http://www.sap.com/adt/aunit">
+    <external>
+      <coverage active="false"/>
+    </external>
+    <options>
+      <uriType value="semantic"/>
+      <testDeterminationStrategy sameProgram="true" assignedTests="false" appendAssignedTestsPreview="true"/>
+      <testRiskLevels harmless="true" dangerous="true" critical="true"/>
+      <testDurations short="true" medium="true" long="true"/>
+      <withNavigationUri enabled="false"/>
+    </options>
+    <adtcore:objectSets xmlns:adtcore="http://www.sap.com/adt/core">
+      <objectSet kind="inclusive">
+        <adtcore:objectReferences>
+          <adtcore:objectReference adtcore:uri="/sap/bc/adt/oo/classes/zcl_my_class"/>
+        </adtcore:objectReferences>
+      </objectSet>
+    </adtcore:objectSets>
+  </aunit:runConfiguration>
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:aunit="http://www.sap.com/adt/aunit"
+    xmlns:adtcore="http://www.sap.com/adt/core"
+    targetNamespace="http://www.sap.com/adt/aunit"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+  <!-- Import adtcore via extension that adds objectSets types (xs:includes adtcore.xsd) -->
+  <xsd:import namespace="http://www.sap.com/adt/core" schemaLocation="adtcoreObjectSets.xsd"/>
+
+  <!-- Root element -->
+  <xsd:element name="runConfiguration" type="aunit:AunitRunConfiguration"/>
+
+  <!-- Run Configuration -->
+  <xsd:complexType name="AunitRunConfiguration">
+    <xsd:sequence>
+      <xsd:element name="external" type="aunit:AunitExternal" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="options" type="aunit:AunitOptions" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element ref="adtcore:objectSets" minOccurs="1" maxOccurs="1"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- External settings -->
+  <xsd:complexType name="AunitExternal">
+    <xsd:sequence>
+      <xsd:element name="coverage" type="aunit:AunitCoverage" minOccurs="0" maxOccurs="1" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="AunitCoverage">
+    <xsd:attribute name="active" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Options -->
+  <xsd:complexType name="AunitOptions">
+    <xsd:sequence>
+      <xsd:element name="uriType" type="aunit:AunitUriType" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="testDeterminationStrategy" type="aunit:AunitTestDeterminationStrategy" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="testRiskLevels" type="aunit:AunitTestRiskLevels" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="testDurations" type="aunit:AunitTestDurations" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="withNavigationUri" type="aunit:AunitWithNavigationUri" minOccurs="0" maxOccurs="1" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="AunitUriType">
+    <xsd:attribute name="value" type="xsd:string"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="AunitTestDeterminationStrategy">
+    <xsd:attribute name="sameProgram" type="xsd:string"/>
+    <xsd:attribute name="assignedTests" type="xsd:string"/>
+    <xsd:attribute name="appendAssignedTestsPreview" type="xsd:string"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="AunitTestRiskLevels">
+    <xsd:attribute name="harmless" type="xsd:string"/>
+    <xsd:attribute name="dangerous" type="xsd:string"/>
+    <xsd:attribute name="critical" type="xsd:string"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="AunitTestDurations">
+    <xsd:attribute name="short" type="xsd:string"/>
+    <xsd:attribute name="medium" type="xsd:string"/>
+    <xsd:attribute name="long" type="xsd:string"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="AunitWithNavigationUri">
+    <xsd:attribute name="enabled" type="xsd:string"/>
+  </xsd:complexType>
+
+</xsd:schema>

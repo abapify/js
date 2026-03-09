@@ -97,7 +97,7 @@ export default {
   $xmlns: {
     adtcore: 'http://www.sap.com/adt/core',
     xsd: 'http://www.w3.org/2001/XMLSchema',
-    myns: 'http://www.sap.com/adt/my-namespace',   // ← your namespace
+    myns: 'http://www.sap.com/adt/my-namespace', // ← your namespace
   },
   $imports: [adtcore],
   targetNamespace: 'http://www.sap.com/adt/my-namespace',
@@ -105,7 +105,7 @@ export default {
   elementFormDefault: 'qualified',
   element: [
     {
-      name: 'myRootElement',        // ← root element name (camelCase)
+      name: 'myRootElement', // ← root element name (camelCase)
       type: 'myns:MyRootType',
     },
   ],
@@ -114,7 +114,7 @@ export default {
       name: 'MyRootType',
       complexContent: {
         extension: {
-          base: 'adtcore:AdtMainObject',  // ← extend appropriate base type
+          base: 'adtcore:AdtMainObject', // ← extend appropriate base type
           sequence: {
             element: [
               {
@@ -138,6 +138,7 @@ export default {
 ```
 
 **Key rules for schema literals:**
+
 - Must end with `} as const`
 - One root element per schema document
 - Use `$imports` for schemas you depend on (adtcore, abapoo, abapsource, etc.)
@@ -160,6 +161,7 @@ export const mySchemaName: TypedSchema<MySchemaNameSchema> =
 ```
 
 > **Note on types**: The `types/` files are auto-generated from XSD schemas by the codegen tool. For manually created schemas, you can either:
+>
 > - Run `npx nx build adt-schemas` to trigger codegen (if XSD source exists)
 > - Or manually create a minimal types file at `packages/adt-schemas/src/schemas/generated/types/sap/mySchemaName.types.ts` following the pattern of existing types files.
 
@@ -213,10 +215,13 @@ export const myObjectContract = {
    * in URLs, and SAP conventionally normalizes to lowercase in the URL path).
    */
   get: (name: string) =>
-    http.get(`/sap/bc/adt/{your-path}/${encodeURIComponent(name.toLowerCase())}`, {
-      responses: { 200: mySchemaName },
-      headers: { Accept: 'application/vnd.sap.adt.{mimetype}.v1+xml' },
-    }),
+    http.get(
+      `/sap/bc/adt/{your-path}/${encodeURIComponent(name.toLowerCase())}`,
+      {
+        responses: { 200: mySchemaName },
+        headers: { Accept: 'application/vnd.sap.adt.{mimetype}.v1+xml' },
+      },
+    ),
 };
 
 export type MyObjectContract = typeof myObjectContract;
@@ -273,14 +278,14 @@ import { myObjectContract } from './myObject';
 export interface OoContract {
   classes: typeof classesContract;
   interfaces: typeof interfacesContract;
-  myObject: typeof myObjectContract;   // ← add here
+  myObject: typeof myObjectContract; // ← add here
 }
 
 // Update the module aggregate:
 export const ooContract: OoContract = {
   classes: classesContract,
   interfaces: interfacesContract,
-  myObject: myObjectContract,           // ← add here
+  myObject: myObjectContract, // ← add here
 };
 ```
 
@@ -334,6 +339,7 @@ Create `packages/adt-fixtures/src/fixtures/{module}/{name}.xml`:
 ```
 
 **Tips for realistic fixtures:**
+
 - Use `ZTEST_` or `$TMP` names (standard test object convention in SAP)
 - Include all namespace declarations (`xmlns:`)
 - Match the exact XML structure the schema expects
@@ -353,7 +359,7 @@ export const registry = {
   oo: {
     class: 'oo/class.xml',
     interface: 'oo/interface.xml',
-    myObject: 'oo/myObject.xml',   // ← add here
+    myObject: 'oo/myObject.xml', // ← add here
   },
 } as const;
 ```
@@ -406,22 +412,22 @@ describe('mySchemaName schema', () => {
 
 ### Base types to extend (from adtcore.ts)
 
-| Base type | Purpose |
-|-----------|---------|
-| `adtcore:AdtObject` | Any ADT object (name, type, description, version, links) |
-| `adtcore:AdtMainObject` | Repository object (+ package, responsible, masterLanguage) |
-| `abapoo:AbapOoObject` | OO base (+ modeled, syntaxConfiguration) |
-| `abapsource:AbapSourceObject` | Source-enabled object (+ sourceUri, fixPointArithmetic) |
+| Base type                     | Purpose                                                    |
+| ----------------------------- | ---------------------------------------------------------- |
+| `adtcore:AdtObject`           | Any ADT object (name, type, description, version, links)   |
+| `adtcore:AdtMainObject`       | Repository object (+ package, responsible, masterLanguage) |
+| `abapoo:AbapOoObject`         | OO base (+ modeled, syntaxConfiguration)                   |
+| `abapsource:AbapSourceObject` | Source-enabled object (+ sourceUri, fixPointArithmetic)    |
 
 ### Namespace URIs (for `$xmlns`)
 
-| Prefix | URI |
-|--------|-----|
-| `adtcore` | `http://www.sap.com/adt/core` |
+| Prefix       | URI                                 |
+| ------------ | ----------------------------------- |
+| `adtcore`    | `http://www.sap.com/adt/core`       |
 | `abapsource` | `http://www.sap.com/adt/abapsource` |
-| `abapoo` | `http://www.sap.com/adt/oo` |
-| `atom` | `http://www.w3.org/2005/Atom` |
-| `xsd` | `http://www.w3.org/2001/XMLSchema` |
+| `abapoo`     | `http://www.sap.com/adt/oo`         |
+| `atom`       | `http://www.w3.org/2005/Atom`       |
+| `xsd`        | `http://www.w3.org/2001/XMLSchema`  |
 
 ### Content-Type patterns for SAP ADT
 
