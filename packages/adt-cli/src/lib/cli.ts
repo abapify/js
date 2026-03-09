@@ -27,6 +27,7 @@ import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setCliContext, getCliContext } from './utils/adt-client-v2';
 import { getAuthManager, setDefaultSid } from './utils/auth';
 import { readServiceKey } from '@abapify/adt-auth';
+import { CALLBACK_SERVER_PORT, OAUTH_TIMEOUT_MS } from './config';
 import { loadCommandPlugins, loadStaticPlugins } from './plugin-loader';
 import type { CliCommandPlugin } from '@abapify/adt-plugin';
 import { existsSync, readFileSync } from 'fs';
@@ -276,11 +277,19 @@ export async function main(options?: {
           globalOptions.sid?.toUpperCase() || serviceKey.systemid.toUpperCase();
 
         const authManager = getAuthManager();
+        const openModule = await import('open');
+        const openFn = openModule.default;
         await authManager.login(sid, {
           type: '@abapify/adt-auth/plugins/service-key',
           options: {
             url: serviceKey.url,
             serviceKey,
+            openBrowser: async (url: string) => {
+              console.log('🌐 Opening browser for authentication...');
+              await openFn(url);
+            },
+            callbackPort: CALLBACK_SERVER_PORT,
+            timeoutMs: OAUTH_TIMEOUT_MS,
           },
         });
 
