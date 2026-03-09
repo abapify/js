@@ -378,9 +378,8 @@ export class ImportService {
         }
 
         // Load the ADK object using the factory
-        const { getGlobalContext, createAdkFactory } = await import(
-          '@abapify/adk'
-        );
+        const { getGlobalContext, createAdkFactory } =
+          await import('@abapify/adk');
         const ctx = getGlobalContext();
         const factory = createAdkFactory(ctx);
         const adkObject = factory.get(obj.name, obj.type);

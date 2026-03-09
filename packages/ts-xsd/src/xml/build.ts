@@ -535,10 +535,17 @@ function buildFieldWithTagName(
       // Element explicitly marked as qualified - use prefix
       usePrefix = prefix;
     } else {
-      // No element-level form - use schema default
-      const elementFormDefault = (rootSchema as { elementFormDefault?: string })
-        .elementFormDefault;
-      usePrefix = elementFormDefault === 'qualified' ? prefix : undefined;
+      // No element-level form - use the element's defining schema's default first,
+      // then fall back to root schema default. This ensures elements from imported
+      // schemas (e.g., objectSet in adtcore:AdtObjectSets) respect their own
+      // schema's elementFormDefault rather than the root schema's.
+      const definingFormDefault = (
+        elementSchema as { elementFormDefault?: string }
+      ).elementFormDefault;
+      const effectiveFormDefault =
+        definingFormDefault ??
+        (rootSchema as { elementFormDefault?: string }).elementFormDefault;
+      usePrefix = effectiveFormDefault === 'qualified' ? prefix : undefined;
     }
     actualTagName = usePrefix ? `${usePrefix}:${tagName}` : tagName;
   }

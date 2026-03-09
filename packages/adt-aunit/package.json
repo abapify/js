@@ -1,0 +1,33 @@
+{
+  "name": "@abapify/adt-aunit",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.1.0",
+  "description": "ABAP Unit Test CLI plugin for adt-cli with JUnit XML output for GitLab CI",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./commands/aunit": "./dist/commands/aunit.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "sap",
+    "adt",
+    "abap",
+    "aunit",
+    "unit-test",
+    "junit",
+    "gitlab-ci"
+  ],
+  "dependencies": {
+    "@abapify/adt-plugin": "^0.1.7"
+  },
+  "module": "./dist/index.mjs"
+}

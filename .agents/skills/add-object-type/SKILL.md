@@ -29,17 +29,17 @@ Before writing code, gather details about the object type from live system or re
 
 ### Information to collect
 
-| Item | Example (for PROG) | Where to find |
-|------|--------------------|---------------|
-| ADT object type | `PROG/P` | SAP ADT documentation |
-| ADT endpoint path | `/sap/bc/adt/programs/programs` | Live system or community |
-| ADT content-type | `application/vnd.sap.adt.programs.programs.v2+xml` | Live system response headers |
-| ADT XML namespace | `http://www.sap.com/adt/programs` | Live system XML |
-| ADT root element | `abapProgram` | Live system XML |
-| abapGit serializer | `LCL_OBJECT_PROG` | abapGit source |
-| abapGit main table | `TRDIR` | abapGit source |
-| abapGit structure fields | `NAME, SECU, EDTX, ...` | SAP DDIC / abapGit XML sample |
-| Has source code | Yes (`.abap` file) | abapGit repo samples |
+| Item                     | Example (for PROG)                                 | Where to find                 |
+| ------------------------ | -------------------------------------------------- | ----------------------------- |
+| ADT object type          | `PROG/P`                                           | SAP ADT documentation         |
+| ADT endpoint path        | `/sap/bc/adt/programs/programs`                    | Live system or community      |
+| ADT content-type         | `application/vnd.sap.adt.programs.programs.v2+xml` | Live system response headers  |
+| ADT XML namespace        | `http://www.sap.com/adt/programs`                  | Live system XML               |
+| ADT root element         | `abapProgram`                                      | Live system XML               |
+| abapGit serializer       | `LCL_OBJECT_PROG`                                  | abapGit source                |
+| abapGit main table       | `TRDIR`                                            | abapGit source                |
+| abapGit structure fields | `NAME, SECU, EDTX, ...`                            | SAP DDIC / abapGit XML sample |
+| Has source code          | Yes (`.abap` file)                                 | abapGit repo samples          |
 
 ### Option A: Live System Available
 
@@ -96,7 +96,7 @@ export default {
     adtcore: 'http://www.sap.com/adt/core',
     abapsource: 'http://www.sap.com/adt/abapsource',
     xsd: 'http://www.w3.org/2001/XMLSchema',
-    prog: 'http://www.sap.com/adt/programs',   // ← your namespace
+    prog: 'http://www.sap.com/adt/programs', // ← your namespace
   },
   $imports: [adtcore, abapsource],
   targetNamespace: 'http://www.sap.com/adt/programs',
@@ -104,7 +104,7 @@ export default {
   elementFormDefault: 'qualified',
   element: [
     {
-      name: 'abapProgram',      // ← root element name
+      name: 'abapProgram', // ← root element name
       type: 'prog:AbapProgram',
     },
   ],
@@ -128,6 +128,7 @@ export default {
 ```
 
 Then add to `packages/adt-schemas/src/schemas/generated/typed.ts`:
+
 ```typescript
 import type { AbapProgramSchema } from './types/sap/abapProgram.types';
 import _abapProgram from './schemas/sap/abapProgram';
@@ -136,6 +137,7 @@ export const abapProgram: TypedSchema<AbapProgramSchema> =
 ```
 
 And add to `packages/adt-contracts/src/generated/schemas.ts`:
+
 ```typescript
 export const abapProgram = toSpeciSchema(adtSchemas.abapProgram);
 ```
@@ -183,7 +185,7 @@ Edit `packages/adk/src/base/kinds.ts` to add the new kind constant:
 export const Package = 'Package' as const;
 export const Class = 'Class' as const;
 export const Interface = 'Interface' as const;
-export const Program = 'Program' as const;   // ← add your kind here, alphabetically
+export const Program = 'Program' as const; // ← add your kind here, alphabetically
 
 // Update the AdkKind union type:
 export type AdkKind =
@@ -192,8 +194,8 @@ export type AdkKind =
   | typeof Package
   | typeof Class
   | typeof Interface
-  | typeof Program           // ← add here
-  // ...
+  | typeof Program; // ← add here
+// ...
 ```
 
 ---
@@ -275,7 +277,7 @@ export class AdkProgram extends AdkMainObject<typeof ProgramKind, ProgramXml> {
   // in the ADK codebase (see clas.model.ts, intf.model.ts). The base class defines
   // crudContract as `any` to support different contract structures per object type.
   protected override get crudContract(): any {
-    return this.ctx.client.adt.programs.programs;  // ← your module path
+    return this.ctx.client.adt.programs.programs; // ← your module path
   }
 
   // ============================================
@@ -294,6 +296,7 @@ registerObjectType('PROG', ProgramKind, AdkProgram);
 ```
 
 **Notes:**
+
 - The `wrapperKey` matches the root element name in the schema (e.g., `abapProgram`)
 - The `crudContract` path must match where you registered the contract in `adtContract` (e.g., `ctx.client.adt.programs.programs`)
 - `registerObjectType('PROG', ...)` uses the 4-letter ABAP type code (not the full `PROG/P`)
@@ -329,12 +332,16 @@ import type { ProgramResponse as _ProgramResponse } from '@abapify/adt-client';
 // response type is a union or a single object type.
 
 // Example - use whichever form is correct for your contract:
-export type ProgramResponse = Extract<_ProgramResponse, { abapProgram: unknown }>;
+export type ProgramResponse = Extract<
+  _ProgramResponse,
+  { abapProgram: unknown }
+>;
 // OR:
 // export type { ProgramResponse } from '@abapify/adt-client';
 ```
 
 Then in the model file, import as:
+
 ```typescript
 import type { ProgramResponse } from '../../../base/adt';
 ```
@@ -351,12 +358,15 @@ export type { ProgramXml } from './objects/repository/prog';
 ### Update `packages/adk/src/base/kinds.ts` KindToObject mapping
 
 ```typescript
-export type AdkObjectForKind<K extends AdkKind> =
-  K extends typeof Class ? AdkClass
-  : K extends typeof Interface ? AdkInterface
-  : K extends typeof Package ? AdkPackage
-  : K extends typeof Program ? AdkProgram      // ← add
-  : AdkObject;
+export type AdkObjectForKind<K extends AdkKind> = K extends typeof Class
+  ? AdkClass
+  : K extends typeof Interface
+    ? AdkInterface
+    : K extends typeof Package
+      ? AdkPackage
+      : K extends typeof Program
+        ? AdkProgram // ← add
+        : AdkObject;
 ```
 
 ---
@@ -368,12 +378,14 @@ The abapGit schema captures the structure of the XML file that abapGit writes fo
 ### 5a: Research the abapGit XML format
 
 Find out what fields the abapGit serializer writes. Resources:
+
 - **abapGit repository**: https://github.com/abapGit/abapGit — look in `src/objects/` for `ZCL_ABAPGIT_OBJECT_{TYPE}.clas.abap`
 - Look for `CREATE_VSEO*`, `ZIF_ABAPGIT_OBJECT~DESERIALIZE`, or `SERIALIZE` methods
 - Look at `.xml` files in abapGit test repositories
 - Search for `{TYPE}` in abapGit's `docs/` directory
 
 A typical abapGit XML looks like:
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
@@ -453,7 +465,7 @@ export default {
       all: {
         element: [
           {
-            name: 'TRDIR',                    // ← main SAP table
+            name: 'TRDIR', // ← main SAP table
             type: 'asx:TrdirType',
             minOccurs: '0',
           },
@@ -461,7 +473,7 @@ export default {
       },
     },
     {
-      name: 'TrdirType',                      // ← table structure type
+      name: 'TrdirType', // ← table structure type
       all: {
         element: [
           {
@@ -510,6 +522,7 @@ export default {
 ```
 
 **Pattern rules for abapGit schemas (follow existing schemas like `intf.ts`, `dtel.ts`):**
+
 - All fields optional (`minOccurs: '0'`) except primary key field
 - Use `asx:` prefix for types in the `AbapValuesType` and type definitions
 - Structure name matches SAP DDIC table/structure name (e.g., `TRDIR`, `VSEOCLASS`, `DD04V`)
@@ -563,6 +576,7 @@ export type ProgSchema =
 ```
 
 **Pattern:** The type is always a union of two variants:
+
 1. `{ abapGit: { abap: { values: ... }, version, serializer, serializer_version } }` — full document
 2. `{ abap: { values: ... } }` — inner abap fragment
 
@@ -605,7 +619,7 @@ import { createHandler } from '../base';
 export const programHandler = createHandler(AdkProgram, {
   schema: prog,
   version: 'v1.0.0',
-  serializer: 'LCL_OBJECT_PROG',           // ← from abapGit source
+  serializer: 'LCL_OBJECT_PROG', // ← from abapGit source
   serializer_version: 'v1.0.0',
 
   // SAP → Git: Map ADK object to abapGit values
@@ -624,8 +638,8 @@ export const programHandler = createHandler(AdkProgram, {
   // Git → SAP: Map abapGit values to ADK data
   fromAbapGit: ({ TRDIR }) => ({
     name: (TRDIR?.NAME ?? '').toUpperCase(),
-    type: 'PROG/P',                          // ← full ADT type code
-    description: undefined,                  // TRDIR has no description field
+    type: 'PROG/P', // ← full ADT type code
+    description: undefined, // TRDIR has no description field
   }),
 
   // Git → SAP: Set source files on ADK object
@@ -635,7 +649,8 @@ export const programHandler = createHandler(AdkProgram, {
   // the established pattern in this codebase (see clas.ts, intf.ts handlers).
   setSources: (prog, sources) => {
     if (sources.main) {
-      (prog as unknown as { _pendingSource: string })._pendingSource = sources.main;
+      (prog as unknown as { _pendingSource: string })._pendingSource =
+        sources.main;
     }
   },
 });
@@ -668,6 +683,7 @@ setSources: (obj, sources) => {
 ```
 
 **For objects without source (like DEVC):**
+
 - Do not provide `getSource` or `getSources`
 - `setSources` is not needed
 - Only XML file will be serialized
@@ -683,7 +699,7 @@ export * from './devc';
 export * from './doma';
 export * from './dtel';
 export * from './intf';
-export * from './prog';    // ← add here
+export * from './prog'; // ← add here
 ```
 
 ---
@@ -725,6 +741,7 @@ npx nx lint
 ### Quick smoke tests
 
 **Schema parsing test:**
+
 ```typescript
 // packages/adt-fixtures tests
 import { fixtures } from '@abapify/adt-fixtures';
@@ -736,6 +753,7 @@ expect(data.abapProgram?.['adtcore:name']).toBe('ZTEST_PROGRAM');
 ```
 
 **abapGit handler test:**
+
 ```typescript
 import { prog } from '@abapify/adt-plugin-abapgit/schemas/generated';
 import { getHandler } from '@abapify/adt-plugin-abapgit/lib/handlers/base';
@@ -748,23 +766,24 @@ expect(handler).toBeDefined();
 
 ## Common Object Type Reference
 
-| ABAP Type | ADT Path | abapGit Serializer | Main Table |
-|-----------|----------|--------------------|------------|
-| `CLAS/OC` | `/sap/bc/adt/oo/classes` | `LCL_OBJECT_CLAS` | `VSEOCLASS` |
-| `INTF/OI` | `/sap/bc/adt/oo/interfaces` | `LCL_OBJECT_INTF` | `VSEOINTERF` |
-| `DEVC/K` | `/sap/bc/adt/packages` | `LCL_OBJECT_DEVC` | `DEVC` |
-| `DTEL/DE` | `/sap/bc/adt/ddic/dataelements` | `LCL_OBJECT_DTEL` | `DD04V` |
-| `DOMA/DO` | `/sap/bc/adt/ddic/domains` | `LCL_OBJECT_DOMA` | `DD01V` |
-| `PROG/P` | `/sap/bc/adt/programs/programs` | `LCL_OBJECT_PROG` | `TRDIR` |
-| `FUGR/F` | `/sap/bc/adt/functions/groups` | `LCL_OBJECT_FUGR` | `ENLFDIR` |
-| `TABL/DT` | `/sap/bc/adt/ddic/tables` | `LCL_OBJECT_TABL` | `DD02V` |
-| `MSAG/E` | `/sap/bc/adt/messageclass` | `LCL_OBJECT_MSAG` | `T100A` |
+| ABAP Type | ADT Path                        | abapGit Serializer | Main Table   |
+| --------- | ------------------------------- | ------------------ | ------------ |
+| `CLAS/OC` | `/sap/bc/adt/oo/classes`        | `LCL_OBJECT_CLAS`  | `VSEOCLASS`  |
+| `INTF/OI` | `/sap/bc/adt/oo/interfaces`     | `LCL_OBJECT_INTF`  | `VSEOINTERF` |
+| `DEVC/K`  | `/sap/bc/adt/packages`          | `LCL_OBJECT_DEVC`  | `DEVC`       |
+| `DTEL/DE` | `/sap/bc/adt/ddic/dataelements` | `LCL_OBJECT_DTEL`  | `DD04V`      |
+| `DOMA/DO` | `/sap/bc/adt/ddic/domains`      | `LCL_OBJECT_DOMA`  | `DD01V`      |
+| `PROG/P`  | `/sap/bc/adt/programs/programs` | `LCL_OBJECT_PROG`  | `TRDIR`      |
+| `FUGR/F`  | `/sap/bc/adt/functions/groups`  | `LCL_OBJECT_FUGR`  | `ENLFDIR`    |
+| `TABL/DT` | `/sap/bc/adt/ddic/tables`       | `LCL_OBJECT_TABL`  | `DD02V`      |
+| `MSAG/E`  | `/sap/bc/adt/messageclass`      | `LCL_OBJECT_MSAG`  | `T100A`      |
 
 ---
 
 ## Checklist
 
 ### ADT Endpoint Layer
+
 - [ ] Endpoint details gathered (live system or web research)
 - [ ] Schema literal created in `adt-schemas/src/schemas/generated/schemas/sap/`
 - [ ] Typed wrapper added to `adt-schemas/src/schemas/generated/typed.ts`
@@ -775,6 +794,7 @@ expect(handler).toBeDefined();
 - [ ] Fixture registered in `adt-fixtures/src/fixtures/registry.ts`
 
 ### ADK Layer
+
 - [ ] Kind constant added to `adk/src/base/kinds.ts`
 - [ ] `AdkKind` union type updated in `kinds.ts`
 - [ ] `AdkObjectForKind` mapping updated in `kinds.ts`
@@ -783,6 +803,7 @@ expect(handler).toBeDefined();
 - [ ] `adk/src/base/adt.ts` exports the response type
 
 ### abapGit Layer
+
 - [ ] abapGit schema literal created in `adt-plugin-abapgit/src/schemas/generated/schemas/{type}.ts`
 - [ ] TypeScript types created in `adt-plugin-abapgit/src/schemas/generated/types/{type}.ts`
 - [ ] Schema registered in `adt-plugin-abapgit/src/schemas/generated/index.ts`
@@ -791,6 +812,7 @@ expect(handler).toBeDefined();
 - [ ] ADK re-export added to `adt-plugin-abapgit/src/lib/handlers/adk.ts`
 
 ### Verification
+
 - [ ] `npx nx build adt-schemas adt-contracts adk adt-plugin-abapgit adt-fixtures` passes
 - [ ] `npx nx typecheck` passes
 - [ ] `npx nx test adt-schemas adt-contracts adk adt-plugin-abapgit` passes
