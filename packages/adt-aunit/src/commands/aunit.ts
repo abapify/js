@@ -386,8 +386,7 @@ export const aunitCommand: CliCommandPlugin = {
     },
     {
       flags: '-t, --transport <transport>',
-      description:
-        'Run tests on transport request (e.g., NPLK900042)',
+      description: 'Run tests on transport request (e.g., NPLK900042)',
     },
     {
       flags: '-f, --from-file <file>',
@@ -470,7 +469,9 @@ export const aunitCommand: CliCommandPlugin = {
       }
       targetName = `${targetUris.length} objects from ${options.fromFile}`;
     } else if (options.transport) {
-      targetUris = [`/sap/bc/adt/cts/transportrequests/${options.transport.toUpperCase()}`];
+      targetUris = [
+        `/sap/bc/adt/cts/transportrequests/${options.transport.toUpperCase()}`,
+      ];
       targetName = `Transport ${options.transport.toUpperCase()}`;
     } else if (options.class) {
       targetUris = [`/sap/bc/adt/oo/classes/${options.class.toLowerCase()}`];
