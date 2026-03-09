@@ -1,48 +1,188 @@
+import { createServer, type Server } from 'http';
+import { parse as parseUrl } from 'url';
 import type { AuthPlugin, AuthPluginOptions, CookieAuthResult } from '../types';
 import {
   ServiceKeyParser,
+  type BTPServiceKey,
   type ServiceKeyPluginOptions,
 } from '../types/service-key';
+import {
+  generateCodeVerifier,
+  generateCodeChallenge,
+  generateState,
+} from '../utils/pkce';
 
-async function fetchOAuthToken(
-  uaaUrl: string,
-  clientId: string,
-  clientSecret: string,
-): Promise<{ access_token: string; expires_in: number }> {
-  const tokenUrl = `${uaaUrl}/oauth/token`;
-  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
+const DEFAULT_PORT = 3000;
+const DEFAULT_REDIRECT_PATH = '/callback';
+const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
+
+interface OAuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope?: string;
+  refresh_token?: string;
+}
+
+/**
+ * Exchange an authorization code for tokens using the PKCE flow.
+ */
+async function exchangeCodeForToken(
+  serviceKey: BTPServiceKey,
+  code: string,
+  codeVerifier: string,
+  redirectUri: string,
+): Promise<OAuthTokenResponse> {
+  const { clientid, clientsecret, url: uaaUrl } = serviceKey.uaa;
+  const credentials = Buffer.from(`${clientid}:${clientsecret}`).toString(
     'base64',
   );
 
-  const response = await fetch(tokenUrl, {
+  const response = await fetch(`${uaaUrl}/oauth/token`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${credentials}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: 'grant_type=client_credentials',
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    }),
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`OAuth token request failed (${response.status}): ${text}`);
+    throw new Error(`Token exchange failed (${response.status}): ${text}`);
   }
 
-  const data = (await response.json()) as {
-    access_token: string;
-    expires_in: number;
-  };
+  const data = (await response.json()) as OAuthTokenResponse;
 
   if (!data.access_token) {
-    throw new Error('OAuth token response missing access_token');
+    throw new Error('Token response missing access_token');
   }
 
   return data;
 }
 
+/**
+ * Run the OAuth PKCE authorization code flow:
+ * 1. Start local callback server
+ * 2. Build XSUAA authorize URL with PKCE
+ * 3. Open browser for user login
+ * 4. Receive auth code via redirect
+ * 5. Exchange code for user token
+ */
+async function performPkceFlow(
+  serviceKey: BTPServiceKey,
+  openBrowser: (url: string) => Promise<void>,
+  port: number,
+  timeoutMs: number,
+): Promise<OAuthTokenResponse> {
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = generateCodeChallenge(codeVerifier);
+  const state = generateState();
+
+  const redirectUri = `http://localhost:${port}${DEFAULT_REDIRECT_PATH}`;
+
+  // Build XSUAA authorize URL
+  const authUrl = new URL(`${serviceKey.uaa.url}/oauth/authorize`);
+  authUrl.searchParams.set('client_id', serviceKey.uaa.clientid);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('code_challenge', codeChallenge);
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('scope', 'openid');
+
+  return new Promise<OAuthTokenResponse>((resolve, reject) => {
+    // eslint-disable-next-line prefer-const -- server must be declared before timeout but assigned after
+    let server: Server;
+
+    const timeout = setTimeout(() => {
+      server?.close();
+      reject(new Error('Authentication timed out'));
+    }, timeoutMs);
+
+    server = createServer(async (req, res) => {
+      try {
+        const url = parseUrl(req.url || '', true);
+
+        if (url.pathname !== DEFAULT_REDIRECT_PATH) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not Found');
+          return;
+        }
+
+        const { code, state: returnedState, error, error_description } = url.query;
+
+        if (error) {
+          throw new Error(
+            `OAuth error: ${error}${error_description ? ` - ${error_description}` : ''}`,
+          );
+        }
+
+        if (returnedState !== state) {
+          throw new Error('State mismatch - possible CSRF attack');
+        }
+
+        if (!code) {
+          throw new Error('No authorization code received');
+        }
+
+        const tokenData = await exchangeCodeForToken(
+          serviceKey,
+          code as string,
+          codeVerifier,
+          redirectUri,
+        );
+
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(
+          '<html><body style="font-family:Arial;text-align:center;padding:50px">' +
+            '<h2>Authentication successful!</h2>' +
+            '<p>You can close this window and return to the terminal.</p>' +
+            '<script>setTimeout(()=>window.close(),2000)</script>' +
+            '</body></html>',
+        );
+
+        clearTimeout(timeout);
+        setTimeout(() => server.close(() => resolve(tokenData)), 500);
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(
+          '<html><body style="font-family:Arial;text-align:center;padding:50px">' +
+            `<h2>Authentication failed</h2><p>${err instanceof Error ? err.message : String(err)}</p>` +
+            '</body></html>',
+        );
+
+        clearTimeout(timeout);
+        server.close(() => reject(err));
+      }
+    });
+
+    server.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+
+    server.listen(port, () => {
+      openBrowser(authUrl.toString()).catch((err) => {
+        clearTimeout(timeout);
+        server.close();
+        reject(
+          new Error('Could not open browser for authentication', { cause: err }),
+        );
+      });
+    });
+  });
+}
+
 const authPlugin: AuthPlugin = {
   async authenticate(options: AuthPluginOptions): Promise<CookieAuthResult> {
-    const { serviceKey } = options as ServiceKeyPluginOptions;
+    const { serviceKey, openBrowser, callbackPort, timeoutMs } =
+      options as ServiceKeyPluginOptions;
 
     if (!serviceKey) {
       throw new Error('service-key plugin requires a serviceKey option');
@@ -50,20 +190,43 @@ const authPlugin: AuthPlugin = {
 
     const parsed = ServiceKeyParser.parse(serviceKey);
 
-    const { clientid, clientsecret, url: uaaUrl } = parsed.uaa;
+    // Resolve openBrowser: use provided callback, or dynamically import 'open'
+    let browserOpener: (url: string) => Promise<void>;
+    if (openBrowser) {
+      browserOpener = openBrowser;
+    } else {
+      // Fallback: try dynamic import of 'open' package
+      try {
+        const openModule = await import('open');
+        const openFn = openModule.default;
+        browserOpener = async (url: string) => {
+          await openFn(url);
+        };
+      } catch {
+        throw new Error(
+          'No openBrowser callback provided and "open" package not available. ' +
+            'Install "open" or pass an openBrowser function in plugin options.',
+        );
+      }
+    }
 
-    const { access_token, expires_in } = await fetchOAuthToken(
-      uaaUrl,
-      clientid,
-      clientsecret,
+    const port = typeof callbackPort === 'number' ? callbackPort : DEFAULT_PORT;
+    const timeout =
+      typeof timeoutMs === 'number' ? timeoutMs : DEFAULT_TIMEOUT_MS;
+
+    const tokenData = await performPkceFlow(
+      parsed,
+      browserOpener,
+      port,
+      timeout,
     );
 
-    const expiresAt = new Date(Date.now() + expires_in * 1000);
+    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
     return {
       method: 'cookie',
       credentials: {
-        cookies: `Authorization: Bearer ${access_token}`,
+        cookies: `Authorization: Bearer ${tokenData.access_token}`,
         expiresAt,
       },
     };
