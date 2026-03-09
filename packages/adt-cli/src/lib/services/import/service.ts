@@ -1,7 +1,12 @@
 import { loadFormatPlugin, parseFormatSpec } from '../../utils/format-loader';
 import { getConfig } from '../../utils/destinations';
 import type { ImportContext, FormatOptionValue } from '@abapify/adt-plugin';
-import { AdkPackage, AdkTransport } from '@abapify/adk';
+import {
+  AdkPackage,
+  AdkTransport,
+  getGlobalContext,
+  createAdkFactory,
+} from '@abapify/adk';
 
 /**
  * Options for importing a transport request
@@ -378,8 +383,6 @@ export class ImportService {
         }
 
         // Load the ADK object using the factory
-        const { getGlobalContext, createAdkFactory } =
-          await import('@abapify/adk');
         const ctx = getGlobalContext();
         const factory = createAdkFactory(ctx);
         const adkObject = factory.get(obj.name, obj.type);

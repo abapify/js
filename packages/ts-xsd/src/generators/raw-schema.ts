@@ -427,7 +427,7 @@ function objectToLiteral(
   pretty: boolean,
   indent: string,
   depth: number,
-  singleQuote: boolean = false,
+  singleQuote = false,
 ): string {
   if (value === null || value === undefined) {
     return 'undefined';
