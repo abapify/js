@@ -31,10 +31,7 @@ export const importPackageCommand = new Command('package')
       const importService = new ImportService();
 
       // Determine output path: --output option, targetFolder argument, or default
-      const outputPath =
-        options.output ||
-        targetFolder ||
-        `./src`;
+      const outputPath = options.output || targetFolder || `./src`;
 
       // Show start message
       console.log(`🚀 Starting import of package: ${packageName}`);

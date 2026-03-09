@@ -101,6 +101,16 @@ export type LogpointSchema =
             inactivatedBy?: string;
             inactiveSince?: string;
           };
+          link?: {
+            href: string;
+            rel?: string;
+            type?: string;
+            hreflang?: string;
+            title?: string;
+            length?: number;
+            etag?: string;
+            _text?: string;
+          }[];
           location?: {
             includePosition?: {
               extension?: unknown;

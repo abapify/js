@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AUnit Run Result Schema (Response)
+  
+  POST /sap/bc/adt/abapunit/testruns
+  Accept: application/vnd.sap.adt.abapunit.testruns.result.v2+xml
+  
+  Verified against real SAP system response.
+  
+  Structure: runResult > program > testClasses > testClass > testMethods > testMethod > alerts
+  
+  Example (abbreviated):
+  <aunit:runResult xmlns:aunit="http://www.sap.com/adt/aunit">
+    <program adtcore:uri="..." adtcore:type="CLAS/OC" adtcore:name="ZCL_MY_CLASS" uriType="semantic">
+      <testClasses>
+        <testClass adtcore:uri="..." adtcore:name="LTCL_TEST" durationCategory="short" riskLevel="harmless">
+          <testMethods>
+            <testMethod adtcore:uri="..." adtcore:name="TEST_OK" executionTime="0" unit="s"/>
+            <testMethod adtcore:uri="..." adtcore:name="TEST_FAIL" executionTime="0" unit="s">
+              <alerts>
+                <alert kind="failedAssertion" severity="critical">
+                  <title>Critical Assertion Error</title>
+                  <details><detail text="True expected"/></details>
+                  <stack><stackEntry adtcore:uri="..." adtcore:description="..."/></stack>
+                </alert>
+              </alerts>
+            </testMethod>
+          </testMethods>
+        </testClass>
+      </testClasses>
+    </program>
+  </aunit:runResult>
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:aunit="http://www.sap.com/adt/aunit"
+    targetNamespace="http://www.sap.com/adt/aunit"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+  <!-- Root element -->
+  <xsd:element name="runResult" type="aunit:AunitRunResult"/>
+
+  <!-- Run Result -->
+  <xsd:complexType name="AunitRunResult">
+    <xsd:sequence>
+      <xsd:element name="program" type="aunit:AunitProgram" minOccurs="0" maxOccurs="unbounded" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Program -->
+  <xsd:complexType name="AunitProgram">
+    <xsd:sequence>
+      <xsd:element name="testClasses" type="aunit:AunitTestClasses" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="alerts" type="aunit:AunitAlerts" minOccurs="0" maxOccurs="1" form="unqualified"/>
+    </xsd:sequence>
+    <xsd:attribute name="uri" type="xsd:anyURI"/>
+    <xsd:attribute name="type" type="xsd:string"/>
+    <xsd:attribute name="name" type="xsd:string"/>
+    <xsd:attribute name="uriType" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Test Classes wrapper -->
+  <xsd:complexType name="AunitTestClasses">
+    <xsd:sequence>
+      <xsd:element name="testClass" type="aunit:AunitTestClass" minOccurs="0" maxOccurs="unbounded" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Test Class -->
+  <xsd:complexType name="AunitTestClass">
+    <xsd:sequence>
+      <xsd:element name="testMethods" type="aunit:AunitTestMethods" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="alerts" type="aunit:AunitAlerts" minOccurs="0" maxOccurs="1" form="unqualified"/>
+    </xsd:sequence>
+    <xsd:attribute name="uri" type="xsd:anyURI"/>
+    <xsd:attribute name="name" type="xsd:string"/>
+    <xsd:attribute name="uriType" type="xsd:string"/>
+    <xsd:attribute name="durationCategory" type="xsd:string"/>
+    <xsd:attribute name="riskLevel" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Test Methods wrapper -->
+  <xsd:complexType name="AunitTestMethods">
+    <xsd:sequence>
+      <xsd:element name="testMethod" type="aunit:AunitTestMethod" minOccurs="0" maxOccurs="unbounded" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Test Method -->
+  <xsd:complexType name="AunitTestMethod">
+    <xsd:sequence>
+      <xsd:element name="alerts" type="aunit:AunitAlerts" minOccurs="0" maxOccurs="1" form="unqualified"/>
+    </xsd:sequence>
+    <xsd:attribute name="uri" type="xsd:anyURI"/>
+    <xsd:attribute name="name" type="xsd:string"/>
+    <xsd:attribute name="executionTime" type="xsd:string"/>
+    <xsd:attribute name="uriType" type="xsd:string"/>
+    <xsd:attribute name="unit" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Alerts container -->
+  <xsd:complexType name="AunitAlerts">
+    <xsd:sequence>
+      <xsd:element name="alert" type="aunit:AunitAlert" minOccurs="0" maxOccurs="unbounded" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Single Alert -->
+  <xsd:complexType name="AunitAlert">
+    <xsd:sequence>
+      <xsd:element name="title" type="xsd:string" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="details" type="aunit:AunitAlertDetails" minOccurs="0" maxOccurs="1" form="unqualified"/>
+      <xsd:element name="stack" type="aunit:AunitAlertStack" minOccurs="0" maxOccurs="1" form="unqualified"/>
+    </xsd:sequence>
+    <xsd:attribute name="kind" type="xsd:string"/>
+    <xsd:attribute name="severity" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Alert Details -->
+  <xsd:complexType name="AunitAlertDetails">
+    <xsd:sequence>
+      <xsd:element name="detail" type="aunit:AunitAlertDetail" minOccurs="0" maxOccurs="unbounded" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Single Detail (has text attribute, not string content) -->
+  <xsd:complexType name="AunitAlertDetail">
+    <xsd:attribute name="text" type="xsd:string"/>
+  </xsd:complexType>
+
+  <!-- Alert Stack -->
+  <xsd:complexType name="AunitAlertStack">
+    <xsd:sequence>
+      <xsd:element name="stackEntry" type="aunit:AunitStackEntry" minOccurs="0" maxOccurs="unbounded" form="unqualified"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Stack Entry -->
+  <xsd:complexType name="AunitStackEntry">
+    <xsd:attribute name="uri" type="xsd:anyURI"/>
+    <xsd:attribute name="type" type="xsd:string"/>
+    <xsd:attribute name="name" type="xsd:string"/>
+    <xsd:attribute name="description" type="xsd:string"/>
+  </xsd:complexType>
+
+</xsd:schema>

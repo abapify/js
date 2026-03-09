@@ -14,6 +14,8 @@ export default {
     '@abapify/adt-codegen/commands/codegen',
     // ATC (ABAP Test Cockpit) plugin - code quality checks
     '@abapify/adt-atc/commands/atc',
+    // AUnit (ABAP Unit Tests) plugin - with JUnit XML for GitLab CI
+    '@abapify/adt-aunit/commands/aunit',
     // Export plugin - deploy local files to SAP (aliased as 'deploy')
     '@abapify/adt-export/commands/export',
   ],
