@@ -54,6 +54,16 @@ export type CheckrunSchema =
                 column?: number;
                 word?: string;
               }[];
+              link?: {
+                href: string;
+                rel?: string;
+                type?: string;
+                hreflang?: string;
+                title?: string;
+                length?: number;
+                etag?: string;
+                _text?: string;
+              }[];
               uri?: string;
               type?: unknown;
               shortText?: string;

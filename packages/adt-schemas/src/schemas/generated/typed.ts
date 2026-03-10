@@ -49,6 +49,8 @@ import type { TransportfindSchema } from './types/custom/transportfind.types';
 import type { TransportmanagmentCreateSchema } from './types/custom/transportmanagmentCreate.types';
 import type { TransportmanagmentSingleSchema } from './types/custom/transportmanagmentSingle.types';
 import type { AtcRunSchema } from './types/custom/atcRun.types';
+import type { AunitRunSchema } from './types/custom/aunitRun.types';
+import type { AunitResultSchema } from './types/custom/aunitResult.types';
 
 // SAP schemas
 import _atom from './schemas/sap/atom';
@@ -154,3 +156,9 @@ export const transportmanagmentSingle: TypedSchema<TransportmanagmentSingleSchem
 import _atcRun from './schemas/custom/atcRun';
 export const atcRun: TypedSchema<AtcRunSchema> =
   typedSchema<AtcRunSchema>(_atcRun);
+import _aunitRun from './schemas/custom/aunitRun';
+export const aunitRun: TypedSchema<AunitRunSchema> =
+  typedSchema<AunitRunSchema>(_aunitRun);
+import _aunitResult from './schemas/custom/aunitResult';
+export const aunitResult: TypedSchema<AunitResultSchema> =
+  typedSchema<AunitResultSchema>(_aunitResult);
