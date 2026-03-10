@@ -75,6 +75,27 @@ export type AtcresultSchema =
               objectTypeId?: string;
             }[];
           };
+          descriptionTags: {
+            tagWithDescription?: {
+              name: string;
+              descriptions: {
+                description?: {
+                  value?: string;
+                  description?: string;
+                }[];
+              };
+            }[];
+          };
+          scaAttributes?: {
+            scaAttribute?: {
+              attributeName?: string;
+              refAttributeName?: string;
+              label?: boolean;
+              labelS?: string;
+              labelM?: string;
+              labelL?: string;
+            }[];
+          };
           infos: {
             info?: {
               type: string;
@@ -85,5 +106,28 @@ export type AtcresultSchema =
       };
     }
   | {
-      queryChoice: unknown;
+      queryChoice: {
+        activeResultQuery?: {
+          includeAggregates: boolean;
+          includeFindings: boolean;
+          contactPerson: string;
+          queryEnabled: boolean;
+        };
+        specificResultQuery?: {
+          includeAggregates: boolean;
+          includeFindings: boolean;
+          contactPerson: string;
+          queryEnabled: boolean;
+          displayId: string;
+        };
+        userResultQuery?: {
+          includeAggregates: boolean;
+          includeFindings: boolean;
+          contactPerson: string;
+          queryEnabled: boolean;
+          createdBy: string;
+          ageMin: number;
+          ageMax: number;
+        };
+      };
     };

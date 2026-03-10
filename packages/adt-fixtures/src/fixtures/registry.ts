@@ -16,6 +16,10 @@ export const registry = {
     worklist: 'atc/worklist.xml',
     runsResponse: 'atc/runs-response.xml',
   },
+  aunit: {
+    runRequest: 'aunit/run-request.xml',
+    runResult: 'aunit/run-result.xml',
+  },
   packages: {
     tmp: 'packages/tmp.xml',
   },

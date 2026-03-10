@@ -9,6 +9,16 @@ export type AtcfindingSchema =
   | {
       finding: {
         extension?: unknown;
+        link?: {
+          href: string;
+          rel?: string;
+          type?: string;
+          hreflang?: string;
+          title?: string;
+          length?: number;
+          etag?: string;
+          _text?: string;
+        }[];
         quickfixes: {
           manual?: boolean;
           automatic?: boolean;

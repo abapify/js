@@ -1109,9 +1109,11 @@ function copyAttr(
   target: Record<string, unknown>,
   name: string,
 ): void {
-  const value = el.getAttribute(name);
-  if (value !== null) {
-    target[name] = value;
+  if (el.hasAttribute(name)) {
+    const value = el.getAttribute(name);
+    if (value !== null) {
+      target[name] = value;
+    }
   }
 }
 
@@ -1120,9 +1122,11 @@ function copyBoolAttr(
   target: Record<string, unknown>,
   name: string,
 ): void {
-  const value = el.getAttribute(name);
-  if (value !== null) {
-    target[name] = value === 'true';
+  if (el.hasAttribute(name)) {
+    const value = el.getAttribute(name);
+    if (value !== null) {
+      target[name] = value === 'true';
+    }
   }
 }
 

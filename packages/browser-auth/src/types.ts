@@ -37,8 +37,14 @@ export interface BrowserCredentials {
  * Browser auth configuration options
  */
 export interface BrowserAuthOptions {
-  /** SAP system URL */
+  /** SAP system URL (used for cookie domain matching) */
   url: string;
+  /**
+   * URL to open for SSO login (default: {url}/sap/bc/adt/core/http/systeminformation).
+   * Use this when the base SAP URL requires basic auth but SSO is available
+   * via a different path (e.g., /fiori, /sap/bc/ui5_ui5/ui2/ushell/shells/abap/FioriLaunchpad.html).
+   */
+  loginUrl?: string;
   /** Show browser window during login (default: false) */
   headless?: boolean;
   /** Timeout for login in ms (default: 300000 = 5 minutes) */
