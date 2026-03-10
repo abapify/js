@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from 'node:fs';
 import type { Destination } from '../auth-manager';
 import { ServiceKeyParser, type BTPServiceKey } from '../types/service-key';
 

@@ -310,6 +310,17 @@ function schemaToLiteral(
 }
 
 /**
+ * Format a string value as a single-quoted literal, unescaping JSON double quotes
+ * and escaping any single quotes.
+ */
+function toSingleQuoteLiteral(jsonStr: string): string {
+  return `'${jsonStr
+    .slice(1, -1)
+    .replaceAll('\\"', '"')
+    .replaceAll("'", String.raw`\'`)}'`;
+}
+
+/**
  * Convert any value to a TypeScript literal string.
  */
 function objectToLiteral(
@@ -331,7 +342,7 @@ function objectToLiteral(
   if (typeof value === 'string') {
     const json = JSON.stringify(value);
     if (singleQuote) {
-      return `'${json.slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'")}'`;
+      return toSingleQuoteLiteral(json);
     }
     return json;
   }
@@ -372,9 +383,7 @@ function objectToLiteral(
       let keyStr = key;
       if (!isValidIdentifier(key)) {
         const json = JSON.stringify(key);
-        keyStr = singleQuote
-          ? `'${json.slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'")}'`
-          : json;
+        keyStr = singleQuote ? toSingleQuoteLiteral(json) : json;
       }
       const valStr = objectToLiteral(
         val,

@@ -1,5 +1,5 @@
-import { createServer, type Server } from 'http';
-import { parse as parseUrl } from 'url';
+import { createServer, type Server } from 'node:http';
+import { parse as parseUrl } from 'node:url';
 import type { AuthPlugin, AuthPluginOptions, CookieAuthResult } from '../types';
 import {
   ServiceKeyParser,
@@ -123,9 +123,10 @@ async function performPkceFlow(
         } = url.query;
 
         if (error) {
-          throw new Error(
-            `OAuth error: ${error}${error_description ? ` - ${error_description}` : ''}`,
-          );
+          const errorSuffix = error_description
+            ? ` - ${error_description}`
+            : '';
+          throw new Error(`OAuth error: ${error}${errorSuffix}`);
         }
 
         if (returnedState !== state) {
@@ -153,7 +154,10 @@ async function performPkceFlow(
         );
 
         clearTimeout(timeout);
-        setTimeout(() => server.close(() => resolve(tokenData)), 500);
+        setTimeout(() => {
+          server.close();
+          resolve(tokenData);
+        }, 500);
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(
