@@ -93,7 +93,10 @@ export function interfaces(options: InterfacesOptions = {}): GeneratorPlugin {
 
       // Always resolve the schema to merge all imports into one flat schema
       // This ensures all types are available in a single source file
-      const targetSchema = resolveSchema(schema.schema);
+      // keepImportsRef preserves $imports so element refs from imported schemas can be resolved
+      const targetSchema = resolveSchema(schema.schema, {
+        keepImportsRef: true,
+      });
 
       // Check if resolved schema has root elements (check AFTER resolution for imported elements)
       const hasRootElements =

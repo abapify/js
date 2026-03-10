@@ -778,7 +778,14 @@ function addElementProperty(
   // Handle element reference
   if (element.ref) {
     const refName = stripNsPrefix(element.ref);
-    const refElement = ctx.schema.element?.find((e) => e.name === refName);
+    // Search in current schema first, then in $imports
+    let refElement = ctx.schema.element?.find((e) => e.name === refName);
+    if (!refElement && ctx.schema.$imports) {
+      for (const imported of ctx.schema.$imports) {
+        refElement = imported.element?.find((e) => e.name === refName);
+        if (refElement) break;
+      }
+    }
     if (refElement) {
       addElementProperty(
         {

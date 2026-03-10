@@ -67,6 +67,8 @@ const targetSchemas = [
   'custom/transportmanagmentCreate',
   'custom/transportmanagmentSingle',
   'custom/atcRun',
+  'custom/aunitRun',
+  'custom/aunitResult',
 ];
 
 export default defineConfig({
@@ -89,6 +91,7 @@ export default defineConfig({
       defaultExport: true,
       $xmlns: true,
       $imports: true,
+      singleQuote: true,
     }),
     // Generate TypeScript interfaces to generated/types/ directory
     // Uses ts-morph type checker for accurate type expansion

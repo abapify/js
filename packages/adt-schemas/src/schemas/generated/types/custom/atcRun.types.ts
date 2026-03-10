@@ -9,6 +9,18 @@ export type AtcRunSchema = {
   run: {
     objectSets: {
       objectSet: {
+        objectReferences?: {
+          objectReference: {
+            extension?: unknown;
+            uri?: string;
+            parentUri?: string;
+            type?: string;
+            name?: string;
+            packageName?: string;
+            description?: string;
+          }[];
+          name?: string;
+        };
         kind?: string;
       }[];
     };

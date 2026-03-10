@@ -10,6 +10,7 @@ import atcfinding from './atcfinding';
 import atcobject from './atcobject';
 import atctagdescription from './atctagdescription';
 import atcinfo from './atcinfo';
+import atc from './atc';
 
 export default {
   $xmlns: {
@@ -21,8 +22,16 @@ export default {
     atcinfo: 'http://www.sap.com/adt/atc/info',
     atcresultquery: 'http://www.sap.com/adt/atc/resultquery',
     atcresult: 'http://www.sap.com/adt/atc/result',
+    atc: 'http://www.sap.com/adt/atc',
   },
-  $imports: [atcresultquery, atcfinding, atcobject, atctagdescription, atcinfo],
+  $imports: [
+    atcresultquery,
+    atcfinding,
+    atcobject,
+    atctagdescription,
+    atcinfo,
+    atc,
+  ],
   targetNamespace: 'http://www.sap.com/adt/atc/result',
   attributeFormDefault: 'qualified',
   elementFormDefault: 'qualified',
@@ -61,6 +70,12 @@ export default {
           },
           {
             ref: 'atctd:descriptionTags',
+          },
+          {
+            name: 'scaAttributes',
+            type: 'atc:ScaAttributes',
+            minOccurs: '0',
+            maxOccurs: '1',
           },
           {
             name: 'infos',
