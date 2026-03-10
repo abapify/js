@@ -44,7 +44,7 @@ class SystemInformationScenario extends ContractScenario {
       method: 'GET',
       path: '/sap/bc/adt/core/http/systeminformation',
       headers: {
-        Accept: 'application/json',
+        Accept: 'application/vnd.sap.adt.core.http.systeminformation.v1+json',
       },
       response: {
         status: 200,

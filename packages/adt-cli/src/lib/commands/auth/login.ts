@@ -53,10 +53,23 @@ export const loginCommand = new Command('login')
         if (dest) {
           console.log(`📋 Authenticating to ${sid}...\n`);
 
+          // For basic auth without credentials, prompt for username/password
+          const destOptions = dest.options as DestinationOptions;
+          if (
+            dest.type === '@abapify/adt-auth/plugins/basic' &&
+            !destOptions.username
+          ) {
+            const credentials = await promptForBasicAuthCredentials(
+              destOptions.url,
+              options,
+            );
+            Object.assign(destOptions, credentials);
+          }
+
           const authManager = getAuthManager();
           const session = await authManager.login(sid, {
             type: dest.type,
-            options: dest.options as DestinationOptions,
+            options: destOptions,
           });
 
           // Set as default
@@ -213,6 +226,39 @@ async function collectPluginOptions(
 
   return {
     url,
+    client: client || undefined,
+    username,
+    password: userPassword,
+  };
+}
+
+/**
+ * Prompt for basic auth credentials only (used when destination in config lacks credentials)
+ */
+async function promptForBasicAuthCredentials(
+  url: string,
+  commandOptions: any,
+): Promise<{ username: string; password: string; client?: string }> {
+  const client = await input({
+    message: 'Client (optional, e.g., 100)',
+    default: '',
+  });
+
+  const username = await input({
+    message: 'Username',
+    validate: (value) => (value ? true : 'Username is required'),
+  });
+
+  const userPassword = await password({
+    message: 'Password',
+    validate: (value) => (value ? true : 'Password is required'),
+  });
+
+  if (commandOptions.insecure) {
+    console.log('⚠️  SSL certificate verification disabled\n');
+  }
+
+  return {
     client: client || undefined,
     username,
     password: userPassword,

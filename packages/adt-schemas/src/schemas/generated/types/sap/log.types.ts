@@ -8,8 +8,28 @@
 export type LogSchema =
   | {
       logKeys: {
+        link?: {
+          href: string;
+          rel?: string;
+          type?: string;
+          hreflang?: string;
+          title?: string;
+          length?: number;
+          etag?: string;
+          _text?: string;
+        }[];
         progVersion?: {
           key?: {
+            link?: {
+              href: string;
+              rel?: string;
+              type?: string;
+              hreflang?: string;
+              title?: string;
+              length?: number;
+              etag?: string;
+              _text?: string;
+            }[];
             value?: string;
             calls?: number;
             lastCall?: string;
@@ -24,6 +44,16 @@ export type LogSchema =
         fieldList: {
           field?: {
             value: {
+              link?: {
+                href: string;
+                rel?: string;
+                type?: string;
+                hreflang?: string;
+                title?: string;
+                length?: number;
+                etag?: string;
+                _text?: string;
+              }[];
               e?: {
                 t?: boolean;
                 v?: string;
@@ -41,6 +71,16 @@ export type LogSchema =
             name?: string;
           }[];
         };
+        link?: {
+          href: string;
+          rel?: string;
+          type?: string;
+          hreflang?: string;
+          title?: string;
+          length?: number;
+          etag?: string;
+          _text?: string;
+        }[];
       };
     }
   | {

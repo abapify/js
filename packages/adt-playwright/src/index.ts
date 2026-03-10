@@ -66,9 +66,10 @@ export function withPlaywright(
         ...options,
       });
     } else {
+      // Destination-specific options override global options
       destinations[name] = createPlaywrightDestination({
-        ...(dest as BrowserAuthOptions),
         ...options,
+        ...(dest as BrowserAuthOptions),
       });
     }
   }

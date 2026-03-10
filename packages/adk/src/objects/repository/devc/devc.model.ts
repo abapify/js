@@ -112,15 +112,62 @@ export class AdkPackage
 
   async getSubpackages(): Promise<AbapPackage[]> {
     return this.lazy('subpackages', async () => {
-      // NOTE: Could use client.repository.packages.children(this.name) when available
-      return [];
+      // Search for subpackages using repository search
+      const response =
+        await this.ctx.client.adt.repository.informationsystem.search.quickSearch(
+          {
+            query: '*',
+            packageName: this.name,
+            objectType: 'DEVC',
+            maxResults: 1000,
+          },
+        );
+
+      // Parse object references - filter for DEVC type and exclude self
+      const refs = response.objectReferences?.objectReference ?? [];
+      const subpkgRefs = (Array.isArray(refs) ? refs : [refs]).filter(
+        (ref) => ref.type === 'DEVC/K' && ref.name !== this.name,
+      );
+
+      // Create AdkPackage instances for each subpackage
+      return Promise.all(
+        subpkgRefs.map(async (ref) => {
+          const pkg = new AdkPackage(this.ctx, ref.name);
+          await pkg.load();
+          return pkg;
+        }),
+      );
     });
   }
 
   async getObjects(): Promise<AbapObject[]> {
     return this.lazy('objects', async () => {
-      // NOTE: Could use client.repository.packages.objects(this.name) when available
-      return [];
+      // Search for objects in this package (exact match, not subpackages)
+      const response =
+        await this.ctx.client.adt.repository.informationsystem.search.quickSearch(
+          {
+            query: '*',
+            packageName: this.name,
+            maxResults: 1000,
+          },
+        );
+
+      // Parse object references - filter out packages (DEVC) and objects from other packages
+      const refs = response.objectReferences?.objectReference ?? [];
+      const objRefs = (Array.isArray(refs) ? refs : [refs]).filter(
+        (ref) =>
+          ref.type !== 'DEVC/K' &&
+          ref.packageName?.toUpperCase() === this.name.toUpperCase(),
+      );
+
+      // Return as AbapObject array
+      return objRefs.map((ref) => ({
+        type: ref.type?.split('/')[0] ?? '', // Extract main type from "CLAS/OC" -> "CLAS"
+        name: ref.name,
+        description: ref.description ?? '',
+        uri: ref.uri ?? '',
+        packageName: ref.packageName ?? '',
+      }));
     });
   }
 

@@ -53,6 +53,19 @@ export type AtcexemptionSchema =
         checkClass: string;
         validUntil: string;
         supportPackage?: string;
+        reasons?: {
+          reason?: {
+            id?: string;
+            justificationMandatory?: boolean;
+            title?: string;
+          }[];
+        };
+        validities?: {
+          validity?: {
+            id?: string;
+            value?: string;
+          }[];
+        };
       };
     }
   | {
@@ -103,6 +116,19 @@ export type AtcexemptionSchema =
           checkClass: string;
           validUntil: string;
           supportPackage?: string;
+          reasons?: {
+            reason?: {
+              id?: string;
+              justificationMandatory?: boolean;
+              title?: string;
+            }[];
+          };
+          validities?: {
+            validity?: {
+              id?: string;
+              value?: string;
+            }[];
+          };
         };
         status: {
           message: string;

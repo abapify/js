@@ -29,6 +29,16 @@ export type ChecklistSchema = {
         column?: number;
         word?: string;
       }[];
+      link?: {
+        href: string;
+        rel?: string;
+        type?: string;
+        hreflang?: string;
+        title?: string;
+        length?: number;
+        etag?: string;
+        _text?: string;
+      }[];
       objDescr: string;
       type: unknown;
       line?: number;
