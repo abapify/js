@@ -21,8 +21,9 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
   getSource: (obj) => obj.getSource(),
 
   // Git → SAP: Map abapGit values to ADK data
+  // Note: FUGR doesn't have the group name in AREAT field; name comes from filename
   fromAbapGit: ({ AREAT }) => ({
-    name: '',
+    name: '', // Function group name must be set by deserializer from filename
     type: 'FUGR/F',
     description: AREAT,
   }),

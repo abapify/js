@@ -143,4 +143,5 @@ vite.config.*.timestamp*
 vitest.config.*.timestamp*
 secrets
 
-.adtpackage-lock.json
+.adt
+package-lock.json
