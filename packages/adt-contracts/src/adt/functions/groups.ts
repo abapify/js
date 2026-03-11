@@ -1,0 +1,37 @@
+/**
+ * ADT Functions Groups Contract
+ *
+ * Endpoint: /sap/bc/adt/functions/groups
+ * Full CRUD operations for ABAP function groups including source code management.
+ */
+
+import { crud } from '../../base';
+import { abapFunctionGroup, type InferTypedSchema } from '../../schemas';
+
+/**
+ * Function group response type - exported for consumers (ADK, etc.)
+ *
+ * This is the canonical type for function group metadata.
+ * Uses pre-generated type from adt-schemas.
+ */
+export type FunctionGroupResponse = InferTypedSchema<typeof abapFunctionGroup>;
+
+/**
+ * /sap/bc/adt/functions/groups
+ * Full CRUD operations for ABAP function groups
+ *
+ * Includes:
+ * - Basic CRUD: get, post, put, delete
+ * - Lock/Unlock: lock, unlock
+ * - Object structure: objectstructure
+ * - Source code: source.main.get/put
+ */
+export const functionGroupsContract = crud({
+  basePath: '/sap/bc/adt/functions/groups',
+  schema: abapFunctionGroup,
+  contentType: 'application/vnd.sap.adt.functions.groups.v3+xml',
+  sources: ['main'] as const,
+});
+
+/** Type alias for the function groups contract */
+export type FunctionGroupsContract = typeof functionGroupsContract;

@@ -10,6 +10,8 @@ export * from './discovery';
 export * from './packages';
 export * from './core';
 export * from './repository';
+export * from './programs';
+export * from './functions';
 
 /**
  * Complete ADT Contract
@@ -22,6 +24,11 @@ import { discoveryContract, type DiscoveryContract } from './discovery';
 import { packagesContract, type PackagesContract } from './packages';
 import { coreContract, type CoreContract } from './core';
 import { repositoryContract, type RepositoryContract } from './repository';
+import {
+  programsModuleContract,
+  type ProgramsModuleContract,
+} from './programs';
+import { functionsContract, type FunctionsContract } from './functions';
 
 /**
  * Explicit type to avoid TS7056 "inferred type exceeds maximum length"
@@ -35,6 +42,8 @@ export interface AdtContract {
   packages: PackagesContract;
   core: CoreContract;
   repository: RepositoryContract;
+  programs: ProgramsModuleContract;
+  functions: FunctionsContract;
 }
 
 export const adtContract: AdtContract = {
@@ -46,6 +55,8 @@ export const adtContract: AdtContract = {
   packages: packagesContract,
   core: coreContract,
   repository: repositoryContract,
+  programs: programsModuleContract,
+  functions: functionsContract,
 };
 
 // Import RestClient from base for client type definition
