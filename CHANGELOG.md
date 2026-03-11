@@ -1,3 +1,71 @@
+## 0.1.8 (2026-03-11)
+
+### 🚀 Features
+
+- add granular publish inputs to release workflow ([95a890c](https://github.com/abapify/adt-cli/commit/95a890c))
+- add latest Docker tag when publishing releases ([8eb4cf1](https://github.com/abapify/adt-cli/commit/8eb4cf1))
+- add Copilot hooks to auto-approve waiting workflow runs ([10245a6](https://github.com/abapify/adt-cli/commit/10245a6))
+- log all tool calls to JSON via postToolUse hook, print on sessionEnd ([1902d5f](https://github.com/abapify/adt-cli/commit/1902d5f))
+- add --service-key CLI option, Bearer token support, and CI e2e auth test ([9f6710a](https://github.com/abapify/adt-cli/commit/9f6710a))
+- **adt-auth:** add service-key auth plugin and env resolver ([6bdb0c8](https://github.com/abapify/adt-cli/commit/6bdb0c8))
+- **adt-mcp:** implement MCP server package with tools and mock backend ([f625d32](https://github.com/abapify/adt-cli/commit/f625d32))
+- **adt-mcp:** add adt-mcp package from PR #59, resolving conflicts with main ([#59](https://github.com/abapify/adt-cli/issues/59))
+- **nx-cloud:** setup nx cloud workspace ([4a29f8a](https://github.com/abapify/adt-cli/commit/4a29f8a))
+- **nx-cloud:** setup nx cloud workspace ([63f92c9](https://github.com/abapify/adt-cli/commit/63f92c9))
+- **nx-cloud:** setup nx cloud workspace ([64881ab](https://github.com/abapify/adt-cli/commit/64881ab))
+
+### 🩹 Fixes
+
+- correct @abapify/speci/client doc reference to use /rest subpath ([6076db7](https://github.com/abapify/adt-cli/commit/6076db7))
+- address all Qodo review comments from today's PRs (#44-#49) ([#44](https://github.com/abapify/adt-cli/issues/44), [#49](https://github.com/abapify/adt-cli/issues/49), [#48](https://github.com/abapify/adt-cli/issues/48), [#47](https://github.com/abapify/adt-cli/issues/47), [#46](https://github.com/abapify/adt-cli/issues/46), [#45](https://github.com/abapify/adt-cli/issues/45))
+- add missing tsdown.config.ts to Docker build context ([a3b62a1](https://github.com/abapify/adt-cli/commit/a3b62a1))
+- add tsdown.config.ts to Dockerfile COPY command to fix Docker build ([5fcffca](https://github.com/abapify/adt-cli/commit/5fcffca))
+- exclude root abapify project from Docker build ([3b92804](https://github.com/abapify/adt-cli/commit/3b92804))
+- add build step before publish to include dist/ in packages ([a401f5c](https://github.com/abapify/adt-cli/commit/a401f5c))
+- remove build target from root abapify project.json ([919fe89](https://github.com/abapify/adt-cli/commit/919fe89))
+- exclude workspace root tsdown.config.ts from nx-tsdown plugin ([d57a8bd](https://github.com/abapify/adt-cli/commit/d57a8bd))
+- add missing zod dependency to adt-schemas and ts-xsd, bump to 0.1.9 ([9c23f17](https://github.com/abapify/adt-cli/commit/9c23f17))
+- add missing ts-morph and adk deps, bump to 0.1.10 ([513bcb9](https://github.com/abapify/adt-cli/commit/513bcb9))
+- correct husky hook path in git-commit skill (core.hooksPath = .husky/\_) ([bfcd9e8](https://github.com/abapify/adt-cli/commit/bfcd9e8))
+- remove adt-client↔adk circular dep; add nx-ci pre-commit skill ([6d2075d](https://github.com/abapify/adt-cli/commit/6d2075d))
+- checkout PR head in CI to avoid 3-way merge re-introducing circular dep ([0b35753](https://github.com/abapify/adt-cli/commit/0b35753))
+- remove @abapify/adk from adt-client deps (circular dep, re-added by merge commit) ([87f267d](https://github.com/abapify/adt-cli/commit/87f267d))
+- run lint/test/build in pre-commit hook (same as CI) ([c685732](https://github.com/abapify/adt-cli/commit/c685732))
+- remove @abapify/adk from adt-client deps (circular dep, re-added by merge commit) ([550a1d1](https://github.com/abapify/adt-cli/commit/550a1d1))
+- checkout PR head in CI to avoid 3-way merge re-introducing circular dep ([083897d](https://github.com/abapify/adt-cli/commit/083897d))
+- exclude workspace root tsdown.config.ts from nx-tsdown plugin ([96fbec3](https://github.com/abapify/adt-cli/commit/96fbec3))
+- add adt bin symlinks in Docker image ([21aa590](https://github.com/abapify/adt-cli/commit/21aa590))
+- Docker image - fix adt bin symlink paths and CMD ([47f983c](https://github.com/abapify/adt-cli/commit/47f983c))
+- update devcontainer features configuration ([dcbf9bd](https://github.com/abapify/adt-cli/commit/dcbf9bd))
+- update base image to latest TypeScript Node version ([45a2c14](https://github.com/abapify/adt-cli/commit/45a2c14))
+- query action_required status in approve-workflows.sh hook script ([d40d3b5](https://github.com/abapify/adt-cli/commit/d40d3b5))
+- add copilot/\*\* push trigger to ci.yml and improve hook to check both approval statuses ([b2c4f5e](https://github.com/abapify/adt-cli/commit/b2c4f5e))
+- add auto-approve workflow for Copilot CI runs and improve hook coverage ([3eeedf6](https://github.com/abapify/adt-cli/commit/3eeedf6))
+- use schedule trigger in auto-approve-copilot-ci.yml to break approval deadlock ([1ce442a](https://github.com/abapify/adt-cli/commit/1ce442a))
+- add copilot/\*\* push trigger to ci.yml so CI runs without approval ([d858434](https://github.com/abapify/adt-cli/commit/d858434))
+- retry workflow approval after report_progress (push) tool call ([a929799](https://github.com/abapify/adt-cli/commit/a929799))
+- test-hooks.sh approve-workflows tests failing in CI (detached HEAD + PATH bug) ([1d86678](https://github.com/abapify/adt-cli/commit/1d86678))
+- readServiceKey only accepts file paths; clear error when raw JSON passed ([664d857](https://github.com/abapify/adt-cli/commit/664d857))
+- --service-key must point to a file path, not raw JSON ([d72de44](https://github.com/abapify/adt-cli/commit/d72de44))
+- remove inlinedDependencies and alwaysBundle from adt-cli tsdown config ([f276b10](https://github.com/abapify/adt-cli/commit/f276b10))
+- restore package-lock.json tracking, switch CI to npm ci to fix eslint external dep resolution ([f7de5a7](https://github.com/abapify/adt-cli/commit/f7de5a7))
+- release workflow always checks out and commits to main branch ([e3b57e7](https://github.com/abapify/adt-cli/commit/e3b57e7))
+- **adt-mcp:** resolve SonarQube E Security Rating findings ([5ab60c3](https://github.com/abapify/adt-cli/commit/5ab60c3))
+- **adt-mcp:** resolve all SonarQube issues blocking PR #59 quality gate ([#59](https://github.com/abapify/adt-cli/issues/59))
+- **adt-mcp:** resolve remaining SonarQube issues ([e172e72](https://github.com/abapify/adt-cli/commit/e172e72))
+- **adt-mcp:** apply PR review feedback - not-yet-impl errors, semver deps, mock, docs ([e2e274d](https://github.com/abapify/adt-cli/commit/e2e274d))
+- **ci:** restore ci.yml (bun install), set nx.json cli.packageManager=npm to fix eslint dep resolution ([c7b1ce8](https://github.com/abapify/adt-cli/commit/c7b1ce8))
+- **docker:** disable nx daemon/TUI and reduce parallelism to fix exit code 130 ([53a4df3](https://github.com/abapify/adt-cli/commit/53a4df3))
+- **lint:** fix 3 CI failures: ts-xsd lint, adt-cli lazy-load error, adt-contracts test header ([c7b856c](https://github.com/abapify/adt-cli/commit/c7b856c))
+- **sonarqube:** fix code quality issues from PR #76 ([#76](https://github.com/abapify/adt-cli/issues/76))
+- **ts-xsd:** fix NamedNodeMap/NodeList iteration and resolve bugs ([1d4a5dd](https://github.com/abapify/adt-cli/commit/1d4a5dd))
+
+### ❤️ Thank You
+
+- Claude
+- Petr Plenkov
+- ThePlenkov @ThePlenkov
+
 ## 0.1.7 (2026-03-02)
 
 ### 🚀 Features
