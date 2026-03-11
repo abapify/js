@@ -13,7 +13,7 @@
  * - testcase > system-out, system-err
  */
 
-import { writeFile } from 'fs/promises';
+import { writeFile } from 'node:fs/promises';
 import type { AunitResult, AunitTestMethod } from '../types';
 
 /**
@@ -21,11 +21,11 @@ import type { AunitResult, AunitTestMethod } from '../types';
  */
 function escapeXml(str: string): string {
   return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
 }
 
 /**
@@ -43,7 +43,8 @@ function buildAlertMessage(method: AunitTestMethod): string {
         lines.push('Stack:');
         for (const entry of alert.stack) {
           const desc = entry.description || entry.name || '';
-          lines.push(`  at ${desc}${entry.uri ? ` (${entry.uri})` : ''}`);
+          const uriPart = entry.uri ? ` (${entry.uri})` : '';
+          lines.push(`  at ${desc}${uriPart}`);
         }
       }
       return lines.join('\n');
@@ -52,12 +53,44 @@ function buildAlertMessage(method: AunitTestMethod): string {
 }
 
 /**
+ * Build testcase XML lines for a single test method
+ */
+function buildTestCaseXml(
+  method: AunitTestMethod,
+  classname: string,
+): string[] {
+  const caseLines: string[] = [
+    `    <testcase classname="${escapeXml(classname)}" name="${escapeXml(method.name)}" time="${method.executionTime.toFixed(3)}">`,
+  ];
+
+  if (method.status === 'fail') {
+    const message = method.alerts[0]?.title || 'Assertion failed';
+    const body = buildAlertMessage(method);
+    caseLines.push(
+      `      <failure message="${escapeXml(message)}">${escapeXml(body)}</failure>`,
+    );
+  } else if (method.status === 'error') {
+    const message = method.alerts[0]?.title || 'Error';
+    const body = buildAlertMessage(method);
+    caseLines.push(
+      `      <error message="${escapeXml(message)}">${escapeXml(body)}</error>`,
+    );
+  } else if (method.status === 'skip') {
+    caseLines.push('      <skipped/>');
+  }
+
+  if (method.uri) {
+    caseLines.push(`      <system-out>${escapeXml(method.uri)}</system-out>`);
+  }
+
+  caseLines.push('    </testcase>');
+  return caseLines;
+}
+
+/**
  * Convert AUnit result to JUnit XML string
  */
 export function toJunitXml(result: AunitResult): string {
-  const lines: string[] = [];
-  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
-
   // Collect all test suites (one per test class)
   const suites: string[] = [];
 
@@ -78,41 +111,13 @@ export function toJunitXml(result: AunitResult): string {
         0,
       );
 
-      const suiteLines: string[] = [];
-      suiteLines.push(
+      const suiteLines: string[] = [
         `  <testsuite name="${escapeXml(program.name)}.${escapeXml(testClass.name)}" tests="${tests}" failures="${failures}" errors="${errors}" skipped="${skipped}" time="${time.toFixed(3)}">`,
-      );
+      ];
 
       for (const method of testClass.methods) {
         const classname = `${program.name}.${testClass.name}`;
-        suiteLines.push(
-          `    <testcase classname="${escapeXml(classname)}" name="${escapeXml(method.name)}" time="${method.executionTime.toFixed(3)}">`,
-        );
-
-        if (method.status === 'fail') {
-          const message = method.alerts[0]?.title || 'Assertion failed';
-          const body = buildAlertMessage(method);
-          suiteLines.push(
-            `      <failure message="${escapeXml(message)}">${escapeXml(body)}</failure>`,
-          );
-        } else if (method.status === 'error') {
-          const message = method.alerts[0]?.title || 'Error';
-          const body = buildAlertMessage(method);
-          suiteLines.push(
-            `      <error message="${escapeXml(message)}">${escapeXml(body)}</error>`,
-          );
-        } else if (method.status === 'skip') {
-          suiteLines.push('      <skipped/>');
-        }
-
-        // Add system-out with ADT URI for navigation
-        if (method.uri) {
-          suiteLines.push(
-            `      <system-out>${escapeXml(method.uri)}</system-out>`,
-          );
-        }
-
-        suiteLines.push('    </testcase>');
+        suiteLines.push(...buildTestCaseXml(method, classname));
       }
 
       suiteLines.push('  </testsuite>');
@@ -120,13 +125,13 @@ export function toJunitXml(result: AunitResult): string {
     }
   }
 
-  lines.push(
-    `<testsuites tests="${result.totalTests}" failures="${result.failCount}" errors="${result.errorCount}" skipped="${result.skipCount}" time="${result.totalTime.toFixed(3)}">`,
-  );
-  lines.push(...suites);
-  lines.push('</testsuites>');
-
-  return lines.join('\n');
+  const header = `<testsuites tests="${result.totalTests}" failures="${result.failCount}" errors="${result.errorCount}" skipped="${result.skipCount}" time="${result.totalTime.toFixed(3)}">`;
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    header,
+    ...suites,
+    '</testsuites>',
+  ].join('\n');
 }
 
 /**
