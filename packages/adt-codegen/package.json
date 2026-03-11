@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.1.10",
+  "version": "0.1.8",
   "description": "Code generation toolkit for SAP ADT APIs",
   "type": "module",
   "types": "./dist/index.d.mts",
