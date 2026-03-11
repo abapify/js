@@ -67,6 +67,8 @@ export type {
 // This allows ADK to depend only on adt-client, not adt-contracts directly
 export type { ClassResponse, InterfaceResponse } from '@abapify/adt-contracts';
 export type { Package as PackageResponse } from '@abapify/adt-contracts';
+export type { ProgramResponse } from '@abapify/adt-contracts';
+export type { FunctionGroupResponse } from '@abapify/adt-contracts';
 
 // Transport response type - exported directly from contracts
 // Note: Transport business logic has moved to @abapify/adk (AdkTransportRequest)

@@ -41,6 +41,8 @@ import type { TracesSchema } from './types/sap/traces.types';
 import type { QuickfixesSchema } from './types/sap/quickfixes.types';
 import type { LogSchema } from './types/sap/log.types';
 import type { TemplatelinkSchema } from './types/sap/templatelink.types';
+import type { AbapProgramSchema } from './types/sap/abapProgram.types';
+import type { AbapFunctionGroupSchema } from './types/sap/abapFunctionGroup.types';
 import type { AtomExtendedSchema } from './types/custom/atomExtended.types';
 import type { DiscoverySchema } from './types/custom/discovery.types';
 import type { HttpSchema } from './types/custom/http.types';
@@ -131,6 +133,12 @@ export const log: TypedSchema<LogSchema> = typedSchema<LogSchema>(_log);
 import _templatelink from './schemas/sap/templatelink';
 export const templatelink: TypedSchema<TemplatelinkSchema> =
   typedSchema<TemplatelinkSchema>(_templatelink);
+import _abapProgram from './schemas/sap/abapProgram';
+export const abapProgram: TypedSchema<AbapProgramSchema> =
+  typedSchema<AbapProgramSchema>(_abapProgram);
+import _abapFunctionGroup from './schemas/sap/abapFunctionGroup';
+export const abapFunctionGroup: TypedSchema<AbapFunctionGroupSchema> =
+  typedSchema<AbapFunctionGroupSchema>(_abapFunctionGroup);
 
 // Custom schemas
 import _atomExtended from './schemas/custom/atomExtended';
