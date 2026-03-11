@@ -3,7 +3,7 @@
   "defaultBase": "main",
   "nxCloudId": "69ab0980542defed8d2aa8f4",
   "cli": {
-    "packageManager": "npm"
+    "packageManager": "bun"
   },
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
