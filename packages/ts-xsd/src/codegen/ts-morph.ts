@@ -769,6 +769,52 @@ function collectFromGroup(
   return hasAny;
 }
 
+/**
+ * Resolve the TypeScript type string for a local element.
+ */
+function resolveElementType(
+  element: LocalElement,
+  ctx: GeneratorContext,
+): string {
+  if (element.type) {
+    return resolveTypeName(element.type, ctx);
+  }
+  if (element.complexType) {
+    // Inline complex type - generate anonymous interface
+    return 'unknown'; // NOTE: could generate inline type for complex types
+  }
+  if (element.simpleType?.restriction?.enumeration) {
+    return element.simpleType.restriction.enumeration
+      .map((e: { value?: string }) => `'${e.value}'`)
+      .join(' | ');
+  }
+  if (element.simpleType?.restriction?.base) {
+    return (
+      XSD_BUILT_IN_TYPES[stripNsPrefix(element.simpleType.restriction.base)] ??
+      'string'
+    );
+  }
+  return 'string';
+}
+
+/**
+ * Find a referenced element definition by name across the current schema and its imports.
+ */
+function findRefElement(
+  refName: string,
+  ctx: GeneratorContext,
+): LocalElement | undefined {
+  const found = ctx.schema.element?.find((e) => e.name === refName);
+  if (found) return found;
+  if (ctx.schema.$imports) {
+    for (const imported of ctx.schema.$imports) {
+      const fromImport = imported.element?.find((e) => e.name === refName);
+      if (fromImport) return fromImport;
+    }
+  }
+  return undefined;
+}
+
 function addElementProperty(
   element: LocalElement,
   properties: Array<{ name: string; type: string; hasQuestionToken: boolean }>,
@@ -778,14 +824,7 @@ function addElementProperty(
   // Handle element reference
   if (element.ref) {
     const refName = stripNsPrefix(element.ref);
-    // Search in current schema first, then in $imports
-    let refElement = ctx.schema.element?.find((e) => e.name === refName);
-    if (!refElement && ctx.schema.$imports) {
-      for (const imported of ctx.schema.$imports) {
-        refElement = imported.element?.find((e) => e.name === refName);
-        if (refElement) break;
-      }
-    }
+    const refElement = findRefElement(refName, ctx);
     if (refElement) {
       addElementProperty(
         {
@@ -809,23 +848,7 @@ function addElementProperty(
   const isOptional =
     forceOptional || element.minOccurs === '0' || element.minOccurs === 0;
 
-  let tsType: string;
-  if (element.type) {
-    tsType = resolveTypeName(element.type, ctx);
-  } else if (element.complexType) {
-    // Inline complex type - generate anonymous interface
-    tsType = 'unknown'; // NOTE: could generate inline type for complex types
-  } else if (element.simpleType?.restriction?.enumeration) {
-    tsType = element.simpleType.restriction.enumeration
-      .map((e: { value?: string }) => `'${e.value}'`)
-      .join(' | ');
-  } else if (element.simpleType?.restriction?.base) {
-    tsType =
-      XSD_BUILT_IN_TYPES[stripNsPrefix(element.simpleType.restriction.base)] ??
-      'string';
-  } else {
-    tsType = 'string';
-  }
+  let tsType = resolveElementType(element, ctx);
 
   if (isArray) {
     tsType = `${tsType}[]`;
