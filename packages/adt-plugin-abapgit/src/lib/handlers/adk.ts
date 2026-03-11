@@ -5,7 +5,13 @@
  */
 
 // Classes (used as values in createHandler)
-export { AdkClass, AdkInterface, AdkPackage } from '@abapify/adk';
+export {
+  AdkClass,
+  AdkInterface,
+  AdkPackage,
+  AdkProgram,
+  AdkFunctionGroup,
+} from '@abapify/adk';
 
 // Types
 export type { AdkObject, ClassIncludeType } from '@abapify/adk';

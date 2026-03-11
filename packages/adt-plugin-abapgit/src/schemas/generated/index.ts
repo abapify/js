@@ -18,7 +18,9 @@ import _clas from './schemas/clas';
 import _devc from './schemas/devc';
 import _doma from './schemas/doma';
 import _dtel from './schemas/dtel';
+import _fugr from './schemas/fugr';
 import _intf from './schemas/intf';
+import _prog from './schemas/prog';
 
 // Full AbapGit types - using flattened root types
 // Note: Generated types may be unions, we import the raw schema type
@@ -26,14 +28,18 @@ import type { ClasSchema as _ClasSchema } from './types/clas';
 import type { DevcSchema as _DevcSchema } from './types/devc';
 import type { DomaSchema as _DomaSchema } from './types/doma';
 import type { DtelSchema as _DtelSchema } from './types/dtel';
+import type { FugrSchema as _FugrSchema } from './types/fugr';
 import type { IntfSchema as _IntfSchema } from './types/intf';
+import type { ProgSchema as _ProgSchema } from './types/prog';
 
 // Extract the abapGit variant from union types (generated types may be unions)
 type ClasAbapGitType = Extract<_ClasSchema, { abapGit: unknown }>;
 type DevcAbapGitType = Extract<_DevcSchema, { abapGit: unknown }>;
 type DomaAbapGitType = Extract<_DomaSchema, { abapGit: unknown }>;
 type DtelAbapGitType = Extract<_DtelSchema, { abapGit: unknown }>;
+type FugrAbapGitType = Extract<_FugrSchema, { abapGit: unknown }>;
 type IntfAbapGitType = Extract<_IntfSchema, { abapGit: unknown }>;
+type ProgAbapGitType = Extract<_ProgSchema, { abapGit: unknown }>;
 
 // AbapGit schema instances - using flattened types with values extracted from abapGit.abap.values
 export const clas = abapGitSchema<
@@ -52,10 +58,18 @@ export const dtel = abapGitSchema<
   DtelAbapGitType,
   DtelAbapGitType['abapGit']['abap']['values']
 >(_dtel);
+export const fugr = abapGitSchema<
+  FugrAbapGitType,
+  FugrAbapGitType['abapGit']['abap']['values']
+>(_fugr);
 export const intf = abapGitSchema<
   IntfAbapGitType,
   IntfAbapGitType['abapGit']['abap']['values']
 >(_intf);
+export const prog = abapGitSchema<
+  ProgAbapGitType,
+  ProgAbapGitType['abapGit']['abap']['values']
+>(_prog);
 
 // Re-export types and utilities
 export {
