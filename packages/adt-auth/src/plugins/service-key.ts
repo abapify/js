@@ -11,6 +11,7 @@ import {
   generateCodeChallenge,
   generateState,
 } from '../utils/pkce';
+import { getCallbackBaseUrl } from '../utils/codespaces';
 
 const DEFAULT_PORT = 3000;
 const DEFAULT_REDIRECT_PATH = '/callback';
@@ -84,7 +85,7 @@ async function performPkceFlow(
   const codeChallenge = generateCodeChallenge(codeVerifier);
   const state = generateState();
 
-  const redirectUri = `http://localhost:${port}${DEFAULT_REDIRECT_PATH}`;
+  const redirectUri = `${getCallbackBaseUrl(port)}${DEFAULT_REDIRECT_PATH}`;
 
   // Build XSUAA authorize URL
   const authUrl = new URL(`${serviceKey.uaa.url}/oauth/authorize`);
