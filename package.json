@@ -48,6 +48,7 @@
     "@abapify/adt-config": "workspace:*",
     "@abapify/adt-export": "workspace:*",
     "@abapify/adt-playwright": "workspace:*",
+    "@abapify/adt-aunit": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@nx/eslint": "22.5.3",
     "@nx/eslint-plugin": "22.5.3",

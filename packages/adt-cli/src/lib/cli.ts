@@ -24,13 +24,11 @@ import { refreshCommand } from './commands/auth/refresh';
 // Deploy command moved to @abapify/adt-export plugin
 // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
-import { setCliContext, getCliContext } from './utils/adt-client-v2';
-import { getAuthManager, setDefaultSid } from './utils/auth';
-import { readServiceKey } from '@abapify/adt-auth';
-import { CALLBACK_SERVER_PORT, OAUTH_TIMEOUT_MS } from './config';
+import { setCliContext } from './utils/adt-client-v2';
+import { existsSync } from 'fs';
 import { loadCommandPlugins, loadStaticPlugins } from './plugin-loader';
 import type { CliCommandPlugin } from '@abapify/adt-plugin';
-import { existsSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 // Check for insecure SSL flag in stored session and apply it globally
@@ -80,6 +78,14 @@ ${globalOptions}
   }
 }
 
+function getResolvedConfigPath(argv: string[]): string | undefined {
+  const configArgIndex = argv.findIndex((arg) => arg === '--config');
+  if (configArgIndex !== -1) {
+    return argv[configArgIndex + 1];
+  }
+  return undefined;
+}
+
 // Create main program
 export async function createCLI(options?: {
   /** Pre-loaded plugins to register instead of loading from config.
@@ -118,10 +124,9 @@ export async function createCLI(options?: {
       'Save ADT responses as separate files',
       false,
     )
-    .option('--config <path>', 'Path to config file (default: adt.config.ts)')
     .option(
-      '--service-key <path>',
-      'Path to a BTP service key JSON file. Auto-authenticates before running the command.',
+      '--config <path>',
+      'Path to config file (default: adt.config.ts, or .adt/config.ts if present)',
     )
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.optsWithGlobals();
@@ -200,9 +205,7 @@ export async function createCLI(options?: {
 
   // Load command plugins from config (adt.config.ts or --config)
   // NOTE: We need to parse --config early since plugins must be loaded before parseAsync()
-  const configArgIndex = process.argv.findIndex((arg) => arg === '--config');
-  const configPath =
-    configArgIndex !== -1 ? process.argv[configArgIndex + 1] : undefined;
+  const configPath = getResolvedConfigPath(process.argv);
 
   if (options?.preloadedPlugins !== undefined) {
     // Bundled mode: register statically imported plugins (no dynamic import needed)
@@ -259,51 +262,8 @@ export async function main(options?: {
       logOutput: loggingConfig.logOutput,
       logResponseFiles: loggingConfig.logResponseFiles,
       verbose: globalOptions.verbose,
-      configPath: globalOptions.config,
+      configPath: globalOptions.config as string | undefined,
     });
-
-    // Handle --service-key: auto-authenticate before running the command
-    if (globalOptions.serviceKey) {
-      try {
-        const serviceKey = readServiceKey(globalOptions.serviceKey as string);
-
-        if (!serviceKey.systemid && !globalOptions.sid) {
-          throw new Error(
-            'Service key does not contain a systemid. Use --sid to specify the system ID.',
-          );
-        }
-
-        const sid =
-          globalOptions.sid?.toUpperCase() || serviceKey.systemid.toUpperCase();
-
-        const authManager = getAuthManager();
-        const openModule = await import('open');
-        const openFn = openModule.default;
-        await authManager.login(sid, {
-          type: '@abapify/adt-auth/plugins/service-key',
-          options: {
-            url: serviceKey.url,
-            serviceKey,
-            openBrowser: async (url: string) => {
-              console.log('🌐 Opening browser for authentication...');
-              await openFn(url);
-            },
-            callbackPort: CALLBACK_SERVER_PORT,
-            timeoutMs: OAUTH_TIMEOUT_MS,
-          },
-        });
-
-        // Explicitly set the SID so downstream commands find the session
-        setDefaultSid(sid);
-        setCliContext({ ...getCliContext(), sid });
-      } catch (error) {
-        console.error(
-          '❌ Service key authentication failed:',
-          error instanceof Error ? error.message : String(error),
-        );
-        process.exit(1);
-      }
-    }
   });
 
   await program.parseAsync(process.argv);
