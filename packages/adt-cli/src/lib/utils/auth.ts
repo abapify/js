@@ -6,6 +6,7 @@
  */
 
 import { AuthManager } from '@abapify/adt-auth';
+import { listAutoServiceKeyDestinationNames } from './destinations';
 
 // Re-export types from adt-auth
 export type {
@@ -54,11 +55,29 @@ export function listAvailableSids() {
 // Default SID Management
 // =============================================================================
 
+export function resolveDefaultSid(
+  authenticatedDefaultSid: string | null,
+  discoveredServiceKeySids: string[],
+): string | undefined {
+  if (authenticatedDefaultSid) {
+    return authenticatedDefaultSid;
+  }
+
+  if (discoveredServiceKeySids.length === 1) {
+    return discoveredServiceKeySids[0];
+  }
+
+  return undefined;
+}
+
 /**
  * Get default SID
  */
 export function getDefaultSid() {
-  return authManager.getDefaultSid() ?? undefined;
+  return resolveDefaultSid(
+    authManager.getDefaultSid(),
+    listAutoServiceKeyDestinationNames(),
+  );
 }
 
 /**

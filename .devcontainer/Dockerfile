@@ -6,6 +6,7 @@ COPY --from=docker/mcp-gateway /docker-mcp /usr/libexec/docker/cli-plugins/docke
 
 # Install necessary libraries for Chromium
 RUN apt-get update && apt-get install -y \
+    build-essential \
     ca-certificates \
     fonts-liberation \
     libasound2 \
@@ -47,8 +48,12 @@ RUN apt-get update && apt-get install -y \
 # RUN npm install -g npm@latest
 
 USER node
-# Install uv Python package manager
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-# Install bun
-RUN curl -fsSL https://bun.sh/install | bash
+# Install Homebrew
+RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Make Homebrew available without eval
+ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
+
+# Install toolchain and CLI tools via Homebrew
+RUN brew install gcc uv oven-sh/bun/bun
 

@@ -2,6 +2,12 @@ import { Command } from 'commander';
 import { ImportService } from '../../services/import/service';
 import { IconRegistry } from '../../utils/icon-registry';
 import { getAdtClientV2 } from '../../utils/adt-client-v2';
+import {
+  getErrorCode,
+  getErrorMessage,
+  getErrorStatus,
+  printErrorStack,
+} from '../../utils/command-helpers';
 
 export const importPackageCommand = new Command('package')
   .argument('<packageName>', 'ABAP package name to import')
@@ -72,15 +78,9 @@ export const importPackageCommand = new Command('package')
 
       console.log(`\n✨ Files written to: ${result.outputPath}`);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      const errorCode =
-        error instanceof Error && 'code' in error
-          ? (error as any).code
-          : 'UNKNOWN';
-      const errorStatus =
-        error instanceof Error && 'status' in error
-          ? (error as any).status
-          : '';
+      const errorMsg = getErrorMessage(error);
+      const errorCode = getErrorCode(error) ?? 'UNKNOWN';
+      const errorStatus = getErrorStatus(error) ?? '';
       const cause =
         error instanceof Error && 'cause' in error
           ? (error as any).cause
@@ -95,15 +95,12 @@ export const importPackageCommand = new Command('package')
       }
       if (cause) {
         const causeMsg = cause instanceof Error ? cause.message : String(cause);
-        const causeCode =
-          cause instanceof Error && 'code' in cause ? (cause as any).code : '';
+        const causeCode = getErrorCode(cause) ?? '';
         console.error(
           `   Cause: ${causeMsg}${causeCode ? ` (${causeCode})` : ''}`,
         );
       }
-      if (error instanceof Error && error.stack) {
-        console.error(`   Stack: ${error.stack}`);
-      }
+      printErrorStack(error);
       process.exit(1);
     }
   });

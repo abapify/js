@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getErrorMessage, printErrorStack } from '../utils/command-helpers';
 
 export const fetchCommand = new Command('fetch')
   .description('Fetch a URL with authentication (like curl but authenticated)')
@@ -74,13 +75,8 @@ export const fetchCommand = new Command('fetch')
 
       console.log('\n✅ Done!');
     } catch (error) {
-      console.error(
-        '❌ Request failed:',
-        error instanceof Error ? error.message : String(error),
-      );
-      if (error instanceof Error && error.stack) {
-        console.error('\nStack trace:', error.stack);
-      }
+      console.error('❌ Request failed:', getErrorMessage(error));
+      printErrorStack(error);
       process.exit(1);
     }
   });

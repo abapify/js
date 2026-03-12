@@ -21,8 +21,12 @@ npx @abapify/adt-cli <command>
 ## Quick Start
 
 ```bash
-# Authenticate with a BTP service key
-adt auth login --file ./service-key.json
+# Drop a BTP service key into the workspace
+mkdir -p .adt/destinations
+cp ./service-key.json .adt/destinations/TRL.json
+
+# Authenticate using the discovered destination
+adt auth login --sid TRL
 
 # Discover available ADT services
 adt discovery
@@ -47,12 +51,45 @@ adt export package ZTEST_PKG ./oat-ztest_pkg --create --transport NPLK900123
 
 ### Authentication
 
-#### `adt auth login --file <path>`
+#### Auto-discovered service keys
 
-Authenticate using a BTP service key file (OAuth 2.0 + PKCE).
+The CLI automatically scans these folders for BTP service key JSON files:
+
+- `.adt/destinations/*.json` in the current workspace
+- `.adt/service-keys/*.json` in the current workspace
+- `.adt/keys/*.json` in the current workspace
+- `~/.adt/destinations/*.json`
+- `~/.adt/service-keys/*.json`
+- `~/.adt/keys/*.json`
+
+The recommended drop-in location is `.adt/destinations/<SID>.json`.
+
+Example:
 
 ```bash
-adt auth login --file ./secrets/service-key.json
+mkdir -p .adt/destinations
+cp ./service-key.json .adt/destinations/TRL.json
+
+# Explicitly use the discovered destination
+adt auth login --sid TRL
+
+# Or run without --sid and pick TRL from the prompt
+adt auth login
+```
+
+Behavior:
+
+- The file must be a valid BTP service key JSON containing `systemid`.
+- The discovered `systemid` becomes the destination name.
+- Configured destinations from `adt.config.ts` still win if the same SID exists in both places.
+- If no default SID is stored and exactly one service-key destination is discovered, that SID is used as the default SID fallback.
+
+#### `adt --service-key <path> auth <command>`
+
+Authenticate from an explicit BTP service key file for a single command invocation.
+
+```bash
+adt --service-key ./secrets/service-key.json auth status
 ```
 
 Service key format:

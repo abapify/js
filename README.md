@@ -94,6 +94,21 @@ npx nx test
 npx nx typecheck
 ```
 
+## Service Key Drop-In
+
+For local BTP authentication, you can drop service key JSON files into `.adt/destinations/` in the workspace or `~/.adt/destinations/` in your home directory.
+
+Example:
+
+```bash
+mkdir -p .adt/destinations
+cp ./service-key.json .adt/destinations/TRL.json
+
+npx adt auth login --sid TRL
+```
+
+If exactly one such destination exists and no default SID has been stored yet, the CLI uses that SID as the default fallback.
+
 ### Common Commands
 
 ```bash

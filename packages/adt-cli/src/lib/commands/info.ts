@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'fs';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getErrorMessage, printErrorStack } from '../utils/command-helpers';
 
 export const infoCommand = new Command('info')
   .description('Get SAP system and session information')
@@ -114,13 +115,8 @@ export const infoCommand = new Command('info')
 
       console.log('\n✅ Done!');
     } catch (error) {
-      console.error(
-        '❌ Failed to fetch information:',
-        error instanceof Error ? error.message : String(error),
-      );
-      if (error instanceof Error && error.stack) {
-        console.error('\nStack trace:', error.stack);
-      }
+      console.error('❌ Failed to fetch information:', getErrorMessage(error));
+      printErrorStack(error);
       process.exit(1);
     }
   });

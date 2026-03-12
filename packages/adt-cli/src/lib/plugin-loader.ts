@@ -8,6 +8,7 @@
 import { Command } from 'commander';
 import { resolve, dirname } from 'path';
 import { existsSync } from 'fs';
+import { getErrorMessage, printErrorStack } from './utils/command-helpers';
 import type {
   CliCommandPlugin,
   CliContext,
@@ -32,7 +33,10 @@ export async function loadCliConfig(
         const module = await import(configPath);
         return module.default ?? module;
       } catch (err) {
-        console.error(`Failed to load config from ${configPath}:`, err);
+        console.error(
+          `Failed to load config from ${configPath}: ${getErrorMessage(err)}`,
+        );
+        printErrorStack(err);
         return null;
       }
     } else {
@@ -53,7 +57,10 @@ export async function loadCliConfig(
           const module = await import(configPath);
           return module.default ?? module;
         } catch (err) {
-          console.error(`Failed to load config from ${configPath}:`, err);
+          console.error(
+            `Failed to load config from ${configPath}: ${getErrorMessage(err)}`,
+          );
+          printErrorStack(err);
           return null;
         }
       }
@@ -148,7 +155,8 @@ function pluginToCommand(
       try {
         await plugin.execute!(args, ctx);
       } catch (err) {
-        console.error('Command failed:', err);
+        console.error(`Command failed: ${getErrorMessage(err)}`);
+        printErrorStack(err);
         process.exit(1);
       }
     });
@@ -182,7 +190,10 @@ async function loadCommandPlugin(
 
     return plugin as CliCommandPlugin;
   } catch (err) {
-    console.warn(`Failed to load command plugin: ${modulePath}`, err);
+    console.warn(
+      `Failed to load command plugin: ${modulePath} ${getErrorMessage(err)}`,
+    );
+    printErrorStack(err);
     return null;
   }
 }

@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
+import { getErrorMessage, printErrorStack } from '../utils/command-helpers';
 
 export const searchCommand = new Command('search')
   .description('Search for ABAP objects in the repository')
@@ -77,13 +78,8 @@ export const searchCommand = new Command('search')
 
       console.log('✅ Search complete!');
     } catch (error) {
-      console.error(
-        '❌ Search failed:',
-        error instanceof Error ? error.message : String(error),
-      );
-      if (error instanceof Error && error.stack) {
-        console.error('\nStack trace:', error.stack);
-      }
+      console.error('❌ Search failed:', getErrorMessage(error));
+      printErrorStack(error);
       process.exit(1);
     }
   });

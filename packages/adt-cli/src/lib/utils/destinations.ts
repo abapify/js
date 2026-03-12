@@ -10,6 +10,7 @@ import {
   type Destination,
 } from '@abapify/adt-config';
 import { getCliContext } from '../shared/adt-client';
+import { discoverServiceKeyDestinations } from './auto-service-keys';
 
 // Cached config instance (keyed by configPath to handle different configs)
 let cachedConfig: LoadedConfig | null = null;
@@ -43,7 +44,13 @@ export async function getDestination(
   name: string,
 ): Promise<Destination | undefined> {
   const config = await getConfig();
-  return config.getDestination(name);
+  const configured = config.getDestination(name);
+  if (configured) {
+    return configured;
+  }
+
+  const upperName = name.toUpperCase();
+  return discoverServiceKeyDestinations().get(upperName);
 }
 
 /**
@@ -51,7 +58,17 @@ export async function getDestination(
  */
 export async function listDestinations(): Promise<string[]> {
   const config = await getConfig();
-  return config.listDestinations();
+  const configured = config.listDestinations();
+  const discovered = listAutoServiceKeyDestinationNames();
+  const configuredUpper = new Set(configured.map((name) => name.toUpperCase()));
+
+  for (const sid of discovered) {
+    if (!configuredUpper.has(sid)) {
+      configured.push(sid);
+    }
+  }
+
+  return configured;
 }
 
 /**
@@ -59,7 +76,18 @@ export async function listDestinations(): Promise<string[]> {
  */
 export async function hasDestination(name: string): Promise<boolean> {
   const config = await getConfig();
-  return config.hasDestination(name);
+  if (config.hasDestination(name)) {
+    return true;
+  }
+
+  return discoverServiceKeyDestinations().has(name.toUpperCase());
+}
+
+/**
+ * List SID names for auto-discovered service-key destinations.
+ */
+export function listAutoServiceKeyDestinationNames(): string[] {
+  return [...discoverServiceKeyDestinations().keys()];
 }
 
 /**
