@@ -61,6 +61,8 @@ export interface ServiceKeyPluginOptions {
   callbackPort?: number;
   /** Timeout for the auth flow in ms (default: 300000 = 5 min) */
   timeoutMs?: number;
+  /** Full redirect URI for the OAuth callback (e.g. in tunnelled/forwarded environments). Defaults to http://localhost:<port>/callback */
+  redirectUri?: string;
   [key: string]: unknown;
 }
 
