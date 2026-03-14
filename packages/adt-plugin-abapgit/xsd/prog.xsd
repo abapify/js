@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:asx="http://www.sap.com/abapxml"
+           elementFormDefault="unqualified">
+
+  <!-- Import ASX namespace -->
+  <xs:import namespace="http://www.sap.com/abapxml" schemaLocation="asx.xsd"/>
+
+  <!-- Include base abapGit types -->
+  <xs:include schemaLocation="abapgit.xsd"/>
+
+  <!-- Include PROGDIR and TPOOL types -->
+  <xs:include schemaLocation="types/progdir.xsd"/>
+
+  <!-- Program-specific values type -->
+  <xs:complexType name="ProgValuesType">
+    <xs:all>
+      <xs:element name="PROGDIR" type="ProgdirType" minOccurs="0"/>
+      <xs:element name="TPOOL" type="TpoolType" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+  <!-- Program-specific ABAP envelope -->
+  <xs:complexType name="ProgAbapType">
+    <xs:sequence>
+      <xs:element name="values" type="ProgValuesType"/>
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:string" default="1.0"/>
+  </xs:complexType>
+
+  <!-- THE ONLY ROOT ELEMENT -->
+  <xs:element name="abapGit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="abap" type="ProgAbapType"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="required"/>
+      <xs:attribute name="serializer" type="xs:string" use="required"/>
+      <xs:attribute name="serializer_version" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

@@ -5,49 +5,33 @@
  * Mode: Flattened
  */
 
-export type ProgSchema =
-  | {
-      abapGit: {
-        abap: {
-          values: {
-            TRDIR?: {
-              NAME: string;
-              SECU?: string;
-              EDTX?: string;
-              SUBC?: string;
-              APPL?: string;
-              RSTAT?: string;
-              RMAND?: string;
-              RLOAD?: string;
-              FIXPT?: string;
-              UCCHECK?: string;
-              ABAP_LANGUAGE_VERSION?: string;
-            };
-          };
-          version?: string;
+export type ProgSchema = {
+  abapGit: {
+    abap: {
+      values: {
+        PROGDIR?: {
+          NAME: string;
+          STATE?: string;
+          SUBC?: string;
+          FIXPT?: string;
+          UNICODE?: string;
+          DTEFUNC?: string;
+          RLOAD?: string;
+          UCCHECK?: string;
+          ABAP_LANGUAGE_VERSION?: string;
         };
-        version: string;
-        serializer: string;
-        serializer_version: string;
-      };
-    }
-  | {
-      abap: {
-        values: {
-          TRDIR?: {
-            NAME: string;
-            SECU?: string;
-            EDTX?: string;
-            SUBC?: string;
-            APPL?: string;
-            RSTAT?: string;
-            RMAND?: string;
-            RLOAD?: string;
-            FIXPT?: string;
-            UCCHECK?: string;
-            ABAP_LANGUAGE_VERSION?: string;
-          };
+        TPOOL?: {
+          item?: {
+            ID: string;
+            ENTRY?: string;
+            LENGTH?: string;
+          }[];
         };
-        version?: string;
       };
+      version?: string;
     };
+    version: string;
+    serializer: string;
+    serializer_version: string;
+  };
+};

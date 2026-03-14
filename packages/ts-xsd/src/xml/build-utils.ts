@@ -48,18 +48,21 @@ export function createXmlDocument(schema: SchemaLike): XmlDocument {
 }
 
 /**
- * Collect all namespace declarations from a schema and its $imports recursively
+ * Collect namespace declarations from a schema and its $imports/$includes recursively.
+ *
+ * Gathers all $xmlns prefix→URI mappings from the schema tree.
+ * Unused declarations are cleaned up later by stripUnusedNamespaces()
+ * after the XML tree is built — that approach is generic and doesn't
+ * require any domain-specific knowledge.
  */
 function collectAllNamespaces(
   schema: SchemaLike,
   collected: Map<string, string> = new Map(),
   visited: Set<unknown> = new Set(),
 ): Map<string, string> {
-  // Prevent infinite recursion
   if (visited.has(schema)) return collected;
   visited.add(schema);
 
-  // Add namespaces from this schema's $xmlns
   if (schema.$xmlns) {
     for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
       if (!collected.has(pfx)) {
@@ -68,7 +71,6 @@ function collectAllNamespaces(
     }
   }
 
-  // Recursively collect from $imports
   const imports = (schema as { $imports?: SchemaLike[] }).$imports;
   if (imports) {
     for (const imported of imports) {
@@ -76,7 +78,6 @@ function collectAllNamespaces(
     }
   }
 
-  // Also collect from $includes
   const includes = (schema as { $includes?: SchemaLike[] }).$includes;
   if (includes) {
     for (const included of includes) {
@@ -132,6 +133,75 @@ export function createRootElement(
   }
 
   return root;
+}
+
+/**
+ * Remove xmlns declarations from the root element for prefixes that are
+ * not actually used anywhere in the document tree.
+ *
+ * This prevents emitting unused namespace declarations (e.g. xmlns:abapsource,
+ * xmlns:abapoo) that come from the schema's $imports chain but aren't
+ * referenced by any element or attribute in the built XML.
+ */
+export function stripUnusedNamespaces(root: XmlElement): void {
+  // Collect all prefixes actually used by elements and attributes in the tree
+  const usedPrefixes = new Set<string>();
+
+  function walk(node: XmlElement): void {
+    // Check the element's own tag for a prefix
+    const tagParts = node.tagName.split(':');
+    if (tagParts.length === 2) {
+      usedPrefixes.add(tagParts[0]);
+    }
+
+    // Check attributes (skip xmlns declarations themselves)
+    const attrs = node.attributes;
+    if (attrs) {
+      for (let i = 0; i < attrs.length; i++) {
+        const attr = attrs[i];
+        if (attr.name.startsWith('xmlns:') || attr.name === 'xmlns') {
+          continue;
+        }
+        const attrParts = attr.name.split(':');
+        if (attrParts.length === 2) {
+          usedPrefixes.add(attrParts[0]);
+        }
+      }
+    }
+
+    // Recurse into child elements
+    const children = node.childNodes;
+    if (children) {
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        if (child.nodeType === 1) {
+          // ELEMENT_NODE
+          walk(child as XmlElement);
+        }
+      }
+    }
+  }
+
+  walk(root);
+
+  // Remove xmlns:prefix declarations where prefix is not used
+  const toRemove: string[] = [];
+  const attrs = root.attributes;
+  if (attrs) {
+    for (let i = 0; i < attrs.length; i++) {
+      const attr = attrs[i];
+      if (attr.name.startsWith('xmlns:')) {
+        const pfx = attr.name.substring(6);
+        if (!usedPrefixes.has(pfx)) {
+          toRemove.push(attr.name);
+        }
+      }
+    }
+  }
+
+  for (const name of toRemove) {
+    root.removeAttribute(name);
+  }
 }
 
 /**

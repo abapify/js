@@ -20,12 +20,43 @@ import {
   getSchemaPrefix,
   createXmlDocument,
   createRootElement,
+  stripUnusedNamespaces,
   formatValue,
   formatXml,
 } from './build-utils';
 
 /**
+ * Collect all namespace prefixes from a schema and its $imports chain
+ */
+function collectAllXmlns(
+  schema: SchemaLike,
+  visited = new Set<SchemaLike>(),
+): Record<string, string> {
+  if (visited.has(schema)) return {};
+  visited.add(schema);
+
+  const result: Record<string, string> = {};
+
+  // Add this schema's $xmlns
+  const xmlns = (schema as { $xmlns?: Record<string, string> }).$xmlns;
+  if (xmlns) {
+    Object.assign(result, xmlns);
+  }
+
+  // Recursively collect from $imports
+  const imports = (schema as { $imports?: SchemaLike[] }).$imports;
+  if (imports) {
+    for (const imported of imports) {
+      Object.assign(result, collectAllXmlns(imported, visited));
+    }
+  }
+
+  return result;
+}
+
+/**
  * Get the namespace prefix for a schema's targetNamespace from the root schema's $xmlns
+ * and all imported schemas' $xmlns (for inherited attributes)
  */
 function getPrefixForSchema(
   schema: SchemaLike,
@@ -34,11 +65,11 @@ function getPrefixForSchema(
   const targetNs = (schema as { targetNamespace?: string }).targetNamespace;
   if (!targetNs) return undefined;
 
-  const xmlns = (rootSchema as { $xmlns?: Record<string, string> }).$xmlns;
-  if (!xmlns) return undefined;
+  // Collect all xmlns from root schema and its imports
+  const allXmlns = collectAllXmlns(rootSchema);
 
   // Find prefix that maps to this namespace
-  for (const [prefix, ns] of Object.entries(xmlns)) {
+  for (const [prefix, ns] of Object.entries(allXmlns)) {
     if (ns === targetNs) {
       return prefix;
     }
@@ -136,6 +167,9 @@ export function build<T extends SchemaLike>(
   const root = createRootElement(doc, elementName, schema, prefix);
 
   buildElement(doc, root, elementData, rootType, rootSchema, schema, prefix);
+
+  // Remove xmlns declarations for prefixes not actually used in the built XML
+  stripUnusedNamespaces(root);
 
   // Ensure root element is never self-closing (SAP ADT requires closing tags)
   // If root has no child nodes, add an empty text node to force </element> instead of />
@@ -296,11 +330,16 @@ function buildElement(
   }
 
   // Build child elements using walker (handles inheritance, groups, refs)
-  for (const { element } of walkElements(typeDef, schema)) {
+  // The walker returns schema per element so we can resolve the correct namespace prefix
+  // for elements inherited from imported schemas (e.g., packageRef from adtcore)
+  for (const { element, schema: elementDefSchema } of walkElements(
+    typeDef,
+    schema,
+  )) {
     // Check if this is a ref to an abstract element
     if (element.ref) {
       const refName = stripNsPrefix(element.ref);
-      const refElement = findElement(refName, schema);
+      const refElement = findElement(refName, elementDefSchema);
 
       if (refElement && refElement.element.abstract) {
         // Abstract element - find substitutes in data using rootSchema
@@ -330,7 +369,7 @@ function buildElement(
       }
     }
 
-    const resolved = resolveElementInfo(element, schema);
+    const resolved = resolveElementInfo(element, elementDefSchema);
     if (!resolved) continue;
 
     const value = data[resolved.dataKey];
@@ -532,20 +571,24 @@ function buildFieldWithTagName(
       // Element explicitly marked as unqualified - no prefix
       usePrefix = undefined;
     } else if (elementForm === 'qualified') {
-      // Element explicitly marked as qualified - use prefix
-      usePrefix = prefix;
+      // Element explicitly marked as qualified - use the element's defining schema prefix
+      usePrefix = getPrefixForSchema(elementSchema, rootSchema) ?? prefix;
     } else {
       // No element-level form - use the element's defining schema's default first,
       // then fall back to root schema default. This ensures elements from imported
-      // schemas (e.g., objectSet in adtcore:AdtObjectSets) respect their own
-      // schema's elementFormDefault rather than the root schema's.
+      // schemas (e.g., packageRef in adtcore:AdtMainObject) respect their own
+      // schema's elementFormDefault and get the correct namespace prefix.
       const definingFormDefault = (
         elementSchema as { elementFormDefault?: string }
       ).elementFormDefault;
       const effectiveFormDefault =
         definingFormDefault ??
         (rootSchema as { elementFormDefault?: string }).elementFormDefault;
-      usePrefix = effectiveFormDefault === 'qualified' ? prefix : undefined;
+      // Use the element's defining schema prefix, not root prefix
+      usePrefix =
+        effectiveFormDefault === 'qualified'
+          ? (getPrefixForSchema(elementSchema, rootSchema) ?? prefix)
+          : undefined;
     }
     actualTagName = usePrefix ? `${usePrefix}:${tagName}` : tagName;
   }

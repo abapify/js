@@ -142,6 +142,11 @@ export const exportCommand: CliCommandPlugin = {
       description: 'Save inactive (skip activation)',
       default: false,
     },
+    {
+      flags: '--abap-language-version <version>',
+      description:
+        'ABAP language version for new objects (2=keyUser, 5=cloud). Required for BTP systems.',
+    },
   ],
 
   async execute(args: Record<string, unknown>, ctx: CliContext) {
@@ -153,6 +158,7 @@ export const exportCommand: CliCommandPlugin = {
       types?: string;
       dryRun?: boolean;
       activate?: boolean;
+      abapLanguageVersion?: string;
     };
 
     // Transport is optional:
@@ -221,7 +227,12 @@ export const exportCommand: CliCommandPlugin = {
         {
           filter: objectTypes
             ? (obj) => {
-                const included = objectTypes.includes(obj.type.toUpperCase());
+                // Match full type (CLAS/OC) or prefix (CLAS)
+                const objType = obj.type.toUpperCase();
+                const objPrefix = objType.split('/')[0];
+                const included =
+                  objectTypes.includes(objType) ||
+                  objectTypes.includes(objPrefix);
                 if (!included) {
                   result.skipped++;
                   result.objects.push({
@@ -247,6 +258,20 @@ export const exportCommand: CliCommandPlugin = {
         ctx.logger.warn('⚠️ No objects to export after filtering');
         displayExportResults(result, ctx.logger);
         return;
+      }
+
+      // Inject packageRef and abapLanguageVersion into objects
+      // SAP ADT requires packageRef child element for object creation
+      // BTP systems require abapLanguageVersion (authorization object S_ABPLNGVS)
+      for (const obj of objectSet) {
+        const data = (obj as any)._data;
+        if (!data) continue;
+        if (options.package && !data.packageRef) {
+          data.packageRef = { name: options.package };
+        }
+        if (options.abapLanguageVersion && !data.abapLanguageVersion) {
+          data.abapLanguageVersion = options.abapLanguageVersion;
+        }
       }
 
       // ============================================

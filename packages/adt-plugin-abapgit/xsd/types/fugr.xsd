@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <!-- Function module parameter type -->
+  <xs:complexType name="FugrParamType">
+    <xs:all>
+      <xs:element name="PARAMETER" type="xs:string" minOccurs="0"/>
+      <xs:element name="TYP" type="xs:string" minOccurs="0"/>
+      <xs:element name="DBFIELD" type="xs:string" minOccurs="0"/>
+      <xs:element name="DEFAULT" type="xs:string" minOccurs="0"/>
+      <xs:element name="OPTIONAL" type="xs:string" minOccurs="0"/>
+      <xs:element name="REFERENCE" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+  <!-- Import parameters container -->
+  <xs:complexType name="FugrImportType">
+    <xs:sequence>
+      <xs:element name="RSIMP" type="FugrParamType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Export parameters container -->
+  <xs:complexType name="FugrExportType">
+    <xs:sequence>
+      <xs:element name="RSEXP" type="FugrParamType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Function module item type -->
+  <xs:complexType name="FugrFunctionItemType">
+    <xs:all>
+      <xs:element name="FUNCNAME" type="xs:string"/>
+      <xs:element name="SHORT_TEXT" type="xs:string" minOccurs="0"/>
+      <xs:element name="IMPORT" type="FugrImportType" minOccurs="0"/>
+      <xs:element name="EXPORT" type="FugrExportType" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+  <!-- Functions container -->
+  <xs:complexType name="FugrFunctionsType">
+    <xs:sequence>
+      <xs:element name="item" type="FugrFunctionItemType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Includes container -->
+  <xs:complexType name="FugrIncludesType">
+    <xs:sequence>
+      <xs:element name="SOBJ_NAME" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

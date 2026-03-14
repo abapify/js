@@ -26,6 +26,8 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
     name: '', // Function group name must be set by deserializer from filename
     type: 'FUGR/F',
     description: AREAT,
+    language: 'EN',
+    masterLanguage: 'EN',
   }),
 
   // Git → SAP: Set source files on ADK object
