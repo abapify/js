@@ -142,10 +142,27 @@ export function createRootElement(
  * This prevents emitting unused namespace declarations (e.g. xmlns:abapsource,
  * xmlns:abapoo) that come from the schema's $imports chain but aren't
  * referenced by any element or attribute in the built XML.
+ *
+ * The prefix that maps to the schema's own targetNamespace is always
+ * preserved — even when elementFormDefault="unqualified" causes the root
+ * element to be emitted without a prefix, the xmlns declaration is still
+ * required for the document to be in the correct namespace.
  */
-export function stripUnusedNamespaces(root: XmlElement): void {
+export function stripUnusedNamespaces(
+  root: XmlElement,
+  schema?: SchemaLike,
+): void {
   // Collect all prefixes actually used by elements and attributes in the tree
   const usedPrefixes = new Set<string>();
+
+  // Always preserve the prefix for the schema's own targetNamespace
+  if (schema?.targetNamespace && schema.$xmlns) {
+    for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
+      if (pfx && uri === schema.targetNamespace) {
+        usedPrefixes.add(pfx);
+      }
+    }
+  }
 
   function walk(node: XmlElement): void {
     // Check the element's own tag for a prefix

@@ -169,7 +169,7 @@ export function build<T extends SchemaLike>(
   buildElement(doc, root, elementData, rootType, rootSchema, schema, prefix);
 
   // Remove xmlns declarations for prefixes not actually used in the built XML
-  stripUnusedNamespaces(root);
+  stripUnusedNamespaces(root, schema);
 
   // Ensure root element is never self-closing (SAP ADT requires closing tags)
   // If root has no child nodes, add an empty text node to force </element> instead of />
