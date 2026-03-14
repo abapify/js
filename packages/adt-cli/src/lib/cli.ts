@@ -25,11 +25,10 @@ import { refreshCommand } from './commands/auth/refresh';
 // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
 import { createCliLogger, AVAILABLE_COMPONENTS } from './utils/logger-config';
 import { setCliContext } from './utils/adt-client-v2';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { loadCommandPlugins, loadStaticPlugins } from './plugin-loader';
 import type { CliCommandPlugin } from '@abapify/adt-plugin';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 
 // Check for insecure SSL flag in stored session and apply it globally
 function applyInsecureSslFlag(): void {
@@ -79,7 +78,7 @@ ${globalOptions}
 }
 
 function getResolvedConfigPath(argv: string[]): string | undefined {
-  const configArgIndex = argv.findIndex((arg) => arg === '--config');
+  const configArgIndex = argv.indexOf('--config');
   if (configArgIndex !== -1) {
     return argv[configArgIndex + 1];
   }

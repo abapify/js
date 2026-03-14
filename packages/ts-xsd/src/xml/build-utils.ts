@@ -148,6 +148,42 @@ export function createRootElement(
  * element to be emitted without a prefix, the xmlns declaration is still
  * required for the document to be in the correct namespace.
  */
+/**
+ * Collect prefixes used by elements and attributes in the tree (recursive walk).
+ */
+function collectUsedPrefixes(
+  node: XmlElement,
+  usedPrefixes: Set<string>,
+): void {
+  // Check the element's own tag for a prefix
+  const tagParts = node.tagName.split(':');
+  if (tagParts.length === 2) {
+    usedPrefixes.add(tagParts[0]);
+  }
+
+  // Check attributes (skip xmlns declarations themselves)
+  if (node.attributes) {
+    for (const attr of Array.from(node.attributes)) {
+      if (attr.name.startsWith('xmlns:') || attr.name === 'xmlns') {
+        continue;
+      }
+      const attrParts = attr.name.split(':');
+      if (attrParts.length === 2) {
+        usedPrefixes.add(attrParts[0]);
+      }
+    }
+  }
+
+  // Recurse into child elements
+  if (node.childNodes) {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === 1) {
+        collectUsedPrefixes(child as XmlElement, usedPrefixes);
+      }
+    }
+  }
+}
+
 export function stripUnusedNamespaces(
   root: XmlElement,
   schema?: SchemaLike,
@@ -164,49 +200,13 @@ export function stripUnusedNamespaces(
     }
   }
 
-  function walk(node: XmlElement): void {
-    // Check the element's own tag for a prefix
-    const tagParts = node.tagName.split(':');
-    if (tagParts.length === 2) {
-      usedPrefixes.add(tagParts[0]);
-    }
-
-    // Check attributes (skip xmlns declarations themselves)
-    const attrs = node.attributes;
-    if (attrs) {
-      for (let i = 0; i < attrs.length; i++) {
-        const attr = attrs[i];
-        if (attr.name.startsWith('xmlns:') || attr.name === 'xmlns') {
-          continue;
-        }
-        const attrParts = attr.name.split(':');
-        if (attrParts.length === 2) {
-          usedPrefixes.add(attrParts[0]);
-        }
-      }
-    }
-
-    // Recurse into child elements
-    const children = node.childNodes;
-    if (children) {
-      for (let i = 0; i < children.length; i++) {
-        const child = children[i];
-        if (child.nodeType === 1) {
-          // ELEMENT_NODE
-          walk(child as XmlElement);
-        }
-      }
-    }
-  }
-
-  walk(root);
+  collectUsedPrefixes(root, usedPrefixes);
 
   // Remove xmlns:prefix declarations where prefix is not used
   const toRemove: string[] = [];
   const attrs = root.attributes;
   if (attrs) {
-    for (let i = 0; i < attrs.length; i++) {
-      const attr = attrs[i];
+    for (const attr of Array.from(attrs)) {
       if (attr.name.startsWith('xmlns:')) {
         const pfx = attr.name.substring(6);
         if (!usedPrefixes.has(pfx)) {
