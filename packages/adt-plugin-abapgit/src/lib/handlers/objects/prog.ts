@@ -14,11 +14,12 @@ export const programHandler = createHandler(AdkProgram, {
 
   // SAP → Git: Map ADK object to abapGit values
   toAbapGit: (obj) => ({
-    TRDIR: {
+    PROGDIR: {
       NAME: obj.name ?? '',
-      SECU: 'S',
-      EDTX: 'X',
+      STATE: 'A',
       SUBC: '1',
+      FIXPT: 'X',
+      UNICODE: 'X',
     },
   }),
 
@@ -26,11 +27,28 @@ export const programHandler = createHandler(AdkProgram, {
   getSource: (obj) => obj.getSource(),
 
   // Git → SAP: Map abapGit values to ADK data
-  fromAbapGit: ({ TRDIR }) => ({
-    name: (TRDIR?.NAME ?? '').toUpperCase(),
-    type: 'PROG/P',
-    description: undefined,
-  }),
+  // Returns data matching AbapProgramSchema structure
+  fromAbapGit: ({ PROGDIR, TPOOL }) => {
+    // Extract description from TPOOL (text pool) if available
+    // TPOOL.item can be a single object or an array
+    const descriptionEntry = Array.isArray(TPOOL?.item)
+      ? TPOOL.item.find((t: { ID?: string }) => t.ID === 'R')
+      : TPOOL?.item?.ID === 'R'
+        ? TPOOL.item
+        : undefined;
+
+    // SUBC can be parsed as number or string depending on XML parser
+    const subc = String(PROGDIR?.SUBC ?? '');
+
+    return {
+      name: (PROGDIR?.NAME ?? '').toUpperCase(),
+      type: 'PROG/P',
+      description: descriptionEntry?.ENTRY ?? 'Program',
+      fixPointArithmetic: PROGDIR?.FIXPT === 'X',
+      activeUnicodeCheck: PROGDIR?.UNICODE === 'X',
+      programType: subc === '1' ? 'executableProgram' : 'subroutinePool',
+    };
+  },
 
   // Git → SAP: Set source files on ADK object
   // Note: `_pendingSource` is not declared on the public ADK interface —
