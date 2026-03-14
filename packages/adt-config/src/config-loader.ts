@@ -69,13 +69,18 @@ function normalizeDestinationEntry(raw: unknown): Destination | string | null {
   if (
     typeof candidate.type === 'string' &&
     'options' in candidate &&
+    candidate.options != null &&
     typeof candidate.options === 'object'
   ) {
     return candidate as unknown as Destination;
   }
 
   // Service key JSON format
-  if (typeof candidate.url === 'string' && typeof candidate.uaa === 'object') {
+  if (
+    typeof candidate.url === 'string' &&
+    candidate.uaa != null &&
+    typeof candidate.uaa === 'object'
+  ) {
     return {
       type: '@abapify/adt-auth/plugins/service-key',
       options: {
