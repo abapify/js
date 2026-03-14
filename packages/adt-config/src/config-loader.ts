@@ -182,8 +182,8 @@ function mergeLocalConfig(
     ...baseConfig,
     ...overlayConfig,
     destinations: {
-      ...(baseConfig.destinations || {}),
-      ...(overlayConfig.destinations || {}),
+      ...baseConfig.destinations,
+      ...overlayConfig.destinations,
     },
   };
 }
@@ -227,6 +227,35 @@ export interface LoadConfigOptions {
 }
 
 /**
+ * Try loading a config file from an explicit path (JSON or TS/JS).
+ */
+async function loadExplicitConfig(
+  configPath: string,
+): Promise<AdtConfig | null> {
+  if (configPath.endsWith('.json')) {
+    return loadJsonConfig(configPath);
+  }
+  return loadTsConfig(configPath);
+}
+
+/**
+ * Discover a config file by trying multiple extensions in priority order:
+ * .ts → .js → .json
+ */
+async function discoverConfig(
+  basePath: string,
+  baseName: string,
+): Promise<AdtConfig | null> {
+  const tsConfig = await loadTsConfig(join(basePath, `${baseName}.ts`));
+  if (tsConfig) return tsConfig;
+
+  const jsConfig = await loadTsConfig(join(basePath, `${baseName}.js`));
+  if (jsConfig) return jsConfig;
+
+  return loadJsonConfig(join(basePath, `${baseName}.json`));
+}
+
+/**
  * Load configuration with precedence:
  * 1. Explicit configPath (if provided via --config flag)
  * 2. adt.config.ts in cwd
@@ -246,17 +275,9 @@ export async function loadConfig(
   // If explicit config path provided, use it directly
   if (opts.configPath) {
     const configPath = resolve(cwd, opts.configPath);
-    if (configPath.endsWith('.json')) {
-      const jsonConfig = loadJsonConfig(configPath);
-      if (jsonConfig) {
-        return createLoadedConfig(mergeWithGlobal(jsonConfig));
-      }
-    } else {
-      // Assume TS/JS config
-      const tsConfig = await loadTsConfig(configPath);
-      if (tsConfig) {
-        return createLoadedConfig(mergeWithGlobal(tsConfig));
-      }
+    const config = await loadExplicitConfig(configPath);
+    if (config) {
+      return createLoadedConfig(mergeWithGlobal(config));
     }
     // Config path specified but file not found/loadable - continue with auto-discovery
     console.warn(
@@ -265,46 +286,10 @@ export async function loadConfig(
   }
 
   // Discover base local config (adt.config.*)
-  let baseLocalConfig: AdtConfig | null = null;
-
-  const tsConfigPath = join(cwd, 'adt.config.ts');
-  const tsConfig = await loadTsConfig(tsConfigPath);
-  if (tsConfig) {
-    baseLocalConfig = tsConfig;
-  } else {
-    const jsConfigPath = join(cwd, 'adt.config.js');
-    const jsConfig = await loadTsConfig(jsConfigPath);
-    if (jsConfig) {
-      baseLocalConfig = jsConfig;
-    } else {
-      const jsonConfigPath = join(cwd, 'adt.config.json');
-      const jsonConfig = loadJsonConfig(jsonConfigPath);
-      if (jsonConfig) {
-        baseLocalConfig = jsonConfig;
-      }
-    }
-  }
+  const baseLocalConfig = await discoverConfig(cwd, 'adt.config');
 
   // Discover optional local override (.adt/config.*)
-  let localOverrideConfig: AdtConfig | null = null;
-
-  const dotAdtTsConfigPath = join(cwd, '.adt', 'config.ts');
-  const dotAdtTsConfig = await loadTsConfig(dotAdtTsConfigPath);
-  if (dotAdtTsConfig) {
-    localOverrideConfig = dotAdtTsConfig;
-  } else {
-    const dotAdtJsConfigPath = join(cwd, '.adt', 'config.js');
-    const dotAdtJsConfig = await loadTsConfig(dotAdtJsConfigPath);
-    if (dotAdtJsConfig) {
-      localOverrideConfig = dotAdtJsConfig;
-    } else {
-      const dotAdtJsonConfigPath = join(cwd, '.adt', 'config.json');
-      const dotAdtJsonConfig = loadJsonConfig(dotAdtJsonConfigPath);
-      if (dotAdtJsonConfig) {
-        localOverrideConfig = dotAdtJsonConfig;
-      }
-    }
-  }
+  const localOverrideConfig = await discoverConfig(join(cwd, '.adt'), 'config');
 
   // Discover optional destinations directory (.adt/destinations/*.json)
   const destinationsDirConfig = loadDestinationsDirectory(cwd);
