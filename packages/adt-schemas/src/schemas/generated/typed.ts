@@ -20,6 +20,8 @@ import type { ExceptionSchema } from './types/sap/exception.types';
 import type { ClassesSchema } from './types/sap/classes.types';
 import type { InterfacesSchema } from './types/sap/interfaces.types';
 import type { PackagesV1Schema } from './types/sap/packagesV1.types';
+import type { ProgramsSchema } from './types/sap/programs.types';
+import type { GroupsSchema } from './types/sap/groups.types';
 import type { AtcSchema } from './types/sap/atc.types';
 import type { AtcexemptionSchema } from './types/sap/atcexemption.types';
 import type { AtcfindingSchema } from './types/sap/atcfinding.types';
@@ -41,8 +43,6 @@ import type { TracesSchema } from './types/sap/traces.types';
 import type { QuickfixesSchema } from './types/sap/quickfixes.types';
 import type { LogSchema } from './types/sap/log.types';
 import type { TemplatelinkSchema } from './types/sap/templatelink.types';
-import type { AbapProgramSchema } from './types/sap/abapProgram.types';
-import type { AbapFunctionGroupSchema } from './types/sap/abapFunctionGroup.types';
 import type { AtomExtendedSchema } from './types/custom/atomExtended.types';
 import type { DiscoverySchema } from './types/custom/discovery.types';
 import type { HttpSchema } from './types/custom/http.types';
@@ -72,6 +72,12 @@ export const interfaces: TypedSchema<InterfacesSchema> =
 import _packagesV1 from './schemas/sap/packagesV1';
 export const packagesV1: TypedSchema<PackagesV1Schema> =
   typedSchema<PackagesV1Schema>(_packagesV1);
+import _programs from './schemas/sap/programs';
+export const programs: TypedSchema<ProgramsSchema> =
+  typedSchema<ProgramsSchema>(_programs);
+import _groups from './schemas/sap/groups';
+export const groups: TypedSchema<GroupsSchema> =
+  typedSchema<GroupsSchema>(_groups);
 import _atc from './schemas/sap/atc';
 export const atc: TypedSchema<AtcSchema> = typedSchema<AtcSchema>(_atc);
 import _atcexemption from './schemas/sap/atcexemption';
@@ -133,12 +139,6 @@ export const log: TypedSchema<LogSchema> = typedSchema<LogSchema>(_log);
 import _templatelink from './schemas/sap/templatelink';
 export const templatelink: TypedSchema<TemplatelinkSchema> =
   typedSchema<TemplatelinkSchema>(_templatelink);
-import _abapProgram from './schemas/sap/abapProgram';
-export const abapProgram: TypedSchema<AbapProgramSchema> =
-  typedSchema<AbapProgramSchema>(_abapProgram);
-import _abapFunctionGroup from './schemas/sap/abapFunctionGroup';
-export const abapFunctionGroup: TypedSchema<AbapFunctionGroupSchema> =
-  typedSchema<AbapFunctionGroupSchema>(_abapFunctionGroup);
 
 // Custom schemas
 import _atomExtended from './schemas/custom/atomExtended';

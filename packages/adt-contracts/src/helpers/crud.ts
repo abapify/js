@@ -346,7 +346,7 @@ export function crud<
         responses: { 200: schema },
         headers: {
           Accept: contentType,
-          'Content-Type': contentType,
+          'Content-Type': 'application/*',
         },
         query: queryOptions?.corrNr
           ? { corrNr: queryOptions.corrNr }
