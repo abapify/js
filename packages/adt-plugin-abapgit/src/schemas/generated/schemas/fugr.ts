@@ -10,7 +10,6 @@ export default {
     xs: 'http://www.w3.org/2001/XMLSchema',
     asx: 'http://www.sap.com/abapxml',
   },
-  targetNamespace: 'http://www.sap.com/abapxml',
   elementFormDefault: 'unqualified',
   element: [
     {
@@ -19,7 +18,8 @@ export default {
         sequence: {
           element: [
             {
-              ref: 'asx:abap',
+              name: 'abap',
+              type: 'FugrAbapType',
             },
           ],
         },
@@ -46,20 +46,56 @@ export default {
       name: 'Schema',
       abstract: true,
     },
-    {
-      name: 'abap',
-      type: 'asx:AbapType',
-    },
   ],
   complexType: [
     {
-      name: 'AbapValuesType',
+      name: 'FugrValuesType',
       all: {
         element: [
           {
             name: 'AREAT',
             type: 'xs:string',
             minOccurs: '0',
+          },
+          {
+            name: 'INCLUDES',
+            type: 'FugrIncludesType',
+            minOccurs: '0',
+          },
+          {
+            name: 'FUNCTIONS',
+            type: 'FugrFunctionsType',
+            minOccurs: '0',
+          },
+        ],
+      },
+    },
+    {
+      name: 'FugrAbapType',
+      sequence: {
+        element: [
+          {
+            name: 'values',
+            type: 'FugrValuesType',
+          },
+        ],
+      },
+      attribute: [
+        {
+          name: 'version',
+          type: 'xs:string',
+          default: '1.0',
+        },
+      ],
+    },
+    {
+      name: 'AbapValuesType',
+      sequence: {
+        element: [
+          {
+            ref: 'asx:Schema',
+            minOccurs: '0',
+            maxOccurs: 'unbounded',
           },
         ],
       },
@@ -81,6 +117,121 @@ export default {
           default: '1.0',
         },
       ],
+    },
+    {
+      name: 'FugrParamType',
+      all: {
+        element: [
+          {
+            name: 'PARAMETER',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'TYP',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'DBFIELD',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'DEFAULT',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'OPTIONAL',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'REFERENCE',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+        ],
+      },
+    },
+    {
+      name: 'FugrImportType',
+      sequence: {
+        element: [
+          {
+            name: 'RSIMP',
+            type: 'FugrParamType',
+            minOccurs: '0',
+            maxOccurs: 'unbounded',
+          },
+        ],
+      },
+    },
+    {
+      name: 'FugrExportType',
+      sequence: {
+        element: [
+          {
+            name: 'RSEXP',
+            type: 'FugrParamType',
+            minOccurs: '0',
+            maxOccurs: 'unbounded',
+          },
+        ],
+      },
+    },
+    {
+      name: 'FugrFunctionItemType',
+      all: {
+        element: [
+          {
+            name: 'FUNCNAME',
+            type: 'xs:string',
+          },
+          {
+            name: 'SHORT_TEXT',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'IMPORT',
+            type: 'FugrImportType',
+            minOccurs: '0',
+          },
+          {
+            name: 'EXPORT',
+            type: 'FugrExportType',
+            minOccurs: '0',
+          },
+        ],
+      },
+    },
+    {
+      name: 'FugrFunctionsType',
+      sequence: {
+        element: [
+          {
+            name: 'item',
+            type: 'FugrFunctionItemType',
+            minOccurs: '0',
+            maxOccurs: 'unbounded',
+          },
+        ],
+      },
+    },
+    {
+      name: 'FugrIncludesType',
+      sequence: {
+        element: [
+          {
+            name: 'SOBJ_NAME',
+            type: 'xs:string',
+            minOccurs: '0',
+            maxOccurs: 'unbounded',
+          },
+        ],
+      },
     },
   ],
 } as const;

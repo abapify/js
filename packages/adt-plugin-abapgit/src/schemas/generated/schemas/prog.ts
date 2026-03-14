@@ -10,7 +10,6 @@ export default {
     xs: 'http://www.w3.org/2001/XMLSchema',
     asx: 'http://www.sap.com/abapxml',
   },
-  targetNamespace: 'http://www.sap.com/abapxml',
   elementFormDefault: 'unqualified',
   element: [
     {
@@ -19,7 +18,8 @@ export default {
         sequence: {
           element: [
             {
-              ref: 'asx:abap',
+              name: 'abap',
+              type: 'ProgAbapType',
             },
           ],
         },
@@ -46,81 +46,51 @@ export default {
       name: 'Schema',
       abstract: true,
     },
-    {
-      name: 'abap',
-      type: 'asx:AbapType',
-    },
   ],
   complexType: [
     {
-      name: 'AbapValuesType',
+      name: 'ProgValuesType',
       all: {
         element: [
           {
-            name: 'TRDIR',
-            type: 'asx:TrdirType',
+            name: 'PROGDIR',
+            type: 'ProgdirType',
+            minOccurs: '0',
+          },
+          {
+            name: 'TPOOL',
+            type: 'TpoolType',
             minOccurs: '0',
           },
         ],
       },
     },
     {
-      name: 'TrdirType',
-      all: {
+      name: 'ProgAbapType',
+      sequence: {
         element: [
           {
-            name: 'NAME',
-            type: 'xs:string',
+            name: 'values',
+            type: 'ProgValuesType',
           },
+        ],
+      },
+      attribute: [
+        {
+          name: 'version',
+          type: 'xs:string',
+          default: '1.0',
+        },
+      ],
+    },
+    {
+      name: 'AbapValuesType',
+      sequence: {
+        element: [
           {
-            name: 'SECU',
-            type: 'xs:string',
+            ref: 'asx:Schema',
             minOccurs: '0',
-          },
-          {
-            name: 'EDTX',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'SUBC',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'APPL',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'RSTAT',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'RMAND',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'RLOAD',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'FIXPT',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'UCCHECK',
-            type: 'xs:string',
-            minOccurs: '0',
-          },
-          {
-            name: 'ABAP_LANGUAGE_VERSION',
-            type: 'xs:string',
-            minOccurs: '0',
+            maxOccurs: 'unbounded',
           },
         ],
       },
@@ -142,6 +112,91 @@ export default {
           default: '1.0',
         },
       ],
+    },
+    {
+      name: 'ProgdirType',
+      all: {
+        element: [
+          {
+            name: 'NAME',
+            type: 'xs:string',
+          },
+          {
+            name: 'STATE',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'SUBC',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'FIXPT',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'UNICODE',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'DTEFUNC',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'RLOAD',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'UCCHECK',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'ABAP_LANGUAGE_VERSION',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+        ],
+      },
+    },
+    {
+      name: 'TpoolItemType',
+      all: {
+        element: [
+          {
+            name: 'ID',
+            type: 'xs:string',
+          },
+          {
+            name: 'ENTRY',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+          {
+            name: 'LENGTH',
+            type: 'xs:string',
+            minOccurs: '0',
+          },
+        ],
+      },
+    },
+    {
+      name: 'TpoolType',
+      sequence: {
+        element: [
+          {
+            name: 'item',
+            type: 'TpoolItemType',
+            minOccurs: '0',
+            maxOccurs: 'unbounded',
+          },
+        ],
+      },
     },
   ],
 } as const;

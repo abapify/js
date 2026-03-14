@@ -6,7 +6,7 @@
  */
 
 import { crud } from '../../base';
-import { abapProgram, type InferTypedSchema } from '../../schemas';
+import { programs, type InferTypedSchema } from '../../schemas';
 
 /**
  * Program response type - exported for consumers (ADK, etc.)
@@ -14,7 +14,7 @@ import { abapProgram, type InferTypedSchema } from '../../schemas';
  * This is the canonical type for program metadata.
  * Uses pre-generated type from adt-schemas.
  */
-export type ProgramResponse = InferTypedSchema<typeof abapProgram>;
+export type ProgramResponse = InferTypedSchema<typeof programs>;
 
 /**
  * /sap/bc/adt/programs/programs
@@ -28,7 +28,7 @@ export type ProgramResponse = InferTypedSchema<typeof abapProgram>;
  */
 export const programsContract = crud({
   basePath: '/sap/bc/adt/programs/programs',
-  schema: abapProgram,
+  schema: programs,
   contentType: 'application/vnd.sap.adt.programs.programs.v2+xml',
   sources: ['main'] as const,
 });

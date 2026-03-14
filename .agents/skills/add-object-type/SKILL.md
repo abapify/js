@@ -27,6 +27,8 @@ adt-plugin-abapgit   abapGit schema literal + TypeScript types + handler
 
 Before writing code, gather details about the object type from live system or research.
 
+> **Tip:** For undocumented object types, use `$adt-reverse-engineering` first to systematically discover endpoint details, XML structure, and content-types via live system discovery, open source projects, and Sourcegraph code search.
+
 ### Information to collect
 
 | Item                     | Example (for PROG)                                 | Where to find                 |

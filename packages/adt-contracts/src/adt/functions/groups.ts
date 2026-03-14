@@ -6,7 +6,7 @@
  */
 
 import { crud } from '../../base';
-import { abapFunctionGroup, type InferTypedSchema } from '../../schemas';
+import { groups, type InferTypedSchema } from '../../schemas';
 
 /**
  * Function group response type - exported for consumers (ADK, etc.)
@@ -14,7 +14,7 @@ import { abapFunctionGroup, type InferTypedSchema } from '../../schemas';
  * This is the canonical type for function group metadata.
  * Uses pre-generated type from adt-schemas.
  */
-export type FunctionGroupResponse = InferTypedSchema<typeof abapFunctionGroup>;
+export type FunctionGroupResponse = InferTypedSchema<typeof groups>;
 
 /**
  * /sap/bc/adt/functions/groups
@@ -28,7 +28,7 @@ export type FunctionGroupResponse = InferTypedSchema<typeof abapFunctionGroup>;
  */
 export const functionGroupsContract = crud({
   basePath: '/sap/bc/adt/functions/groups',
-  schema: abapFunctionGroup,
+  schema: groups,
   contentType: 'application/vnd.sap.adt.functions.groups.v3+xml',
   sources: ['main'] as const,
 });
