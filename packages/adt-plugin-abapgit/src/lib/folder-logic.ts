@@ -23,7 +23,7 @@ export function stripSlashes(s: string): string {
 export function parseFolderLogicFromAbapGitXml(
   xmlContent: string,
 ): FolderLogic | undefined {
-  const match = /<FOLDER_LOGIC>([^<]*)<\/FOLDER_LOGIC>/i.exec(xmlContent);
+  const match = /<FOLDER_LOGIC>([^<]+)<\/FOLDER_LOGIC>/i.exec(xmlContent);
   if (!match) {
     return undefined;
   }
@@ -45,7 +45,7 @@ export function parseFolderLogicFromAbapGitXml(
 export function parseStartingFolderFromAbapGitXml(
   xmlContent: string,
 ): string | undefined {
-  const match = /<STARTING_FOLDER>([^<]*)<\/STARTING_FOLDER>/i.exec(xmlContent);
+  const match = /<STARTING_FOLDER>([^<]+)<\/STARTING_FOLDER>/i.exec(xmlContent);
   return match ? match[1]!.trim() : undefined;
 }
 
