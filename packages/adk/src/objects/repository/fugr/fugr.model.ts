@@ -76,32 +76,8 @@ export class AdkFunctionGroup extends AdkMainObject<
     );
   }
 
-  /**
-   * Save pending source (set via _pendingSource)
-   * Used by export workflow after deserialization from abapGit
-   * Overrides base class method
-   */
-  protected override async savePendingSources(options?: {
-    lockHandle?: string;
-    transport?: string;
-  }): Promise<void> {
-    const pendingSource = (this as unknown as { _pendingSource?: string })
-      ._pendingSource;
-    if (!pendingSource) return;
-
-    await this.saveMainSource(pendingSource, options);
-
-    // Clear pending source after save
-    delete (this as unknown as { _pendingSource?: string })._pendingSource;
-  }
-
-  /**
-   * Check if object has pending sources to save
-   * Overrides base class method
-   */
-  protected override hasPendingSources(): boolean {
-    return !!(this as unknown as { _pendingSource?: string })._pendingSource;
-  }
+  // savePendingSources, checkPendingSourcesUnchanged, hasPendingSources
+  // all handled by the base class via objectUri + /source/main
 
   // ============================================
   // CRUD contract config - enables save()

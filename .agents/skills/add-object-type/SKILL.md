@@ -297,6 +297,66 @@ import { registerObjectType } from '../../../base/registry';
 registerObjectType('PROG', ProgramKind, AdkProgram);
 ```
 
+**For objects with source code**, also implement the save lifecycle methods:
+
+```typescript
+  // ============================================
+  // Source Save Lifecycle (required for source-based objects)
+  // ============================================
+
+  /**
+   * Save pending source (set via _pendingSource)
+   * Used by export workflow after deserialization from abapGit
+   */
+  protected override async savePendingSources(options?: {
+    lockHandle?: string;
+    transport?: string;
+  }): Promise<void> {
+    const pendingSource = (this as unknown as { _pendingSource?: string })
+      ._pendingSource;
+    if (!pendingSource) return;
+
+    await this.saveMainSource(pendingSource, options);
+
+    // Clear pending source after save
+    delete (this as unknown as { _pendingSource?: string })._pendingSource;
+  }
+
+  /**
+   * Pre-lock comparison: check if pending source matches SAP
+   * If identical, sets _unchanged = true so save() skips locking and PUT
+   */
+  protected override async checkPendingSourcesUnchanged(): Promise<void> {
+    const pendingSource = (this as unknown as { _pendingSource?: string })
+      ._pendingSource;
+    if (!pendingSource) return;
+
+    try {
+      const currentSource = await this.getSource();
+      if (this.normalizeSource(currentSource) === this.normalizeSource(pendingSource)) {
+        this._unchanged = true;
+        delete (this as unknown as { _pendingSource?: string })._pendingSource;
+      }
+    } catch {
+      // Source doesn't exist on SAP (404) — needs saving
+    }
+  }
+
+  private normalizeSource(source: string): string {
+    return source.replace(/\s+$/gm, '').trimEnd();
+  }
+
+  protected override hasPendingSources(): boolean {
+    return !!(this as unknown as { _pendingSource?: string })._pendingSource;
+  }
+```
+
+**IMPORTANT:** Both `savePendingSources()` AND `checkPendingSourcesUnchanged()` must be implemented.
+- `checkPendingSourcesUnchanged()` runs **before** lock — compares pending source with SAP, sets `_unchanged = true` if identical
+- `savePendingSources()` runs **after** lock — does the actual PUT
+- Without `checkPendingSourcesUnchanged()`, unchanged objects will still be locked and PUT unnecessarily
+- See `AdkClass` (clas.model.ts) for multi-include example, `AdkInterface` (intf.model.ts) for single-source example
+
 **Notes:**
 
 - The `wrapperKey` matches the root element name in the schema (e.g., `abapProgram`)
@@ -803,6 +863,9 @@ expect(handler).toBeDefined();
 - [ ] Object model created in `adk/src/objects/repository/{type}/`
 - [ ] Object exported from `adk/src/index.ts`
 - [ ] `adk/src/base/adt.ts` exports the response type
+- [ ] (Source objects) `savePendingSources()` implemented
+- [ ] (Source objects) `checkPendingSourcesUnchanged()` implemented for skip-unchanged support
+- [ ] (Source objects) `hasPendingSources()` implemented
 
 ### abapGit Layer
 

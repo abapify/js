@@ -127,6 +127,43 @@ this.handlers.set(
 );
 ```
 
+### ADK Save Lifecycle
+
+`AdkObject.save()` has a pre-lock comparison phase for source-based objects:
+
+```
+save(options)
+  ├── hasPendingSources()?
+  │   ├── YES → checkPendingSourcesUnchanged()  ← pre-lock GET+compare
+  │   │         ├── all identical → _unchanged=true, return early (no lock, no PUT)
+  │   │         └── at least one differs → continue to lock+save
+  │   └── NO → saveViaContract() (metadata PUT)
+  ├── lock()
+  ├── savePendingSources() or saveViaContract()
+  └── unlock()
+```
+
+**Object types with source code** (CLAS, INTF, PROG, FUGR) override `savePendingSources()`.
+All four also override `checkPendingSourcesUnchanged()` for skip-unchanged support.
+New source-based object types should implement both.
+
+`AdkObjectSet.deploy()` orchestrates two-phase deployment:
+1. `saveAll({ inactive: true })` — create inactive versions
+2. `activateAll()` — bulk activate (skipped if `activate: false`)
+
+`BulkSaveResult` tracks `success`, `failed`, and `unchanged` counts.
+
+### Export / Plugin Contract
+
+The export command (`adt-export`) is **format-agnostic**. Format plugins receive:
+
+```typescript
+export?(fileTree: FileTree, client: AdtClient, options?: ExportOptions): AsyncGenerator<AdkObject>
+```
+
+`ExportOptions` provides deployment context (`rootPackage`, `abapLanguageVersion`).
+Format-specific concerns (abapGit folder logic, package resolution) live **in the plugin**, not the export command.
+
 ### Auth Flow
 
 1. CLI reads destination from `adt-config`
