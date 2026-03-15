@@ -11,7 +11,11 @@ import type { FileTree, ExportOptions } from '@abapify/adt-plugin';
 import type { AdkObject } from '@abapify/adk';
 import { createAdk, type AdtClient } from '@abapify/adk';
 import { getHandler, getSupportedTypes } from './handlers';
-import { parseAbapGitMetadata, resolvePackageFromDir } from './folder-logic';
+import {
+  parseAbapGitMetadata,
+  resolvePackageFromDir,
+  stripSlashes,
+} from './folder-logic';
 
 /**
  * abapGit file naming convention:
@@ -85,7 +89,7 @@ export async function* deserialize(
       const xml = await fileTree.read('.abapgit.xml');
       const meta = parseAbapGitMetadata(xml);
       folderLogic = meta.folderLogic;
-      startDir = meta.startingFolder.replace(/^\/+|\/+$/g, '');
+      startDir = stripSlashes(meta.startingFolder);
     }
   } catch {
     // Fall through to defaults

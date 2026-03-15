@@ -9,20 +9,26 @@
 
 export type FolderLogic = 'prefix' | 'full' | 'full-with-root';
 
+export function stripSlashes(s: string): string {
+  let start = 0;
+  let end = s.length;
+  while (start < end && s[start] === '/') start++;
+  while (end > start && s[end - 1] === '/') end--;
+  return s.slice(start, end);
+}
+
 /**
  * Parse FOLDER_LOGIC from .abapgit.xml content
  */
 export function parseFolderLogicFromAbapGitXml(
   xmlContent: string,
 ): FolderLogic | undefined {
-  const match = xmlContent.match(
-    /<FOLDER_LOGIC>\s*([^<]+)\s*<\/FOLDER_LOGIC>/i,
-  );
+  const match = xmlContent.match(/<FOLDER_LOGIC>([^<]*)<\/FOLDER_LOGIC>/i);
   if (!match) {
     return undefined;
   }
 
-  const normalized = match[1].trim().toUpperCase();
+  const normalized = match[1]!.trim().toUpperCase();
   if (normalized === 'PREFIX') {
     return 'prefix';
   }
@@ -40,9 +46,9 @@ export function parseStartingFolderFromAbapGitXml(
   xmlContent: string,
 ): string | undefined {
   const match = xmlContent.match(
-    /<STARTING_FOLDER>\s*([^<]+)\s*<\/STARTING_FOLDER>/i,
+    /<STARTING_FOLDER>([^<]*)<\/STARTING_FOLDER>/i,
   );
-  return match ? match[1].trim() : undefined;
+  return match ? match[1]!.trim() : undefined;
 }
 
 /**
@@ -81,7 +87,7 @@ export function resolvePackageFromDir(
     return rootPackage;
   }
 
-  const normalized = dirPath.replace(/^\/+|\/+$/g, '');
+  const normalized = stripSlashes(dirPath);
   if (!normalized) return rootPackage;
 
   const parts = normalized.split('/').filter(Boolean);
