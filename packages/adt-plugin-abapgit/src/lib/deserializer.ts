@@ -7,10 +7,14 @@
  * Delegates type-specific deserialization to handlers via fromAbapGit().
  */
 
-import type { FileTree } from '@abapify/adt-plugin';
+import type { FileTree, ExportOptions } from '@abapify/adt-plugin';
 import type { AdkObject } from '@abapify/adk';
 import { createAdk, type AdtClient } from '@abapify/adk';
 import { getHandler, getSupportedTypes } from './handlers';
+import {
+  parseAbapGitMetadata,
+  resolvePackageFromDir,
+} from './folder-logic';
 
 /**
  * abapGit file naming convention:
@@ -62,16 +66,33 @@ interface ObjectFiles {
  * Deserialize abapGit files to ADK objects
  *
  * True generator - yields objects one at a time as they're discovered.
+ * Resolves packageRef using abapGit folder logic when rootPackage is provided.
  *
  * @param fileTree - Virtual file system to read from
  * @param client - ADT client for creating ADK objects
+ * @param options - Export options (root package, language version, etc.)
  */
 export async function* deserialize(
   fileTree: FileTree,
   client: AdtClient,
+  options?: ExportOptions,
 ): AsyncGenerator<AdkObject> {
   // Get ADK factory for creating objects
   const adk = createAdk(client);
+
+  // Resolve folder logic from .abapgit.xml (if present)
+  let folderLogic: import('./folder-logic').FolderLogic = 'prefix';
+  let startDir = 'src';
+  try {
+    if (await fileTree.exists('.abapgit.xml')) {
+      const xml = await fileTree.read('.abapgit.xml');
+      const meta = parseAbapGitMetadata(xml);
+      folderLogic = meta.folderLogic;
+      startDir = meta.startingFolder.replace(/^\/+|\/+$/g, '');
+    }
+  } catch {
+    // Fall through to defaults
+  }
 
   // Find all XML files (these define the objects)
   const xmlFiles = await fileTree.glob('**/*.xml');
@@ -187,6 +208,33 @@ export async function* deserialize(
       // Store additional payload properties
       if (payload.description) {
         (adkObject as any)._pendingDescription = payload.description;
+      }
+
+      // Resolve packageRef using abapGit folder logic
+      if (options?.rootPackage) {
+        const data = (adkObject as any)._data;
+        if (data && !data.packageRef) {
+          const sourceDir = objFiles.xmlFile!.split('/').slice(0, -1).join('/');
+          // Strip starting folder prefix to get relative path
+          const relDir = sourceDir.startsWith(startDir)
+            ? sourceDir.slice(startDir.length).replace(/^\/+/, '')
+            : sourceDir;
+
+          const pkgName = resolvePackageFromDir(
+            relDir,
+            folderLogic,
+            options.rootPackage,
+          );
+          data.packageRef = { name: pkgName };
+        }
+      }
+
+      // Set abapLanguageVersion if provided and not already set
+      if (options?.abapLanguageVersion) {
+        const data = (adkObject as any)._data;
+        if (data && !data.abapLanguageVersion) {
+          data.abapLanguageVersion = options.abapLanguageVersion;
+        }
       }
 
       yield adkObject;

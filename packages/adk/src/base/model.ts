@@ -159,6 +159,9 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   protected dirty = new Set<string>();
   protected _lockHandle?: LockHandle;
 
+  /** Set by save() when all pending changes are identical to SAP state */
+  _unchanged = false;
+
   /**
    * Create ADK object
    * @param ctx - ADK context
@@ -453,6 +456,18 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   async save(options: SaveOptions = {}): Promise<this> {
     const { transport, mode = 'update' } = options;
 
+    // Check if object has pending sources (from abapGit deserialization)
+    const hasPendingSources = this.hasPendingSources();
+
+    // For updates with pending sources, compare with SAP before locking.
+    // This avoids acquiring a lock only to discover nothing changed.
+    if (hasPendingSources && mode !== 'create') {
+      await this.checkPendingSourcesUnchanged();
+      if (this._unchanged) {
+        return this;
+      }
+    }
+
     // Lock if not already locked (skip for create mode - object doesn't exist yet)
     const wasLocked = this.isLocked;
     const needsLock = mode !== 'create';
@@ -469,10 +484,6 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     }
 
     try {
-      // Check if object has pending sources (from abapGit deserialization)
-      // For existing objects with sources, save sources instead of metadata
-      const hasPendingSources = this.hasPendingSources();
-
       // Use transport from lock response if not explicitly provided
       // The lock response contains CORRNR which is the transport assigned to this object
       const effectiveTransport =
@@ -585,6 +596,16 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
       _pendingSource?: string;
     };
     return !!(self._pendingSources || self._pendingSource);
+  }
+
+  /**
+   * Check if pending sources are unchanged vs SAP (pre-lock comparison)
+   * Subclasses with source code override this to compare before locking.
+   * Sets _unchanged = true if nothing needs saving.
+   * Default: no-op (assume changed).
+   */
+  protected async checkPendingSourcesUnchanged(): Promise<void> {
+    // Default: no-op. Subclasses like AdkClass override this.
   }
 
   /**
