@@ -148,6 +148,7 @@ All four also override `checkPendingSourcesUnchanged()` for skip-unchanged suppo
 New source-based object types should implement both.
 
 `AdkObjectSet.deploy()` orchestrates two-phase deployment:
+
 1. `saveAll({ inactive: true })` — create inactive versions
 2. `activateAll()` — bulk activate (skipped if `activate: false`)
 
