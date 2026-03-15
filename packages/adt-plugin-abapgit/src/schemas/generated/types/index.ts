@@ -10,3 +10,5 @@ export type { DevcSchema as DevcAbapGitType } from './devc';
 export type { DomaSchema as DomaAbapGitType } from './doma';
 export type { DtelSchema as DtelAbapGitType } from './dtel';
 export type { IntfSchema as IntfAbapGitType } from './intf';
+export type { ProgSchema as ProgAbapGitType } from './prog';
+export type { FugrSchema as FugrAbapGitType } from './fugr';
