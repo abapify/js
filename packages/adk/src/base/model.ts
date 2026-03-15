@@ -599,25 +599,73 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   }
 
   /**
-   * Check if pending sources are unchanged vs SAP (pre-lock comparison)
-   * Subclasses with source code override this to compare before locking.
-   * Sets _unchanged = true if nothing needs saving.
-   * Default: no-op (assume changed).
+   * Normalize source code for comparison.
+   * Trims trailing whitespace/newlines so minor formatting differences
+   * don't trigger unnecessary saves.
    */
-  protected async checkPendingSourcesUnchanged(): Promise<void> {
-    // Default: no-op. Subclasses like AdkClass override this.
+  protected normalizeSource(source: string): string {
+    return source.replace(/\s+$/gm, '').trimEnd();
   }
 
   /**
-   * Save pending sources
-   * Subclasses with source code (classes, interfaces) override this
-   * Default implementation does nothing
+   * Check if pending sources are unchanged vs SAP (pre-lock comparison).
+   * Sets _unchanged = true if nothing needs saving.
+   *
+   * Default handles single-source objects (_pendingSource) by fetching
+   * GET {objectUri}/source/main and comparing.
+   * AdkClass overrides this for multi-include logic.
    */
-  protected async savePendingSources(_options?: {
+  protected async checkPendingSourcesUnchanged(): Promise<void> {
+    const self = this as unknown as { _pendingSource?: string };
+    if (!self._pendingSource) return;
+
+    try {
+      const response = await this.ctx.client.fetch(
+        `${this.objectUri}/source/main`,
+        { method: 'GET', headers: { Accept: 'text/plain' } },
+      );
+      const currentSource = await response.text();
+      if (
+        this.normalizeSource(currentSource) ===
+        this.normalizeSource(self._pendingSource)
+      ) {
+        this._unchanged = true;
+        delete self._pendingSource;
+      }
+    } catch {
+      // Source doesn't exist on SAP (404) — needs saving
+    }
+  }
+
+  /**
+   * Save pending sources to SAP.
+   *
+   * Default handles single-source objects (_pendingSource) by PUTting
+   * to {objectUri}/source/main.
+   * AdkClass overrides this for multi-include logic.
+   */
+  protected async savePendingSources(options?: {
     lockHandle?: string;
     transport?: string;
   }): Promise<void> {
-    // Default: no-op. Subclasses like AdkClass override this.
+    const self = this as unknown as { _pendingSource?: string };
+    if (!self._pendingSource) return;
+
+    const params = new URLSearchParams();
+    if (options?.lockHandle) params.set('lockHandle', options.lockHandle);
+    if (options?.transport) params.set('corrNr', options.transport);
+
+    const qs = params.toString();
+    await this.ctx.client.fetch(
+      `${this.objectUri}/source/main${qs ? '?' + qs : ''}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: self._pendingSource,
+      },
+    );
+
+    delete self._pendingSource;
   }
 
   /**

@@ -133,21 +133,16 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> {
     invalidateLazy(this, `source:${includeType}`);
   }
 
-  /**
-   * Normalize source code for comparison
-   * Trims trailing whitespace/newlines so minor formatting differences don't trigger a save
-   */
-  private normalizeSource(source: string): string {
-    return source.replace(/\s+$/gm, '').trimEnd();
-  }
+  // normalizeSource() inherited from base class
 
   /**
    * Save all pending sources (set via _pendingSources)
    * Used by export workflow after deserialization from abapGit
    * Overrides base class method
    *
-   * Compares pending sources with current SAP sources before saving.
-   * If all sources are identical, sets _unchanged = true and skips the save.
+   * Note: unchanged detection is handled by checkPendingSourcesUnchanged()
+   * which runs BEFORE lock acquisition. By the time we reach here,
+   * at least one source differs — save them all.
    */
   protected override async savePendingSources(options?: {
     lockHandle?: string;
@@ -158,40 +153,9 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> {
     )._pendingSources;
     if (!pendingSources) return;
 
-    // Compare pending sources with current SAP sources
-    // Collect only the includes that actually changed
-    const changedSources: Array<[string, string]> = [];
-
-    for (const [key, pendingSource] of Object.entries(pendingSources)) {
-      try {
-        const currentSource = await this.getIncludeSource(
-          key as ClassIncludeType,
-        );
-        if (
-          this.normalizeSource(currentSource) ===
-          this.normalizeSource(pendingSource)
-        ) {
-          continue; // Identical — skip
-        }
-      } catch {
-        // Source doesn't exist on SAP yet (404) — needs saving
-      }
-      changedSources.push([key, pendingSource]);
-    }
-
-    // If nothing changed, mark as unchanged and skip
-    if (changedSources.length === 0) {
-      this._unchanged = true;
-      // Clear pending sources
-      delete (this as unknown as { _pendingSources?: Record<string, string> })
-        ._pendingSources;
-      delete (this as unknown as { _pendingSource?: string })._pendingSource;
-      return;
-    }
-
     const errors: Error[] = [];
 
-    for (const [key, source] of changedSources) {
+    for (const [key, source] of Object.entries(pendingSources)) {
       try {
         if (key === 'main') {
           await this.saveMainSource(source, options);
