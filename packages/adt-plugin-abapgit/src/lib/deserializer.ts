@@ -215,7 +215,7 @@ export async function* deserialize(
       if (options?.rootPackage) {
         const data = (adkObject as any)._data;
         if (data && !data.packageRef) {
-          const sourceDir = objFiles.xmlFile!.split('/').slice(0, -1).join('/');
+          const sourceDir = objFiles.xmlFile.split('/').slice(0, -1).join('/');
           // Strip starting folder prefix to get relative path
           const relDir = sourceDir.startsWith(startDir)
             ? sourceDir.slice(startDir.length).replace(/^\/+/, '')

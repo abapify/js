@@ -2,7 +2,6 @@ import {
   createPlugin,
   type AdtPlugin,
   type ImportContext,
-  type ExportOptions,
 } from '@abapify/adt-plugin';
 import type { AdtClient } from '@abapify/adk';
 import { AbapGitSerializer } from './serializer';

@@ -50,34 +50,8 @@ export class AdkInterface extends AdkMainObject<
     });
   }
 
-  // ============================================
-  // Source Code Save Methods
-  // ============================================
-
-  /**
-   * Save main source code
-   * Requires object to be locked first
-   */
-  async saveMainSource(
-    source: string,
-    options?: { lockHandle?: string; transport?: string },
-  ): Promise<void> {
-    const params = new URLSearchParams();
-    if (options?.lockHandle) params.set('lockHandle', options.lockHandle);
-    if (options?.transport) params.set('corrNr', options.transport);
-
-    await this.ctx.client.fetch(
-      `/sap/bc/adt/oo/interfaces/${this.name.toLowerCase()}/source/main${params.toString() ? '?' + params.toString() : ''}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'text/plain' },
-        body: source,
-      },
-    );
-  }
-
-  // savePendingSources, checkPendingSourcesUnchanged, hasPendingSources
-  // all handled by the base class via objectUri + /source/main
+  // savePendingSources, checkPendingSourcesUnchanged, hasPendingSources,
+  // and saveMainSource are all handled by the base class via objectUri + /source/main
 
   // ============================================
   // CRUD contract config - enables save()
