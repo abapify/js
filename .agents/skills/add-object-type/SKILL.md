@@ -352,6 +352,7 @@ registerObjectType('PROG', ProgramKind, AdkProgram);
 ```
 
 **IMPORTANT:** Both `savePendingSources()` AND `checkPendingSourcesUnchanged()` must be implemented.
+
 - `checkPendingSourcesUnchanged()` runs **before** lock — compares pending source with SAP, sets `_unchanged = true` if identical
 - `savePendingSources()` runs **after** lock — does the actual PUT
 - Without `checkPendingSourcesUnchanged()`, unchanged objects will still be locked and PUT unnecessarily
