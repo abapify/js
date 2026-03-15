@@ -27,6 +27,12 @@ export const registry = {
     class: 'oo/class.xml',
     interface: 'oo/interface.xml',
   },
+  programs: {
+    program: 'programs/program.xml',
+  },
+  functions: {
+    functionGroup: 'functions/functionGroup.xml',
+  },
   core: {
     http: {
       session: 'core/http/session.xml',

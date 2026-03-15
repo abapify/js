@@ -50,58 +50,8 @@ export class AdkInterface extends AdkMainObject<
     });
   }
 
-  // ============================================
-  // Source Code Save Methods
-  // ============================================
-
-  /**
-   * Save main source code
-   * Requires object to be locked first
-   */
-  async saveMainSource(
-    source: string,
-    options?: { lockHandle?: string; transport?: string },
-  ): Promise<void> {
-    const params = new URLSearchParams();
-    if (options?.lockHandle) params.set('lockHandle', options.lockHandle);
-    if (options?.transport) params.set('corrNr', options.transport);
-
-    await this.ctx.client.fetch(
-      `/sap/bc/adt/oo/interfaces/${this.name.toLowerCase()}/source/main${params.toString() ? '?' + params.toString() : ''}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'text/plain' },
-        body: source,
-      },
-    );
-  }
-
-  /**
-   * Save pending source (set via _pendingSource)
-   * Used by export workflow after deserialization from abapGit
-   * Overrides base class method
-   */
-  protected override async savePendingSources(options?: {
-    lockHandle?: string;
-    transport?: string;
-  }): Promise<void> {
-    const pendingSource = (this as unknown as { _pendingSource?: string })
-      ._pendingSource;
-    if (!pendingSource) return;
-
-    await this.saveMainSource(pendingSource, options);
-
-    // Clear pending source after save
-    delete (this as unknown as { _pendingSource?: string })._pendingSource;
-  }
-
-  /**
-   * Check if object has pending sources to save
-   * Overrides base class method
-   */
-  protected override hasPendingSources(): boolean {
-    return !!(this as unknown as { _pendingSource?: string })._pendingSource;
-  }
+  // savePendingSources, checkPendingSourcesUnchanged, hasPendingSources,
+  // and saveMainSource are all handled by the base class via objectUri + /source/main
 
   // ============================================
   // CRUD contract config - enables save()

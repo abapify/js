@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <!-- PROGDIR type - Program directory entry -->
+  <xs:complexType name="ProgdirType">
+    <xs:all>
+      <xs:element name="NAME" type="xs:string"/>
+      <xs:element name="STATE" type="xs:string" minOccurs="0"/>
+      <xs:element name="SUBC" type="xs:string" minOccurs="0"/>
+      <xs:element name="FIXPT" type="xs:string" minOccurs="0"/>
+      <xs:element name="UNICODE" type="xs:string" minOccurs="0"/>
+      <xs:element name="DTEFUNC" type="xs:string" minOccurs="0"/>
+      <xs:element name="RLOAD" type="xs:string" minOccurs="0"/>
+      <xs:element name="UCCHECK" type="xs:string" minOccurs="0"/>
+      <xs:element name="ABAP_LANGUAGE_VERSION" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+  <!-- TPOOL item type - Text pool entry -->
+  <xs:complexType name="TpoolItemType">
+    <xs:all>
+      <xs:element name="ID" type="xs:string"/>
+      <xs:element name="ENTRY" type="xs:string" minOccurs="0"/>
+      <xs:element name="LENGTH" type="xs:string" minOccurs="0"/>
+    </xs:all>
+  </xs:complexType>
+
+  <!-- TPOOL type - Text pool container -->
+  <xs:complexType name="TpoolType">
+    <xs:sequence>
+      <xs:element name="item" type="TpoolItemType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

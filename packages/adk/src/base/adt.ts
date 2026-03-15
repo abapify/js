@@ -35,6 +35,8 @@ export type {
   InterfaceResponse as InterfaceResponseUnion,
   PackageResponse as PackageResponseUnion,
   TransportGetResponse,
+  ProgramResponse as ProgramResponseUnion,
+  FunctionGroupResponse as FunctionGroupResponseUnion,
 } from '@abapify/adt-client';
 
 // CRUD contract types for typed ADK base model
@@ -54,6 +56,8 @@ import type {
   ClassResponse as _ClassResponse,
   InterfaceResponse as _InterfaceResponse,
   PackageResponse as _PackageResponse,
+  ProgramResponse as _ProgramResponse,
+  FunctionGroupResponse as _FunctionGroupResponse,
 } from '@abapify/adt-client';
 
 /**
@@ -77,6 +81,16 @@ export type InterfaceResponse = Extract<
  * ADK Package objects only use the package variant
  */
 export type PackageResponse = Extract<_PackageResponse, { package: unknown }>;
+
+/**
+ * Program response type - single root element (no union needed)
+ */
+export type ProgramResponse = _ProgramResponse;
+
+/**
+ * Function group response type - single root element (no union needed)
+ */
+export type FunctionGroupResponse = _FunctionGroupResponse;
 
 // ============================================
 // ADK Contract Proxy
@@ -110,6 +124,10 @@ export interface AdkContract {
   readonly core: AdtContracts['core'];
   /** Repository contracts (search) */
   readonly repository: AdtContracts['repository'];
+  /** Programs contracts */
+  readonly programs: AdtContracts['programs'];
+  /** Functions contracts (function groups) */
+  readonly functions: AdtContracts['functions'];
 }
 
 /**
@@ -125,5 +143,7 @@ export function createAdkContract(client: AdtClient): AdkContract {
     cts: client.adt.cts,
     core: client.adt.core,
     repository: client.adt.repository,
+    programs: client.adt.programs,
+    functions: client.adt.functions,
   };
 }

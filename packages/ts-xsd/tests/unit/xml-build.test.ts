@@ -160,7 +160,7 @@ describe('buildXml', () => {
       assert.ok(xml.includes('<custom:Data'));
     });
 
-    it('should include additional $xmlns declarations', () => {
+    it('should only include $xmlns declarations for prefixes used in output', () => {
       const schema = {
         targetNamespace: 'http://example.com/ns',
         $xmlns: {
@@ -173,7 +173,10 @@ describe('buildXml', () => {
 
       const xml = buildXml(schema, {}, { xmlDecl: false });
 
-      assert.ok(xml.includes('xmlns:other="http://other.com"'));
+      // 'other' prefix is not used by any element/attribute, so it should be stripped
+      assert.ok(!xml.includes('xmlns:other="http://other.com"'));
+      // 'tns' is the root element prefix, so it should be present
+      assert.ok(xml.includes('xmlns:tns="http://example.com/ns"'));
     });
   });
 

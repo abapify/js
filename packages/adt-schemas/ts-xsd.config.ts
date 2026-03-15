@@ -37,6 +37,8 @@ const targetSchemas = [
   'sap/classes',
   'sap/interfaces',
   'sap/packagesV1',
+  'sap/programs', // ABAP programs
+  'sap/groups', // Function groups
   'sap/atc',
   'sap/atcexemption',
   'sap/atcfinding',
