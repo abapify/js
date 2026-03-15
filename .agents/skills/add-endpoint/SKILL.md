@@ -32,6 +32,8 @@ adt-fixtures   packages/adt-fixtures/src/
 
 Before writing any code, obtain the endpoint's HTTP details and XML payload structure.
 
+> **Tip:** If the endpoint is undocumented or you need to research it first, use `$adt-reverse-engineering` for systematic discovery via live system, open source projects, and Sourcegraph code search.
+
 ### Option A: Live System Available
 
 If you have a running SAP system connection:

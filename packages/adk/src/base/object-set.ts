@@ -30,10 +30,14 @@ export interface BulkSaveResult {
   success: number;
   /** Number of objects that failed to save */
   failed: number;
+  /** Number of unchanged objects (skipped) */
+  unchanged: number;
   /** Details per object */
   results: Array<{
     object: AdkObject;
     success: boolean;
+    /** True if object was skipped because source is identical to SAP */
+    unchanged?: boolean;
     error?: string;
   }>;
 }
@@ -174,6 +178,7 @@ export class AdkObjectSet {
     const result: BulkSaveResult = {
       success: 0,
       failed: 0,
+      unchanged: 0,
       results: [],
     };
 
@@ -184,11 +189,16 @@ export class AdkObjectSet {
       try {
         await obj.save(saveOptions);
 
-        saved++;
+        // Check if save() detected the object is unchanged
+        if (obj._unchanged) {
+          result.unchanged++;
+          result.results.push({ object: obj, success: true, unchanged: true });
+        } else {
+          saved++;
+          result.success++;
+          result.results.push({ object: obj, success: true });
+        }
         onProgress?.(saved, total, obj);
-
-        result.success++;
-        result.results.push({ object: obj, success: true });
       } catch (error) {
         result.failed++;
         result.results.push({

@@ -144,3 +144,6 @@ vitest.config.*.timestamp*
 secrets
 
 .adt
+package-lock.json
+
+.nx/polygraph

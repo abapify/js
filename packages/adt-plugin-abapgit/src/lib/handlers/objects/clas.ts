@@ -5,6 +5,7 @@
 import { AdkClass, type ClassIncludeType } from '../adk';
 import { clas } from '../../../schemas/generated';
 import { createHandler } from '../base';
+import { sapLangToIso, isoToSapLang } from '../lang';
 
 /**
  * Map ADK ClassIncludeType to abapGit file suffix convention
@@ -67,7 +68,7 @@ export const classHandler = createHandler(AdkClass, {
         CLSNAME: cls.name ?? '',
 
         // Basic metadata
-        LANGU: data.language ?? 'E',
+        LANGU: isoToSapLang(data.language),
         DESCRIPT: data.description ?? '',
         STATE: '1', // Active
 
@@ -115,7 +116,8 @@ export const classHandler = createHandler(AdkClass, {
 
     // Basic metadata
     description: VSEOCLASS?.DESCRIPT,
-    language: VSEOCLASS?.LANGU,
+    language: sapLangToIso(VSEOCLASS?.LANGU),
+    masterLanguage: sapLangToIso(VSEOCLASS?.LANGU),
 
     // Class attributes
     category: VSEOCLASS?.CATEGORY,

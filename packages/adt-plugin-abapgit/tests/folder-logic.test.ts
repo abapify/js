@@ -92,6 +92,71 @@ describe('abapGit folder logic resolution', () => {
   });
 });
 
+describe('abapGit reverse package resolution (dir → package name)', () => {
+  it('returns root package for empty dir path', () => {
+    assert.equal(
+      __testing.resolvePackageFromDir('', 'prefix', 'ZABAPGIT_EXAMPLES'),
+      'ZABAPGIT_EXAMPLES',
+    );
+  });
+
+  it('resolves single-level prefix dir to subpackage', () => {
+    assert.equal(
+      __testing.resolvePackageFromDir('clas', 'prefix', 'ZABAPGIT_EXAMPLES'),
+      'ZABAPGIT_EXAMPLES_CLAS',
+    );
+  });
+
+  it('resolves multi-level prefix dir to nested subpackage', () => {
+    assert.equal(
+      __testing.resolvePackageFromDir(
+        'clas/sub',
+        'prefix',
+        'ZABAPGIT_EXAMPLES',
+      ),
+      'ZABAPGIT_EXAMPLES_CLAS_SUB',
+    );
+  });
+
+  it('resolves full mode dir to package name', () => {
+    assert.equal(
+      __testing.resolvePackageFromDir(
+        'zabapgit_examples_clas',
+        'full',
+        'ZABAPGIT_EXAMPLES',
+      ),
+      'ZABAPGIT_EXAMPLES_CLAS',
+    );
+  });
+
+  it('handles leading/trailing slashes', () => {
+    assert.equal(
+      __testing.resolvePackageFromDir('/clas/', 'prefix', 'ZABAPGIT_EXAMPLES'),
+      'ZABAPGIT_EXAMPLES_CLAS',
+    );
+  });
+
+  it('round-trips with calculatePackageDir for prefix logic', () => {
+    // calculatePackageDir: ['ZROOT', 'ZROOT_CHILD'] → 'child'
+    const dir = __testing.calculatePackageDir(
+      ['ZROOT', 'ZROOT_CHILD'],
+      'prefix',
+    );
+    // resolvePackageFromDir: 'child' + root 'ZROOT' → 'ZROOT_CHILD'
+    const pkg = __testing.resolvePackageFromDir(dir, 'prefix', 'ZROOT');
+    assert.equal(pkg, 'ZROOT_CHILD');
+  });
+
+  it('round-trips nested prefix paths', () => {
+    const dir = __testing.calculatePackageDir(
+      ['ZROOT', 'ZROOT_CHILD', 'ZROOT_CHILD_DEEP'],
+      'prefix',
+    );
+    const pkg = __testing.resolvePackageFromDir(dir, 'prefix', 'ZROOT');
+    assert.equal(pkg, 'ZROOT_CHILD_DEEP');
+  });
+});
+
 describe('abapGit package directory mapping', () => {
   it('supports prefix logic', () => {
     const packageDir = __testing.calculatePackageDir(

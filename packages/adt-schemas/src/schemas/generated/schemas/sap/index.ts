@@ -9,6 +9,8 @@ export { default as exception } from './exception';
 export { default as classes } from './classes';
 export { default as interfaces } from './interfaces';
 export { default as packagesV1 } from './packagesV1';
+export { default as programs } from './programs';
+export { default as groups } from './groups';
 export { default as atc } from './atc';
 export { default as atcexemption } from './atcexemption';
 export { default as atcfinding } from './atcfinding';
