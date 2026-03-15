@@ -11,10 +11,7 @@ import type { FileTree, ExportOptions } from '@abapify/adt-plugin';
 import type { AdkObject } from '@abapify/adk';
 import { createAdk, type AdtClient } from '@abapify/adk';
 import { getHandler, getSupportedTypes } from './handlers';
-import {
-  parseAbapGitMetadata,
-  resolvePackageFromDir,
-} from './folder-logic';
+import { parseAbapGitMetadata, resolvePackageFromDir } from './folder-logic';
 
 /**
  * abapGit file naming convention:

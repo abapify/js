@@ -271,7 +271,9 @@ export const exportCommand: CliCommandPlugin = {
       if (options.package) {
         const pkgMap = new Map<string, string[]>();
         for (const obj of objectSet) {
-          const pkgName = (obj as any)._data?.packageRef?.name as string | undefined;
+          const pkgName = (obj as any)._data?.packageRef?.name as
+            | string
+            | undefined;
           if (pkgName) {
             if (!pkgMap.has(pkgName)) pkgMap.set(pkgName, []);
             pkgMap.get(pkgName)!.push(obj.name);
@@ -296,7 +298,9 @@ export const exportCommand: CliCommandPlugin = {
         // Collect unique subpackage names (exclude root package)
         const subPackages = new Set<string>();
         for (const obj of objectSet) {
-          const pkgName = (obj as any)._data?.packageRef?.name as string | undefined;
+          const pkgName = (obj as any)._data?.packageRef?.name as
+            | string
+            | undefined;
           if (pkgName && pkgName !== options.package) {
             subPackages.add(pkgName);
           }
@@ -395,9 +399,7 @@ export const exportCommand: CliCommandPlugin = {
             // the deploy will create it in the correct package
             const msg = err instanceof Error ? err.message : String(err);
             if (!msg.includes('404') && !msg.includes('not found')) {
-              ctx.logger.warn(
-                `   ⚠️ Pre-deploy check for ${obj.name}: ${msg}`,
-              );
+              ctx.logger.warn(`   ⚠️ Pre-deploy check for ${obj.name}: ${msg}`);
             }
           }
         }

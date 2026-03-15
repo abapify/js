@@ -131,18 +131,17 @@ describe('abapGit reverse package resolution (dir → package name)', () => {
 
   it('handles leading/trailing slashes', () => {
     assert.equal(
-      __testing.resolvePackageFromDir(
-        '/clas/',
-        'prefix',
-        'ZABAPGIT_EXAMPLES',
-      ),
+      __testing.resolvePackageFromDir('/clas/', 'prefix', 'ZABAPGIT_EXAMPLES'),
       'ZABAPGIT_EXAMPLES_CLAS',
     );
   });
 
   it('round-trips with calculatePackageDir for prefix logic', () => {
     // calculatePackageDir: ['ZROOT', 'ZROOT_CHILD'] → 'child'
-    const dir = __testing.calculatePackageDir(['ZROOT', 'ZROOT_CHILD'], 'prefix');
+    const dir = __testing.calculatePackageDir(
+      ['ZROOT', 'ZROOT_CHILD'],
+      'prefix',
+    );
     // resolvePackageFromDir: 'child' + root 'ZROOT' → 'ZROOT_CHILD'
     const pkg = __testing.resolvePackageFromDir(dir, 'prefix', 'ZROOT');
     assert.equal(pkg, 'ZROOT_CHILD');
