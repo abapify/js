@@ -5,6 +5,7 @@
 import { AdkInterface } from '../adk';
 import { intf } from '../../../schemas/generated';
 import { createHandler } from '../base';
+import { sapLangToIso, isoToSapLang } from '../lang';
 
 export const interfaceHandler = createHandler(AdkInterface, {
   schema: intf,
@@ -15,7 +16,7 @@ export const interfaceHandler = createHandler(AdkInterface, {
   toAbapGit: (obj) => ({
     VSEOINTERF: {
       CLSNAME: obj.name ?? '',
-      LANGU: 'E',
+      LANGU: isoToSapLang(obj.dataSync?.language),
       DESCRIPT: obj.description ?? '',
       EXPOSURE: '2', // 2 = Public
       STATE: '1', // 1 = Active
@@ -30,6 +31,9 @@ export const interfaceHandler = createHandler(AdkInterface, {
     name: (VSEOINTERF?.CLSNAME ?? '').toUpperCase(),
     type: 'INTF/OI', // ADT object type
     description: VSEOINTERF?.DESCRIPT,
+    language: sapLangToIso(VSEOINTERF?.LANGU),
+    masterLanguage: sapLangToIso(VSEOINTERF?.LANGU),
+    abapLanguageVersion: VSEOINTERF?.ABAP_LANGUAGE_VERSION,
   }),
 
   // Git → SAP: Set source files on ADK object (symmetric with getSource)

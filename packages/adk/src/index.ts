@@ -42,6 +42,8 @@ export type {
   ClassResponse,
   InterfaceResponse,
   PackageResponse,
+  ProgramResponse,
+  FunctionGroupResponse,
   TransportGetResponse,
 } from './base/adt';
 export { createAdkContract } from './base/adt';
@@ -86,6 +88,20 @@ export type {
   InterfaceXml, // Raw API response type
 } from './objects/repository/intf';
 export { AdkInterface } from './objects/repository/intf';
+
+// Program types and class
+export type {
+  AbapProgram,
+  ProgramXml, // Raw API response type
+} from './objects/repository/prog';
+export { AdkProgram } from './objects/repository/prog';
+
+// Function group types and class
+export type {
+  AbapFunctionGroup,
+  FunctionGroupXml, // Raw API response type
+} from './objects/repository/fugr';
+export { AdkFunctionGroup } from './objects/repository/fugr';
 
 // CTS types (legacy complex transport)
 export type {

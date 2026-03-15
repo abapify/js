@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { input, select, password } from '@inquirer/prompts';
+import { readServiceKey } from '@abapify/adt-auth';
 import {
   setDefaultSid,
   getDefaultSid,
@@ -8,8 +9,14 @@ import {
 } from '../../utils/auth';
 import { handleCommandError } from '../../utils/command-helpers';
 import {
+  CALLBACK_SERVER_PORT,
+  OAUTH_REDIRECT_URI,
+  OAUTH_TIMEOUT_MS,
+} from '../../config';
+import {
   listDestinations,
   getDestination,
+  getConfig,
   type Destination,
 } from '../../utils/destinations';
 
@@ -27,6 +34,14 @@ interface DestinationChoice {
 export const loginCommand = new Command('login')
   .description('Login to ADT - supports Basic Auth and Browser-based SSO')
   .option(
+    '--service-key <path>',
+    'Path to a BTP service key JSON file for service-key login',
+  )
+  .option(
+    '--redirect-uri <uri>',
+    'OAuth callback redirect URI (e.g. Codespaces/tunnel URL)',
+  )
+  .option(
     '--insecure',
     'Allow insecure SSL connections (ignore certificate errors)',
   )
@@ -35,8 +50,63 @@ export const loginCommand = new Command('login')
       // Get SID from global options (--sid is a global option on root program)
       const globalOpts = this.optsWithGlobals();
       const sidArg = globalOpts.sid?.toUpperCase() || '';
+      const config = await getConfig();
+      const globalRedirectUri =
+        typeof config.raw.redirectUri === 'string' &&
+        config.raw.redirectUri.trim().length > 0
+          ? config.raw.redirectUri
+          : undefined;
 
       console.log('🔐 ADT Login\n');
+
+      if (options.serviceKey) {
+        const serviceKey = readServiceKey(options.serviceKey as string);
+        if (!serviceKey.systemid && !sidArg) {
+          throw new Error(
+            'Service key does not contain a systemid. Use --sid to specify the system ID.',
+          );
+        }
+
+        const sid = sidArg || serviceKey.systemid.toUpperCase();
+        const authManager = getAuthManager();
+        const openModule = await import('open');
+        const openFn = openModule.default;
+
+        const session = await authManager.login(sid, {
+          type: '@abapify/adt-auth/plugins/service-key',
+          options: {
+            url: serviceKey.url,
+            serviceKey,
+            openBrowser: async (url: string) => {
+              try {
+                console.log('🌐 Opening browser for authentication...');
+                await openFn(url);
+              } catch {
+                console.log(
+                  '🌐 Open this URL in your browser to authenticate:',
+                );
+                console.log(url);
+              }
+            },
+            callbackPort: CALLBACK_SERVER_PORT,
+            redirectUri:
+              (options.redirectUri as string | undefined) ??
+              globalRedirectUri ??
+              OAUTH_REDIRECT_URI,
+            timeoutMs: OAUTH_TIMEOUT_MS,
+          },
+        });
+
+        setDefaultSid(sid);
+
+        console.log(`\n✅ Successfully logged in!`);
+        console.log(`   System: ${session.sid}`);
+        console.log(`   Host: ${session.host}`);
+        console.log(`   Method: ${session.auth.method}`);
+        console.log(`   💡 ${sid} set as default system`);
+
+        return;
+      }
 
       // Check if we have configured destinations
       const configuredDestinations = await listDestinations();
@@ -67,9 +137,13 @@ export const loginCommand = new Command('login')
           }
 
           const authManager = getAuthManager();
+          const resolvedDestOptions = withGlobalRedirectUri(
+            destOptions,
+            globalRedirectUri,
+          );
           const session = await authManager.login(sid, {
             type: dest.type,
-            options: destOptions,
+            options: resolvedDestOptions,
           });
 
           // Set as default
@@ -83,6 +157,15 @@ export const loginCommand = new Command('login')
 
           return;
         }
+      }
+
+      // If --sid was explicitly provided but not found, do not fall back to interactive mode.
+      if (sid && !matchedSid) {
+        throw new Error(
+          configuredDestinations.length > 0
+            ? `Destination ${sid} not found. Available destinations: ${configuredDestinations.join(', ')}`
+            : `Destination ${sid} not found. No destinations are configured.`,
+        );
       }
 
       // If destinations configured but no --sid, show selection
@@ -118,9 +201,15 @@ export const loginCommand = new Command('login')
           console.log(`\n📋 Authenticating to ${sid}...\n`);
 
           const authManager = getAuthManager();
+          const destOptions = selected.destination
+            .options as DestinationOptions;
+          const resolvedDestOptions = withGlobalRedirectUri(
+            destOptions,
+            globalRedirectUri,
+          );
           const session = await authManager.login(sid, {
             type: selected.destination.type,
-            options: selected.destination.options as DestinationOptions,
+            options: resolvedDestOptions,
           });
 
           // Set as default
@@ -306,4 +395,18 @@ async function promptManualConfig(): Promise<{
   }
 
   return { pluginType, url };
+}
+
+function withGlobalRedirectUri(
+  options: DestinationOptions,
+  globalRedirectUri?: string,
+): DestinationOptions {
+  if (!globalRedirectUri || options.redirectUri) {
+    return options;
+  }
+
+  return {
+    ...options,
+    redirectUri: globalRedirectUri,
+  };
 }

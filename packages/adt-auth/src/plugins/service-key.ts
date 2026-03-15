@@ -79,18 +79,28 @@ async function performPkceFlow(
   openBrowser: (url: string) => Promise<void>,
   port: number,
   timeoutMs: number,
+  redirectUri?: string,
 ): Promise<OAuthTokenResponse> {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
   const state = generateState();
 
-  const redirectUri = `http://localhost:${port}${DEFAULT_REDIRECT_PATH}`;
+  const resolvedRedirectUri =
+    redirectUri ?? `http://localhost:${port}${DEFAULT_REDIRECT_PATH}`;
+  const callbackPath = (() => {
+    try {
+      const pathname = new URL(resolvedRedirectUri).pathname;
+      return pathname && pathname.length > 0 ? pathname : '/';
+    } catch {
+      return DEFAULT_REDIRECT_PATH;
+    }
+  })();
 
   // Build XSUAA authorize URL
   const authUrl = new URL(`${serviceKey.uaa.url}/oauth/authorize`);
   authUrl.searchParams.set('client_id', serviceKey.uaa.clientid);
   authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('redirect_uri', resolvedRedirectUri);
   authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('code_challenge_method', 'S256');
   authUrl.searchParams.set('state', state);
@@ -109,7 +119,7 @@ async function performPkceFlow(
       try {
         const url = parseUrl(req.url || '', true);
 
-        if (url.pathname !== DEFAULT_REDIRECT_PATH) {
+        if (url.pathname !== callbackPath) {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
           res.end('Not Found');
           return;
@@ -141,7 +151,7 @@ async function performPkceFlow(
           serviceKey,
           code as string,
           codeVerifier,
-          redirectUri,
+          resolvedRedirectUri,
         );
 
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -192,7 +202,7 @@ async function performPkceFlow(
 
 const authPlugin: AuthPlugin = {
   async authenticate(options: AuthPluginOptions): Promise<CookieAuthResult> {
-    const { serviceKey, openBrowser, callbackPort, timeoutMs } =
+    const { serviceKey, openBrowser, callbackPort, timeoutMs, redirectUri } =
       options as ServiceKeyPluginOptions;
 
     if (!serviceKey) {
@@ -230,6 +240,7 @@ const authPlugin: AuthPlugin = {
       browserOpener,
       port,
       timeout,
+      typeof redirectUri === 'string' ? redirectUri : undefined,
     );
 
     const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);

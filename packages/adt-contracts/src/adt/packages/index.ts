@@ -2,19 +2,21 @@
  * /sap/bc/adt/packages/**
  * ADT Packages Contract
  *
- * GET /sap/bc/adt/packages/{name} - Get package details
+ * Full CRUD operations for ABAP packages (DEVC).
  *
- * Uses generated ts-xsd schema from packagesV1.xsd.
- * Schema defines both 'package' and 'packageTree' elements.
- * Parser auto-detects root from XML.
+ * Uses the crud() helper with packagesV1 schema.
+ * Package names are case-sensitive (uppercase) — no lowercase transform.
+ *
+ * @example
+ * const pkg = await client.adt.packages.get('ZABAPGIT_EXAMPLES');
+ * console.log(pkg.package?.name, pkg.package?.attributes?.packageType);
+ *
+ * // Create a new package
+ * await client.adt.packages.post({ corrNr: 'DEVK900001' });
  */
 
-import { http } from '@abapify/speci/rest';
+import { crud } from '../../helpers/crud';
 import { packagesV1 } from '../../schemas';
-
-// ============================================================================
-// Contract
-// ============================================================================
 
 import type { InferTypedSchema } from '../../schemas';
 
@@ -24,24 +26,12 @@ import type { InferTypedSchema } from '../../schemas';
  */
 export type Package = InferTypedSchema<typeof packagesV1>;
 
-export const packagesContract = {
-  /**
-   * Get package by name
-   *
-   * GET /sap/bc/adt/packages/{name}
-   *
-   * Returns: Package element (auto-detected from XML)
-   *
-   * @example
-   * const pkg = await client.adt.packages.get('$TEST_TO_DELETE');
-   * console.log(pkg.name, pkg.attributes.packageType);
-   */
-  get: (name: string) =>
-    http.get(`/sap/bc/adt/packages/${encodeURIComponent(name)}`, {
-      responses: { 200: packagesV1 },
-      headers: { Accept: 'application/vnd.sap.adt.packages.v1+xml' },
-    }),
-};
+export const packagesContract = crud({
+  basePath: '/sap/bc/adt/packages',
+  schema: packagesV1,
+  contentType: 'application/vnd.sap.adt.packages.v2+xml',
+  nameTransform: (n) => encodeURIComponent(n), // preserve case (packages are uppercase)
+});
 
 export type PackagesContract = typeof packagesContract;
 export type PackagesSchema = typeof packagesV1;

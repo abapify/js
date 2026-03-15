@@ -7,7 +7,7 @@
  * 3. ~/.adt/config.json (global defaults)
  */
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { resolve, join } from 'path';
 import type { AdtConfig, Destination } from './types';
 
@@ -58,6 +58,80 @@ function loadJsonConfig(filePath: string): AdtConfig | null {
   }
 }
 
+function normalizeDestinationEntry(raw: unknown): Destination | string | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const candidate = raw as Record<string, unknown>;
+
+  // Already in destination format
+  if (
+    typeof candidate.type === 'string' &&
+    'options' in candidate &&
+    candidate.options != null &&
+    typeof candidate.options === 'object'
+  ) {
+    return candidate as unknown as Destination;
+  }
+
+  // Service key JSON format
+  if (
+    typeof candidate.url === 'string' &&
+    candidate.uaa != null &&
+    typeof candidate.uaa === 'object'
+  ) {
+    return {
+      type: '@abapify/adt-auth/plugins/service-key',
+      options: {
+        url: candidate.url,
+        serviceKey: candidate,
+      },
+    };
+  }
+
+  // URL-only shorthand
+  if (typeof candidate.url === 'string') {
+    return candidate.url;
+  }
+
+  return null;
+}
+
+function loadDestinationsDirectory(cwd: string): AdtConfig | null {
+  const destinationsDir = join(cwd, '.adt', 'destinations');
+  if (!existsSync(destinationsDir)) {
+    return null;
+  }
+
+  const destinations: Record<string, Destination | string> = {};
+
+  for (const fileName of readdirSync(destinationsDir)) {
+    if (!fileName.toLowerCase().endsWith('.json')) {
+      continue;
+    }
+
+    const sid = fileName.slice(0, -5).toUpperCase();
+    const filePath = join(destinationsDir, fileName);
+
+    try {
+      const raw = JSON.parse(readFileSync(filePath, 'utf8')) as unknown;
+      const normalized = normalizeDestinationEntry(raw);
+      if (normalized) {
+        destinations[sid] = normalized;
+      }
+    } catch {
+      // Ignore invalid destination files and continue loading others.
+    }
+  }
+
+  if (Object.keys(destinations).length === 0) {
+    return null;
+  }
+
+  return { destinations };
+}
+
 /**
  * Load TypeScript config (requires dynamic import)
  * The TS config is expected to export a default config object
@@ -93,6 +167,23 @@ function mergeWithGlobal(localConfig: AdtConfig): AdtConfig {
     destinations: {
       ...globalConfig.destinations,
       ...localConfig.destinations,
+    },
+  };
+}
+
+/**
+ * Merge two local configs where overlay values win, and destinations are merged by key.
+ */
+function mergeLocalConfig(
+  baseConfig: AdtConfig,
+  overlayConfig: AdtConfig,
+): AdtConfig {
+  return {
+    ...baseConfig,
+    ...overlayConfig,
+    destinations: {
+      ...baseConfig.destinations,
+      ...overlayConfig.destinations,
     },
   };
 }
@@ -136,6 +227,35 @@ export interface LoadConfigOptions {
 }
 
 /**
+ * Try loading a config file from an explicit path (JSON or TS/JS).
+ */
+async function loadExplicitConfig(
+  configPath: string,
+): Promise<AdtConfig | null> {
+  if (configPath.endsWith('.json')) {
+    return loadJsonConfig(configPath);
+  }
+  return loadTsConfig(configPath);
+}
+
+/**
+ * Discover a config file by trying multiple extensions in priority order:
+ * .ts → .js → .json
+ */
+async function discoverConfig(
+  basePath: string,
+  baseName: string,
+): Promise<AdtConfig | null> {
+  const tsConfig = await loadTsConfig(join(basePath, `${baseName}.ts`));
+  if (tsConfig) return tsConfig;
+
+  const jsConfig = await loadTsConfig(join(basePath, `${baseName}.js`));
+  if (jsConfig) return jsConfig;
+
+  return loadJsonConfig(join(basePath, `${baseName}.json`));
+}
+
+/**
  * Load configuration with precedence:
  * 1. Explicit configPath (if provided via --config flag)
  * 2. adt.config.ts in cwd
@@ -155,17 +275,9 @@ export async function loadConfig(
   // If explicit config path provided, use it directly
   if (opts.configPath) {
     const configPath = resolve(cwd, opts.configPath);
-    if (configPath.endsWith('.json')) {
-      const jsonConfig = loadJsonConfig(configPath);
-      if (jsonConfig) {
-        return createLoadedConfig(mergeWithGlobal(jsonConfig));
-      }
-    } else {
-      // Assume TS/JS config
-      const tsConfig = await loadTsConfig(configPath);
-      if (tsConfig) {
-        return createLoadedConfig(mergeWithGlobal(tsConfig));
-      }
+    const config = await loadExplicitConfig(configPath);
+    if (config) {
+      return createLoadedConfig(mergeWithGlobal(config));
     }
     // Config path specified but file not found/loadable - continue with auto-discovery
     console.warn(
@@ -173,25 +285,33 @@ export async function loadConfig(
     );
   }
 
-  // Try TS config first
-  const tsConfigPath = join(cwd, 'adt.config.ts');
-  const tsConfig = await loadTsConfig(tsConfigPath);
-  if (tsConfig) {
-    return createLoadedConfig(mergeWithGlobal(tsConfig));
-  }
+  // Discover base local config (adt.config.*)
+  const baseLocalConfig = await discoverConfig(cwd, 'adt.config');
 
-  // Try JS config
-  const jsConfigPath = join(cwd, 'adt.config.js');
-  const jsConfig = await loadTsConfig(jsConfigPath);
-  if (jsConfig) {
-    return createLoadedConfig(mergeWithGlobal(jsConfig));
-  }
+  // Discover optional local override (.adt/config.*)
+  const localOverrideConfig = await discoverConfig(join(cwd, '.adt'), 'config');
 
-  // Try JSON config
-  const jsonConfigPath = join(cwd, 'adt.config.json');
-  const jsonConfig = loadJsonConfig(jsonConfigPath);
-  if (jsonConfig) {
-    return createLoadedConfig(mergeWithGlobal(jsonConfig));
+  // Discover optional destinations directory (.adt/destinations/*.json)
+  const destinationsDirConfig = loadDestinationsDirectory(cwd);
+
+  if (baseLocalConfig || localOverrideConfig || destinationsDirConfig) {
+    let mergedLocalConfig = baseLocalConfig || {};
+
+    if (destinationsDirConfig) {
+      mergedLocalConfig = mergeLocalConfig(
+        mergedLocalConfig,
+        destinationsDirConfig,
+      );
+    }
+
+    if (localOverrideConfig) {
+      mergedLocalConfig = mergeLocalConfig(
+        mergedLocalConfig,
+        localOverrideConfig,
+      );
+    }
+
+    return createLoadedConfig(mergeWithGlobal(mergedLocalConfig));
   }
 
   // Fall back to global config

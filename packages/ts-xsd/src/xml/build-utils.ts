@@ -48,18 +48,21 @@ export function createXmlDocument(schema: SchemaLike): XmlDocument {
 }
 
 /**
- * Collect all namespace declarations from a schema and its $imports recursively
+ * Collect namespace declarations from a schema and its $imports/$includes recursively.
+ *
+ * Gathers all $xmlns prefix→URI mappings from the schema tree.
+ * Unused declarations are cleaned up later by stripUnusedNamespaces()
+ * after the XML tree is built — that approach is generic and doesn't
+ * require any domain-specific knowledge.
  */
 function collectAllNamespaces(
   schema: SchemaLike,
   collected: Map<string, string> = new Map(),
   visited: Set<unknown> = new Set(),
 ): Map<string, string> {
-  // Prevent infinite recursion
   if (visited.has(schema)) return collected;
   visited.add(schema);
 
-  // Add namespaces from this schema's $xmlns
   if (schema.$xmlns) {
     for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
       if (!collected.has(pfx)) {
@@ -68,7 +71,6 @@ function collectAllNamespaces(
     }
   }
 
-  // Recursively collect from $imports
   const imports = (schema as { $imports?: SchemaLike[] }).$imports;
   if (imports) {
     for (const imported of imports) {
@@ -76,7 +78,6 @@ function collectAllNamespaces(
     }
   }
 
-  // Also collect from $includes
   const includes = (schema as { $includes?: SchemaLike[] }).$includes;
   if (includes) {
     for (const included of includes) {
@@ -132,6 +133,108 @@ export function createRootElement(
   }
 
   return root;
+}
+
+/**
+ * Remove xmlns declarations from the root element for prefixes that are
+ * not actually used anywhere in the document tree.
+ *
+ * This prevents emitting unused namespace declarations (e.g. xmlns:abapsource,
+ * xmlns:abapoo) that come from the schema's $imports chain but aren't
+ * referenced by any element or attribute in the built XML.
+ *
+ * The prefix that maps to the schema's own targetNamespace is always
+ * preserved — even when elementFormDefault="unqualified" causes the root
+ * element to be emitted without a prefix, the xmlns declaration is still
+ * required for the document to be in the correct namespace.
+ */
+/**
+ * Add namespace prefix from a qualified name to the set (if present).
+ */
+function addPrefixFromName(name: string, usedPrefixes: Set<string>): void {
+  const colon = name.indexOf(':');
+  if (colon > 0) {
+    usedPrefixes.add(name.substring(0, colon));
+  }
+}
+
+/**
+ * Collect namespace prefixes referenced by attributes on a single element
+ * (xmlns declarations are skipped — they declare rather than use prefixes).
+ */
+function collectPrefixesFromAttributes(
+  node: XmlElement,
+  usedPrefixes: Set<string>,
+): void {
+  if (!node.attributes) return;
+  for (const attr of Array.from(node.attributes)) {
+    if (!attr.name.startsWith('xmlns:') && attr.name !== 'xmlns') {
+      addPrefixFromName(attr.name, usedPrefixes);
+    }
+  }
+}
+
+/**
+ * Collect prefixes used by elements and attributes in the tree (recursive walk).
+ */
+function collectUsedPrefixes(
+  node: XmlElement,
+  usedPrefixes: Set<string>,
+): void {
+  addPrefixFromName(node.tagName, usedPrefixes);
+  collectPrefixesFromAttributes(node, usedPrefixes);
+
+  if (node.childNodes) {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === 1) {
+        collectUsedPrefixes(child as XmlElement, usedPrefixes);
+      }
+    }
+  }
+}
+
+/**
+ * Collect xmlns:prefix attribute names on the root element whose prefix
+ * is not in the used-prefixes set.
+ */
+function findUnusedXmlnsAttrs(
+  root: XmlElement,
+  usedPrefixes: Set<string>,
+): string[] {
+  const toRemove: string[] = [];
+  if (!root.attributes) return toRemove;
+  for (const attr of Array.from(root.attributes)) {
+    if (attr.name.startsWith('xmlns:')) {
+      const pfx = attr.name.substring(6);
+      if (!usedPrefixes.has(pfx)) {
+        toRemove.push(attr.name);
+      }
+    }
+  }
+  return toRemove;
+}
+
+export function stripUnusedNamespaces(
+  root: XmlElement,
+  schema?: SchemaLike,
+): void {
+  // Collect all prefixes actually used by elements and attributes in the tree.
+  // Always preserve the prefix for the schema's own targetNamespace.
+  const usedPrefixes = new Set<string>();
+
+  if (schema?.targetNamespace && schema.$xmlns) {
+    for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
+      if (pfx && uri === schema.targetNamespace) {
+        usedPrefixes.add(pfx);
+      }
+    }
+  }
+
+  collectUsedPrefixes(root, usedPrefixes);
+
+  for (const name of findUnusedXmlnsAttrs(root, usedPrefixes)) {
+    root.removeAttribute(name);
+  }
 }
 
 /**

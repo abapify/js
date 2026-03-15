@@ -8,4 +8,6 @@ export { default as clas } from './clas';
 export { default as devc } from './devc';
 export { default as doma } from './doma';
 export { default as dtel } from './dtel';
+export { default as fugr } from './fugr';
 export { default as intf } from './intf';
+export { default as prog } from './prog';

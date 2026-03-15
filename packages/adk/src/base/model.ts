@@ -159,6 +159,9 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   protected dirty = new Set<string>();
   protected _lockHandle?: LockHandle;
 
+  /** Set by save() when all pending changes are identical to SAP state */
+  _unchanged = false;
+
   /**
    * Create ADK object
    * @param ctx - ADK context
@@ -453,6 +456,18 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   async save(options: SaveOptions = {}): Promise<this> {
     const { transport, mode = 'update' } = options;
 
+    // Check if object has pending sources (from abapGit deserialization)
+    const hasPendingSources = this.hasPendingSources();
+
+    // For updates with pending sources, compare with SAP before locking.
+    // This avoids acquiring a lock only to discover nothing changed.
+    if (hasPendingSources && mode !== 'create') {
+      await this.checkPendingSourcesUnchanged();
+      if (this._unchanged) {
+        return this;
+      }
+    }
+
     // Lock if not already locked (skip for create mode - object doesn't exist yet)
     const wasLocked = this.isLocked;
     const needsLock = mode !== 'create';
@@ -469,10 +484,6 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     }
 
     try {
-      // Check if object has pending sources (from abapGit deserialization)
-      // For existing objects with sources, save sources instead of metadata
-      const hasPendingSources = this.hasPendingSources();
-
       // Use transport from lock response if not explicitly provided
       // The lock response contains CORRNR which is the transport assigned to this object
       const effectiveTransport =
@@ -588,15 +599,77 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
   }
 
   /**
-   * Save pending sources
-   * Subclasses with source code (classes, interfaces) override this
-   * Default implementation does nothing
+   * Normalize source code for comparison.
+   * Trims trailing whitespace/newlines so minor formatting differences
+   * don't trigger unnecessary saves.
    */
-  protected async savePendingSources(_options?: {
+  protected normalizeSource(source: string): string {
+    return source
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .trimEnd();
+  }
+
+  /**
+   * Check if pending sources are unchanged vs SAP (pre-lock comparison).
+   * Sets _unchanged = true if nothing needs saving.
+   *
+   * Default handles single-source objects (_pendingSource) by fetching
+   * GET {objectUri}/source/main and comparing.
+   * AdkClass overrides this for multi-include logic.
+   */
+  protected async checkPendingSourcesUnchanged(): Promise<void> {
+    const self = this as unknown as { _pendingSource?: string };
+    if (!self._pendingSource) return;
+
+    try {
+      const response = await this.ctx.client.fetch(
+        `${this.objectUri}/source/main`,
+        { method: 'GET', headers: { Accept: 'text/plain' } },
+      );
+      const currentSource = await response.text();
+      if (
+        this.normalizeSource(currentSource) ===
+        this.normalizeSource(self._pendingSource)
+      ) {
+        this._unchanged = true;
+        delete self._pendingSource;
+      }
+    } catch {
+      // Source doesn't exist on SAP (404) — needs saving
+    }
+  }
+
+  /**
+   * Save pending sources to SAP.
+   *
+   * Default handles single-source objects (_pendingSource) by PUTting
+   * to {objectUri}/source/main.
+   * AdkClass overrides this for multi-include logic.
+   */
+  protected async savePendingSources(options?: {
     lockHandle?: string;
     transport?: string;
   }): Promise<void> {
-    // Default: no-op. Subclasses like AdkClass override this.
+    const self = this as unknown as { _pendingSource?: string };
+    if (!self._pendingSource) return;
+
+    const params = new URLSearchParams();
+    if (options?.lockHandle) params.set('lockHandle', options.lockHandle);
+    if (options?.transport) params.set('corrNr', options.transport);
+
+    const qs = params.toString();
+    await this.ctx.client.fetch(
+      `${this.objectUri}/source/main${qs ? '?' + qs : ''}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: self._pendingSource,
+      },
+    );
+
+    delete self._pendingSource;
   }
 
   /**
@@ -777,5 +850,28 @@ export abstract class AdkMainObject<
   /** ABAP language version (adtcore:abapLanguageVersion) */
   get abapLanguageVersion(): string {
     return this.mainData.abapLanguageVersion ?? '';
+  }
+
+  /**
+   * Save main source code to SAP.
+   * Requires the object to be locked before calling.
+   * Subclasses may override to add additional behavior (e.g. cache invalidation).
+   */
+  async saveMainSource(
+    source: string,
+    options?: { lockHandle?: string; transport?: string },
+  ): Promise<void> {
+    const params = new URLSearchParams();
+    if (options?.lockHandle) params.set('lockHandle', options.lockHandle);
+    if (options?.transport) params.set('corrNr', options.transport);
+    const qs = params.toString();
+    await this.ctx.client.fetch(
+      `${this.objectUri}/source/main${qs ? '?' + qs : ''}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: source,
+      },
+    );
   }
 }

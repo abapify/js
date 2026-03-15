@@ -93,6 +93,26 @@ export interface FileTree {
 }
 
 /**
+ * Options passed to format plugin's export generator
+ *
+ * Provides the plugin with deployment context so it can resolve
+ * format-specific concerns (e.g., abapGit folder logic → packageRef).
+ */
+export interface ExportOptions {
+  /** Target root package on SAP (e.g., 'ZABAPGIT_EXAMPLES') */
+  rootPackage?: string;
+
+  /** ABAP language version override (e.g., '5' for ABAP Cloud) */
+  abapLanguageVersion?: string;
+
+  /** Format options provided explicitly by CLI invocation */
+  formatOptions?: Readonly<Record<string, FormatOptionValue>>;
+
+  /** Format options loaded from configuration (e.g. adt.config.ts) */
+  configFormatOptions?: Readonly<Record<string, FormatOptionValue>>;
+}
+
+/**
  * Context for export operation (legacy - kept for compatibility)
  */
 export interface ExportContext {
@@ -181,13 +201,19 @@ export interface AdtPlugin {
      * Plugin is responsible for:
      * - Iterating files in its format (*.oat.xml, *.abap, etc.)
      * - Parsing each file into ADK object
+     * - Resolving format-specific concerns (e.g., packageRef from folder logic)
      * - Yielding ADK objects (does NOT save to SAP)
      *
      * @param fileTree - Virtual file system to read from
      * @param client - ADT client for creating ADK objects
+     * @param options - Export options (root package, language version, etc.)
      * @yields ADK objects ready to be saved
      */
-    export?(fileTree: FileTree, client: unknown): AsyncGenerator<AdkObject>;
+    export?(
+      fileTree: FileTree,
+      client: unknown,
+      options?: ExportOptions,
+    ): AsyncGenerator<AdkObject>;
   };
 
   /** Lifecycle hooks */

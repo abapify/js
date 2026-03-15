@@ -57,6 +57,8 @@ export type ElementEntry = {
   readonly array: boolean;
   /** Source group type */
   readonly source: 'sequence' | 'choice' | 'all' | 'extension';
+  /** Schema where the element is defined (for namespace prefix resolution) */
+  readonly schema: SchemaLike;
 };
 
 /** Result of walking attributes */
@@ -325,7 +327,7 @@ export function* walkElements(
       }
     }
 
-    // Then yield extension's own elements
+    // Then yield extension's own elements (defined in current schema)
     yield* walkGroup(ext.sequence, 'sequence', schema);
     yield* walkGroup(ext.choice, 'choice', schema);
     yield* walkGroup(ext.all, 'all', schema);
@@ -400,7 +402,7 @@ function* walkGroup(
           const substitutes = findSubstitutes(refName, schema);
           if (substitutes.length > 0) {
             for (const sub of substitutes) {
-              yield { element: sub, optional, array, source };
+              yield { element: sub, optional, array, source, schema };
             }
             continue;
           }
@@ -409,7 +411,7 @@ function* walkGroup(
         }
       }
 
-      yield { element, optional, array, source };
+      yield { element, optional, array, source, schema };
     }
   }
 
