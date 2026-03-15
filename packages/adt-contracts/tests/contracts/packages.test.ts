@@ -1,5 +1,7 @@
 /**
  * Packages Contract Scenarios
+ *
+ * Uses crud() helper — full CRUD with v2 content type.
  */
 
 import { packagesV1 } from '../../src/schemas';
@@ -16,7 +18,7 @@ class PackagesScenario extends ContractScenario {
       contract: () => packagesContract.get('$TMP'),
       method: 'GET',
       path: '/sap/bc/adt/packages/%24TMP', // $ is URL-encoded
-      headers: { Accept: 'application/vnd.sap.adt.packages.v1+xml' },
+      headers: { Accept: 'application/vnd.sap.adt.packages.v2+xml' },
       response: {
         status: 200,
         schema: packagesV1,
@@ -28,8 +30,29 @@ class PackagesScenario extends ContractScenario {
       contract: () => packagesContract.get('Z_MY_PACKAGE'),
       method: 'GET',
       path: '/sap/bc/adt/packages/Z_MY_PACKAGE',
-      headers: { Accept: 'application/vnd.sap.adt.packages.v1+xml' },
+      headers: { Accept: 'application/vnd.sap.adt.packages.v2+xml' },
       response: { status: 200, schema: packagesV1 },
+    },
+    {
+      name: 'create package (POST)',
+      contract: () => packagesContract.post({ corrNr: 'DEVK900001' }),
+      method: 'POST',
+      path: '/sap/bc/adt/packages',
+      headers: {
+        Accept: 'application/vnd.sap.adt.packages.v2+xml',
+        'Content-Type': 'application/*',
+      },
+      query: { corrNr: 'DEVK900001' },
+      body: { schema: packagesV1 },
+      response: { status: 200, schema: packagesV1 },
+    },
+    {
+      name: 'delete package',
+      contract: () =>
+        packagesContract.delete('ZTEST_PKG', { corrNr: 'DEVK900001' }),
+      method: 'DELETE',
+      path: '/sap/bc/adt/packages/ZTEST_PKG',
+      query: { corrNr: 'DEVK900001' },
     },
   ];
 }

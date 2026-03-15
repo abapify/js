@@ -202,8 +202,12 @@ export class AdkPackage
     return this;
   }
 
-  // Note: save() not yet implemented - no crudContract defined
-  // Package creation requires transport handling
+  protected override get wrapperKey() {
+    return 'package' as const;
+  }
+  protected override get crudContract(): any {
+    return this.ctx.client.adt.packages;
+  }
 
   // Lock/unlock inherited from AdkObject using generic lock service
 
@@ -221,6 +225,54 @@ export class AdkPackage
     const context = ctx ?? getGlobalContext();
     const pkg = new AdkPackage(context, name);
     await pkg.load();
+    return pkg;
+  }
+
+  /**
+   * Check if a package exists on SAP
+   *
+   * @param name - Package name
+   * @param ctx - Optional ADK context (uses global context if not provided)
+   * @returns true if package exists, false otherwise
+   */
+  static async exists(name: string, ctx?: AdkContext): Promise<boolean> {
+    try {
+      const context = ctx ?? getGlobalContext();
+      const pkg = new AdkPackage(context, name);
+      await pkg.load();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Create a new package on SAP
+   *
+   * Builds an AdkPackage with the given data and saves it in 'create' mode.
+   *
+   * @param name - Package name (e.g., 'ZABAPGIT_EXAMPLES_CLAS')
+   * @param data - Package data (superPackage, attributes, transport, etc.)
+   * @param options - Save options (transport request)
+   * @param ctx - Optional ADK context (uses global context if not provided)
+   */
+  static async create(
+    name: string,
+    data: Partial<PackageXml>,
+    options?: { transport?: string },
+    ctx?: AdkContext,
+  ): Promise<AdkPackage> {
+    const context = ctx ?? getGlobalContext();
+    const pkg = new AdkPackage(context, name);
+    // Merge provided data with defaults
+    pkg.setData({
+      name,
+      type: 'DEVC/K',
+      description: data.description ?? name,
+      responsible: data.responsible ?? '',
+      ...data,
+    } as PackageXml);
+    await pkg.save({ transport: options?.transport, mode: 'create' });
     return pkg;
   }
 }
