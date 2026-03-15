@@ -9,8 +9,9 @@ import type {
   CliCommandPlugin,
   CliContext,
   AdtPlugin,
+  ExportOptions,
 } from '@abapify/adt-plugin';
-import { AdkObjectSet, type AdkContext } from '@abapify/adk';
+import { AdkObjectSet, AdkPackage, type AdkContext } from '@abapify/adk';
 import type { ExportResult } from '../types';
 import { createFileTree } from '../utils/filetree';
 
@@ -220,9 +221,15 @@ export const exportCommand: CliCommandPlugin = {
 
       ctx.logger.info('🔍 Scanning files and building object tree...');
 
+      // Build export options for the format plugin
+      const exportOptions: ExportOptions = {
+        rootPackage: options.package,
+        abapLanguageVersion: options.abapLanguageVersion,
+      };
+
       // Collect objects from plugin generator into AdkObjectSet
       const objectSet = await AdkObjectSet.fromGenerator(
-        plugin.format.export(fileTree, client),
+        plugin.format.export(fileTree, client, exportOptions),
         adkContext,
         {
           filter: objectTypes
@@ -260,17 +267,144 @@ export const exportCommand: CliCommandPlugin = {
         return;
       }
 
-      // Inject packageRef and abapLanguageVersion into objects
-      // SAP ADT requires packageRef child element for object creation
-      // BTP systems require abapLanguageVersion (authorization object S_ABPLNGVS)
-      for (const obj of objectSet) {
-        const data = (obj as any)._data;
-        if (!data) continue;
-        if (options.package && !data.packageRef) {
-          data.packageRef = { name: options.package };
+      // Log package assignments (resolved by format plugin)
+      if (options.package) {
+        const pkgMap = new Map<string, string[]>();
+        for (const obj of objectSet) {
+          const pkgName = (obj as any)._data?.packageRef?.name as string | undefined;
+          if (pkgName) {
+            if (!pkgMap.has(pkgName)) pkgMap.set(pkgName, []);
+            pkgMap.get(pkgName)!.push(obj.name);
+          }
         }
-        if (options.abapLanguageVersion && !data.abapLanguageVersion) {
-          data.abapLanguageVersion = options.abapLanguageVersion;
+        if (pkgMap.size > 0) {
+          ctx.logger.info(`� Package resolution: ${options.package}`);
+          for (const [pkg, objects] of pkgMap) {
+            if (pkg !== options.package) {
+              ctx.logger.info(`   📁 ${pkg}: ${objects.join(', ')}`);
+            }
+          }
+        }
+      }
+
+      // ============================================
+      // Pre-deploy: ensure subpackages exist
+      // Collect all unique target packages and create any that
+      // don't exist on the SAP system yet.
+      // ============================================
+      if (options.package && !options.dryRun) {
+        // Collect unique subpackage names (exclude root package)
+        const subPackages = new Set<string>();
+        for (const obj of objectSet) {
+          const pkgName = (obj as any)._data?.packageRef?.name as string | undefined;
+          if (pkgName && pkgName !== options.package) {
+            subPackages.add(pkgName);
+          }
+        }
+
+        if (subPackages.size > 0) {
+          ctx.logger.info(`\n📦 Checking ${subPackages.size} subpackage(s)...`);
+
+          // Read parent package to inherit software component, transport layer & responsible
+          let parentPkg: AdkPackage | undefined;
+          try {
+            parentPkg = await AdkPackage.get(options.package, adkContext);
+          } catch {
+            // Parent package read failed — proceed without inherited values
+          }
+
+          for (const pkgName of subPackages) {
+            const exists = await AdkPackage.exists(pkgName, adkContext);
+            if (!exists) {
+              ctx.logger.info(`   📦 Creating subpackage ${pkgName}...`);
+              try {
+                await AdkPackage.create(
+                  pkgName,
+                  {
+                    description: pkgName,
+                    responsible: parentPkg?.dataSync?.responsible ?? '',
+                    superPackage: { name: options.package },
+                    attributes: {
+                      packageType: 'development',
+                      ...(options.abapLanguageVersion
+                        ? { languageVersion: options.abapLanguageVersion }
+                        : {}),
+                    },
+                    transport: {
+                      softwareComponent: parentPkg?.transport?.softwareComponent
+                        ? { name: parentPkg.transport.softwareComponent.name }
+                        : undefined,
+                      transportLayer: parentPkg?.transport?.transportLayer
+                        ? { name: parentPkg.transport.transportLayer.name }
+                        : undefined,
+                    },
+                  },
+                  { transport: options.transport },
+                  adkContext,
+                );
+                ctx.logger.info(`   ✅ Created ${pkgName}`);
+              } catch (createErr) {
+                ctx.logger.warn(
+                  `   ⚠️ Failed to create ${pkgName}: ${createErr instanceof Error ? createErr.message : String(createErr)}`,
+                );
+              }
+            }
+          }
+        }
+      }
+
+      // ============================================
+      // Pre-deploy: delete objects in wrong package
+      // SAP ignores packageRef on PUT (update), so if an object
+      // already exists in a different package we must delete it
+      // first and let the deploy recreate it in the correct one.
+      // ============================================
+      if (options.package && !options.dryRun) {
+        let deletedForReassign = 0;
+        for (const obj of objectSet) {
+          const targetPkg = (obj as any)._data?.packageRef?.name as
+            | string
+            | undefined;
+          if (!targetPkg) continue;
+
+          try {
+            // Try loading existing object from SAP
+            await obj.load();
+            const currentPkg = (obj as any).package as string | undefined;
+            if (!currentPkg || currentPkg === targetPkg) continue;
+
+            // Object exists in wrong package — delete so deploy recreates it
+            ctx.logger.info(
+              `   📦 ${obj.name}: ${currentPkg} → ${targetPkg} (will delete + recreate)`,
+            );
+
+            const contract = (obj as any).crudContract;
+            if (contract?.delete) {
+              const lockHandle = await obj.lock(options.transport);
+              await contract.delete(obj.name, {
+                lockHandle: lockHandle.handle,
+                corrNr: options.transport,
+              });
+              // Clear internal state so deploy treats this as a new object
+              (obj as any)._data.packageRef = { name: targetPkg };
+              (obj as any)._lockHandle = undefined;
+              deletedForReassign++;
+            }
+          } catch (err) {
+            // Object doesn't exist yet (404) or load failed — that's fine,
+            // the deploy will create it in the correct package
+            const msg = err instanceof Error ? err.message : String(err);
+            if (!msg.includes('404') && !msg.includes('not found')) {
+              ctx.logger.warn(
+                `   ⚠️ Pre-deploy check for ${obj.name}: ${msg}`,
+              );
+            }
+          }
+        }
+        if (deletedForReassign > 0) {
+          ctx.logger.info(
+            `📦 ${deletedForReassign} object(s) deleted for package reassignment`,
+          );
         }
       }
 
@@ -287,9 +421,15 @@ export const exportCommand: CliCommandPlugin = {
           activate: options.activate !== false,
           mode: 'upsert',
           onProgress: (saved, total, obj) => {
-            ctx.logger.info(
-              `   💾 [${saved + 1}/${total}] ${obj.kind} ${obj.name}`,
-            );
+            if (obj._unchanged) {
+              ctx.logger.info(
+                `   ⏭️ [${saved}/${total}] ${obj.kind} ${obj.name} (unchanged)`,
+              );
+            } else {
+              ctx.logger.info(
+                `   💾 [${saved}/${total}] ${obj.kind} ${obj.name}`,
+              );
+            }
           },
         });
 
@@ -298,12 +438,32 @@ export const exportCommand: CliCommandPlugin = {
         result.failed = deployResult.save.failed;
 
         for (const r of deployResult.save.results) {
-          result.objects.push({
-            type: r.object.type,
-            name: r.object.name,
-            status: r.success ? 'saved' : 'failed',
-            error: r.error,
-          });
+          if (r.unchanged) {
+            result.skipped++;
+            result.objects.push({
+              type: r.object.type,
+              name: r.object.name,
+              status: 'skipped',
+              error: 'unchanged',
+            });
+          } else {
+            result.objects.push({
+              type: r.object.type,
+              name: r.object.name,
+              status: r.success ? 'saved' : 'failed',
+              error: r.error,
+            });
+          }
+        }
+
+        // Log unchanged objects
+        if (deployResult.save.unchanged > 0) {
+          const unchangedNames = deployResult.save.results
+            .filter((r) => r.unchanged)
+            .map((r) => r.object.name);
+          ctx.logger.info(
+            `\n⏭️ ${deployResult.save.unchanged} unchanged: ${unchangedNames.join(', ')}`,
+          );
         }
 
         // Map activation results

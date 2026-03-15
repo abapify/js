@@ -24,6 +24,7 @@ export type {
   ImportContext,
   ImportResult,
   ExportContext,
+  ExportOptions,
   ExportResult,
   FileTree,
   AdtPlugin,

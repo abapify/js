@@ -134,9 +134,20 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> {
   }
 
   /**
+   * Normalize source code for comparison
+   * Trims trailing whitespace/newlines so minor formatting differences don't trigger a save
+   */
+  private normalizeSource(source: string): string {
+    return source.replace(/\s+$/gm, '').trimEnd();
+  }
+
+  /**
    * Save all pending sources (set via _pendingSources)
    * Used by export workflow after deserialization from abapGit
    * Overrides base class method
+   *
+   * Compares pending sources with current SAP sources before saving.
+   * If all sources are identical, sets _unchanged = true and skips the save.
    */
   protected override async savePendingSources(options?: {
     lockHandle?: string;
@@ -147,9 +158,40 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> {
     )._pendingSources;
     if (!pendingSources) return;
 
+    // Compare pending sources with current SAP sources
+    // Collect only the includes that actually changed
+    const changedSources: Array<[string, string]> = [];
+
+    for (const [key, pendingSource] of Object.entries(pendingSources)) {
+      try {
+        const currentSource = await this.getIncludeSource(
+          key as ClassIncludeType,
+        );
+        if (
+          this.normalizeSource(currentSource) ===
+          this.normalizeSource(pendingSource)
+        ) {
+          continue; // Identical — skip
+        }
+      } catch {
+        // Source doesn't exist on SAP yet (404) — needs saving
+      }
+      changedSources.push([key, pendingSource]);
+    }
+
+    // If nothing changed, mark as unchanged and skip
+    if (changedSources.length === 0) {
+      this._unchanged = true;
+      // Clear pending sources
+      delete (this as unknown as { _pendingSources?: Record<string, string> })
+        ._pendingSources;
+      delete (this as unknown as { _pendingSource?: string })._pendingSource;
+      return;
+    }
+
     const errors: Error[] = [];
 
-    for (const [key, source] of Object.entries(pendingSources)) {
+    for (const [key, source] of changedSources) {
       try {
         if (key === 'main') {
           await this.saveMainSource(source, options);
@@ -182,6 +224,40 @@ export class AdkClass extends AdkMainObject<typeof ClassKind, ClassXml> {
     if (errors.length > 0) {
       throw errors[0];
     }
+  }
+
+  /**
+   * Pre-lock comparison: check if all pending sources match SAP
+   * If identical, sets _unchanged = true so save() skips locking and PUT
+   */
+  protected override async checkPendingSourcesUnchanged(): Promise<void> {
+    const pendingSources = (
+      this as unknown as { _pendingSources?: Record<string, string> }
+    )._pendingSources;
+    if (!pendingSources) return;
+
+    for (const [key, pendingSource] of Object.entries(pendingSources)) {
+      try {
+        const currentSource = await this.getIncludeSource(
+          key as ClassIncludeType,
+        );
+        if (
+          this.normalizeSource(currentSource) !==
+          this.normalizeSource(pendingSource)
+        ) {
+          return; // At least one source changed — needs saving
+        }
+      } catch {
+        return; // Source doesn't exist on SAP (404) — needs saving
+      }
+    }
+
+    // All sources identical
+    this._unchanged = true;
+    // Clear pending sources
+    delete (this as unknown as { _pendingSources?: Record<string, string> })
+      ._pendingSources;
+    delete (this as unknown as { _pendingSource?: string })._pendingSource;
   }
 
   /**
