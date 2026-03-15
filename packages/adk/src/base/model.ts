@@ -604,7 +604,11 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
    * don't trigger unnecessary saves.
    */
   protected normalizeSource(source: string): string {
-    return source.replace(/\s+$/gm, '').trimEnd();
+    return source
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .trimEnd();
   }
 
   /**
