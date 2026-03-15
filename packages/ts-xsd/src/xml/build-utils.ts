@@ -149,32 +149,41 @@ export function createRootElement(
  * required for the document to be in the correct namespace.
  */
 /**
+ * Add namespace prefix from a qualified name to the set (if present).
+ */
+function addPrefixFromName(name: string, usedPrefixes: Set<string>): void {
+  const colon = name.indexOf(':');
+  if (colon > 0) {
+    usedPrefixes.add(name.substring(0, colon));
+  }
+}
+
+/**
+ * Collect namespace prefixes referenced by attributes on a single element
+ * (xmlns declarations are skipped — they declare rather than use prefixes).
+ */
+function collectPrefixesFromAttributes(
+  node: XmlElement,
+  usedPrefixes: Set<string>,
+): void {
+  if (!node.attributes) return;
+  for (const attr of Array.from(node.attributes)) {
+    if (!attr.name.startsWith('xmlns:') && attr.name !== 'xmlns') {
+      addPrefixFromName(attr.name, usedPrefixes);
+    }
+  }
+}
+
+/**
  * Collect prefixes used by elements and attributes in the tree (recursive walk).
  */
 function collectUsedPrefixes(
   node: XmlElement,
   usedPrefixes: Set<string>,
 ): void {
-  // Check the element's own tag for a prefix
-  const tagParts = node.tagName.split(':');
-  if (tagParts.length === 2) {
-    usedPrefixes.add(tagParts[0]);
-  }
+  addPrefixFromName(node.tagName, usedPrefixes);
+  collectPrefixesFromAttributes(node, usedPrefixes);
 
-  // Check attributes (skip xmlns declarations themselves)
-  if (node.attributes) {
-    for (const attr of Array.from(node.attributes)) {
-      if (attr.name.startsWith('xmlns:') || attr.name === 'xmlns') {
-        continue;
-      }
-      const attrParts = attr.name.split(':');
-      if (attrParts.length === 2) {
-        usedPrefixes.add(attrParts[0]);
-      }
-    }
-  }
-
-  // Recurse into child elements
   if (node.childNodes) {
     for (const child of Array.from(node.childNodes)) {
       if (child.nodeType === 1) {
@@ -184,14 +193,35 @@ function collectUsedPrefixes(
   }
 }
 
+/**
+ * Collect xmlns:prefix attribute names on the root element whose prefix
+ * is not in the used-prefixes set.
+ */
+function findUnusedXmlnsAttrs(
+  root: XmlElement,
+  usedPrefixes: Set<string>,
+): string[] {
+  const toRemove: string[] = [];
+  if (!root.attributes) return toRemove;
+  for (const attr of Array.from(root.attributes)) {
+    if (attr.name.startsWith('xmlns:')) {
+      const pfx = attr.name.substring(6);
+      if (!usedPrefixes.has(pfx)) {
+        toRemove.push(attr.name);
+      }
+    }
+  }
+  return toRemove;
+}
+
 export function stripUnusedNamespaces(
   root: XmlElement,
   schema?: SchemaLike,
 ): void {
-  // Collect all prefixes actually used by elements and attributes in the tree
+  // Collect all prefixes actually used by elements and attributes in the tree.
+  // Always preserve the prefix for the schema's own targetNamespace.
   const usedPrefixes = new Set<string>();
 
-  // Always preserve the prefix for the schema's own targetNamespace
   if (schema?.targetNamespace && schema.$xmlns) {
     for (const [pfx, uri] of Object.entries(schema.$xmlns)) {
       if (pfx && uri === schema.targetNamespace) {
@@ -202,21 +232,7 @@ export function stripUnusedNamespaces(
 
   collectUsedPrefixes(root, usedPrefixes);
 
-  // Remove xmlns:prefix declarations where prefix is not used
-  const toRemove: string[] = [];
-  const attrs = root.attributes;
-  if (attrs) {
-    for (const attr of Array.from(attrs)) {
-      if (attr.name.startsWith('xmlns:')) {
-        const pfx = attr.name.substring(6);
-        if (!usedPrefixes.has(pfx)) {
-          toRemove.push(attr.name);
-        }
-      }
-    }
-  }
-
-  for (const name of toRemove) {
+  for (const name of findUnusedXmlnsAttrs(root, usedPrefixes)) {
     root.removeAttribute(name);
   }
 }

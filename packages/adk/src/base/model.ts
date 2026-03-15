@@ -851,4 +851,27 @@ export abstract class AdkMainObject<
   get abapLanguageVersion(): string {
     return this.mainData.abapLanguageVersion ?? '';
   }
+
+  /**
+   * Save main source code to SAP.
+   * Requires the object to be locked before calling.
+   * Subclasses may override to add additional behavior (e.g. cache invalidation).
+   */
+  async saveMainSource(
+    source: string,
+    options?: { lockHandle?: string; transport?: string },
+  ): Promise<void> {
+    const params = new URLSearchParams();
+    if (options?.lockHandle) params.set('lockHandle', options.lockHandle);
+    if (options?.transport) params.set('corrNr', options.transport);
+    const qs = params.toString();
+    await this.ctx.client.fetch(
+      `${this.objectUri}/source/main${qs ? '?' + qs : ''}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: source,
+      },
+    );
+  }
 }
