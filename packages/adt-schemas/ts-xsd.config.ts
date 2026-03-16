@@ -60,6 +60,11 @@ const targetSchemas = [
   'sap/quickfixes',
   'sap/log',
   'sap/templatelink',
+  // Data Dictionary
+  'sap/domain',
+  'sap/dataelements',
+  'sap/tabletype',
+  'sap/tablesettings',
   // Custom schemas
   'custom/atomExtended',
   'custom/discovery',
