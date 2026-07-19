@@ -5,6 +5,10 @@
 import type { AdtClient } from '@abapify/adt-client';
 import type { SapSessionContext } from './session/types.js';
 import type { SessionRegistry } from './session/registry.js';
+import type {
+  DestinationContextRegistry,
+  RequestIdentity,
+} from './session/destination-registry.js';
 
 /**
  * Connection parameters that every tool receives.
@@ -38,4 +42,10 @@ export interface ToolContext {
   getSession?: (mcpSessionId: string) => SapSessionContext | undefined;
   registry?: SessionRegistry;
   resolveSystem?: (systemId: string) => ConnectionParams | undefined;
+  /**
+   * Shared-service mode. Contexts are keyed by both MCP session and the
+   * public destination key; no connection material reaches a tool handler.
+   */
+  destinationRegistry?: DestinationContextRegistry;
+  requestIdentity?: (extra: { sessionId?: string }) => RequestIdentity;
 }
