@@ -33,6 +33,8 @@ export interface McpFrozenSourceAccess {
   readonly systemSid: string;
   readonly sources: readonly {
     readonly canonicalKey: string;
+    /** Immutable source component within the canonical review object. */
+    readonly componentId: string;
     /** Opaque ARM capability; never accepted as a model/tool argument. */
     readonly sourceRef: string;
   }[];
@@ -241,7 +243,7 @@ export function isMcpToolAllowed(
 /**
  * Applies a signed resource constraint after the ordinary class check. A
  * frozen AI Review has no ambient read authority: it can ask only for an exact
- * canonical object through the capability-mediated source tool.
+ * canonical object component through the capability-mediated source tool.
  */
 export function isMcpToolResourceAllowed(
   access: McpRequestAccess | undefined,
@@ -252,9 +254,15 @@ export function isMcpToolResourceAllowed(
   if (!frozenSource) return name !== 'get_frozen_source';
   if (name !== 'get_frozen_source') return false;
   const canonicalKey = arguments_.canonicalKey;
+  const componentId = arguments_.componentId;
   return Boolean(
     typeof canonicalKey === 'string' &&
-    frozenSource.sources.some((source) => source.canonicalKey === canonicalKey),
+    typeof componentId === 'string' &&
+    frozenSource.sources.some(
+      (source) =>
+        source.canonicalKey === canonicalKey &&
+        source.componentId === componentId,
+    ),
   );
 }
 

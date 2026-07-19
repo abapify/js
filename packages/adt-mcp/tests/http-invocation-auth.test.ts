@@ -288,6 +288,7 @@ test('AI Review exposes only its signed frozen-source tool', async () => {
       frozenSources: [
         {
           canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+          componentId: 'main',
           sourceRef: 'v1.opaque-reference',
         },
       ],
@@ -315,7 +316,7 @@ test('AI Review exposes only its signed frozen-source tool', async () => {
   }
 });
 
-test('AI Review redeems only the signed canonical source before acquiring its destination', async () => {
+test('AI Review redeems only the signed source component before acquiring its destination', async () => {
   const { privateKey, publicKey } = await generateKeyPair('ES256');
   let leases = 0;
   let contexts = 0;
@@ -391,6 +392,7 @@ test('AI Review redeems only the signed canonical source before acquiring its de
       frozenSources: [
         {
           canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+          componentId: 'main',
           sourceRef: 'v1.opaque-reference',
         },
       ],
@@ -409,7 +411,11 @@ test('AI Review redeems only the signed canonical source before acquiring its de
     await client.connect(transport);
     const denied = await client.callTool({
       name: 'get_frozen_source',
-      arguments: { destination: 'dev', canonicalKey: 'CLAS:ZCL_NOT_IN_SCOPE' },
+      arguments: {
+        destination: 'dev',
+        canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+        componentId: 'inactive',
+      },
     });
     assert.strictEqual(denied.isError, true);
     assert.strictEqual(
@@ -422,7 +428,11 @@ test('AI Review redeems only the signed canonical source before acquiring its de
 
     const accepted = await client.callTool({
       name: 'get_frozen_source',
-      arguments: { destination: 'dev', canonicalKey: 'CLAS:ZCL_SCOPE_TEST' },
+      arguments: {
+        destination: 'dev',
+        canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+        componentId: 'main',
+      },
     });
     assert.strictEqual(accepted.isError, undefined);
     assert.deepStrictEqual(resolverCalls, [
@@ -442,6 +452,7 @@ test('AI Review redeems only the signed canonical source before acquiring its de
       ),
       {
         canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+        componentId: 'main',
         bytes: 39,
         source: 'CLASS zcl_scope_test DEFINITION PUBLIC.',
       },
