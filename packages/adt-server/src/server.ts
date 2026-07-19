@@ -20,7 +20,9 @@ import {
   objectPageResponse,
   objectSearchResult,
   parseObjectSearchQuery,
+  parsePageQuery,
   packagePageResponse,
+  packagePathParameter,
   packageSearchResult,
   parsePackageSearchQuery,
   sourceVersionReadBody,
@@ -77,6 +79,10 @@ export interface AdtServerOperations {
   searchObjects(
     destination: string,
     criteria?: import('./rest-schemas.js').ObjectSearchCriteria,
+  ): Promise<unknown>;
+  listPackageObjects(
+    destination: string,
+    packageName: string,
   ): Promise<unknown>;
   /** Public canonical detail; never contains SAP URI fields. */
   getTransportDetail?(destination: string, transport: string): Promise<unknown>;
@@ -140,6 +146,7 @@ export interface RunningAdtServer {
 }
 
 class InvalidJsonBodyError extends Error {}
+class InvalidPathParameterError extends Error {}
 
 async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -160,6 +167,14 @@ async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
 function readQuery(request: http.IncomingMessage): Record<string, string> {
   const url = new URL(request.url ?? '/', 'http://adt-server.invalid');
   return Object.fromEntries(url.searchParams.entries());
+}
+
+function decodePathParameter(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new InvalidPathParameterError();
+  }
 }
 
 function writeProblem(
@@ -279,6 +294,10 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/(transports|packages|objects)$/u.exec(
           path,
         );
+      const packageObjectsMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/([^/]+)\/objects$/u.exec(
+          path,
+        );
       const sourceManifestMatch =
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u.exec(
           path,
@@ -294,6 +313,7 @@ export async function startAdtServer(
       const isRestOperation =
         isDestinationList ||
         (request.method === 'GET' && match) ||
+        (request.method === 'GET' && packageObjectsMatch) ||
         (request.method === 'GET' && transportDetailMatch) ||
         (request.method === 'POST' &&
           (sourceManifestMatch || sourceVersionReadMatch));
@@ -400,6 +420,42 @@ export async function startAdtServer(
           response.end(JSON.stringify(data));
         } catch (error) {
           if (error instanceof z.ZodError) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'GET' && packageObjectsMatch) {
+        const [, destination, rawPackageName] = packageObjectsMatch;
+        try {
+          const packageName = packagePathParameter.parse(
+            decodePathParameter(rawPackageName!),
+          );
+          const page = parsePageQuery(readQuery(request));
+          const result = objectSearchResult.parse(
+            await options.operations.listPackageObjects(
+              destination!,
+              packageName,
+            ),
+          );
+          const data = objectPageResponse.parse(
+            pageCursors.paginate({
+              ...result,
+              ...page,
+              fingerprint: `package-objects:${destination}:${packageName.toUpperCase()}:5000`,
+              keyOf: (entry) => entry.canonicalKey,
+            }),
+          );
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof RestPageCursorError ||
+            error instanceof InvalidPathParameterError
+          ) {
             writeProblem(response, 400, 'Invalid request');
             return;
           }
