@@ -18,6 +18,82 @@ export const sourceVersionReadBody = z
   })
   .strict();
 
+const sourceVersionManifestEntry = z
+  .object({
+    id: z.string().trim().min(1).max(256),
+    ordinal: z.number().int().nonnegative(),
+    title: z.string().max(1_024).optional(),
+    contentType: z.string().max(256).optional(),
+    etag: z.string().max(1_024).optional(),
+    updatedAt: z.string().max(128).optional(),
+    author: z.string().max(256).optional(),
+    transports: z.array(z.string().trim().min(1).max(64)).max(1_024),
+    sourceCapability: z
+      .string()
+      .trim()
+      .min(1)
+      .max(8 * 1024),
+  })
+  .strict();
+
+const transportSourceManifestObject = z
+  .object({
+    pgmid: z.string().trim().min(1).max(16),
+    type: z.string().trim().min(1).max(64),
+    name: z.string().trim().min(1).max(128),
+    packageName: z.string().trim().min(1).max(128).optional(),
+  })
+  .strict();
+
+const transportSourceManifestComponent = z
+  .object({
+    id: z.string().trim().min(1).max(256),
+  })
+  .strict();
+
+const transportSourceDiagnostic = z
+  .object({
+    code: z.string().trim().min(1).max(128),
+    message: z.string().max(1_024),
+  })
+  .strict();
+
+export const transportSourceManifestResponse = z
+  .object({
+    requestedTransports: z.array(z.string().trim().min(1).max(64)).min(1),
+    scopeTransports: z.array(z.string().trim().min(1).max(64)).min(1),
+    entries: z.array(
+      z
+        .object({
+          object: transportSourceManifestObject,
+          component: transportSourceManifestComponent,
+          sourceTransport: z.string().trim().min(1).max(64),
+          changeKind: z.enum([
+            'added',
+            'modified',
+            'deleted',
+            'unchanged',
+            'ambiguous',
+            'unsupported',
+            'failed',
+          ]),
+          exact: z.boolean(),
+          base: sourceVersionManifestEntry.optional(),
+          head: sourceVersionManifestEntry.optional(),
+          diagnostic: transportSourceDiagnostic.optional(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
+export const sourceVersionReadResponse = z
+  .object({
+    bytes: z.number().int().nonnegative().max(MAX_SOURCE_BYTES),
+    source: z.string(),
+  })
+  .strict();
+
 export const transportSearchQuery = z
   .object({
     includeTasks: z.enum(['true', 'false']).optional(),
