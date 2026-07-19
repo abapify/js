@@ -9,7 +9,7 @@ export type TransportfindSchema = {
     abap: {
         values: {
             DATA: {
-                CTS_REQ_HEADER?: {
+                CTS_REQ_HEADER?: undefined | {
                     TRKORR: string;
                     TRFUNCTION: string;
                     TRSTATUS: string;
@@ -23,6 +23,6 @@ export type TransportfindSchema = {
                 }[];
             };
         };
-        version?: string;
+        version?: string | undefined;
     };
 };

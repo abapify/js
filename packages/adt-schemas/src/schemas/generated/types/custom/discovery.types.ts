@@ -7,17 +7,17 @@
 
 export type DiscoverySchema = {
     service: {
-        workspace?: {
-            title?: string;
-            collection?: {
-                title?: string;
-                accept?: string[];
-                category?: {
-                    term?: string;
-                    scheme?: string;
-                    label?: string;
+        workspace?: undefined | {
+            title?: string | undefined;
+            collection?: undefined | {
+                title?: string | undefined;
+                accept?: undefined | string[];
+                category?: undefined | {
+                    term?: string | undefined;
+                    scheme?: string | undefined;
+                    label?: string | undefined;
                 }[];
-                templateLinks?: unknown;
+                templateLinks?: undefined | unknown;
                 href: string;
             }[];
         }[];

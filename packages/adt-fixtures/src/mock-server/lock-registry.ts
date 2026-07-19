@@ -1,9 +1,9 @@
 /**
  * In-memory lock registry for the mock ADT server.
  *
- * Tracks active locks per objectUri so that UNLOCK requests can be
- * validated against previously issued lock handles. Replaces the
- * previously stateless lock behavior of the MCP mock.
+ * Tracks active locks per objectUri so that ADT integration tests observe
+ * the same non-reentrant behavior as SAP: a second LOCK is rejected until
+ * the holder releases its original handle.
  */
 
 import { randomBytes } from 'node:crypto';
@@ -17,8 +17,11 @@ export interface LockEntry {
 export class LockRegistry {
   private readonly locks = new Map<string, LockEntry>();
 
-  /** Acquire a lock for an objectUri; returns a freshly generated handle. */
+  /** Acquire a lock for an objectUri; reject a concurrent/reentrant lock. */
   lock(objectUri: string): LockEntry {
+    if (this.locks.has(objectUri)) {
+      throw new Error(`Object ${objectUri} is already locked in request`);
+    }
     const handle = `MOCK_LOCK_${randomBytes(8).toString('hex').toUpperCase()}`;
     const entry: LockEntry = {
       handle,
@@ -30,10 +33,8 @@ export class LockRegistry {
   }
 
   /**
-   * Release a lock. Always succeeds (idempotent) — matches the previously
-   * stateless mock's behavior so existing tests can pass known-good handles.
-   * The registry still tracks which URIs have active locks for diagnostics;
-   * a stricter mode can be added later if needed.
+   * Release a lock. This remains idempotent so cleanup code can safely
+   * release an already-expired lock; the lock acquisition path is strict.
    */
   unlock(objectUri: string, _handle: string | undefined): boolean {
     this.locks.delete(objectUri);

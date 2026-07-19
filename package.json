@@ -6,7 +6,6 @@
   "license": "MIT",
   "author": "",
   "type": "module",
-  "main": "index.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -107,5 +106,9 @@
   },
   "overrides": {
     "fast-xml-builder": "^1.0.0"
+  },
+  "exports": {
+    ".": "./packages/adk/dist/index.mjs",
+    "./package.json": "./package.json"
   }
 }

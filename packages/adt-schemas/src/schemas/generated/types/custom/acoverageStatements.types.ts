@@ -7,56 +7,56 @@
 
 export type AcoverageStatementsSchema = {
     statementsBulkResponse: {
-        statementsResponse?: {
-            link?: {
+        statementsResponse?: undefined | {
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
-            procedure?: {
-                objectReference?: {
-                    extension?: unknown;
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
+            procedure?: undefined | {
+                objectReference?: undefined | {
+                    extension?: undefined | unknown;
+                    uri?: string | undefined;
+                    parentUri?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    packageName?: string | undefined;
+                    description?: string | undefined;
                 };
-                executed?: number;
+                executed?: number | undefined;
             }[];
-            statement?: {
-                objectReference?: {
-                    extension?: unknown;
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
+            statement?: undefined | {
+                objectReference?: undefined | {
+                    extension?: undefined | unknown;
+                    uri?: string | undefined;
+                    parentUri?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    packageName?: string | undefined;
+                    description?: string | undefined;
                 };
-                branch?: {
-                    objectReference?: {
-                        extension?: unknown;
-                        uri?: string;
-                        parentUri?: string;
-                        type?: string;
-                        name?: string;
-                        packageName?: string;
-                        description?: string;
+                branch?: undefined | {
+                    objectReference?: undefined | {
+                        extension?: undefined | unknown;
+                        uri?: string | undefined;
+                        parentUri?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        packageName?: string | undefined;
+                        description?: string | undefined;
                     };
-                    kind?: string;
-                    executedTrue?: string;
-                    executedFalse?: string;
+                    kind?: string | undefined;
+                    executedTrue?: string | undefined;
+                    executedFalse?: string | undefined;
                 }[];
-                executed?: number;
+                executed?: number | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         }[];
     };
 };

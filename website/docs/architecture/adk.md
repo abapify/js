@@ -68,6 +68,14 @@ save({ mode: 'upsert' })
         └── unlock()                         POST /adtlock?actionType=unlock
 ```
 
+### Post-create CTS conflict
+
+A create POST can succeed before CTS accepts the follow-up editor lock. In
+that case ADK throws `AdkPostCreateLockError`: the object exists, but its
+pending source was not persisted. Retry with `mode: 'update'` after the
+backend lock clears; do not submit another create POST for the same object
+name.
+
 ### Source-only save
 
 When `hasPendingSources` is `true` (e.g. abapGit-style import where only

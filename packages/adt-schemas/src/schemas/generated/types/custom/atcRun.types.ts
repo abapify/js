@@ -9,21 +9,21 @@ export type AtcRunSchema = {
     run: {
         objectSets: {
             objectSet: {
-                objectReferences?: {
+                objectReferences?: undefined | {
                     objectReference: {
-                        extension?: unknown;
-                        uri?: string;
-                        parentUri?: string;
-                        type?: string;
-                        name?: string;
-                        packageName?: string;
-                        description?: string;
+                        extension?: undefined | unknown;
+                        uri?: string | undefined;
+                        parentUri?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        packageName?: string | undefined;
+                        description?: string | undefined;
                     }[];
-                    name?: string;
+                    name?: string | undefined;
                 };
-                kind?: string;
+                kind?: string | undefined;
             }[];
         };
-        maximumVerdicts?: number;
+        maximumVerdicts?: number | undefined;
     };
 };

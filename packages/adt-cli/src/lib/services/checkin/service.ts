@@ -48,7 +48,7 @@ export interface CheckinOptions {
   dryRun?: boolean;
   /** Activate objects after save (default true). */
   activate?: boolean;
-  /** Force-unlock stale locks before applying. */
+  /** Release stale locks only when this client persisted their handles. */
   unlock?: boolean;
   /** ABAP language version override (e.g. '5' for Cloud). */
   abapLanguageVersion?: string;

@@ -7,47 +7,47 @@
 
 export type AcoverageResultSchema = {
     result: {
-        link?: {
+        link?: undefined | {
             href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
+            rel?: string | undefined;
+            type?: string | undefined;
+            hreflang?: string | undefined;
+            title?: string | undefined;
+            length?: number | undefined;
+            etag?: string | undefined;
+            _text?: string | undefined;
         }[];
-        nodes?: {
-            node?: {
-                objectReference?: {
-                    extension?: unknown;
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
+        nodes?: undefined | {
+            node?: undefined | {
+                objectReference?: undefined | {
+                    extension?: undefined | unknown;
+                    uri?: string | undefined;
+                    parentUri?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    packageName?: string | undefined;
+                    description?: string | undefined;
                 };
-                coverages?: {
-                    coverage?: {
-                        type?: string;
-                        total?: number;
-                        executed?: number;
+                coverages?: undefined | {
+                    coverage?: undefined | {
+                        type?: string | undefined;
+                        total?: number | undefined;
+                        executed?: number | undefined;
                     }[];
                 };
-                link?: {
+                link?: undefined | {
                     href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
+                    rel?: string | undefined;
+                    type?: string | undefined;
+                    hreflang?: string | undefined;
+                    title?: string | undefined;
+                    length?: number | undefined;
+                    etag?: string | undefined;
+                    _text?: string | undefined;
                 }[];
-                nodes?: unknown;
+                nodes?: undefined | unknown;
             }[];
         };
-        name?: string;
+        name?: string | undefined;
     };
 };
