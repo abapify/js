@@ -1,6 +1,8 @@
 import YAML from 'yaml';
 import { z } from 'zod';
 import {
+  packagePageResponse,
+  packageSearchQuery,
   sourceVersionReadBody,
   sourceVersionReadResponse,
   transportDetailResponse,
@@ -22,6 +24,8 @@ const sourceVersionReadResponseSchema = z.toJSONSchema(
 const transportSourceManifestResponseSchema = z.toJSONSchema(
   transportSourceManifestResponse,
 );
+const packagePageResponseSchema = z.toJSONSchema(packagePageResponse);
+const packageSearchQuerySchema = z.toJSONSchema(packageSearchQuery);
 const transportSearchQuerySchema = z.toJSONSchema(transportSearchQuery);
 const transportListResponseSchema = z.toJSONSchema(transportListResponse);
 const transportDetailResponseSchema = z.toJSONSchema(transportDetailResponse);
@@ -29,6 +33,10 @@ const transportObjectsResponseSchema = z.toJSONSchema(transportObjectsResponse);
 const transportPathParameterSchema = z.toJSONSchema(transportPathParameter);
 const transportQueryProperties =
   transportSearchQuerySchema.properties as Record<string, unknown>;
+const packageQueryProperties = packageSearchQuerySchema.properties as Record<
+  string,
+  unknown
+>;
 
 function transportQueryParameter(name: string, description: string) {
   return {
@@ -37,6 +45,16 @@ function transportQueryParameter(name: string, description: string) {
     required: false,
     description,
     schema: transportQueryProperties[name],
+  };
+}
+
+function packageQueryParameter(name: string, description: string) {
+  return {
+    name,
+    in: 'query',
+    required: false,
+    description,
+    schema: packageQueryProperties[name],
   };
 }
 
@@ -186,8 +204,25 @@ export const openApiDocument = {
     '/v1/destinations/{destination}/packages': {
       get: {
         operationId: 'searchPackages',
-        parameters: [{ $ref: '#/components/parameters/destination' }],
-        responses: { '200': { description: 'Packages' } },
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          packageQueryParameter('q', 'Package prefix or wildcard query'),
+          packageQueryParameter(
+            'maxResults',
+            'Bounded upstream package search cap',
+          ),
+          packageQueryParameter('limit', 'Page size, maximum 200'),
+          packageQueryParameter('cursor', 'Opaque query-bound page cursor'),
+        ],
+        responses: {
+          '200': {
+            description: 'Bounded canonical package search page',
+            content: {
+              'application/json': { schema: packagePageResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
       },
     },
     '/v1/destinations/{destination}/objects': {

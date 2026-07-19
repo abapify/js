@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
+export const MAX_PACKAGE_SEARCH_RESULTS = 5_000;
 
 export const transportSourceManifestBody = z
   .object({
@@ -94,6 +95,53 @@ export const sourceVersionReadResponse = z
   })
   .strict();
 
+export const packageNode = z
+  .object({
+    name: z.string().trim().min(1).max(128),
+    parent: z.string().trim().min(1).max(128).optional(),
+    description: z.string().max(1_024).optional(),
+  })
+  .strict();
+
+export const packageSearchQuery = z
+  .object({
+    q: z.string().trim().min(1).max(256).optional(),
+    maxResults: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_PACKAGE_SEARCH_RESULTS)
+      .optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    cursor: z
+      .string()
+      .trim()
+      .min(1)
+      .max(4 * 1_024)
+      .optional(),
+  })
+  .strict();
+
+export const packageSearchResult = z
+  .object({
+    data: z.array(packageNode).max(MAX_PACKAGE_SEARCH_RESULTS),
+    truncated: z.boolean(),
+  })
+  .strict();
+
+export const packagePageResponse = z
+  .object({
+    data: z.array(packageNode).max(200),
+    nextCursor: z
+      .string()
+      .min(1)
+      .max(4 * 1_024)
+      .nullable(),
+    truncated: z.boolean(),
+    observedAt: z.string().datetime(),
+  })
+  .strict();
+
 export const transportSearchQuery = z
   .object({
     includeTasks: z.enum(['true', 'false']).optional(),
@@ -180,6 +228,14 @@ export function parseTransportSearchQuery(input: unknown) {
   };
 }
 
+export function parsePackageSearchQuery(input: unknown) {
+  const { limit, cursor, ...criteria } = packageSearchQuery.parse(input);
+  return {
+    criteria,
+    page: { limit: limit ?? 200, ...(cursor ? { cursor } : {}) },
+  };
+}
+
 export type TransportSourceManifestInput = z.infer<
   typeof transportSourceManifestBody
 >;
@@ -187,3 +243,7 @@ export type TransportSourceManifestInput = z.infer<
 export type TransportSearchCriteria = ReturnType<
   typeof parseTransportSearchQuery
 >;
+
+export type PackageSearchCriteria = ReturnType<
+  typeof parsePackageSearchQuery
+>['criteria'];
