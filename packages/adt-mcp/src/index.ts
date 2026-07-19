@@ -41,6 +41,14 @@ export {
   type RunningHttpServer,
 } from './lib/http/server';
 export {
+  createMcpInvocationVerifier,
+  type McpInvocationJsonValue,
+  type McpInvocationVerifier,
+  type McpInvocationVerifierOptions,
+  type McpTrustedOperationClass,
+  type TrustedMcpInvocationClaims,
+} from './lib/http/invocation.js';
+export {
   loadMultiSystemConfig,
   type MultiSystemConfig,
   type SystemEntry,
