@@ -9,6 +9,7 @@
 import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { AdtResponseTooLargeError } from '@abapify/adt-client';
 import type { ToolContext } from '../types.js';
 import { resolveClient } from './session-helpers.js';
 
@@ -71,23 +72,28 @@ export function registerGetFrozenSourceTool(
           return denied();
         }
         const { client } = await resolveClient(ctx, args, extra ?? {});
-        const body = await client.fetch(resolved.sourceUri, {
-          method: 'GET',
-          headers: { Accept: 'text/plain' },
-        });
-        const text = String(body);
-        const bytes = Buffer.byteLength(text, 'utf8');
-        if (bytes > frozenSource.maxSourceBytes) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text' as const,
-                text: 'frozen_source_too_large',
-              },
-            ],
-          };
+        let text: string;
+        try {
+          text = await client.readTextBounded(
+            resolved.sourceUri,
+            frozenSource.maxSourceBytes,
+            { headers: { Accept: 'text/plain' } },
+          );
+        } catch (error) {
+          if (error instanceof AdtResponseTooLargeError) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text' as const,
+                  text: 'frozen_source_too_large',
+                },
+              ],
+            };
+          }
+          throw error;
         }
+        const bytes = Buffer.byteLength(text, 'utf8');
         return {
           content: [
             {
