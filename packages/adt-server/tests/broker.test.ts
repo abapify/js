@@ -540,6 +540,96 @@ test('maps a bounded object quick search to canonical REST objects without ADT U
   }
 });
 
+test('maps direct package objects to canonical REST objects without foreign rows or ADT URIs', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const queries: unknown[] = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async (input) => {
+      if (String(input).endsWith(':acquire')) {
+        return new Response(
+          JSON.stringify({
+            leaseId: '66666666-6666-4666-8666-666666666666',
+            destination: 'dev',
+            version: 1,
+            expiresAt: '2026-07-20T00:00:00.000Z',
+            connection: {
+              baseUrl: 'https://sap.example.test',
+              sapClient: null,
+              authMethod: 'basic',
+              authConfig: { username: 'service', password: 'secret' },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response(null, { status: 204 });
+    },
+    createClient: async () =>
+      ({
+        adt: {
+          repository: {
+            informationsystem: {
+              search: {
+                async quickSearch(input: unknown) {
+                  queries.push(input);
+                  return {
+                    objectReferences: {
+                      objectReference: [
+                        {
+                          type: 'CLAS/OC',
+                          name: 'zcl_alpha',
+                          packageName: 'zpkg',
+                          uri: '/sap/bc/adt/oo/classes/zcl_alpha',
+                        },
+                        {
+                          type: 'DEVC/K',
+                          name: 'ZPKG',
+                          packageName: 'ZPKG',
+                          uri: '/sap/bc/adt/packages/zpkg',
+                        },
+                        {
+                          type: 'INTF',
+                          name: 'zif_other',
+                          packageName: 'ZOTHER',
+                          uri: '/sap/bc/adt/oo/interfaces/zif_other',
+                        },
+                      ],
+                    },
+                  };
+                },
+              },
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.listPackageObjects!('dev', 'zpkg');
+    assert.deepStrictEqual(queries, [
+      { query: '*', packageName: 'ZPKG', maxResults: 5_001 },
+    ]);
+    assert.deepStrictEqual(result, {
+      data: [
+        {
+          canonicalKey: 'CLAS:ZCL_ALPHA',
+          objectType: 'CLAS',
+          objectName: 'ZCL_ALPHA',
+          packageName: 'ZPKG',
+        },
+      ],
+      truncated: false,
+    });
+    assert.ok(!JSON.stringify(result).includes('/sap/bc/adt/'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');

@@ -134,3 +134,27 @@ test('documents the bounded canonical object search page without ADT URI fields'
   assert.ok(objects.responses['200'].content?.['application/json'].schema);
   assert.ok(!JSON.stringify(objects).includes('uri'));
 });
+
+test('documents bounded direct package objects without ADT URI fields', () => {
+  const packageObjects =
+    openApiDocument.paths[
+      '/v1/destinations/{destination}/packages/{package}/objects'
+    ].get;
+
+  assert.strictEqual(packageObjects.operationId, 'listPackageObjects');
+  assert.deepStrictEqual(
+    packageObjects.parameters?.map((parameter) =>
+      '$ref' in parameter ? parameter.$ref : parameter.name,
+    ),
+    [
+      '#/components/parameters/destination',
+      '#/components/parameters/package',
+      'limit',
+      'cursor',
+    ],
+  );
+  assert.ok(
+    packageObjects.responses['200'].content?.['application/json'].schema,
+  );
+  assert.ok(!JSON.stringify(packageObjects).includes('uri'));
+});

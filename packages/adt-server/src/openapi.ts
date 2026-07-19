@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   objectPageResponse,
   objectSearchQuery,
+  packagePathParameter,
   packagePageResponse,
   packageSearchQuery,
   sourceVersionReadBody,
@@ -30,6 +31,7 @@ const packagePageResponseSchema = z.toJSONSchema(packagePageResponse);
 const packageSearchQuerySchema = z.toJSONSchema(packageSearchQuery);
 const objectPageResponseSchema = z.toJSONSchema(objectPageResponse);
 const objectSearchQuerySchema = z.toJSONSchema(objectSearchQuery);
+const packagePathParameterSchema = z.toJSONSchema(packagePathParameter);
 const transportSearchQuerySchema = z.toJSONSchema(transportSearchQuery);
 const transportListResponseSchema = z.toJSONSchema(transportListResponse);
 const transportDetailResponseSchema = z.toJSONSchema(transportDetailResponse);
@@ -243,6 +245,27 @@ export const openApiDocument = {
         },
       },
     },
+    '/v1/destinations/{destination}/packages/{package}/objects': {
+      get: {
+        operationId: 'listPackageObjects',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          { $ref: '#/components/parameters/package' },
+          objectQueryParameter('limit', 'Page size, maximum 200'),
+          objectQueryParameter('cursor', 'Opaque package-bound page cursor'),
+        ],
+        responses: {
+          '200': {
+            description:
+              'Bounded direct package objects with canonical identity',
+            content: {
+              'application/json': { schema: objectPageResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
     '/v1/destinations/{destination}/objects': {
       get: {
         operationId: 'searchObjects',
@@ -283,6 +306,12 @@ export const openApiDocument = {
         in: 'path',
         required: true,
         schema: transportPathParameterSchema,
+      },
+      package: {
+        name: 'package',
+        in: 'path',
+        required: true,
+        schema: packagePathParameterSchema,
       },
     },
   },
