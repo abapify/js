@@ -444,6 +444,107 @@ test('serves a bounded canonical package page with an opaque query-bound cursor'
   }
 });
 
+test('serves a bounded canonical object page with a query-bound cursor and no ADT URI', async () => {
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async searchObjects(destination, criteria) {
+        calls.push({ destination, criteria });
+        return {
+          data: [
+            {
+              canonicalKey: 'CLAS:ZCL_ALPHA',
+              objectType: 'CLAS',
+              objectName: 'ZCL_ALPHA',
+              packageName: 'ZPKG',
+              description: 'Alpha object',
+            },
+            {
+              canonicalKey: 'INTF:ZIF_BETA',
+              objectType: 'INTF',
+              objectName: 'ZIF_BETA',
+              packageName: 'ZPKG',
+            },
+          ],
+          truncated: true,
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const first = await fetch(
+      `${server.url}/v1/destinations/dev/objects?query=zcl&packageName=ZPKG&objectType=CLAS&maxResults=10&limit=1`,
+    );
+    assert.strictEqual(first.status, 200);
+    const firstBody = (await first.json()) as {
+      data: unknown[];
+      nextCursor: string | null;
+      truncated: boolean;
+    };
+    assert.deepStrictEqual(firstBody.data, [
+      {
+        canonicalKey: 'CLAS:ZCL_ALPHA',
+        objectType: 'CLAS',
+        objectName: 'ZCL_ALPHA',
+        packageName: 'ZPKG',
+        description: 'Alpha object',
+      },
+    ]);
+    assert.ok(firstBody.nextCursor);
+    assert.strictEqual(firstBody.truncated, true);
+    assert.ok(!JSON.stringify(firstBody).includes('uri'));
+
+    const second = await fetch(
+      `${server.url}/v1/destinations/dev/objects?query=zcl&packageName=ZPKG&objectType=CLAS&maxResults=10&limit=1&cursor=${encodeURIComponent(firstBody.nextCursor!)}`,
+    );
+    assert.strictEqual(second.status, 200);
+    assert.deepStrictEqual((await second.json()).data, [
+      {
+        canonicalKey: 'INTF:ZIF_BETA',
+        objectType: 'INTF',
+        objectName: 'ZIF_BETA',
+        packageName: 'ZPKG',
+      },
+    ]);
+    assert.deepStrictEqual(calls, [
+      {
+        destination: 'dev',
+        criteria: {
+          query: 'zcl',
+          packageName: 'ZPKG',
+          objectType: 'CLAS',
+          maxResults: 10,
+        },
+      },
+      {
+        destination: 'dev',
+        criteria: {
+          query: 'zcl',
+          packageName: 'ZPKG',
+          objectType: 'CLAS',
+          maxResults: 10,
+        },
+      },
+    ]);
+
+    const mismatched = await fetch(
+      `${server.url}/v1/destinations/dev/objects?query=other&packageName=ZPKG&objectType=CLAS&maxResults=10&limit=1&cursor=${encodeURIComponent(firstBody.nextCursor!)}`,
+    );
+    assert.strictEqual(mismatched.status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
 test('REST source reads redeem an opaque destination-bound manifest capability', async () => {
   const sourceUri =
     '/sap/bc/adt/programs/programs/zsafe/source/main/versions/1';
