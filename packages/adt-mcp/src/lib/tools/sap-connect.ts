@@ -29,6 +29,7 @@ import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 
 interface SapConnectArgs {
+  destination?: string;
   baseUrl?: string;
   client?: string;
   username?: string;
@@ -59,6 +60,64 @@ export function registerSapConnectTool(
     sessionOrConnectionShape,
     async (args, extra) => {
       const mcpSessionId = extra?.sessionId;
+      const sharedArgs = args as SapConnectArgs;
+
+      // Shared ADT Server mode has no caller-supplied connection data. A
+      // connect is merely an explicit prewarm of one destination context;
+      // all other tools may resolve the same context lazily.
+      if (sharedArgs.destination !== undefined) {
+        if (!mcpSessionId || !ctx.destinationRegistry) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: 'sap_connect requires HTTP shared-service mode.',
+              },
+            ],
+          };
+        }
+        try {
+          const existing = ctx.destinationRegistry.get(
+            mcpSessionId,
+            sharedArgs.destination,
+          );
+          const context = await ctx.destinationRegistry.getOrCreate(
+            mcpSessionId,
+            sharedArgs.destination,
+            ctx.requestIdentity?.(extra ?? {}) ?? { principal: 'unknown' },
+          );
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify(
+                  {
+                    ok: true,
+                    alreadyConnected: existing !== undefined,
+                    destination: context.destination,
+                    mcpSessionId,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: `sap_connect failed to acquire destination: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              },
+            ],
+          };
+        }
+      }
 
       // Reject ambiguous input up-front. baseUrl and systemId select
       // different resolution paths; supplying both is most likely a

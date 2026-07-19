@@ -16,8 +16,41 @@ export function registerSapDisconnectTool(
     'sap_disconnect',
     'Close the SAP ADT session bound to the current MCP session (idempotent).',
     {},
-    async (_args, extra) => {
+    async (args, extra) => {
       const mcpSessionId = extra?.sessionId;
+      const destination = (args as { destination?: string }).destination;
+
+      if (destination !== undefined) {
+        if (!mcpSessionId || !ctx.destinationRegistry) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({ ok: true, hadSession: false }, null, 2),
+              },
+            ],
+          };
+        }
+        const existing = ctx.destinationRegistry.get(mcpSessionId, destination);
+        await ctx.destinationRegistry.release(mcpSessionId, destination);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(
+                {
+                  ok: true,
+                  hadSession: existing !== undefined,
+                  mcpSessionId,
+                  destination,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
 
       if (!mcpSessionId || !ctx.registry) {
         return {
