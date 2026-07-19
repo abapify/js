@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 export const MAX_PACKAGE_SEARCH_RESULTS = 5_000;
+export const MAX_OBJECT_SEARCH_RESULTS = 5_000;
 
 export const transportSourceManifestBody = z
   .object({
@@ -129,6 +130,39 @@ export const packageSearchResult = z
   })
   .strict();
 
+export const objectSearchQuery = z
+  .object({
+    query: z.string().trim().min(1).max(256).optional(),
+    packageName: z
+      .string()
+      .trim()
+      .min(1)
+      .max(128)
+      .regex(/^[A-Za-z0-9_/$-]+$/u)
+      .optional(),
+    objectType: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[A-Za-z0-9_/-]+$/u)
+      .optional(),
+    maxResults: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_OBJECT_SEARCH_RESULTS)
+      .optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    cursor: z
+      .string()
+      .trim()
+      .min(1)
+      .max(4 * 1_024)
+      .optional(),
+  })
+  .strict();
+
 export const packagePageResponse = z
   .object({
     data: z.array(packageNode).max(200),
@@ -195,6 +229,32 @@ export const canonicalObjectReference = z
   })
   .strict();
 
+/** Canonical repository-search entry. ADT object URI stays adapter-local. */
+export const canonicalRepositoryObject = canonicalObjectReference.extend({
+  packageName: z.string().trim().min(1).max(128).optional(),
+  description: z.string().max(1_024).optional(),
+});
+
+export const objectSearchResult = z
+  .object({
+    data: z.array(canonicalRepositoryObject).max(MAX_OBJECT_SEARCH_RESULTS),
+    truncated: z.boolean(),
+  })
+  .strict();
+
+export const objectPageResponse = z
+  .object({
+    data: z.array(canonicalRepositoryObject).max(200),
+    nextCursor: z
+      .string()
+      .min(1)
+      .max(4 * 1_024)
+      .nullable(),
+    truncated: z.boolean(),
+    observedAt: z.string().datetime(),
+  })
+  .strict();
+
 export const transportTaskDetail = transportSummary
   .extend({
     parentTrkorr: z.string().trim().min(1).max(64),
@@ -236,6 +296,14 @@ export function parsePackageSearchQuery(input: unknown) {
   };
 }
 
+export function parseObjectSearchQuery(input: unknown) {
+  const { limit, cursor, ...criteria } = objectSearchQuery.parse(input);
+  return {
+    criteria,
+    page: { limit: limit ?? 200, ...(cursor ? { cursor } : {}) },
+  };
+}
+
 export type TransportSourceManifestInput = z.infer<
   typeof transportSourceManifestBody
 >;
@@ -246,4 +314,8 @@ export type TransportSearchCriteria = ReturnType<
 
 export type PackageSearchCriteria = ReturnType<
   typeof parsePackageSearchQuery
+>['criteria'];
+
+export type ObjectSearchCriteria = ReturnType<
+  typeof parseObjectSearchQuery
 >['criteria'];

@@ -1,6 +1,8 @@
 import YAML from 'yaml';
 import { z } from 'zod';
 import {
+  objectPageResponse,
+  objectSearchQuery,
   packagePageResponse,
   packageSearchQuery,
   sourceVersionReadBody,
@@ -26,6 +28,8 @@ const transportSourceManifestResponseSchema = z.toJSONSchema(
 );
 const packagePageResponseSchema = z.toJSONSchema(packagePageResponse);
 const packageSearchQuerySchema = z.toJSONSchema(packageSearchQuery);
+const objectPageResponseSchema = z.toJSONSchema(objectPageResponse);
+const objectSearchQuerySchema = z.toJSONSchema(objectSearchQuery);
 const transportSearchQuerySchema = z.toJSONSchema(transportSearchQuery);
 const transportListResponseSchema = z.toJSONSchema(transportListResponse);
 const transportDetailResponseSchema = z.toJSONSchema(transportDetailResponse);
@@ -34,6 +38,10 @@ const transportPathParameterSchema = z.toJSONSchema(transportPathParameter);
 const transportQueryProperties =
   transportSearchQuerySchema.properties as Record<string, unknown>;
 const packageQueryProperties = packageSearchQuerySchema.properties as Record<
+  string,
+  unknown
+>;
+const objectQueryProperties = objectSearchQuerySchema.properties as Record<
   string,
   unknown
 >;
@@ -55,6 +63,16 @@ function packageQueryParameter(name: string, description: string) {
     required: false,
     description,
     schema: packageQueryProperties[name],
+  };
+}
+
+function objectQueryParameter(name: string, description: string) {
+  return {
+    name,
+    in: 'query',
+    required: false,
+    description,
+    schema: objectQueryProperties[name],
   };
 }
 
@@ -228,8 +246,27 @@ export const openApiDocument = {
     '/v1/destinations/{destination}/objects': {
       get: {
         operationId: 'searchObjects',
-        parameters: [{ $ref: '#/components/parameters/destination' }],
-        responses: { '200': { description: 'Objects' } },
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          objectQueryParameter('query', 'Object prefix or wildcard query'),
+          objectQueryParameter('packageName', 'Exact package filter'),
+          objectQueryParameter('objectType', 'Repository object type filter'),
+          objectQueryParameter(
+            'maxResults',
+            'Bounded upstream object search cap',
+          ),
+          objectQueryParameter('limit', 'Page size, maximum 200'),
+          objectQueryParameter('cursor', 'Opaque query-bound page cursor'),
+        ],
+        responses: {
+          '200': {
+            description: 'Bounded canonical repository object search page',
+            content: {
+              'application/json': { schema: objectPageResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
       },
     },
   },
