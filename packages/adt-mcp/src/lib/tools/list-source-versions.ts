@@ -2,8 +2,8 @@
  * Tool: list_source_versions — list immutable source-version metadata for an
  * ABAP object (optionally narrowed to one source component).
  *
- * Source bodies are intentionally excluded. Fetch one explicitly with
- * `get_source_version` after selecting an immutable source URI.
+ * Source bodies and SAP locators are intentionally excluded. A bounded
+ * immutable read requires a capability from an exact transport manifest.
  */
 
 import { z } from 'zod';
@@ -12,6 +12,46 @@ import { ExactSourceHistoryService } from '@abapify/adt-cli';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
+
+type SourceVersionMetadata = {
+  sourceUri: string;
+  [key: string]: unknown;
+};
+
+type SourceVersionListing = {
+  object: {
+    name: string;
+    type: string;
+    packageName?: string;
+  };
+  components: readonly {
+    id: string;
+    sourceUri?: string;
+    versionsUri?: string;
+    versions?: readonly SourceVersionMetadata[];
+    diagnostic?: unknown;
+  }[];
+};
+
+/** Keep immutable source locators inside the sidecar, never in MCP metadata. */
+export function toMcpSourceVersionListing(result: SourceVersionListing) {
+  return {
+    object: result.object,
+    components: result.components.map((component) => ({
+      id: component.id,
+      ...(component.versions
+        ? {
+            versions: component.versions.map(
+              ({ sourceUri: _sourceUri, ...metadata }) => metadata,
+            ),
+          }
+        : {}),
+      ...(component.diagnostic !== undefined
+        ? { diagnostic: component.diagnostic }
+        : {}),
+    })),
+  };
+}
 
 export function registerListSourceVersionsTool(
   server: McpServer,
@@ -51,7 +91,11 @@ export function registerListSourceVersionsTool(
           content: [
             {
               type: 'text' as const,
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify(
+                toMcpSourceVersionListing(result as SourceVersionListing),
+                null,
+                2,
+              ),
             },
           ],
         };

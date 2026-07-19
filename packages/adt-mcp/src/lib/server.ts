@@ -7,6 +7,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createAdtClient, type AdtClient } from '@abapify/adt-client';
 import { registerTools } from './tools/index';
+import { createSourceCapabilityRegistry } from './source-capabilities.js';
 import type { ConnectionParams, ToolContext } from './types';
 import type { SessionRegistry } from './session/registry.js';
 import type {
@@ -70,9 +71,11 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
   );
 
   const registry = options?.registry;
+  const sourceCapabilities = createSourceCapabilityRegistry();
 
   const ctx: ToolContext = {
     getClient: options?.clientFactory ?? defaultClientFactory,
+    sourceCapabilities,
     ...(registry
       ? {
           registry,

@@ -15,13 +15,86 @@ const selectorValue = z.union([
   z.array(z.string().trim().min(1)).min(1),
 ]);
 
+type SourceCapabilityRegistry = NonNullable<ToolContext['sourceCapabilities']>;
+
+type SourceVersionWithUri = {
+  sourceUri: string;
+  [key: string]: unknown;
+};
+
+type SourceManifestEntry = {
+  component: {
+    sourceUri?: string;
+    versionsUri?: string;
+    [key: string]: unknown;
+  };
+  base?: SourceVersionWithUri;
+  head?: SourceVersionWithUri;
+  [key: string]: unknown;
+};
+
+type SourceManifestWithUris = {
+  requestedTransports: unknown;
+  scopeTransports: unknown;
+  entries: readonly SourceManifestEntry[];
+};
+
+function toMcpSourceVersion(
+  version: SourceVersionWithUri,
+  capabilities: SourceCapabilityRegistry,
+  binding: { sessionId?: string; destination?: string },
+) {
+  const { sourceUri, ...metadata } = version;
+  return {
+    ...metadata,
+    sourceCapability: capabilities.issue({
+      ...binding,
+      sourceUri,
+    }),
+  };
+}
+
+/** Remove every SAP URI before a transport manifest crosses the MCP boundary. */
+export function toMcpTransportSourceManifest(
+  manifest: SourceManifestWithUris,
+  capabilities: SourceCapabilityRegistry,
+  binding: { sessionId?: string; destination?: string },
+) {
+  return {
+    requestedTransports: manifest.requestedTransports,
+    scopeTransports: manifest.scopeTransports,
+    entries: manifest.entries.map((entry) => {
+      const {
+        component: {
+          sourceUri: _sourceUri,
+          versionsUri: _versionsUri,
+          ...component
+        },
+        base,
+        head,
+        ...metadata
+      } = entry;
+      return {
+        ...metadata,
+        component,
+        ...(base
+          ? { base: toMcpSourceVersion(base, capabilities, binding) }
+          : {}),
+        ...(head
+          ? { head: toMcpSourceVersion(head, capabilities, binding) }
+          : {}),
+      };
+    }),
+  };
+}
+
 export function registerCtsTransportSourceManifestTool(
   server: McpServer,
   ctx: ToolContext,
 ): void {
   server.tool(
     'cts_transport_source_manifest',
-    'Build an exactness-gated, component-granular source manifest for one or more CTS transports. Returns metadata and immutable references only.',
+    'Build an exactness-gated, component-granular source manifest for one or more CTS transports. Returns metadata and opaque immutable source capabilities only.',
     {
       ...sessionOrConnectionShape,
       transports: z
@@ -56,12 +129,26 @@ export function registerCtsTransportSourceManifestTool(
           selector: args.selector,
           concurrency: args.concurrency,
         });
+        const destination = (args as { destination?: string }).destination;
+        if (!ctx.sourceCapabilities)
+          throw new Error('Source capabilities are unavailable.');
 
         return {
           content: [
             {
               type: 'text' as const,
-              text: JSON.stringify(manifest, null, 2),
+              text: JSON.stringify(
+                toMcpTransportSourceManifest(
+                  manifest as SourceManifestWithUris,
+                  ctx.sourceCapabilities,
+                  {
+                    sessionId: extra?.sessionId,
+                    ...(destination !== undefined ? { destination } : {}),
+                  },
+                ),
+                null,
+                2,
+              ),
             },
           ],
         };
