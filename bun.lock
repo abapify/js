@@ -388,6 +388,9 @@
         "yaml": "^2.8.2",
         "zod": "^4.3.6",
       },
+      "devDependencies": {
+        "@apidevtools/swagger-parser": "^10.1.0",
+      },
     },
     "packages/adt-rfc": {
       "name": "@abapify/adt-rfc",
