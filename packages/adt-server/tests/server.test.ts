@@ -249,6 +249,48 @@ test('accepts only the separately mounted REST bearer token', async () => {
   }
 });
 
+test('forwards validated transport search criteria only after REST authentication', async () => {
+  let captured: unknown;
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async listTransports(destination, criteria) {
+        captured = { destination, criteria };
+        return [];
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(
+      `${server.url}/v1/destinations/dev/transports?owner=alice&status=modifiable&includeTasks=false`,
+    );
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(captured, {
+      destination: 'dev',
+      criteria: {
+        owner: 'alice',
+        status: 'modifiable',
+        includeTasks: false,
+      },
+    });
+
+    const invalid = await fetch(
+      `${server.url}/v1/destinations/dev/transports?includeTasks=invalid`,
+    );
+    assert.strictEqual(invalid.status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
 test('REST source reads redeem an opaque destination-bound manifest capability', async () => {
   const sourceUri =
     '/sap/bc/adt/programs/programs/zsafe/source/main/versions/1';
