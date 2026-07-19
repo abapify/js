@@ -259,8 +259,10 @@ function toPackageNodes(value: unknown): Array<{
 
 function toCanonicalRepositoryObjects(
   value: unknown,
+  packageName?: string,
 ): CanonicalRepositoryObject[] {
   const seen = new Set<string>();
+  const expectedPackageName = packageName?.toUpperCase();
   return quickSearchReferences(value).flatMap((entry) => {
     const objectType = normalizedObjectType(stringField(entry, 'type') ?? '');
     const objectName = stringField(entry, 'name')?.toUpperCase();
@@ -275,8 +277,14 @@ function toCanonicalRepositoryObjects(
       return [];
     const canonicalKey = `${objectType}:${objectName}`;
     if (seen.has(canonicalKey)) return [];
-    seen.add(canonicalKey);
     const packageName = stringField(entry, 'packageName')?.toUpperCase();
+    if (
+      expectedPackageName &&
+      packageName &&
+      packageName !== expectedPackageName
+    )
+      return [];
+    seen.add(canonicalKey);
     const description = stringField(entry, 'description');
     return [
       {
@@ -567,6 +575,26 @@ export function createHttpBrokerOperations(
           truncated: quickSearchReferences(response).length >= cap,
         };
       });
+    },
+    async listPackageObjects(destination, packageName) {
+      return await withClient(
+        destination,
+        'list_package_objects',
+        async (client) => {
+          const cap = 5_000;
+          const response =
+            await client.adt.repository.informationsystem.search.quickSearch({
+              query: '*',
+              packageName: packageName.toUpperCase(),
+              maxResults: cap + 1,
+            });
+          const objects = toCanonicalRepositoryObjects(response, packageName);
+          return {
+            data: objects.slice(0, cap),
+            truncated: quickSearchReferences(response).length >= cap,
+          };
+        },
+      );
     },
     async buildTransportSourceManifest(destination, input) {
       return await withClient(
