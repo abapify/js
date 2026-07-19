@@ -34,7 +34,9 @@ export {
   type SessionRegistryOptions,
 } from './lib/session/registry';
 export {
+  createHttpMcpHandler,
   startHttpServer,
+  type HttpMcpHandler,
   type HttpServerOptions,
   type RunningHttpServer,
 } from './lib/http/server';
