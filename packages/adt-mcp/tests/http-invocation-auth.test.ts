@@ -26,6 +26,8 @@ async function signInvocation(
     classes?: string[];
     destinationKeys?: string[];
     agentId?: 'ai-review' | 'system-assistant';
+    constraint?: Record<string, unknown>;
+    limits?: Record<string, unknown>;
   } = {},
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1_000);
@@ -38,14 +40,15 @@ async function signInvocation(
     destinationKeys: overrides.destinationKeys ?? ['dev'],
     correlationId: 'correlation-http-invocation',
     constraint:
-      overrides.agentId === 'ai-review'
+      overrides.constraint ??
+      (overrides.agentId === 'ai-review'
         ? {
             reviewId: 'review-1',
             runId: 'run-1',
             frozenCanonicalKeys: ['CLAS:ZCL_SCOPE_TEST'],
           }
-        : { systemSid: 'DEV' },
-    limits: {},
+        : { systemSid: 'DEV' }),
+    limits: overrides.limits ?? {},
   })
     .setProtectedHeader({ alg: 'ES256', kid: keyId, typ: 'JWT' })
     .setIssuer(issuer)
@@ -236,6 +239,213 @@ test('ADT invocation auth fails closed for an AI Review policy the sidecar canno
     );
     assert.strictEqual(leases, 0);
     assert.strictEqual(contexts, 0);
+  } finally {
+    await transport.close();
+    await server.close();
+    await destinationRegistry.shutdown();
+  }
+});
+
+test('AI Review exposes only its signed frozen-source tool', async () => {
+  const { privateKey, publicKey } = await generateKeyPair('ES256');
+  const destinationRegistry = createDestinationContextRegistry({
+    leaseProvider: {
+      async acquire() {
+        throw new Error('tool listing must not acquire a destination lease');
+      },
+    },
+    contextFactory: {
+      async create() {
+        throw new Error('tool listing must not create a destination context');
+      },
+    },
+  });
+  const server = await startHttpServer({
+    port: 0,
+    host: '127.0.0.1',
+    authMode: 'invocation',
+    invocationVerifier: createMcpInvocationVerifier({
+      publicKey,
+      keyId,
+      issuer,
+      audience,
+    }),
+    multiSystem: { systems: {}, resolve: () => undefined },
+    destinationServer: {
+      destinationRegistry,
+      requestIdentity: () => ({ principal: 'untrusted-callback-principal' }),
+      requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+    },
+    log: () => undefined,
+  });
+  const credential = await signInvocation(privateKey, {
+    agentId: 'ai-review',
+    constraint: {
+      kind: 'ai-review-frozen-v1',
+      reviewId: '11111111-1111-4111-8111-111111111111',
+      runId: '22222222-2222-4222-8222-222222222222',
+      systemSid: 'DEV',
+      frozenSources: [
+        {
+          canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+          sourceRef: 'v1.opaque-reference',
+        },
+      ],
+    },
+    limits: { maxSourceBytes: 65_536 },
+  });
+  const transport = new StreamableHTTPClientTransport(new URL(server.url), {
+    requestInit: { headers: { Authorization: `Bearer ${credential}` } },
+  });
+  const client = new Client({
+    name: 'ai-review-frozen-policy-test',
+    version: '0.0.1',
+  });
+
+  try {
+    await client.connect(transport);
+    assert.deepStrictEqual(
+      (await client.listTools()).tools.map((tool) => tool.name),
+      ['get_frozen_source'],
+    );
+  } finally {
+    await transport.close();
+    await server.close();
+    await destinationRegistry.shutdown();
+  }
+});
+
+test('AI Review redeems only the signed canonical source before acquiring its destination', async () => {
+  const { privateKey, publicKey } = await generateKeyPair('ES256');
+  let leases = 0;
+  let contexts = 0;
+  let sourceFetches = 0;
+  const resolverCalls: Array<{
+    destination: string;
+    systemSid: string;
+    sourceRef: string;
+  }> = [];
+  const destinationRegistry = createDestinationContextRegistry({
+    leaseProvider: {
+      async acquire({ destination }) {
+        leases++;
+        return {
+          destination,
+          expiresAt: Date.now() + 60_000,
+          version: 1,
+          material: {},
+          release: async () => undefined,
+        };
+      },
+    },
+    contextFactory: {
+      async create() {
+        contexts++;
+        return {
+          client: {
+            async fetch(uri: string) {
+              sourceFetches++;
+              assert.strictEqual(
+                uri,
+                '/sap/bc/adt/oo/classes/zcl_scope_test/source/main',
+              );
+              return 'CLASS zcl_scope_test DEFINITION PUBLIC.';
+            },
+          } as never,
+          close: async () => undefined,
+        };
+      },
+    },
+  });
+  const server = await startHttpServer({
+    port: 0,
+    host: '127.0.0.1',
+    authMode: 'invocation',
+    invocationVerifier: createMcpInvocationVerifier({
+      publicKey,
+      keyId,
+      issuer,
+      audience,
+    }),
+    multiSystem: { systems: {}, resolve: () => undefined },
+    destinationServer: {
+      destinationRegistry,
+      requestIdentity: () => ({ principal: 'untrusted-callback-principal' }),
+      requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+      async resolveFrozenSource(input) {
+        resolverCalls.push(input);
+        return {
+          sourceUri: '/sap/bc/adt/oo/classes/zcl_scope_test/source/main',
+        };
+      },
+    },
+    log: () => undefined,
+  });
+  const credential = await signInvocation(privateKey, {
+    agentId: 'ai-review',
+    constraint: {
+      kind: 'ai-review-frozen-v1',
+      reviewId: '11111111-1111-4111-8111-111111111111',
+      runId: '22222222-2222-4222-8222-222222222222',
+      systemSid: 'DEV',
+      frozenSources: [
+        {
+          canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+          sourceRef: 'v1.opaque-reference',
+        },
+      ],
+    },
+    limits: { maxSourceBytes: 65_536 },
+  });
+  const transport = new StreamableHTTPClientTransport(new URL(server.url), {
+    requestInit: { headers: { Authorization: `Bearer ${credential}` } },
+  });
+  const client = new Client({
+    name: 'ai-review-source-test',
+    version: '0.0.1',
+  });
+
+  try {
+    await client.connect(transport);
+    const denied = await client.callTool({
+      name: 'get_frozen_source',
+      arguments: { destination: 'dev', canonicalKey: 'CLAS:ZCL_NOT_IN_SCOPE' },
+    });
+    assert.strictEqual(denied.isError, true);
+    assert.strictEqual(
+      (denied.content as Array<{ type: 'text'; text: string }>)[0]?.text,
+      'mcp_scope_denied',
+    );
+    assert.strictEqual(leases, 0);
+    assert.strictEqual(contexts, 0);
+    assert.deepStrictEqual(resolverCalls, []);
+
+    const accepted = await client.callTool({
+      name: 'get_frozen_source',
+      arguments: { destination: 'dev', canonicalKey: 'CLAS:ZCL_SCOPE_TEST' },
+    });
+    assert.strictEqual(accepted.isError, undefined);
+    assert.deepStrictEqual(resolverCalls, [
+      {
+        destination: 'dev',
+        systemSid: 'DEV',
+        sourceRef: 'v1.opaque-reference',
+      },
+    ]);
+    assert.strictEqual(leases, 1);
+    assert.strictEqual(contexts, 1);
+    assert.strictEqual(sourceFetches, 1);
+    assert.deepStrictEqual(
+      JSON.parse(
+        (accepted.content as Array<{ type: 'text'; text: string }>)[0]?.text ??
+          '',
+      ),
+      {
+        canonicalKey: 'CLAS:ZCL_SCOPE_TEST',
+        bytes: 39,
+        source: 'CLASS zcl_scope_test DEFINITION PUBLIC.',
+      },
+    );
   } finally {
     await transport.close();
     await server.close();

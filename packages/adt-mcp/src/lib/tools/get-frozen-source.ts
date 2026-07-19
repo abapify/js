@@ -1,0 +1,108 @@
+/**
+ * Tool: get_frozen_source — disclose one immutable Review-bound source body.
+ *
+ * The model supplies an accepted canonical object key, never an ADT URI or an
+ * opaque capability. Destination mode checks the signed policy before this
+ * handler, then ADT's private broker redeems the hidden capability.
+ */
+
+import { Buffer } from 'node:buffer';
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolContext } from '../types.js';
+import { resolveClient } from './session-helpers.js';
+
+function denied() {
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text: 'mcp_scope_denied' }],
+  };
+}
+
+export function registerGetFrozenSourceTool(
+  server: McpServer,
+  ctx: ToolContext,
+): void {
+  server.tool(
+    'get_frozen_source',
+    'Read one immutable source body from the signed frozen AI Review scope.',
+    {
+      canonicalKey: z
+        .string()
+        .regex(/^[A-Z0-9_]+:.+$/u)
+        .describe('Canonical object key from the accepted Review scope'),
+    },
+    async (args, extra) => {
+      const access = ctx.requestAccess?.(extra ?? {});
+      const frozenSource = access?.frozenSource;
+      const destination = (args as { destination?: unknown }).destination;
+      const source = frozenSource?.sources.find(
+        (candidate) => candidate.canonicalKey === args.canonicalKey,
+      );
+      if (
+        !source ||
+        !ctx.resolveFrozenSource ||
+        typeof destination !== 'string'
+      ) {
+        return denied();
+      }
+
+      try {
+        // Capability validation is deliberately before destination context
+        // acquisition, so a forged/expired reference never reaches SAP.
+        const resolved = await ctx.resolveFrozenSource({
+          destination,
+          systemSid: frozenSource.systemSid,
+          sourceRef: source.sourceRef,
+        });
+        if (
+          typeof resolved?.sourceUri !== 'string' ||
+          !resolved.sourceUri.startsWith('/sap/bc/adt/') ||
+          /[\s\\\u0000-\u001f\u007f]/u.test(resolved.sourceUri)
+        ) {
+          return denied();
+        }
+        const { client } = await resolveClient(ctx, args, extra ?? {});
+        const body = await client.fetch(resolved.sourceUri, {
+          method: 'GET',
+          headers: { Accept: 'text/plain' },
+        });
+        const text = String(body);
+        const bytes = Buffer.byteLength(text, 'utf8');
+        if (bytes > frozenSource.maxSourceBytes) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: 'frozen_source_too_large',
+              },
+            ],
+          };
+        }
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                canonicalKey: args.canonicalKey,
+                bytes,
+                source: text,
+              }),
+            },
+          ],
+        };
+      } catch {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text' as const,
+              text: 'frozen_source_unavailable',
+            },
+          ],
+        };
+      }
+    },
+  );
+}

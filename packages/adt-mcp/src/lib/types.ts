@@ -9,6 +9,7 @@ import type {
   DestinationContextRegistry,
   RequestIdentity,
 } from './session/destination-registry.js';
+import type { McpRequestAccess } from './tools/scope-catalogue.js';
 
 /**
  * Connection parameters that every tool receives.
@@ -48,4 +49,16 @@ export interface ToolContext {
    */
   destinationRegistry?: DestinationContextRegistry;
   requestIdentity?: (extra: { sessionId?: string }) => RequestIdentity;
+  requestAccess?: (extra: {
+    sessionId?: string;
+  }) => McpRequestAccess | undefined;
+  /**
+   * Redeems an opaque ADT source capability after destination-mode policy has
+   * selected it. The resolver may return only a trusted server-relative URI.
+   */
+  resolveFrozenSource?: (input: {
+    destination: string;
+    systemSid: string;
+    sourceRef: string;
+  }) => Promise<{ sourceUri: string }>;
 }
