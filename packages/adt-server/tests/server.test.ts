@@ -8,6 +8,7 @@ import {
 } from '../../adt-mcp/src/index.ts';
 import { generateKeyPair, SignJWT } from 'jose';
 import { SourceVersionTooLargeError } from '@abapify/adt-client';
+import { createRestBearerAuthorizer } from '../src/rest-auth.js';
 import { startAdtServer } from '../src/server.js';
 import { createRestSourceCapabilityService } from '../src/source-capabilities.js';
 
@@ -207,6 +208,39 @@ test('allows a trusted S2S REST request to reach the broker-backed operation', a
   try {
     const response = await fetch(`${server.url}/v1/destinations`, {
       headers: { authorization: 'Mesh trusted-service' },
+    });
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(destinationReads, 1);
+  } finally {
+    await server.close();
+  }
+});
+
+test('accepts only the separately mounted REST bearer token', async () => {
+  let destinationReads = 0;
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async listDestinations() {
+        destinationReads++;
+        return [];
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: createRestBearerAuthorizer('local-rest-token'),
+  });
+
+  try {
+    for (const authorization of [undefined, 'Bearer wrong-token']) {
+      const response = await fetch(`${server.url}/v1/destinations`, {
+        headers: authorization ? { authorization } : undefined,
+      });
+      assert.strictEqual(response.status, 401);
+    }
+
+    const response = await fetch(`${server.url}/v1/destinations`, {
+      headers: { authorization: 'Bearer local-rest-token' },
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(destinationReads, 1);
