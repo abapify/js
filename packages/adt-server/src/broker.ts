@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createAdtClient, type AdtClient } from '@abapify/adt-client';
 import { ExactSourceHistoryService } from '@abapify/adt-cli';
@@ -22,10 +23,22 @@ interface BrokerConnection {
   authConfig: Record<string, unknown>;
 }
 interface BrokerLease {
+  leaseId: string;
   destination: string;
   version: number;
   expiresAt: string;
   connection: BrokerConnection;
+}
+
+function isBrokerLease(value: unknown): value is BrokerLease {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { leaseId?: unknown }).leaseId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      (value as { leaseId: string }).leaseId,
+    )
+  );
 }
 
 interface CtsRequestHeader {
@@ -155,9 +168,13 @@ export function createHttpBrokerOperations(
 ): AdtServerOperations {
   const fetcher = options.fetch ?? globalThis.fetch;
   const createClient = options.createClient ?? clientFromConnection;
-  const request = async (path: string): Promise<Response> => {
+  const readBrokerToken = async (): Promise<string> => {
     const token = (await readFile(options.tokenFile, 'utf8')).trim();
     if (!token) throw new Error('ADT Server broker token file is empty');
+    return token;
+  };
+  const request = async (path: string): Promise<Response> => {
+    const token = await readBrokerToken();
     const response = await fetcher(new URL(path, options.baseUrl), {
       headers: { 'x-arm-adt-server-token': token },
     });
@@ -167,9 +184,10 @@ export function createHttpBrokerOperations(
   };
   const withClient = async <T>(
     destination: string,
+    operationName: string,
     operation: (client: AdtClient) => Promise<T>,
   ): Promise<T> => {
-    const token = (await readFile(options.tokenFile, 'utf8')).trim();
+    const token = await readBrokerToken();
     const response = await fetcher(
       new URL(
         '/internal/adt-server/destination-leases:acquire',
@@ -181,14 +199,52 @@ export function createHttpBrokerOperations(
           'content-type': 'application/json',
           'x-arm-adt-server-token': token,
         },
-        body: JSON.stringify({ destination }),
+        body: JSON.stringify({ destination, correlationId: randomUUID() }),
       },
     );
     if (!response.ok)
       throw new Error(`Destination lease unavailable (${response.status})`);
-    return await operation(
-      await createClient(((await response.json()) as BrokerLease).connection),
-    );
+    const lease = await response.json();
+    if (!isBrokerLease(lease)) throw new Error('Destination lease unavailable');
+    const startedAt = Date.now();
+    let clientCreated = false;
+    let outcome: 'succeeded' | 'failed' = 'failed';
+    try {
+      const client = await createClient(lease.connection);
+      clientCreated = true;
+      const result = await operation(client);
+      outcome = 'succeeded';
+      return result;
+    } finally {
+      const release = await fetcher(
+        new URL(
+          '/internal/adt-server/destination-leases:release',
+          options.baseUrl,
+        ),
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-arm-adt-server-token': token,
+          },
+          body: JSON.stringify({
+            leaseId: lease.leaseId,
+            operation: operationName,
+            outcome,
+            durationMs: Math.min(Date.now() - startedAt, 5 * 60_000),
+            ...(outcome === 'failed'
+              ? {
+                  errorCode: clientCreated
+                    ? 'operation_failed'
+                    : 'client_creation_failed',
+                }
+              : {}),
+          }),
+        },
+      );
+      if (!release.ok)
+        throw new Error(`Destination lease release failed (${release.status})`);
+    }
   };
   return {
     async listDestinations(): Promise<DestinationSummary[]> {
@@ -198,21 +254,26 @@ export function createHttpBrokerOperations(
       return Array.isArray(body.data) ? body.data : [];
     },
     async listTransports(destination, criteria) {
-      return await withClient(destination, async (client) => {
-        const response = await client.adt.cts.transports.find({
-          _action: 'FIND',
-          user: '*',
-          trfunction: '*',
-        });
-        return filterTransports(
-          extractTransportHeaders(response).map(toTransportSummary),
-          criteria,
-        );
-      });
+      return await withClient(
+        destination,
+        'list_transports',
+        async (client) => {
+          const response = await client.adt.cts.transports.find({
+            _action: 'FIND',
+            user: '*',
+            trfunction: '*',
+          });
+          return filterTransports(
+            extractTransportHeaders(response).map(toTransportSummary),
+            criteria,
+          );
+        },
+      );
     },
     async searchPackages(destination) {
       return await withClient(
         destination,
+        'search_packages',
         async (client) =>
           await client.adt.repository.informationsystem.search.quickSearch({
             query: '*',
@@ -224,6 +285,7 @@ export function createHttpBrokerOperations(
     async searchObjects(destination) {
       return await withClient(
         destination,
+        'search_objects',
         async (client) =>
           await client.adt.repository.informationsystem.search.quickSearch({
             query: '*',
@@ -234,6 +296,7 @@ export function createHttpBrokerOperations(
     async buildTransportSourceManifest(destination, input) {
       return await withClient(
         destination,
+        'build_transport_source_manifest',
         async (client) =>
           await new ExactSourceHistoryService(client).buildTransportManifest(
             input,
@@ -241,14 +304,18 @@ export function createHttpBrokerOperations(
       );
     },
     async readImmutableSource(input) {
-      return await withClient(input.destination, async (client) => {
-        const source =
-          await client.services.sourceHistory.readVersionSourceBounded(
-            input.sourceUri,
-            input.maxBytes,
-          );
-        return { bytes: Buffer.byteLength(source, 'utf8'), source };
-      });
+      return await withClient(
+        input.destination,
+        'read_immutable_source',
+        async (client) => {
+          const source =
+            await client.services.sourceHistory.readVersionSourceBounded(
+              input.sourceUri,
+              input.maxBytes,
+            );
+          return { bytes: Buffer.byteLength(source, 'utf8'), source };
+        },
+      );
     },
   };
 }
@@ -316,8 +383,13 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
   }): Promise<{ sourceUri: string }>;
 } {
   const fetcher = options.fetch ?? globalThis.fetch;
-  const acquire = async (destination: string): Promise<BrokerLease> => {
+  const readBrokerToken = async (): Promise<string> => {
     const token = (await readFile(options.tokenFile, 'utf8')).trim();
+    if (!token) throw new Error('ADT Server broker token file is empty');
+    return token;
+  };
+  const acquire = async (destination: string): Promise<BrokerLease> => {
+    const token = await readBrokerToken();
     const response = await fetcher(
       new URL(
         '/internal/adt-server/destination-leases:acquire',
@@ -329,23 +401,53 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
           'content-type': 'application/json',
           'x-arm-adt-server-token': token,
         },
-        body: JSON.stringify({ destination }),
+        body: JSON.stringify({ destination, correlationId: randomUUID() }),
       },
     );
     if (!response.ok)
       throw new Error(`Destination lease unavailable (${response.status})`);
-    return (await response.json()) as BrokerLease;
+    const lease = await response.json();
+    if (!isBrokerLease(lease)) throw new Error('Destination lease unavailable');
+    return lease;
+  };
+  const release = async (lease: BrokerLease): Promise<void> => {
+    const token = await readBrokerToken();
+    const response = await fetcher(
+      new URL(
+        '/internal/adt-server/destination-leases:release',
+        options.baseUrl,
+      ),
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-arm-adt-server-token': token,
+        },
+        body: JSON.stringify({
+          leaseId: lease.leaseId,
+          operation: 'mcp_destination_context',
+          outcome: 'succeeded',
+          durationMs: 0,
+        }),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`Destination lease release failed (${response.status})`);
   };
   return {
     leaseProvider: {
       async acquire({ destination }) {
         const lease = await acquire(destination);
+        let releasePromise: Promise<void> | undefined;
         return {
           destination: lease.destination,
           version: lease.version,
           expiresAt: Date.parse(lease.expiresAt),
           material: lease.connection,
-          release: async () => undefined,
+          release: async () => {
+            releasePromise ??= release(lease);
+            await releasePromise;
+          },
         };
       },
     },
@@ -360,8 +462,7 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
       },
     },
     async resolveFrozenSource(input) {
-      const token = (await readFile(options.tokenFile, 'utf8')).trim();
-      if (!token) throw new Error('ADT Server broker token file is empty');
+      const token = await readBrokerToken();
       const response = await fetcher(
         new URL(
           '/internal/adt-server/frozen-source-references:resolve',
