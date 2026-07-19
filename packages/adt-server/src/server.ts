@@ -17,6 +17,9 @@ import {
   createRestPageCursorService,
 } from './page-cursors.js';
 import {
+  objectPageResponse,
+  objectSearchResult,
+  parseObjectSearchQuery,
   packagePageResponse,
   packageSearchResult,
   parsePackageSearchQuery,
@@ -71,7 +74,10 @@ export interface AdtServerOperations {
     destination: string,
     criteria?: import('./rest-schemas.js').PackageSearchCriteria,
   ): Promise<unknown>;
-  searchObjects(destination: string): Promise<unknown>;
+  searchObjects(
+    destination: string,
+    criteria?: import('./rest-schemas.js').ObjectSearchCriteria,
+  ): Promise<unknown>;
   /** Public canonical detail; never contains SAP URI fields. */
   getTransportDetail?(destination: string, transport: string): Promise<unknown>;
   /** Public canonical aggregate; never contains SAP URI fields. */
@@ -353,16 +359,43 @@ export async function startAdtServer(
           }
           return;
         }
+        if (resource === 'objects') {
+          try {
+            const { criteria, page } = parseObjectSearchQuery(
+              readQuery(request),
+            );
+            const result = objectSearchResult.parse(
+              await options.operations.searchObjects(destination!, criteria),
+            );
+            const data = objectPageResponse.parse(
+              pageCursors.paginate({
+                ...result,
+                ...page,
+                fingerprint: `objects:${destination}:${criteria.query ?? '*'}:${criteria.packageName ?? ''}:${criteria.objectType ?? ''}:${criteria.maxResults ?? 5_000}`,
+                keyOf: (entry) => entry.canonicalKey,
+              }),
+            );
+            response.writeHead(200, { 'content-type': 'application/json' });
+            response.end(JSON.stringify(data));
+          } catch (error) {
+            if (
+              error instanceof z.ZodError ||
+              error instanceof RestPageCursorError
+            ) {
+              writeProblem(response, 400, 'Invalid request');
+              return;
+            }
+            throw error;
+          }
+          return;
+        }
         try {
-          const data =
-            resource === 'transports'
-              ? transportListResponse.parse(
-                  await options.operations.listTransports(
-                    destination,
-                    parseTransportSearchQuery(readQuery(request)),
-                  ),
-                )
-              : await options.operations.searchObjects(destination);
+          const data = transportListResponse.parse(
+            await options.operations.listTransports(
+              destination!,
+              parseTransportSearchQuery(readQuery(request)),
+            ),
+          );
           response.writeHead(200, { 'content-type': 'application/json' });
           response.end(JSON.stringify(data));
         } catch (error) {

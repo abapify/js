@@ -111,3 +111,26 @@ test('documents the bounded canonical package search page', () => {
   assert.ok(packages.responses['200'].content?.['application/json'].schema);
   assert.ok(!JSON.stringify(packages).includes('uri'));
 });
+
+test('documents the bounded canonical object search page without ADT URI fields', () => {
+  const objects =
+    openApiDocument.paths['/v1/destinations/{destination}/objects'].get;
+
+  assert.strictEqual(objects.operationId, 'searchObjects');
+  assert.deepStrictEqual(
+    objects.parameters?.map((parameter) =>
+      '$ref' in parameter ? parameter.$ref : parameter.name,
+    ),
+    [
+      '#/components/parameters/destination',
+      'query',
+      'packageName',
+      'objectType',
+      'maxResults',
+      'limit',
+      'cursor',
+    ],
+  );
+  assert.ok(objects.responses['200'].content?.['application/json'].schema);
+  assert.ok(!JSON.stringify(objects).includes('uri'));
+});

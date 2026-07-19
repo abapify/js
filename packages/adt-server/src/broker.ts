@@ -8,6 +8,7 @@ import type {
 } from '@abapify/adt-mcp';
 import type { DestinationSummary, AdtServerOperations } from './server.js';
 import type {
+  ObjectSearchCriteria,
   PackageSearchCriteria,
   TransportSearchCriteria,
 } from './rest-schemas.js';
@@ -76,6 +77,11 @@ interface CanonicalObjectReference {
   objInfo?: string;
   objDesc?: string;
   lockStatus?: string;
+}
+
+interface CanonicalRepositoryObject extends CanonicalObjectReference {
+  packageName?: string;
+  description?: string;
 }
 
 interface TransportTaskDetail extends TransportSummary {
@@ -223,7 +229,7 @@ function quickSearchReferences(response: unknown): UnknownRecord[] {
   return records(references);
 }
 
-function packageSearchQuery(query?: string): string {
+function adtPrefixQuery(query?: string): string {
   const trimmed = query?.trim();
   return !trimmed ? '*' : /[*?]/u.test(trimmed) ? trimmed : `${trimmed}*`;
 }
@@ -249,6 +255,44 @@ function toPackageNodes(value: unknown): Array<{
       },
     ];
   });
+}
+
+function toCanonicalRepositoryObjects(
+  value: unknown,
+): CanonicalRepositoryObject[] {
+  const seen = new Set<string>();
+  return quickSearchReferences(value).flatMap((entry) => {
+    const objectType = normalizedObjectType(stringField(entry, 'type') ?? '');
+    const objectName = stringField(entry, 'name')?.toUpperCase();
+    // Keep ADT's URI only as an adapter-local eligibility signal. It never
+    // crosses this boundary, but confirms a later safe read can be resolved.
+    if (
+      !objectType ||
+      !objectName ||
+      objectType === 'DEVC' ||
+      !stringField(entry, 'uri')
+    )
+      return [];
+    const canonicalKey = `${objectType}:${objectName}`;
+    if (seen.has(canonicalKey)) return [];
+    seen.add(canonicalKey);
+    const packageName = stringField(entry, 'packageName')?.toUpperCase();
+    const description = stringField(entry, 'description');
+    return [
+      {
+        canonicalKey,
+        objectType,
+        objectName,
+        ...(packageName ? { packageName } : {}),
+        ...(description ? { description } : {}),
+      },
+    ];
+  });
+}
+
+function adtSearchObjectType(objectType?: string): string | undefined {
+  const normalized = normalizedObjectType(objectType ?? '');
+  return normalized === 'REPS' ? 'PROG' : normalized;
 }
 
 function mapTransportStatus(status?: string): string {
@@ -491,7 +535,7 @@ export function createHttpBrokerOperations(
           const cap = criteria.maxResults ?? 5_000;
           const response =
             await client.adt.repository.informationsystem.search.quickSearch({
-              query: packageSearchQuery(criteria.q),
+              query: adtPrefixQuery(criteria.q),
               objectType: 'DEVC',
               maxResults: cap + 1,
             });
@@ -503,16 +547,26 @@ export function createHttpBrokerOperations(
         },
       );
     },
-    async searchObjects(destination) {
-      return await withClient(
-        destination,
-        'search_objects',
-        async (client) =>
+    async searchObjects(destination, criteria: ObjectSearchCriteria = {}) {
+      return await withClient(destination, 'search_objects', async (client) => {
+        const cap = criteria.maxResults ?? 5_000;
+        const response =
           await client.adt.repository.informationsystem.search.quickSearch({
-            query: '*',
-            maxResults: 500,
-          }),
-      );
+            query: adtPrefixQuery(criteria.query),
+            maxResults: cap + 1,
+            ...(criteria.packageName
+              ? { packageName: criteria.packageName.toUpperCase() }
+              : {}),
+            ...(adtSearchObjectType(criteria.objectType)
+              ? { objectType: adtSearchObjectType(criteria.objectType) }
+              : {}),
+          });
+        const objects = toCanonicalRepositoryObjects(response);
+        return {
+          data: objects.slice(0, cap),
+          truncated: quickSearchReferences(response).length >= cap,
+        };
+      });
     },
     async buildTransportSourceManifest(destination, input) {
       return await withClient(
