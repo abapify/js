@@ -24,7 +24,11 @@ import type {
   DestinationContextRegistry,
   RequestIdentity,
 } from '../session/destination-registry.js';
-import type { McpRequestAccess } from '../tools/scope-catalogue.js';
+import {
+  isMcpDestinationKey,
+  isMcpOperationClass,
+  type McpRequestAccess,
+} from '../tools/scope-catalogue.js';
 import {
   loadMultiSystemConfig,
   type MultiSystemConfig,
@@ -109,6 +113,34 @@ type Middleware = (
   req: http.IncomingMessage,
   res: http.ServerResponse,
 ) => Promise<boolean> | boolean;
+
+/**
+ * Captures trusted access at initialization so a provider cannot change a
+ * session's authorization by mutating the object it returned later.
+ */
+function snapshotRequestAccess(
+  access: McpRequestAccess | undefined,
+): McpRequestAccess | undefined {
+  if (!access) return undefined;
+
+  const classes = access.classes;
+  const destinationKeys = access.destinationKeys;
+  if (!Array.isArray(classes) || !Array.isArray(destinationKeys)) {
+    return undefined;
+  }
+
+  if (
+    !classes.every(isMcpOperationClass) ||
+    !destinationKeys.every(isMcpDestinationKey)
+  ) {
+    return undefined;
+  }
+
+  return Object.freeze({
+    classes: Object.freeze([...classes]),
+    destinationKeys: Object.freeze([...destinationKeys]),
+  });
+}
 
 /** A deterministic, non-secret value used only for session affinity checks. */
 function sessionIdentityBinding(identity: RequestIdentity): string {
@@ -403,7 +435,9 @@ export async function startHttpServer(
           }
           if (!identityDerivationFailed) {
             try {
-              sessionAccess = destinationServer.requestAccess({ userHint });
+              sessionAccess = snapshotRequestAccess(
+                destinationServer.requestAccess({ userHint }),
+              );
             } catch {
               // Missing or failed trusted access derivation is intentionally
               // indistinguishable from no access at dispatch time.
