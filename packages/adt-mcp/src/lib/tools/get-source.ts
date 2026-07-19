@@ -6,12 +6,35 @@
  * Returns the raw ABAP source code for programs, classes, interfaces, etc.
  */
 
+import { Buffer } from 'node:buffer';
+import { AdtResponseTooLargeError } from '@abapify/adt-client';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
 import { resolveObjectUri } from './utils';
+
+const DEFAULT_MAX_SOURCE_BYTES = 1024 * 1024;
+const HARD_MAX_SOURCE_BYTES = 2 * 1024 * 1024;
+
+function sourceTooLargeResult(maxBytes: number) {
+  return {
+    isError: true,
+    content: [
+      {
+        type: 'text' as const,
+        text: JSON.stringify({
+          error: {
+            code: 'SOURCE_TOO_LARGE',
+            message: 'The source exceeds the requested MCP response limit.',
+            maxBytes,
+          },
+        }),
+      },
+    ],
+  };
+}
 
 export function registerGetSourceTool(
   server: McpServer,
@@ -28,6 +51,15 @@ export function registerGetSourceTool(
         .optional()
         .describe(
           'Object type (e.g. PROG, CLAS, INTF). Speeds up URI resolution when known.',
+        ),
+      maxBytes: z
+        .number()
+        .int()
+        .positive()
+        .max(HARD_MAX_SOURCE_BYTES)
+        .optional()
+        .describe(
+          `Maximum UTF-8 response size in bytes (default ${DEFAULT_MAX_SOURCE_BYTES}, hard cap ${HARD_MAX_SOURCE_BYTES}). Oversized source is rejected, never truncated.`,
         ),
     },
     async (args, extra) => {
@@ -51,16 +83,29 @@ export function registerGetSourceTool(
           };
         }
 
-        const source = await client.fetch(`${objectUri}/source/main`, {
-          method: 'GET',
-          headers: { Accept: 'text/plain' },
-        });
+        const maxBytes = args.maxBytes ?? DEFAULT_MAX_SOURCE_BYTES;
+        let source: string;
+        try {
+          source = await client.readTextBounded(
+            `${objectUri}/source/main`,
+            maxBytes,
+            { headers: { Accept: 'text/plain' } },
+          );
+        } catch (error) {
+          if (error instanceof AdtResponseTooLargeError) {
+            return sourceTooLargeResult(maxBytes);
+          }
+          throw error;
+        }
 
         return {
           content: [
             {
               type: 'text' as const,
-              text: JSON.stringify({ source: String(source) }),
+              text: JSON.stringify({
+                bytes: Buffer.byteLength(source, 'utf8'),
+                source,
+              }),
             },
           ],
         };
