@@ -21,6 +21,7 @@
     "README.md"
   ],
   "dependencies": {
+    "@abapify/adt-cli": "0.4.1",
     "@abapify/adt-mcp": "0.4.1",
     "@abapify/adt-client": "0.4.1",
     "yaml": "^2.8.2",

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { createAdtClient, type AdtClient } from '@abapify/adt-client';
+import { ExactSourceHistoryService } from '@abapify/adt-cli';
 import type {
   DestinationContextFactory,
   DestinationLeaseProvider,
@@ -10,6 +11,8 @@ export interface HttpBrokerOptions {
   baseUrl: string;
   tokenFile: string;
   fetch?: typeof globalThis.fetch;
+  /** Test seam; production derives the client from broker credentials. */
+  createClient?: (connection: BrokerConnection) => Promise<AdtClient>;
 }
 interface BrokerConnection {
   baseUrl: string;
@@ -29,6 +32,7 @@ export function createHttpBrokerOperations(
   options: HttpBrokerOptions,
 ): AdtServerOperations {
   const fetcher = options.fetch ?? globalThis.fetch;
+  const createClient = options.createClient ?? clientFromConnection;
   const request = async (path: string): Promise<Response> => {
     const token = (await readFile(options.tokenFile, 'utf8')).trim();
     if (!token) throw new Error('ADT Server broker token file is empty');
@@ -61,9 +65,7 @@ export function createHttpBrokerOperations(
     if (!response.ok)
       throw new Error(`Destination lease unavailable (${response.status})`);
     return await operation(
-      await clientFromConnection(
-        ((await response.json()) as BrokerLease).connection,
-      ),
+      await createClient(((await response.json()) as BrokerLease).connection),
     );
   };
   return {
@@ -99,6 +101,25 @@ export function createHttpBrokerOperations(
             maxResults: 500,
           }),
       );
+    },
+    async buildTransportSourceManifest(destination, input) {
+      return await withClient(
+        destination,
+        async (client) =>
+          await new ExactSourceHistoryService(client).buildTransportManifest(
+            input,
+          ),
+      );
+    },
+    async readImmutableSource(input) {
+      return await withClient(input.destination, async (client) => {
+        const source =
+          await client.services.sourceHistory.readVersionSourceBounded(
+            input.sourceUri,
+            input.maxBytes,
+          );
+        return { bytes: Buffer.byteLength(source, 'utf8'), source };
+      });
     },
   };
 }

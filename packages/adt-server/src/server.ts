@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { SourceVersionTooLargeError } from '@abapify/adt-client';
+import { z } from 'zod';
 import {
   createHttpMcpHandler,
   type DestinationContextRegistry,
@@ -6,6 +8,38 @@ import {
   type ToolContext,
 } from '@abapify/adt-mcp';
 import { openApiDocument, openApiYaml } from './openapi.js';
+import {
+  RestSourceCapabilityError,
+  createRestSourceCapabilityService,
+} from './source-capabilities.js';
+import {
+  MAX_SOURCE_BYTES,
+  sourceVersionReadBody,
+  transportSourceManifestBody,
+  type TransportSourceManifestInput,
+} from './rest-schemas.js';
+
+const MAX_JSON_BODY_BYTES = 64 * 1024;
+
+type RawSourceVersion = {
+  sourceUri: string;
+  [key: string]: unknown;
+};
+
+type RawTransportSourceManifest = {
+  requestedTransports: unknown;
+  scopeTransports: unknown;
+  entries: ReadonlyArray<{
+    component: {
+      sourceUri?: string;
+      versionsUri?: string;
+      [key: string]: unknown;
+    };
+    base?: RawSourceVersion;
+    head?: RawSourceVersion;
+    [key: string]: unknown;
+  }>;
+};
 
 export interface DestinationSummary {
   key: string;
@@ -21,6 +55,17 @@ export interface AdtServerOperations {
   listTransports(destination: string): Promise<unknown>;
   searchPackages(destination: string): Promise<unknown>;
   searchObjects(destination: string): Promise<unknown>;
+  /** Supplied by the broker adapter when immutable-source REST is enabled. */
+  buildTransportSourceManifest?(
+    destination: string,
+    input: TransportSourceManifestInput,
+  ): Promise<RawTransportSourceManifest>;
+  /** Must enforce the requested byte limit before retaining an upstream body. */
+  readImmutableSource?(input: {
+    destination: string;
+    sourceUri: string;
+    maxBytes: number;
+  }): Promise<{ bytes: number; source: string }>;
 }
 
 /**
@@ -54,6 +99,8 @@ export interface AdtServerOptions {
   port?: number;
   mcp?: AdtServerMcpOptions;
   restAuthorizer?: RestServiceAuthorizer;
+  /** Production REST uses a deployment-shared secret; tests may use a local one. */
+  sourceCapabilities?: ReturnType<typeof createRestSourceCapabilityService>;
 }
 
 export interface RunningAdtServer {
@@ -61,10 +108,75 @@ export interface RunningAdtServer {
   close(): Promise<void>;
 }
 
+class InvalidJsonBodyError extends Error {}
+
+async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const bytes = Buffer.from(chunk);
+    size += bytes.length;
+    if (size > MAX_JSON_BODY_BYTES) throw new InvalidJsonBodyError();
+    chunks.push(bytes);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+  } catch {
+    throw new InvalidJsonBodyError();
+  }
+}
+
+function writeProblem(
+  response: http.ServerResponse,
+  status: number,
+  title: string,
+): void {
+  response.writeHead(status, { 'content-type': 'application/problem+json' });
+  response.end(JSON.stringify({ title, status }));
+}
+
+function toRestTransportSourceManifest(
+  manifest: RawTransportSourceManifest,
+  capabilities: ReturnType<typeof createRestSourceCapabilityService>,
+  destination: string,
+) {
+  const toVersion = (version: RawSourceVersion) => {
+    const { sourceUri, ...metadata } = version;
+    return {
+      ...metadata,
+      sourceCapability: capabilities.issue({ destination, sourceUri }),
+    };
+  };
+  return {
+    requestedTransports: manifest.requestedTransports,
+    scopeTransports: manifest.scopeTransports,
+    entries: manifest.entries.map((entry) => {
+      const {
+        component: {
+          sourceUri: _sourceUri,
+          versionsUri: _versionsUri,
+          ...component
+        },
+        base,
+        head,
+        ...metadata
+      } = entry;
+      return {
+        ...metadata,
+        component,
+        ...(base ? { base: toVersion(base) } : {}),
+        ...(head ? { head: toVersion(head) } : {}),
+      };
+    }),
+  };
+}
+
 export async function startAdtServer(
   options: AdtServerOptions,
 ): Promise<RunningAdtServer> {
   const host = options.host ?? '127.0.0.1';
+  const sourceCapabilities =
+    options.sourceCapabilities ?? createRestSourceCapabilityService();
   const mcpHandler = options.mcp
     ? createHttpMcpHandler({
         host,
@@ -130,7 +242,20 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/(transports|packages|objects)$/u.exec(
           path,
         );
-      if (isDestinationList || (request.method === 'GET' && match)) {
+      const sourceManifestMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u.exec(
+          path,
+        );
+      const sourceVersionReadMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/source-versions:read$/u.exec(
+          path,
+        );
+      const isRestOperation =
+        isDestinationList ||
+        (request.method === 'GET' && match) ||
+        (request.method === 'POST' &&
+          (sourceManifestMatch || sourceVersionReadMatch));
+      if (isRestOperation) {
         if (!options.restAuthorizer) {
           response.writeHead(404, {
             'content-type': 'application/problem+json',
@@ -170,6 +295,91 @@ export async function startAdtServer(
               : await options.operations.searchObjects(destination);
         response.writeHead(200, { 'content-type': 'application/json' });
         response.end(JSON.stringify(data));
+        return;
+      }
+      if (request.method === 'POST' && sourceManifestMatch) {
+        if (!options.operations.buildTransportSourceManifest) {
+          writeProblem(response, 404, 'Not found');
+          return;
+        }
+        try {
+          const input = transportSourceManifestBody.parse(
+            await readJsonBody(request),
+          );
+          const manifest =
+            await options.operations.buildTransportSourceManifest(
+              sourceManifestMatch[1]!,
+              input,
+            );
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(
+            JSON.stringify(
+              toRestTransportSourceManifest(
+                manifest,
+                sourceCapabilities,
+                sourceManifestMatch[1]!,
+              ),
+            ),
+          );
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof InvalidJsonBodyError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'POST' && sourceVersionReadMatch) {
+        if (!options.operations.readImmutableSource) {
+          writeProblem(response, 404, 'Not found');
+          return;
+        }
+        try {
+          const input = sourceVersionReadBody.parse(
+            await readJsonBody(request),
+          );
+          const source = sourceCapabilities.resolve({
+            sourceCapability: input.sourceCapability,
+            destination: sourceVersionReadMatch[1]!,
+          });
+          const result = await options.operations.readImmutableSource({
+            destination: sourceVersionReadMatch[1]!,
+            sourceUri: source.sourceUri,
+            maxBytes: input.maxBytes,
+          });
+          if (
+            typeof result.source !== 'string' ||
+            result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
+            result.bytes > input.maxBytes
+          ) {
+            throw new Error(
+              'Bounded source operation returned an invalid body',
+            );
+          }
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(result));
+        } catch (error) {
+          if (error instanceof RestSourceCapabilityError) {
+            writeProblem(response, 404, 'Source unavailable');
+            return;
+          }
+          if (error instanceof SourceVersionTooLargeError) {
+            writeProblem(response, 413, 'Source too large');
+            return;
+          }
+          if (
+            error instanceof z.ZodError ||
+            error instanceof InvalidJsonBodyError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
         return;
       }
       response.writeHead(404, { 'content-type': 'application/problem+json' });

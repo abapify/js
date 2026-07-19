@@ -7,7 +7,9 @@ import {
   createMcpInvocationVerifier,
 } from '../../adt-mcp/src/index.ts';
 import { generateKeyPair, SignJWT } from 'jose';
+import { SourceVersionTooLargeError } from '@abapify/adt-client';
 import { startAdtServer } from '../src/server.js';
+import { createRestSourceCapabilityService } from '../src/source-capabilities.js';
 
 const operations = {
   async listDestinations() {
@@ -208,6 +210,122 @@ test('allows a trusted S2S REST request to reach the broker-backed operation', a
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual(destinationReads, 1);
+  } finally {
+    await server.close();
+  }
+});
+
+test('REST source reads redeem an opaque destination-bound manifest capability', async () => {
+  const sourceUri =
+    '/sap/bc/adt/programs/programs/zsafe/source/main/versions/1';
+  let immutableReads = 0;
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async buildTransportSourceManifest(destination, input) {
+        assert.strictEqual(destination, 'dev');
+        assert.deepStrictEqual(input, { transports: ['DEVK900001'] });
+        return {
+          requestedTransports: ['DEVK900001'],
+          scopeTransports: ['DEVK900001'],
+          entries: [
+            {
+              canonicalKey: 'CLAS:ZCL_SAFE',
+              component: {
+                id: 'main',
+                sourceUri: '/sap/bc/adt/oo/classes/zcl_safe/source/main',
+                versionsUri:
+                  '/sap/bc/adt/oo/classes/zcl_safe/source/main/versions',
+              },
+              head: { id: 'version-1', sourceUri },
+            },
+          ],
+        };
+      },
+      async readImmutableSource(input) {
+        immutableReads++;
+        if (input.maxBytes === 1) {
+          throw new SourceVersionTooLargeError(1, 2);
+        }
+        assert.deepStrictEqual(input, {
+          destination: 'dev',
+          sourceUri,
+          maxBytes: 128,
+        });
+        return {
+          bytes: Buffer.byteLength('CLASS zcl_safe DEFINITION.', 'utf8'),
+          source: 'CLASS zcl_safe DEFINITION.',
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+    sourceCapabilities: createRestSourceCapabilityService({
+      secret: 'test-secret',
+    }),
+  });
+
+  try {
+    const manifestResponse = await fetch(
+      `${server.url}/v1/destinations/dev/transport-source-manifests`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ transports: ['DEVK900001'] }),
+      },
+    );
+    assert.strictEqual(manifestResponse.status, 200);
+    const manifest = (await manifestResponse.json()) as {
+      entries: Array<{ head?: { sourceCapability?: string } }>;
+    };
+    const encodedManifest = JSON.stringify(manifest);
+    assert.ok(!encodedManifest.includes('/sap/bc/adt/'));
+    const sourceCapability = manifest.entries[0]?.head?.sourceCapability;
+    assert.ok(sourceCapability);
+
+    const readResponse = await fetch(
+      `${server.url}/v1/destinations/dev/source-versions:read`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sourceCapability, maxBytes: 128 }),
+      },
+    );
+    assert.strictEqual(readResponse.status, 200);
+    assert.deepStrictEqual(await readResponse.json(), {
+      bytes: Buffer.byteLength('CLASS zcl_safe DEFINITION.', 'utf8'),
+      source: 'CLASS zcl_safe DEFINITION.',
+    });
+
+    const crossDestinationResponse = await fetch(
+      `${server.url}/v1/destinations/prod/source-versions:read`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sourceCapability, maxBytes: 128 }),
+      },
+    );
+    assert.strictEqual(crossDestinationResponse.status, 404);
+    assert.strictEqual(immutableReads, 1);
+
+    const tooLargeResponse = await fetch(
+      `${server.url}/v1/destinations/dev/source-versions:read`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sourceCapability, maxBytes: 1 }),
+      },
+    );
+    assert.strictEqual(tooLargeResponse.status, 413);
+    assert.ok(
+      !JSON.stringify(await tooLargeResponse.json()).includes(sourceUri),
+    );
+    assert.strictEqual(immutableReads, 2);
   } finally {
     await server.close();
   }
