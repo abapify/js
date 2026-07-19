@@ -16,6 +16,7 @@ import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import {
   actionClassesForMcpTool,
   assertMcpToolIsClassified,
+  isMcpDestinationAllowed,
   isMcpToolAllowed,
   isMcpToolListed,
   type McpOperationClass,
@@ -215,7 +216,10 @@ export function destinationModeServer(
           } catch {
             return scopeDeniedResult();
           }
-          if (!isMcpToolAllowed(access, name, toolArguments)) {
+          if (
+            !isMcpToolAllowed(access, name, toolArguments) ||
+            !isMcpDestinationAllowed(access, toolArguments.destination)
+          ) {
             return scopeDeniedResult();
           }
           return await (handler as Handler)(...handlerArgs);

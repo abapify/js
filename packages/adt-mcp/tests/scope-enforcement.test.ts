@@ -6,7 +6,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createMcpServer } from '../src/lib/server.js';
 import { createDestinationContextRegistry } from '../src/lib/session/destination-registry.js';
 import type { ToolContext } from '../src/lib/types.js';
-import { MCP_TOOL_SCOPE_CATALOGUE } from '../src/lib/tools/scope-catalogue.js';
+import {
+  MCP_TOOL_SCOPE_CATALOGUE,
+  type McpRequestAccess,
+} from '../src/lib/tools/scope-catalogue.js';
 import { destinationModeServer } from '../src/lib/tools/destination-mode.js';
 import { registerTools } from '../src/lib/tools/index.js';
 
@@ -32,7 +35,7 @@ class CapturingServer {
   }
 }
 
-function destinationRegistry(onLease: () => void) {
+function destinationRegistry(onLease: () => void, onContext = () => undefined) {
   return createDestinationContextRegistry({
     leaseProvider: {
       async acquire({ destination }) {
@@ -48,6 +51,7 @@ function destinationRegistry(onLease: () => void) {
     },
     contextFactory: {
       async create() {
+        onContext();
         return { client: {} as never, close: async () => undefined };
       },
     },
@@ -58,7 +62,7 @@ function destinationRegistry(onLease: () => void) {
 test('a read-scoped caller can dispatch a permitted read tool', async () => {
   const target = new CapturingServer();
   const server = destinationModeServer(target as unknown as McpServer, {
-    requestAccess: () => ({ classes: ['read'] }),
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
   });
   let calls = 0;
   server.tool('sap_disconnect', {}, async () => {
@@ -76,12 +80,94 @@ test('a read-scoped caller can dispatch a permitted read tool', async () => {
   assert.strictEqual(calls, 1);
 });
 
+test('a read-scoped caller cannot dispatch a permitted read tool on an unauthorised destination', async () => {
+  let leases = 0;
+  let contexts = 0;
+  const destinations = destinationRegistry(
+    () => leases++,
+    () => contexts++,
+  );
+  const target = new CapturingServer();
+  const server = destinationModeServer(target as unknown as McpServer, {
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+  });
+  let handlerCalls = 0;
+  server.tool('sap_disconnect', {}, async (args) => {
+    handlerCalls++;
+    await destinations.getOrCreate('session-1', args.destination as string, {
+      principal: 'agent',
+    });
+    return { content: [{ type: 'text' as const, text: 'unexpected' }] };
+  });
+
+  try {
+    const result = await target.handlers.get('sap_disconnect')!(
+      { destination: 'prod' },
+      { sessionId: 'session-1' },
+    );
+
+    assert.strictEqual(result.isError, true);
+    assert.strictEqual(result.content[0]?.text, 'mcp_scope_denied');
+    assert.strictEqual(handlerCalls, 0);
+    assert.strictEqual(leases, 0);
+    assert.strictEqual(contexts, 0);
+  } finally {
+    await destinations.shutdown();
+  }
+});
+
+test('a caller missing trusted destination keys is denied before its handler', async () => {
+  const target = new CapturingServer();
+  const server = destinationModeServer(target as unknown as McpServer, {
+    requestAccess: () => ({ classes: ['read'] }) as unknown as McpRequestAccess,
+  });
+  let handlerCalls = 0;
+  server.tool('sap_disconnect', {}, async () => {
+    handlerCalls++;
+    return { content: [{ type: 'text' as const, text: 'unexpected' }] };
+  });
+
+  const result = await target.handlers.get('sap_disconnect')!(
+    { destination: 'dev' },
+    { sessionId: 'session-1' },
+  );
+
+  assert.strictEqual(result.isError, true);
+  assert.strictEqual(result.content[0]?.text, 'mcp_scope_denied');
+  assert.strictEqual(handlerCalls, 0);
+});
+
+test('a caller with malformed trusted classes is denied without throwing', async () => {
+  const target = new CapturingServer();
+  const server = destinationModeServer(target as unknown as McpServer, {
+    requestAccess: () =>
+      ({
+        classes: null,
+        destinationKeys: ['dev'],
+      }) as unknown as McpRequestAccess,
+  });
+  let handlerCalls = 0;
+  server.tool('sap_disconnect', {}, async () => {
+    handlerCalls++;
+    return { content: [{ type: 'text' as const, text: 'unexpected' }] };
+  });
+
+  const result = await target.handlers.get('sap_disconnect')!(
+    { destination: 'dev' },
+    { sessionId: 'session-1' },
+  );
+
+  assert.strictEqual(result.isError, true);
+  assert.strictEqual(result.content[0]?.text, 'mcp_scope_denied');
+  assert.strictEqual(handlerCalls, 0);
+});
+
 test('a direct write dispatch is denied before its handler or destination lease', async () => {
   let leases = 0;
   const destinations = destinationRegistry(() => leases++);
   const target = new CapturingServer();
   const server = destinationModeServer(target as unknown as McpServer, {
-    requestAccess: () => ({ classes: ['read'] }),
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
   });
   let handlerCalls = 0;
   server.tool('lock_object', {}, async () => {
@@ -108,7 +194,7 @@ test('a direct write dispatch is denied before its handler or destination lease'
 test('the catalogue classifies every tool registered by the factory', () => {
   const target = new CapturingServer();
   const server = destinationModeServer(target as unknown as McpServer, {
-    requestAccess: () => ({ classes: ['read'] }),
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
   });
   const ctx: ToolContext = { getClient: () => ({}) as never };
 
@@ -128,7 +214,7 @@ test('createMcpServer denies a crafted write call in destination mode', async ()
   const destinations = destinationRegistry(() => leases++);
   const server = createMcpServer({
     destinationRegistry: destinations,
-    requestAccess: () => ({ classes: ['read'] }),
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
   });
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
