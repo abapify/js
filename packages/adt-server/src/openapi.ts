@@ -2,7 +2,10 @@ import YAML from 'yaml';
 import { z } from 'zod';
 import {
   sourceVersionReadBody,
+  transportDetailResponse,
   transportListResponse,
+  transportObjectsResponse,
+  transportPathParameter,
   transportSearchQuery,
   transportSourceManifestBody,
 } from './rest-schemas.js';
@@ -13,6 +16,9 @@ const transportSourceManifestSchema = z.toJSONSchema(
 const sourceVersionReadSchema = z.toJSONSchema(sourceVersionReadBody);
 const transportSearchQuerySchema = z.toJSONSchema(transportSearchQuery);
 const transportListResponseSchema = z.toJSONSchema(transportListResponse);
+const transportDetailResponseSchema = z.toJSONSchema(transportDetailResponse);
+const transportObjectsResponseSchema = z.toJSONSchema(transportObjectsResponse);
+const transportPathParameterSchema = z.toJSONSchema(transportPathParameter);
 const transportQueryProperties =
   transportSearchQuerySchema.properties as Record<string, unknown>;
 
@@ -74,6 +80,44 @@ export const openApiDocument = {
             description: 'Normalized system-wide transport headers',
             content: {
               'application/json': { schema: transportListResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/transports/{transport}': {
+      get: {
+        operationId: 'getTransportDetail',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          { $ref: '#/components/parameters/transport' },
+        ],
+        responses: {
+          '200': {
+            description:
+              'Request/task hierarchy with canonical object references',
+            content: {
+              'application/json': { schema: transportDetailResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/transports/{transport}/objects': {
+      get: {
+        operationId: 'listTransportObjects',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          { $ref: '#/components/parameters/transport' },
+        ],
+        responses: {
+          '200': {
+            description:
+              'Canonical object references aggregated over request and tasks',
+            content: {
+              'application/json': { schema: transportObjectsResponseSchema },
             },
           },
           '400': { description: 'Invalid request' },
@@ -145,6 +189,12 @@ export const openApiDocument = {
         in: 'path',
         required: true,
         schema: { type: 'string', pattern: '^[a-z][a-z0-9-]{1,62}$' },
+      },
+      transport: {
+        name: 'transport',
+        in: 'path',
+        required: true,
+        schema: transportPathParameterSchema,
       },
     },
   },

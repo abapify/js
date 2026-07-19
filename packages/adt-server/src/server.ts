@@ -14,7 +14,10 @@ import {
 } from './source-capabilities.js';
 import {
   sourceVersionReadBody,
+  transportDetailResponse,
   transportListResponse,
+  transportObjectsResponse,
+  transportPathParameter,
   parseTransportSearchQuery,
   transportSourceManifestBody,
   type TransportSearchCriteria,
@@ -57,6 +60,13 @@ export interface AdtServerOperations {
   ): Promise<unknown>;
   searchPackages(destination: string): Promise<unknown>;
   searchObjects(destination: string): Promise<unknown>;
+  /** Public canonical detail; never contains SAP URI fields. */
+  getTransportDetail?(destination: string, transport: string): Promise<unknown>;
+  /** Public canonical aggregate; never contains SAP URI fields. */
+  listTransportObjects?(
+    destination: string,
+    transport: string,
+  ): Promise<unknown>;
   /** Supplied by the broker adapter when immutable-source REST is enabled. */
   buildTransportSourceManifest?(
     destination: string,
@@ -257,9 +267,14 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/source-versions:read$/u.exec(
           path,
         );
+      const transportDetailMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transports\/([^/]+?)(\/objects)?$/u.exec(
+          path,
+        );
       const isRestOperation =
         isDestinationList ||
         (request.method === 'GET' && match) ||
+        (request.method === 'GET' && transportDetailMatch) ||
         (request.method === 'POST' &&
           (sourceManifestMatch || sourceVersionReadMatch));
       if (isRestOperation) {
@@ -306,6 +321,47 @@ export async function startAdtServer(
               : resource === 'packages'
                 ? await options.operations.searchPackages(destination)
                 : await options.operations.searchObjects(destination);
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'GET' && transportDetailMatch) {
+        const [, destination, rawTransport, objectsSuffix] =
+          transportDetailMatch;
+        try {
+          const transport = transportPathParameter.parse(rawTransport);
+          if (objectsSuffix) {
+            if (!options.operations.listTransportObjects) {
+              writeProblem(response, 404, 'Not found');
+              return;
+            }
+            const data = transportObjectsResponse.parse(
+              await options.operations.listTransportObjects(
+                destination!,
+                transport,
+              ),
+            );
+            response.writeHead(200, { 'content-type': 'application/json' });
+            response.end(JSON.stringify(data));
+            return;
+          }
+          if (!options.operations.getTransportDetail) {
+            writeProblem(response, 404, 'Not found');
+            return;
+          }
+          const data = transportDetailResponse.parse(
+            await options.operations.getTransportDetail(
+              destination!,
+              transport,
+            ),
+          );
           response.writeHead(200, { 'content-type': 'application/json' });
           response.end(JSON.stringify(data));
         } catch (error) {

@@ -52,3 +52,32 @@ test('documents the normalized, filterable system-wide transport search contract
   );
   assert.ok(!JSON.stringify(transportPath).includes('sourceUri'));
 });
+
+test('documents canonical transport detail and object reads without SAP URI fields', () => {
+  const paths = openApiDocument.paths as Record<
+    string,
+    { get?: { operationId?: string; responses?: Record<string, unknown> } }
+  >;
+
+  assert.strictEqual(
+    paths['/v1/destinations/{destination}/transports/{transport}']?.get
+      ?.operationId,
+    'getTransportDetail',
+  );
+  assert.strictEqual(
+    paths['/v1/destinations/{destination}/transports/{transport}/objects']?.get
+      ?.operationId,
+    'listTransportObjects',
+  );
+  assert.ok(
+    JSON.stringify(
+      paths['/v1/destinations/{destination}/transports/{transport}'],
+    ).includes('application/json'),
+  );
+  assert.ok(
+    JSON.stringify(
+      paths['/v1/destinations/{destination}/transports/{transport}/objects'],
+    ).includes('application/json'),
+  );
+  assert.ok(!JSON.stringify(openApiDocument).includes('sourceUri'));
+});
