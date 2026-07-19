@@ -18,6 +18,7 @@ import {
   assertMcpToolIsClassified,
   isMcpDestinationAllowed,
   isMcpToolAllowed,
+  isMcpToolResourceAllowed,
   isMcpToolListed,
   type McpOperationClass,
   type McpRequestAccess,
@@ -218,6 +219,7 @@ export function destinationModeServer(
           }
           if (
             !isMcpToolAllowed(access, name, toolArguments) ||
+            !isMcpToolResourceAllowed(access, name, toolArguments) ||
             !isMcpDestinationAllowed(access, toolArguments.destination)
           ) {
             return scopeDeniedResult();

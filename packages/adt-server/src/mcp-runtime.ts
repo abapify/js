@@ -100,9 +100,8 @@ export async function createAdtServerMcpOptions(
   if (!invocation) return undefined;
 
   const publicKey = await loadP256PublicKey(invocation.publicKeyFile);
-  const { leaseProvider, contextFactory } = createHttpDestinationContexts(
-    options.brokerOptions,
-  );
+  const { leaseProvider, contextFactory, resolveFrozenSource } =
+    createHttpDestinationContexts(options.brokerOptions);
   return {
     invocationVerifier: createMcpInvocationVerifier({
       publicKey,
@@ -114,6 +113,7 @@ export async function createAdtServerMcpOptions(
       leaseProvider,
       contextFactory,
     }),
+    resolveFrozenSource,
     allowedHosts: allowedHostsFromEnv(options.env),
   };
 }
