@@ -394,14 +394,26 @@ test('REST source reads redeem an opaque destination-bound manifest capability',
           scopeTransports: ['DEVK900001'],
           entries: [
             {
-              canonicalKey: 'CLAS:ZCL_SAFE',
+              object: {
+                pgmid: 'R3TR',
+                type: 'CLAS',
+                name: 'ZCL_SAFE',
+              },
               component: {
                 id: 'main',
                 sourceUri: '/sap/bc/adt/oo/classes/zcl_safe/source/main',
                 versionsUri:
                   '/sap/bc/adt/oo/classes/zcl_safe/source/main/versions',
               },
-              head: { id: 'version-1', sourceUri },
+              sourceTransport: 'DEVK900001',
+              changeKind: 'modified',
+              exact: true,
+              head: {
+                id: 'version-1',
+                ordinal: 0,
+                sourceUri,
+                transports: ['DEVK900001'],
+              },
             },
           ],
         };

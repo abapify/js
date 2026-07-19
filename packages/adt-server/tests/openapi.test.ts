@@ -10,7 +10,15 @@ test('is valid OpenAPI 3.1', async () => {
 test('documents the capability-bound immutable source REST pair without SAP URI fields', () => {
   const paths = openApiDocument.paths as Record<
     string,
-    { post?: { operationId?: string } }
+    {
+      post?: {
+        operationId?: string;
+        responses?: Record<
+          string,
+          { content?: Record<string, { schema?: unknown }> }
+        >;
+      };
+    }
   >;
 
   assert.strictEqual(
@@ -22,6 +30,14 @@ test('documents the capability-bound immutable source REST pair without SAP URI 
     paths['/v1/destinations/{destination}/source-versions:read']?.post
       ?.operationId,
     'readSourceVersion',
+  );
+  assert.ok(
+    paths['/v1/destinations/{destination}/transport-source-manifests']?.post
+      ?.responses?.['200']?.content?.['application/json']?.schema,
+  );
+  assert.ok(
+    paths['/v1/destinations/{destination}/source-versions:read']?.post
+      ?.responses?.['200']?.content?.['application/json']?.schema,
   );
   assert.ok(!JSON.stringify(openApiDocument).includes('sourceUri'));
 });
