@@ -124,3 +124,89 @@ test('reads an immutable source through the bounded ADT primitive', async () => 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('lists all system transport headers through CTS FIND and filters ADT-side', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const transportFindCalls: unknown[] = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          destination: 'dev',
+          version: 1,
+          expiresAt: '2026-07-20T00:00:00.000Z',
+          connection: {
+            baseUrl: 'https://sap.example.test',
+            sapClient: null,
+            authMethod: 'basic',
+            authConfig: { username: 'service', password: 'secret' },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    createClient: async () =>
+      ({
+        adt: {
+          cts: {
+            transports: {
+              async find(input: unknown) {
+                transportFindCalls.push(input);
+                return {
+                  values: {
+                    DATA: {
+                      CTS_REQ_HEADER: [
+                        {
+                          TRKORR: 'DEVK900001',
+                          AS4USER: 'ALICE',
+                          AS4TEXT: 'Safe refactor',
+                          TRSTATUS: 'D',
+                          TRFUNCTION: 'K',
+                          AS4DATE: '2026-07-19',
+                          AS4TIME: '12:00:00',
+                        },
+                        {
+                          TRKORR: 'DEVK900002',
+                          AS4USER: 'BOB',
+                          AS4TEXT: 'Released change',
+                          TRSTATUS: 'R',
+                          TRFUNCTION: 'W',
+                        },
+                      ],
+                    },
+                  },
+                };
+              },
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.listTransports('dev', {
+      owner: 'alice',
+      status: 'modifiable',
+      includeTasks: false,
+    });
+    assert.deepStrictEqual(transportFindCalls, [
+      { _action: 'FIND', user: '*', trfunction: '*' },
+    ]);
+    assert.deepStrictEqual(result, [
+      {
+        trkorr: 'DEVK900001',
+        owner: 'ALICE',
+        description: 'Safe refactor',
+        status: 'modifiable',
+        statusRaw: 'D',
+        trFunction: 'K',
+        changedAt: '2026-07-19T12:00:00Z',
+      },
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
