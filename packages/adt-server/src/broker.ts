@@ -6,6 +6,7 @@ import type {
   DestinationLeaseProvider,
 } from '@abapify/adt-mcp';
 import type { DestinationSummary, AdtServerOperations } from './server.js';
+import type { TransportSearchCriteria } from './rest-schemas.js';
 
 export interface HttpBrokerOptions {
   baseUrl: string;
@@ -25,6 +26,127 @@ interface BrokerLease {
   version: number;
   expiresAt: string;
   connection: BrokerConnection;
+}
+
+interface CtsRequestHeader {
+  TRKORR: string;
+  TRFUNCTION?: string;
+  TRSTATUS?: string;
+  TARSYSTEM?: string;
+  AS4USER?: string;
+  AS4DATE?: string;
+  AS4TIME?: string;
+  AS4TEXT?: string;
+  CLIENT?: string;
+}
+
+interface TransportSummary {
+  trkorr: string;
+  owner: string;
+  description: string;
+  status: string;
+  statusRaw?: string;
+  trFunction?: string;
+  target?: string;
+  client?: string;
+  changedAt?: string;
+}
+
+function mapTransportStatus(status?: string): string {
+  switch (status) {
+    case 'R':
+      return 'released';
+    case 'D':
+    case 'L':
+      return 'modifiable';
+    case 'O':
+    case 'P':
+      return 'release_started';
+    default:
+      return status ? status.toLowerCase() : '';
+  }
+}
+
+function toTransportSummary(header: CtsRequestHeader): TransportSummary {
+  return {
+    trkorr: header.TRKORR,
+    owner: header.AS4USER ?? '',
+    description: header.AS4TEXT ?? '',
+    status: mapTransportStatus(header.TRSTATUS),
+    ...(header.TRSTATUS ? { statusRaw: header.TRSTATUS } : {}),
+    ...(header.TRFUNCTION ? { trFunction: header.TRFUNCTION } : {}),
+    ...(header.TARSYSTEM ? { target: header.TARSYSTEM } : {}),
+    ...(header.CLIENT ? { client: header.CLIENT } : {}),
+    ...(header.AS4DATE
+      ? { changedAt: `${header.AS4DATE}T${header.AS4TIME ?? '00:00:00'}Z` }
+      : {}),
+  };
+}
+
+function same(value: string | undefined, expected: string): boolean {
+  return (value ?? '').toLowerCase() === expected.toLowerCase();
+}
+
+function matchesText(transport: TransportSummary, value: string): boolean {
+  if (value === '*') return true;
+  if (value.endsWith('*')) {
+    const prefix = value.slice(0, -1).trim();
+    return (
+      prefix.length > 0 &&
+      transport.trkorr.toLowerCase().startsWith(prefix.toLowerCase())
+    );
+  }
+  return (
+    same(transport.trkorr, value) ||
+    `${transport.description} ${transport.owner}`
+      .toLowerCase()
+      .includes(value.toLowerCase())
+  );
+}
+
+function filterTransports(
+  transports: TransportSummary[],
+  criteria?: TransportSearchCriteria,
+): TransportSummary[] {
+  if (!criteria) return transports;
+  return transports.filter((transport) => {
+    if (
+      criteria.includeTasks === false &&
+      transport.trFunction &&
+      ['S', 'R', 'X', 'Q'].includes(transport.trFunction.toUpperCase())
+    )
+      return false;
+    if (criteria.owner && !same(transport.owner, criteria.owner)) return false;
+    if (criteria.type && !same(transport.trFunction, criteria.type))
+      return false;
+    if (criteria.status && !same(transport.status, criteria.status))
+      return false;
+    if (criteria.target && !same(transport.target, criteria.target))
+      return false;
+    const date = transport.changedAt?.slice(0, 10);
+    if (criteria.dateFrom && (!date || date < criteria.dateFrom)) return false;
+    if (criteria.dateTo && (!date || date > criteria.dateTo)) return false;
+    if (criteria.text && !matchesText(transport, criteria.text)) return false;
+    return true;
+  });
+}
+
+function extractTransportHeaders(response: unknown): CtsRequestHeader[] {
+  const root = response as {
+    abap?: { values?: { DATA?: { CTS_REQ_HEADER?: unknown } } };
+    values?: { DATA?: { CTS_REQ_HEADER?: unknown } };
+  };
+  const headers =
+    root.abap?.values?.DATA?.CTS_REQ_HEADER ??
+    root.values?.DATA?.CTS_REQ_HEADER;
+  if (!headers) return [];
+  return (Array.isArray(headers) ? headers : [headers]).flatMap((header) =>
+    header &&
+    typeof header === 'object' &&
+    typeof (header as { TRKORR?: unknown }).TRKORR === 'string'
+      ? [header as CtsRequestHeader]
+      : [],
+  );
 }
 
 /** ARM-private broker client. It exposes only safe summaries to the public server layer. */
@@ -75,11 +197,18 @@ export function createHttpBrokerOperations(
       ).json()) as { data?: DestinationSummary[] };
       return Array.isArray(body.data) ? body.data : [];
     },
-    async listTransports(destination) {
-      return await withClient(
-        destination,
-        async (client) => await client.services.transports.list(),
-      );
+    async listTransports(destination, criteria) {
+      return await withClient(destination, async (client) => {
+        const response = await client.adt.cts.transports.find({
+          _action: 'FIND',
+          user: '*',
+          trfunction: '*',
+        });
+        return filterTransports(
+          extractTransportHeaders(response).map(toTransportSummary),
+          criteria,
+        );
+      });
     },
     async searchPackages(destination) {
       return await withClient(

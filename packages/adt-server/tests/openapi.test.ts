@@ -25,3 +25,30 @@ test('documents the capability-bound immutable source REST pair without SAP URI 
   );
   assert.ok(!JSON.stringify(openApiDocument).includes('sourceUri'));
 });
+
+test('documents the normalized, filterable system-wide transport search contract', () => {
+  const transportPath =
+    openApiDocument.paths['/v1/destinations/{destination}/transports'].get;
+
+  assert.strictEqual(transportPath.operationId, 'listTransports');
+  assert.deepStrictEqual(
+    transportPath.parameters?.map((parameter) =>
+      '$ref' in parameter ? parameter.$ref : parameter.name,
+    ),
+    [
+      '#/components/parameters/destination',
+      'owner',
+      'type',
+      'status',
+      'target',
+      'dateFrom',
+      'dateTo',
+      'text',
+      'includeTasks',
+    ],
+  );
+  assert.ok(
+    transportPath.responses['200'].content?.['application/json'].schema,
+  );
+  assert.ok(!JSON.stringify(transportPath).includes('sourceUri'));
+});
