@@ -7,7 +7,10 @@ import type {
   DestinationLeaseProvider,
 } from '@abapify/adt-mcp';
 import type { DestinationSummary, AdtServerOperations } from './server.js';
-import type { TransportSearchCriteria } from './rest-schemas.js';
+import type {
+  PackageSearchCriteria,
+  TransportSearchCriteria,
+} from './rest-schemas.js';
 
 export interface HttpBrokerOptions {
   baseUrl: string;
@@ -209,6 +212,43 @@ function toTransportDetail(
       ),
     ),
   };
+}
+
+function quickSearchReferences(response: unknown): UnknownRecord[] {
+  const root = record(response) ?? {};
+  const references =
+    record(root.objectReferences)?.objectReference ??
+    root.objectReference ??
+    record(root.mainObject)?.objectReference;
+  return records(references);
+}
+
+function packageSearchQuery(query?: string): string {
+  const trimmed = query?.trim();
+  return !trimmed ? '*' : /[*?]/u.test(trimmed) ? trimmed : `${trimmed}*`;
+}
+
+function toPackageNodes(value: unknown): Array<{
+  name: string;
+  parent?: string;
+  description?: string;
+}> {
+  const seen = new Set<string>();
+  return quickSearchReferences(value).flatMap((entry) => {
+    const type = stringField(entry, 'type')?.toUpperCase();
+    const name = stringField(entry, 'name')?.toUpperCase();
+    if (!type?.startsWith('DEVC') || !name || seen.has(name)) return [];
+    seen.add(name);
+    const parent = stringField(entry, 'packageName')?.toUpperCase();
+    const description = stringField(entry, 'description');
+    return [
+      {
+        name,
+        ...(parent && parent !== name ? { parent } : {}),
+        ...(description ? { description } : {}),
+      },
+    ];
+  });
 }
 
 function mapTransportStatus(status?: string): string {
@@ -443,16 +483,24 @@ export function createHttpBrokerOperations(
         },
       );
     },
-    async searchPackages(destination) {
+    async searchPackages(destination, criteria: PackageSearchCriteria = {}) {
       return await withClient(
         destination,
         'search_packages',
-        async (client) =>
-          await client.adt.repository.informationsystem.search.quickSearch({
-            query: '*',
-            objectType: 'DEVC',
-            maxResults: 500,
-          }),
+        async (client) => {
+          const cap = criteria.maxResults ?? 5_000;
+          const response =
+            await client.adt.repository.informationsystem.search.quickSearch({
+              query: packageSearchQuery(criteria.q),
+              objectType: 'DEVC',
+              maxResults: cap + 1,
+            });
+          const packages = toPackageNodes(response);
+          return {
+            data: packages.slice(0, cap),
+            truncated: quickSearchReferences(response).length >= cap,
+          };
+        },
       );
     },
     async searchObjects(destination) {

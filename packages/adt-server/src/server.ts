@@ -13,6 +13,13 @@ import {
   createRestSourceCapabilityService,
 } from './source-capabilities.js';
 import {
+  RestPageCursorError,
+  createRestPageCursorService,
+} from './page-cursors.js';
+import {
+  packagePageResponse,
+  packageSearchResult,
+  parsePackageSearchQuery,
   sourceVersionReadBody,
   sourceVersionReadResponse,
   transportDetailResponse,
@@ -60,7 +67,10 @@ export interface AdtServerOperations {
     destination: string,
     criteria?: TransportSearchCriteria,
   ): Promise<unknown>;
-  searchPackages(destination: string): Promise<unknown>;
+  searchPackages(
+    destination: string,
+    criteria?: import('./rest-schemas.js').PackageSearchCriteria,
+  ): Promise<unknown>;
   searchObjects(destination: string): Promise<unknown>;
   /** Public canonical detail; never contains SAP URI fields. */
   getTransportDetail?(destination: string, transport: string): Promise<unknown>;
@@ -115,6 +125,7 @@ export interface AdtServerOptions {
   restAuthorizer?: RestServiceAuthorizer;
   /** Production REST uses a deployment-shared secret; tests may use a local one. */
   sourceCapabilities?: ReturnType<typeof createRestSourceCapabilityService>;
+  pageCursors?: ReturnType<typeof createRestPageCursorService>;
 }
 
 export interface RunningAdtServer {
@@ -196,6 +207,7 @@ export async function startAdtServer(
   const host = options.host ?? '127.0.0.1';
   const sourceCapabilities =
     options.sourceCapabilities ?? createRestSourceCapabilityService();
+  const pageCursors = options.pageCursors ?? createRestPageCursorService();
   const mcpHandler = options.mcp
     ? createHttpMcpHandler({
         host,
@@ -311,6 +323,36 @@ export async function startAdtServer(
       }
       if (request.method === 'GET' && match) {
         const [, destination, resource] = match;
+        if (resource === 'packages') {
+          try {
+            const { criteria, page } = parsePackageSearchQuery(
+              readQuery(request),
+            );
+            const result = packageSearchResult.parse(
+              await options.operations.searchPackages(destination!, criteria),
+            );
+            const data = packagePageResponse.parse(
+              pageCursors.paginate({
+                ...result,
+                ...page,
+                fingerprint: `packages:${destination}:${criteria.q ?? '*'}:${criteria.maxResults ?? 5_000}`,
+                keyOf: (entry) => entry.name,
+              }),
+            );
+            response.writeHead(200, { 'content-type': 'application/json' });
+            response.end(JSON.stringify(data));
+          } catch (error) {
+            if (
+              error instanceof z.ZodError ||
+              error instanceof RestPageCursorError
+            ) {
+              writeProblem(response, 400, 'Invalid request');
+              return;
+            }
+            throw error;
+          }
+          return;
+        }
         try {
           const data =
             resource === 'transports'
@@ -320,9 +362,7 @@ export async function startAdtServer(
                     parseTransportSearchQuery(readQuery(request)),
                   ),
                 )
-              : resource === 'packages'
-                ? await options.operations.searchPackages(destination)
-                : await options.operations.searchObjects(destination);
+              : await options.operations.searchObjects(destination);
           response.writeHead(200, { 'content-type': 'application/json' });
           response.end(JSON.stringify(data));
         } catch (error) {
