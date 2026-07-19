@@ -199,28 +199,44 @@ function snapshotFrozenSourceAccess(
   ) {
     return undefined;
   }
-  const canonicalKeys = new Set<string>();
+  const sourceKeys = new Set<string>();
   const sourceRefs = new Set<string>();
-  const sources: { canonicalKey: string; sourceRef: string }[] = [];
+  const sources: {
+    canonicalKey: string;
+    componentId: string;
+    sourceRef: string;
+  }[] = [];
   for (const source of access.sources) {
+    const sourceKey =
+      source &&
+      typeof source.canonicalKey === 'string' &&
+      typeof source.componentId === 'string'
+        ? `${source.canonicalKey}\u0000${source.componentId}`
+        : undefined;
     if (
       !source ||
       typeof source.canonicalKey !== 'string' ||
       !/^[A-Z0-9_]+:.+$/u.test(source.canonicalKey) ||
+      typeof source.componentId !== 'string' ||
+      source.componentId.length === 0 ||
+      source.componentId.length > 512 ||
+      /[\s\u0000-\u001f\u007f]/u.test(source.componentId) ||
       typeof source.sourceRef !== 'string' ||
       source.sourceRef.length === 0 ||
       source.sourceRef.length > 8 * 1024 ||
       /[\s\u0000-\u001f\u007f]/u.test(source.sourceRef) ||
-      canonicalKeys.has(source.canonicalKey) ||
+      !sourceKey ||
+      sourceKeys.has(sourceKey) ||
       sourceRefs.has(source.sourceRef)
     ) {
       return undefined;
     }
-    canonicalKeys.add(source.canonicalKey);
+    sourceKeys.add(sourceKey);
     sourceRefs.add(source.sourceRef);
     sources.push(
       Object.freeze({
         canonicalKey: source.canonicalKey,
+        componentId: source.componentId,
         sourceRef: source.sourceRef,
       }),
     );

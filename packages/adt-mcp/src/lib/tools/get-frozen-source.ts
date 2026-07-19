@@ -1,9 +1,9 @@
 /**
  * Tool: get_frozen_source — disclose one immutable Review-bound source body.
  *
- * The model supplies an accepted canonical object key, never an ADT URI or an
- * opaque capability. Destination mode checks the signed policy before this
- * handler, then ADT's private broker redeems the hidden capability.
+ * The model supplies an accepted canonical object component, never an ADT URI
+ * or an opaque capability. Destination mode checks the signed policy before
+ * this handler, then ADT's private broker redeems the hidden capability.
  */
 
 import { Buffer } from 'node:buffer';
@@ -31,13 +31,21 @@ export function registerGetFrozenSourceTool(
         .string()
         .regex(/^[A-Z0-9_]+:.+$/u)
         .describe('Canonical object key from the accepted Review scope'),
+      componentId: z
+        .string()
+        .min(1)
+        .max(512)
+        .regex(/^[^\s\u0000-\u001f\u007f]+$/u)
+        .describe('Immutable source component from the accepted Review scope'),
     },
     async (args, extra) => {
       const access = ctx.requestAccess?.(extra ?? {});
       const frozenSource = access?.frozenSource;
       const destination = (args as { destination?: unknown }).destination;
       const source = frozenSource?.sources.find(
-        (candidate) => candidate.canonicalKey === args.canonicalKey,
+        (candidate) =>
+          candidate.canonicalKey === args.canonicalKey &&
+          candidate.componentId === args.componentId,
       );
       if (
         !source ||
@@ -86,6 +94,7 @@ export function registerGetFrozenSourceTool(
               type: 'text' as const,
               text: JSON.stringify({
                 canonicalKey: args.canonicalKey,
+                componentId: args.componentId,
                 bytes,
                 source: text,
               }),
