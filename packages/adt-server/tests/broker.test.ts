@@ -75,6 +75,7 @@ test('reads an immutable source through the bounded ADT primitive', async () => 
     fetch: async () =>
       new Response(
         JSON.stringify({
+          leaseId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
           destination: 'dev',
           version: 1,
           expiresAt: '2026-07-20T00:00:00.000Z',
@@ -136,6 +137,7 @@ test('lists all system transport headers through CTS FIND and filters ADT-side',
     fetch: async () =>
       new Response(
         JSON.stringify({
+          leaseId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           destination: 'dev',
           version: 1,
           expiresAt: '2026-07-20T00:00:00.000Z',
@@ -206,6 +208,152 @@ test('lists all system transport headers through CTS FIND and filters ADT-side',
         changedAt: '2026-07-19T12:00:00Z',
       },
     ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const requests: Array<{ url: string; body?: unknown }> = [];
+  let calls = 0;
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async (input, init) => {
+      const url = String(input);
+      requests.push({
+        url,
+        ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}),
+      });
+      if (url.endsWith(':acquire')) {
+        return new Response(
+          JSON.stringify({
+            leaseId:
+              calls++ === 0
+                ? '11111111-1111-4111-8111-111111111111'
+                : '22222222-2222-4222-8222-222222222222',
+            destination: 'dev',
+            version: 1,
+            expiresAt: '2026-07-20T00:00:00.000Z',
+            connection: {
+              baseUrl: 'https://sap.example.test',
+              sapClient: null,
+              authMethod: 'basic',
+              authConfig: { username: 'service', password: 'secret' },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response(null, { status: 204 });
+    },
+    createClient: async () => {
+      if (calls === 2) throw new Error('client setup failed');
+      return {
+        services: {
+          transports: {
+            async list() {
+              return [];
+            },
+          },
+        },
+        adt: {
+          cts: {
+            transports: {
+              async find() {
+                return { values: { DATA: { CTS_REQ_HEADER: [] } } };
+              },
+            },
+          },
+        },
+      } as never;
+    },
+  });
+
+  try {
+    await operations.listTransports('dev');
+    await assert.rejects(() => operations.listTransports('dev'));
+    const releases = requests.filter((request) =>
+      request.url.endsWith(':release'),
+    );
+    assert.deepStrictEqual(
+      releases.map((request) => {
+        const body = request.body as Record<string, unknown>;
+        assert.ok(typeof body.durationMs === 'number' && body.durationMs >= 0);
+        const { durationMs: _durationMs, ...safeBody } = body;
+        return safeBody;
+      }),
+      [
+        {
+          leaseId: '11111111-1111-4111-8111-111111111111',
+          operation: 'list_transports',
+          outcome: 'succeeded',
+        },
+        {
+          leaseId: '22222222-2222-4222-8222-222222222222',
+          operation: 'list_transports',
+          outcome: 'failed',
+          errorCode: 'client_creation_failed',
+        },
+      ],
+    );
+    assert.ok(!JSON.stringify(releases).includes('secret'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('releases an MCP destination context through the private broker', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const requests: Array<{ url: string; body?: unknown }> = [];
+  const contexts = createHttpDestinationContexts({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async (input, init) => {
+      const url = String(input);
+      requests.push({
+        url,
+        ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}),
+      });
+      if (url.endsWith(':acquire')) {
+        return new Response(
+          JSON.stringify({
+            leaseId: '33333333-3333-4333-8333-333333333333',
+            destination: 'dev',
+            version: 1,
+            expiresAt: '2026-07-20T00:00:00.000Z',
+            connection: {
+              baseUrl: 'https://sap.example.test',
+              sapClient: null,
+              authMethod: 'basic',
+              authConfig: { username: 'service', password: 'secret' },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response(null, { status: 204 });
+    },
+  });
+
+  try {
+    const lease = await contexts.leaseProvider.acquire({ destination: 'dev' });
+    await lease.release();
+    const release = requests.find((request) =>
+      request.url.endsWith(':release'),
+    );
+    assert.ok(release);
+    assert.deepStrictEqual(release.body, {
+      leaseId: '33333333-3333-4333-8333-333333333333',
+      operation: 'mcp_destination_context',
+      outcome: 'succeeded',
+      durationMs: 0,
+    });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
