@@ -33,8 +33,8 @@ export interface ApplyOptions {
   /** Activate saved objects after each tier. Default: true. */
   activate?: boolean;
   /**
-   * Force-unlock objects currently locked by the authenticated user before
-   * the batch lock session begins. Mirrors `adt export --unlock`.
+   * Release locks for which this client persisted a handle before the batch
+   * lock session begins. Mirrors `adt export --unlock`.
    */
   unlock?: boolean;
   /** Per-tier progress hook. */
@@ -103,13 +103,14 @@ export async function applyPlan(
       continue;
     }
 
-    // Optional: force-unlock stale locks owned by the current user.
+    // Optional: release only persisted stale locks. SAP cannot disclose a
+    // lost handle by issuing another LOCK.
     if (options.unlock && ctx.lockService) {
       for (const entry of group.entries) {
         try {
           await ctx.lockService.forceUnlock(entry.object.objectUri);
         } catch {
-          /* not locked or locked by another user — ignore */
+          /* no persisted handle or server rejected it — preflight reports it */
         }
       }
     }

@@ -42,6 +42,10 @@ export default {
       name: 'name',
       type: 'xsd:string',
     },
+    {
+      name: 'content',
+      type: 'atom:contentType',
+    },
   ],
   complexType: [
     {
@@ -54,6 +58,22 @@ export default {
           },
         ],
       },
+    },
+    {
+      name: 'contentType',
+      mixed: true,
+      attribute: [
+        {
+          name: 'type',
+          type: 'xsd:string',
+          use: 'optional',
+        },
+        {
+          name: 'src',
+          type: 'xsd:string',
+          use: 'optional',
+        },
+      ],
     },
     {
       name: 'entryType',
@@ -78,6 +98,10 @@ export default {
           },
           {
             ref: 'atom:author',
+            minOccurs: '0',
+          },
+          {
+            ref: 'atom:content',
             minOccurs: '0',
           },
         ],

@@ -7,72 +7,72 @@
 
 export type CheckrunSchema = {
     checkObjectList: {
-        checkObject?: {
-            extension?: unknown;
-            artifacts?: {
-                artifact?: {
-                    content?: string;
-                    uri?: string;
-                    contentType?: string;
+        checkObject?: undefined | {
+            extension?: undefined | unknown;
+            artifacts?: undefined | {
+                artifact?: undefined | {
+                    content?: string | undefined;
+                    uri?: string | undefined;
+                    contentType?: string | undefined;
                 }[];
             }[];
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
-            version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
+            version?: undefined | "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
         }[];
     };
 } | {
     checkRunReports: {
-        checkReport?: {
-            checkMessageList?: {
-                checkMessage?: {
-                    t100Key?: {
-                        msgno?: number;
-                        msgid?: string;
-                        msgv1?: string;
-                        msgv2?: string;
-                        msgv3?: string;
-                        msgv4?: string;
+        checkReport?: undefined | {
+            checkMessageList?: undefined | {
+                checkMessage?: undefined | {
+                    t100Key?: undefined | {
+                        msgno?: number | undefined;
+                        msgid?: string | undefined;
+                        msgv1?: string | undefined;
+                        msgv2?: string | undefined;
+                        msgv3?: string | undefined;
+                        msgv4?: string | undefined;
                     };
-                    correctionHint?: {
-                        number?: number;
-                        kind?: string;
-                        line?: number;
-                        column?: number;
-                        word?: string;
+                    correctionHint?: undefined | {
+                        number?: number | undefined;
+                        kind?: string | undefined;
+                        line?: number | undefined;
+                        column?: number | undefined;
+                        word?: string | undefined;
                     }[];
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    uri?: string;
-                    type?: unknown;
-                    shortText?: string;
-                    category?: string;
-                    code?: string;
+                    uri?: string | undefined;
+                    type?: undefined | unknown;
+                    shortText?: string | undefined;
+                    category?: string | undefined;
+                    code?: string | undefined;
                 }[];
             };
-            reporter?: string;
-            triggeringUri?: string;
-            status?: string;
-            statusText?: string;
+            reporter?: string | undefined;
+            triggeringUri?: string | undefined;
+            status?: string | undefined;
+            statusText?: string | undefined;
         }[];
     };
 } | {
     checkReporters: {
-        reporter?: {
-            supportedType?: string[];
-            name?: string;
+        reporter?: undefined | {
+            supportedType?: undefined | string[];
+            name?: string | undefined;
         }[];
     };
 };

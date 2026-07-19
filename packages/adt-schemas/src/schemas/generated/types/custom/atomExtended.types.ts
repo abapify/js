@@ -9,19 +9,19 @@ export type AtomExtendedSchema = {
     title: string;
 } | {
     category: {
-        term?: string;
-        scheme?: string;
-        label?: string;
+        term?: string | undefined;
+        scheme?: string | undefined;
+        label?: string | undefined;
     };
 } | {
     link: {
         href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
+        rel?: string | undefined;
+        type?: string | undefined;
+        hreflang?: string | undefined;
+        title?: string | undefined;
+        length?: number | undefined;
+        etag?: string | undefined;
+        _text?: string | undefined;
     };
 };

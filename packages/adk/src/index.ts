@@ -20,6 +20,7 @@ export { createLockService } from '@abapify/adt-locks';
 export {
   AdkObject,
   AdkMainObject,
+  AdkPostCreateLockError,
   type LockHandle,
   type SaveOptions,
   type ActivationResult,
@@ -181,6 +182,29 @@ export {
   type TransportResponse,
   type ResolvedTransportObjects,
 } from './objects/cts';
+
+// CTS source-history manifest (metadata references only)
+export {
+  buildTransportSourceManifest,
+  listObjectSourceVersions,
+  ObjectSourceHistoryError,
+  selectTransportSourceVersions,
+  type BuildTransportSourceManifestOptions,
+  type ListObjectSourceVersionsOptions,
+  type ObjectSourceHistoryErrorCode,
+  type ObjectSourceHistoryIdentity,
+  type ObjectSourceVersionsComponent,
+  type ObjectSourceVersionsResult,
+  type SourceHistoryDiagnostic,
+  type SourceHistoryDiagnosticCode,
+  type TransportSourceChangeKind,
+  type TransportSourceDiagnostic,
+  type TransportSourceManifest,
+  type TransportSourceManifestComponent,
+  type TransportSourceManifestEntry,
+  type TransportSourceManifestObject,
+  type TransportSourceVersionSelection,
+} from './transport-source-manifest';
 
 // Factory and registry
 export type { AdkFactory } from './factory';

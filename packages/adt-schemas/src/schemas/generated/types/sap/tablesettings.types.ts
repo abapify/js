@@ -7,21 +7,21 @@
 
 export type TablesettingsSchema = {
     tableSettings: {
-        containerRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        containerRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
-        adtTemplate?: {
-            adtProperty?: {
-                $value?: string;
-                key?: string;
+        adtTemplate?: undefined | {
+            adtProperty?: undefined | {
+                $value?: string | undefined;
+                key?: string | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         };
         dataClassCategory: string;
         sizeCategory: string;
@@ -34,32 +34,32 @@ export type TablesettingsSchema = {
         sharingType: "" | "R" | "L" | "W" | "T" | "S";
         loadUnit: "" | "A" | "P" | "Q";
         translation: {
-            value?: "" | "N" | "X" | "L" | "T";
-            granularity?: "" | "1" | "2";
-            isVisible?: boolean;
-            isEditable?: boolean;
+            value?: undefined | "" | "N" | "X" | "L" | "T";
+            granularity?: undefined | "" | "1" | "2";
+            isVisible?: boolean | undefined;
+            isEditable?: boolean | undefined;
         };
         loggingEnabled: boolean;
         supportsLoggingAssessment: boolean;
         isWritableByAMDP: boolean;
         name: string;
         type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
+        changedBy?: string | undefined;
+        changedAt?: string | undefined;
+        createdAt?: string | undefined;
+        createdBy?: string | undefined;
+        version?: undefined | "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+        description?: string | undefined;
+        descriptionTextLimit?: number | undefined;
+        language?: string | undefined;
     };
 } | {
     loggingAssessment: {
         allowed: boolean;
         rating: "" | "REQUIRED" | "NOT_REQUIRED" | "MAY_BE_REQUIRED" | "UNDEFINED";
         reason: string;
-        isVisible?: boolean;
-        isEditable?: boolean;
-        name?: string;
+        isVisible?: boolean | undefined;
+        isEditable?: boolean | undefined;
+        name?: string | undefined;
     };
 };

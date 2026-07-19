@@ -57,6 +57,11 @@ export const registry = {
     search: {
       quickSearch: 'repository/search/quickSearch.xml',
     },
+    sourceversions: {
+      // Sanitized metadata-only TRL response. It intentionally contains no
+      // ABAP source body; immutable source is represented by atom:content/@src.
+      program: 'repository/sourceversions/program.xml',
+    },
   },
   system: {
     users: {

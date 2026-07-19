@@ -7,18 +7,18 @@
 
 export type TransportUseractionSchema = {
     root: {
-        request?: {
-            task?: {
-                owner?: string;
+        request?: undefined | {
+            task?: undefined | {
+                owner?: string | undefined;
             }[];
-            desc?: string;
-            type?: string;
-            target?: string;
-            cts_project?: string;
+            desc?: string | undefined;
+            type?: string | undefined;
+            target?: string | undefined;
+            cts_project?: string | undefined;
         };
-        useraction?: string;
-        targetuser?: string;
-        recursive?: string;
-        useraction_desc?: string;
+        useraction?: string | undefined;
+        targetuser?: string | undefined;
+        recursive?: string | undefined;
+        useraction_desc?: string | undefined;
     };
 };

@@ -32,7 +32,11 @@ export type {
   LockOptions,
   UnlockOptions,
 } from './service';
-export { createLockService, parseLockResponse } from './service';
+export {
+  AdtLockHandleUnavailableError,
+  createLockService,
+  parseLockResponse,
+} from './service';
 
 // Batch session — acquire/release N locks atomically (best-effort rollback).
 export {

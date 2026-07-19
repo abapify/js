@@ -7,20 +7,20 @@
 
 export type TemplatelinkExtendedSchema = {
     templateLinks: {
-        templateLink?: {
+        templateLink?: undefined | {
             template: string;
             rel: string;
-            type?: string;
-            title?: string;
-            _text?: string;
+            type?: string | undefined;
+            title?: string | undefined;
+            _text?: string | undefined;
         }[];
     };
 } | {
     templateLink: {
         template: string;
         rel: string;
-        type?: string;
-        title?: string;
-        _text?: string;
+        type?: string | undefined;
+        title?: string | undefined;
+        _text?: string | undefined;
     };
 };

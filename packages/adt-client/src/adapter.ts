@@ -25,6 +25,104 @@ export interface AdtAdapterConfig extends AdtConnectionConfig {
   onSessionExpired?: () => Promise<string>;
 }
 
+/** Options for an authenticated GET that returns plain text. */
+export interface BoundedTextRequestOptions {
+  url: string;
+  headers?: Record<string, string>;
+}
+
+/**
+ * A response exceeded an explicit byte cap before its body was retained.
+ * Deliberately carries size metadata only, never response text.
+ */
+export class AdtResponseTooLargeError extends Error {
+  readonly code = 'ADT_RESPONSE_TOO_LARGE' as const;
+
+  constructor(
+    readonly maxBytes: number,
+    readonly receivedBytes?: number,
+  ) {
+    super(`ADT response exceeds the ${maxBytes}-byte limit.`);
+    this.name = 'AdtResponseTooLargeError';
+  }
+}
+
+function contentLengthExceedsLimit(
+  contentLength: string | null,
+  maxBytes: number,
+): number | undefined {
+  if (!contentLength || !/^\d+$/.test(contentLength)) return undefined;
+
+  const parsed = Number(contentLength);
+  return Number.isSafeInteger(parsed) && parsed > maxBytes ? parsed : undefined;
+}
+
+async function abortResponse(
+  response: Response,
+  abortController: AbortController,
+): Promise<void> {
+  abortController.abort();
+  try {
+    await response.body?.cancel();
+  } catch {
+    // A reader may already own the stream; its cancellation is handled there.
+  }
+}
+
+async function readResponseTextBounded(
+  response: Response,
+  maxBytes: number,
+  abortController: AbortController,
+): Promise<string> {
+  const declaredBytes = contentLengthExceedsLimit(
+    response.headers.get('content-length'),
+    maxBytes,
+  );
+  if (declaredBytes !== undefined) {
+    await abortResponse(response, abortController);
+    throw new AdtResponseTooLargeError(maxBytes, declaredBytes);
+  }
+
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let receivedBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      const nextReceivedBytes = receivedBytes + value.byteLength;
+      if (nextReceivedBytes > maxBytes) {
+        abortController.abort();
+        try {
+          await reader.cancel();
+        } catch {
+          // Abort is already enough to stop the transport if stream cancel fails.
+        }
+        throw new AdtResponseTooLargeError(maxBytes, nextReceivedBytes);
+      }
+
+      chunks.push(value);
+      receivedBytes = nextReceivedBytes;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const combined = new Uint8Array(receivedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new TextDecoder().decode(combined);
+}
+
 /**
  * Create ADT HTTP adapter with Basic or SAML Authentication and plugin support
  */
@@ -32,6 +130,11 @@ export interface AdtAdapterConfig extends AdtConnectionConfig {
 export interface AdtHttpAdapter extends HttpAdapter {
   /** Clear cached ETag for a specific URL, or all ETags if no URL given */
   clearETag(url?: string): void;
+  /** Read an authenticated plain-text response without exceeding maxBytes. */
+  readTextBounded(
+    options: BoundedTextRequestOptions,
+    maxBytes: number,
+  ): Promise<string>;
 }
 
 export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
@@ -88,7 +191,12 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       // Add query parameters
       if (options.query) {
         Object.entries(options.query).forEach(([key, value]) => {
-          url.searchParams.append(key, String(value));
+          const values = Array.isArray(value) ? value : [value];
+          values.forEach((entry) => {
+            if (entry !== undefined) {
+              url.searchParams.append(key, String(entry));
+            }
+          });
         });
       }
 
@@ -409,6 +517,52 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
 
     clearETag(url?: string) {
       sessionManager.clearETag(url);
+    },
+
+    async readTextBounded(
+      options: BoundedTextRequestOptions,
+      maxBytes: number,
+    ): Promise<string> {
+      if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) {
+        throw new RangeError('maxBytes must be a non-negative safe integer.');
+      }
+
+      const url = new URL(options.url, baseUrl);
+      if (client) url.searchParams.append('sap-client', client);
+      if (language) url.searchParams.append('sap-language', language);
+
+      const headers: Record<string, string> = {
+        'X-sap-adt-sessiontype': sessionManager.getSessionTypeHeader(),
+        ...sessionManager.getRequestHeaders('GET', url.pathname),
+        ...options.headers,
+      };
+      if (authHeader) headers.Authorization = authHeader;
+
+      const abortController = new AbortController();
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers,
+        signal: abortController.signal,
+      });
+      sessionManager.processResponse(response, url.pathname);
+
+      const text = await readResponseTextBounded(
+        response,
+        maxBytes,
+        abortController,
+      );
+
+      if (!response.ok) {
+        throw createAdtError(
+          response.status,
+          response.statusText,
+          url.toString(),
+          'GET',
+          text,
+        );
+      }
+
+      return text;
     },
   };
 }
