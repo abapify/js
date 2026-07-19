@@ -7,8 +7,27 @@
 
 export { createMcpServer, type McpServerOptions } from './lib/server';
 export { registerTools } from './lib/tools/index';
+export {
+  MCP_TOOL_SCOPE_CATALOGUE,
+  assertMcpToolIsClassified,
+  isMcpToolAllowed,
+  operationClassForMcpTool,
+  type McpOperationClass,
+  type McpRequestAccess,
+  type McpToolScope,
+} from './lib/tools/scope-catalogue.js';
 export type { ConnectionParams, ToolContext } from './lib/types';
 export type { SapSessionContext } from './lib/session/types';
+export {
+  createDestinationContextRegistry,
+  type DestinationContext,
+  type DestinationContextFactory,
+  type DestinationContextRegistry,
+  type DestinationContextRegistryOptions,
+  type DestinationLease,
+  type DestinationLeaseProvider,
+  type RequestIdentity,
+} from './lib/session/destination-registry.js';
 export {
   createSessionRegistry,
   type SessionRegistry,
