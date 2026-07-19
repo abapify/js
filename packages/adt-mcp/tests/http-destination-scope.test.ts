@@ -36,7 +36,7 @@ test('HTTP destination mode projects only read-scoped tools without weakening hi
     destinationServer: {
       destinationRegistry: destinations,
       requestIdentity: () => ({ principal: 'http-list-scope-test' }),
-      requestAccess: () => ({ classes: ['read'] }),
+      requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
     },
     log: () => undefined,
   });
@@ -109,10 +109,238 @@ test('HTTP destination mode projects only read-scoped tools without weakening hi
   }
 });
 
+test('HTTP destination mode snapshots trusted access against provider mutation', async () => {
+  let leases = 0;
+  let contexts = 0;
+  const access: {
+    classes: Array<'read' | 'write'>;
+    destinationKeys: string[];
+  } = {
+    classes: ['read'],
+    destinationKeys: ['dev'],
+  };
+  const destinations = createDestinationContextRegistry({
+    leaseProvider: {
+      async acquire({ destination }) {
+        leases++;
+        return {
+          destination,
+          expiresAt: Date.now() + 60_000,
+          version: 1,
+          material: {},
+          release: async () => undefined,
+        };
+      },
+    },
+    contextFactory: {
+      async create() {
+        contexts++;
+        return { client: {} as never, close: async () => undefined };
+      },
+    },
+    ttlMs: 0,
+  });
+  const server = await startHttpServer({
+    port: 0,
+    host: '127.0.0.1',
+    multiSystem: { systems: {}, resolve: () => undefined },
+    destinationServer: {
+      destinationRegistry: destinations,
+      requestIdentity: () => ({ principal: 'http-access-snapshot-test' }),
+      requestAccess: () => access,
+    },
+    log: () => undefined,
+  });
+  const transport = new StreamableHTTPClientTransport(new URL(server.url));
+  const client = new Client({
+    name: 'http-access-snapshot-test',
+    version: '0.0.1',
+  });
+  await client.connect(transport);
+  access.classes.push('write');
+  access.destinationKeys.push('prod');
+
+  try {
+    const tools = await client.listTools();
+    const names = new Set(tools.tools.map((tool) => tool.name));
+    assert.ok(names.has('system_info'));
+    assert.ok(!names.has('lock_object'));
+    assert.ok(!names.has('activate_object'));
+
+    for (const call of [
+      {
+        name: 'system_info',
+        arguments: { destination: 'prod' },
+      },
+      {
+        name: 'lock_object',
+        arguments: { destination: 'prod', objectName: 'ZCL_SCOPE_TEST' },
+      },
+    ]) {
+      const denied = await client.callTool(call);
+      assert.strictEqual(denied.isError, true);
+      assert.strictEqual(
+        (denied.content as Array<{ type: 'text'; text: string }>)[0]?.text,
+        'mcp_scope_denied',
+      );
+    }
+    assert.strictEqual(leases, 0);
+    assert.strictEqual(contexts, 0);
+
+    const allowed = await client.callTool({
+      name: 'gcts_config',
+      arguments: {
+        destination: 'dev',
+        rid: 'SCOPE_TEST',
+        action: 'list',
+      },
+    });
+    assert.notStrictEqual(
+      (allowed.content as Array<{ type: 'text'; text: string }>)[0]?.text,
+      'mcp_scope_denied',
+    );
+  } finally {
+    await transport.close();
+    await server.close();
+    await destinations.shutdown();
+  }
+});
+
+test('HTTP destination mode treats malformed trusted access as no access', async () => {
+  let leases = 0;
+  let contexts = 0;
+  const access = JSON.parse('{"classes":"read","destinationKeys":["dev"]}');
+  const destinations = createDestinationContextRegistry({
+    leaseProvider: {
+      async acquire({ destination }) {
+        leases++;
+        return {
+          destination,
+          expiresAt: Date.now() + 60_000,
+          version: 1,
+          material: {},
+          release: async () => undefined,
+        };
+      },
+    },
+    contextFactory: {
+      async create() {
+        contexts++;
+        return { client: {} as never, close: async () => undefined };
+      },
+    },
+    ttlMs: 0,
+  });
+  const server = await startHttpServer({
+    port: 0,
+    host: '127.0.0.1',
+    multiSystem: { systems: {}, resolve: () => undefined },
+    destinationServer: {
+      destinationRegistry: destinations,
+      requestIdentity: () => ({ principal: 'http-malformed-access-test' }),
+      requestAccess: () => access,
+    },
+    log: () => undefined,
+  });
+  const transport = new StreamableHTTPClientTransport(new URL(server.url));
+  const client = new Client({
+    name: 'http-malformed-access-test',
+    version: '0.0.1',
+  });
+  await client.connect(transport);
+
+  try {
+    const tools = await client.listTools();
+    assert.deepStrictEqual(tools.tools, []);
+
+    const denied = await client.callTool({
+      name: 'system_info',
+      arguments: { destination: 'dev' },
+    });
+    assert.strictEqual(denied.isError, true);
+    assert.strictEqual(
+      (denied.content as Array<{ type: 'text'; text: string }>)[0]?.text,
+      'mcp_scope_denied',
+    );
+    assert.strictEqual(leases, 0);
+    assert.strictEqual(contexts, 0);
+  } finally {
+    await transport.close();
+    await server.close();
+    await destinations.shutdown();
+  }
+});
+
+test('HTTP destination mode lists no operational tools without an authorised destination', async () => {
+  let leases = 0;
+  let contexts = 0;
+  const destinations = createDestinationContextRegistry({
+    leaseProvider: {
+      async acquire({ destination }) {
+        leases++;
+        return {
+          destination,
+          expiresAt: Date.now() + 60_000,
+          version: 1,
+          material: {},
+          release: async () => undefined,
+        };
+      },
+    },
+    contextFactory: {
+      async create() {
+        contexts++;
+        return { client: {} as never, close: async () => undefined };
+      },
+    },
+    ttlMs: 0,
+  });
+  const server = await startHttpServer({
+    port: 0,
+    host: '127.0.0.1',
+    multiSystem: { systems: {}, resolve: () => undefined },
+    destinationServer: {
+      destinationRegistry: destinations,
+      requestIdentity: () => ({ principal: 'http-empty-destination-test' }),
+      requestAccess: () => ({ classes: ['read'], destinationKeys: [] }),
+    },
+    log: () => undefined,
+  });
+  const transport = new StreamableHTTPClientTransport(new URL(server.url));
+  const client = new Client({
+    name: 'http-empty-destination-test',
+    version: '0.0.1',
+  });
+  await client.connect(transport);
+
+  try {
+    const tools = await client.listTools();
+    assert.deepStrictEqual(tools.tools, []);
+
+    const denied = await client.callTool({
+      name: 'system_info',
+      arguments: { destination: 'dev' },
+    });
+    assert.strictEqual(denied.isError, true);
+    assert.strictEqual(
+      (denied.content as Array<{ type: 'text'; text: string }>)[0]?.text,
+      'mcp_scope_denied',
+    );
+    assert.strictEqual(leases, 0);
+    assert.strictEqual(contexts, 0);
+  } finally {
+    await transport.close();
+    await server.close();
+    await destinations.shutdown();
+  }
+});
+
 test('HTTP destination mode fails closed when trusted access is absent', async () => {
   let leases = 0;
   let contexts = 0;
-  let access: { classes: Array<'read'> } | undefined;
+  let access:
+    | { classes: Array<'read'>; destinationKeys: Array<string> }
+    | undefined;
   const destinations = createDestinationContextRegistry({
     leaseProvider: {
       async acquire({ destination }) {
@@ -150,7 +378,7 @@ test('HTTP destination mode fails closed when trusted access is absent', async (
   await client.connect(transport);
   // The value resolved at initialization is intentionally retained. A later
   // mutable value (or later request) cannot expand an active session's scope.
-  access = { classes: ['read'] };
+  access = { classes: ['read'], destinationKeys: ['dev'] };
 
   try {
     for (const call of [
@@ -209,7 +437,7 @@ test('HTTP destination mode rejects a session when trusted identity derivation l
         if (identityAvailable) return { principal: 'http-identity-test' };
         throw new Error('identity provider unavailable');
       },
-      requestAccess: () => ({ classes: ['read'] }),
+      requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
     },
     log: () => undefined,
   });
@@ -270,7 +498,7 @@ test('HTTP destination mode rejects a session used by another authenticated prin
         if (!userHint) throw new Error('missing trusted user');
         return { principal: userHint.user, agentId: 'system-assistant' };
       },
-      requestAccess: () => ({ classes: ['read'] }),
+      requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
     },
     log: () => undefined,
   });

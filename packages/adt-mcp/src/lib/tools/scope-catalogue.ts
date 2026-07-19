@@ -8,9 +8,23 @@
 
 export type McpOperationClass = 'server' | 'read' | 'write';
 
+const destinationKeyPattern = /^[a-z][a-z0-9-]{1,62}$/u;
+
+export function isMcpOperationClass(
+  value: unknown,
+): value is McpOperationClass {
+  return value === 'server' || value === 'read' || value === 'write';
+}
+
+export function isMcpDestinationKey(value: unknown): value is string {
+  return typeof value === 'string' && destinationKeyPattern.test(value);
+}
+
 export interface McpRequestAccess {
   /** Explicit trusted classes. `write` is never inferred from `read`. */
   classes: readonly McpOperationClass[];
+  /** Explicit trusted destination keys. An empty list authorises no SAP I/O. */
+  destinationKeys: readonly string[];
 }
 
 type StaticToolScope = {
@@ -203,8 +217,25 @@ export function isMcpToolAllowed(
   name: string,
   arguments_: Record<string, unknown> = {},
 ): boolean {
+  const classes = access?.classes;
   return Boolean(
-    access?.classes.includes(operationClassForMcpTool(name, arguments_)),
+    Array.isArray(classes) &&
+    classes.every(isMcpOperationClass) &&
+    classes.includes(operationClassForMcpTool(name, arguments_)),
+  );
+}
+
+/** Missing or untrusted destination keys fail closed before SAP state exists. */
+export function isMcpDestinationAllowed(
+  access: McpRequestAccess | undefined,
+  destination: unknown,
+): boolean {
+  const destinationKeys = access?.destinationKeys;
+  return Boolean(
+    isMcpDestinationKey(destination) &&
+    Array.isArray(destinationKeys) &&
+    destinationKeys.every(isMcpDestinationKey) &&
+    destinationKeys.includes(destination),
   );
 }
 
@@ -219,7 +250,17 @@ export function isMcpToolListed(
   name: string,
 ): boolean {
   const entry = MCP_TOOL_SCOPE_CATALOGUE[name];
-  if (!entry || !access) return false;
+  if (
+    !entry ||
+    !access ||
+    !Array.isArray(access.classes) ||
+    !access.classes.every(isMcpOperationClass) ||
+    !Array.isArray(access.destinationKeys) ||
+    access.destinationKeys.length === 0 ||
+    !access.destinationKeys.every(isMcpDestinationKey)
+  ) {
+    return false;
+  }
   const classes =
     'actionClasses' in entry
       ? Object.values(entry.actionClasses)
