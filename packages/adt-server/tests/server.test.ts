@@ -291,6 +291,94 @@ test('forwards validated transport search criteria only after REST authenticatio
   }
 });
 
+test('serves canonical transport detail and aggregated objects without SAP URI fields', async () => {
+  const calls: Array<{
+    operation: string;
+    destination: string;
+    transport: string;
+  }> = [];
+  const detail = {
+    trkorr: 'DEVK900001',
+    owner: 'ALICE',
+    description: 'Safe refactor',
+    status: 'modifiable',
+    tasks: [
+      {
+        trkorr: 'DEVK900002',
+        parentTrkorr: 'DEVK900001',
+        owner: 'ALICE',
+        description: 'Implementation task',
+        status: 'modifiable',
+        objects: [
+          {
+            canonicalKey: 'CLAS:ZCL_SAFE',
+            objectType: 'CLAS',
+            objectName: 'ZCL_SAFE',
+            pgmid: 'R3TR',
+          },
+        ],
+      },
+    ],
+    objects: [
+      {
+        canonicalKey: 'INTF:ZIF_SAFE',
+        objectType: 'INTF',
+        objectName: 'ZIF_SAFE',
+      },
+    ],
+  };
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async getTransportDetail(destination, transport) {
+        calls.push({ operation: 'detail', destination, transport });
+        return detail;
+      },
+      async listTransportObjects(destination, transport) {
+        calls.push({ operation: 'objects', destination, transport });
+        return [
+          ...detail.objects,
+          ...detail.tasks.flatMap((task) => task.objects),
+        ];
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const detailResponse = await fetch(
+      `${server.url}/v1/destinations/dev/transports/DEVK900001`,
+    );
+    assert.strictEqual(detailResponse.status, 200);
+    const detailBody = await detailResponse.json();
+    assert.deepStrictEqual(detailBody, detail);
+    assert.ok(!JSON.stringify(detailBody).includes('uri'));
+
+    const objectsResponse = await fetch(
+      `${server.url}/v1/destinations/dev/transports/DEVK900001/objects`,
+    );
+    assert.strictEqual(objectsResponse.status, 200);
+    const objectsBody = await objectsResponse.json();
+    assert.deepStrictEqual(objectsBody, [
+      ...detail.objects,
+      ...detail.tasks.flatMap((task) => task.objects),
+    ]);
+    assert.ok(!JSON.stringify(objectsBody).includes('uri'));
+    assert.deepStrictEqual(calls, [
+      { operation: 'detail', destination: 'dev', transport: 'DEVK900001' },
+      { operation: 'objects', destination: 'dev', transport: 'DEVK900001' },
+    ]);
+  } finally {
+    await server.close();
+  }
+});
+
 test('REST source reads redeem an opaque destination-bound manifest capability', async () => {
   const sourceUri =
     '/sap/bc/adt/programs/programs/zsafe/source/main/versions/1';
