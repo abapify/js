@@ -1,0 +1,8 @@
+{
+  "name": "adt-server",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-server/src",
+  "projectType": "application",
+  "release": { "version": { "manifestRootsToUpdate": ["{projectRoot}"] } },
+  "tags": ["scope:adt", "type:server"]
+}
