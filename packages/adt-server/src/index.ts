@@ -9,6 +9,10 @@ export {
 } from './server.js';
 export { openApiDocument, openApiYaml } from './openapi.js';
 export {
+  createAdtServerMcpOptions,
+  type AdtServerMcpRuntimeOptions,
+} from './mcp-runtime.js';
+export {
   createHttpBrokerOperations,
   createHttpDestinationContexts,
   type HttpBrokerOptions,
