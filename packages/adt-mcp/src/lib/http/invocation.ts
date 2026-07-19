@@ -11,6 +11,7 @@ import { jwtVerify, type CryptoKey, type JWTPayload } from 'jose';
 
 const INVOCATION_VERSION = 1;
 const MAX_IDENTIFIER_LENGTH = 256;
+const MAX_COMPONENT_IDENTIFIER_LENGTH = 512;
 const MAX_JSON_DEPTH = 8;
 const MAX_TOKEN_LIFETIME_SECONDS = 5 * 60;
 const MAX_FROZEN_SOURCES = 500;
@@ -49,7 +50,8 @@ export interface TrustedMcpInvocationClaims {
 /**
  * Fully enforced narrowing policy for an AI Review source read. `sourceRef`
  * remains opaque to MCP clients and models; only ADT's private broker can
- * redeem it after this policy has selected the exact canonical object.
+ * redeem it after this policy has selected the exact canonical object and
+ * source component.
  */
 export interface AiReviewFrozenSourcePolicy {
   readonly reviewId: string;
@@ -57,6 +59,7 @@ export interface AiReviewFrozenSourcePolicy {
   readonly systemSid: string;
   readonly sources: readonly {
     readonly canonicalKey: string;
+    readonly componentId: string;
     readonly sourceRef: string;
   }[];
   readonly maxSourceBytes: number;
@@ -176,33 +179,45 @@ export function parseAiReviewFrozenSourcePolicy(
   ) {
     return undefined;
   }
-  const canonicalKeys = new Set<string>();
+  const sourceKeys = new Set<string>();
   const sourceRefs = new Set<string>();
-  const sources: { canonicalKey: string; sourceRef: string }[] = [];
+  const sources: {
+    canonicalKey: string;
+    componentId: string;
+    sourceRef: string;
+  }[] = [];
   for (const rawSource of rawSources) {
     if (!isPlainObject(rawSource)) return undefined;
-    const sourceKeys = Object.keys(rawSource).sort();
+    const rawSourceKeys = Object.keys(rawSource).sort();
     if (
-      sourceKeys.length !== 2 ||
-      sourceKeys[0] !== 'canonicalKey' ||
-      sourceKeys[1] !== 'sourceRef'
+      rawSourceKeys.length !== 3 ||
+      rawSourceKeys[0] !== 'canonicalKey' ||
+      rawSourceKeys[1] !== 'componentId' ||
+      rawSourceKeys[2] !== 'sourceRef'
     ) {
       return undefined;
     }
     const canonicalKey = rawSource.canonicalKey;
+    const componentId = requiredComponentIdentifier(rawSource.componentId);
     const sourceRef = requiredSourceReference(rawSource.sourceRef);
+    const sourceKey =
+      typeof canonicalKey === 'string' && componentId
+        ? `${canonicalKey}\u0000${componentId}`
+        : undefined;
     if (
       typeof canonicalKey !== 'string' ||
       !canonicalKeyPattern.test(canonicalKey) ||
+      !componentId ||
       !sourceRef ||
-      canonicalKeys.has(canonicalKey) ||
+      !sourceKey ||
+      sourceKeys.has(sourceKey) ||
       sourceRefs.has(sourceRef)
     ) {
       return undefined;
     }
-    canonicalKeys.add(canonicalKey);
+    sourceKeys.add(sourceKey);
     sourceRefs.add(sourceRef);
-    sources.push(Object.freeze({ canonicalKey, sourceRef }));
+    sources.push(Object.freeze({ canonicalKey, componentId, sourceRef }));
   }
 
   const limitKeys = Object.keys(claims.limits);
@@ -232,6 +247,18 @@ function requiredIdentifier(value: unknown): string | undefined {
     value.length === 0 ||
     value.length > MAX_IDENTIFIER_LENGTH ||
     value.trim().length === 0
+  ) {
+    return undefined;
+  }
+  return value;
+}
+
+function requiredComponentIdentifier(value: unknown): string | undefined {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_COMPONENT_IDENTIFIER_LENGTH ||
+    /[\s\u0000-\u001f\u007f]/u.test(value)
   ) {
     return undefined;
   }
