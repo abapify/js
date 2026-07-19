@@ -5,7 +5,11 @@
  */
 
 // Export main client factory
-export { createAdtClient, type AdtClient } from './client';
+export {
+  createAdtClient,
+  type AdtClient,
+  type BoundedTextFetchOptions,
+} from './client';
 
 // Export contract for advanced use cases
 export { adtContract, type AdtContract } from '@abapify/adt-contracts';
@@ -25,8 +29,11 @@ export type {
 // Export adapter for advanced use cases
 export {
   createAdtAdapter,
+  AdtResponseTooLargeError,
   type HttpAdapter,
   type AdtAdapterConfig,
+  type AdtHttpAdapter,
+  type BoundedTextRequestOptions,
 } from './adapter';
 
 // Export plugins
@@ -95,4 +102,14 @@ export {
   createUserService,
   type UserInfo,
   type CurrentUserInfo,
+  SourceHistoryService,
+  SourceHistoryProtocolError,
+  SourceVersionTooLargeError,
+  assertAdtUri,
+  createSourceHistoryService,
+  normalizeSourceVersionFeed,
+  type BoundedSourceReader,
+  type SourceHistoryProtocolErrorCode,
+  type SourceVersionRef,
+  type SourceVersionReference,
 } from './services';

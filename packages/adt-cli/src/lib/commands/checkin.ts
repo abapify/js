@@ -34,7 +34,7 @@ export const checkinCommand = new Command('checkin')
   )
   .option(
     '--unlock',
-    'Force-unlock objects already locked by the current user before applying',
+    'Release objects only when this CLI persisted their lock handles',
     false,
   )
   .option(

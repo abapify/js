@@ -174,6 +174,24 @@ function createObjFuncMockClient() {
   };
 }
 
+function createTransportClientByNumber(responses: Record<string, unknown>) {
+  return {
+    adt: {
+      cts: {
+        transportrequests: {
+          get: vi.fn().mockImplementation((number: string) => {
+            const response = responses[number];
+            if (!response) {
+              throw new Error(`Unexpected transport request: ${number}`);
+            }
+            return Promise.resolve(response);
+          }),
+        },
+      },
+    },
+  };
+}
+
 describe('AdkTransport', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -707,5 +725,225 @@ describe('AdkTransportTaskRef', () => {
     expect(task.objects).toHaveLength(2);
     expect(task.objects[0].type).toBe('CLAS');
     expect(task.objects[1].type).toBe('FUGR');
+  });
+});
+
+describe('resolveTransportObjects()', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('attributes task-owned objects to the concrete child task', async () => {
+    const response = {
+      root: {
+        object_type: 'K',
+        name: 'DEVK901000',
+        type: 'RQRQ',
+        request: {
+          number: 'DEVK901000',
+          all_objects: {
+            abap_object: [
+              { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_FROM_TASK' },
+            ],
+          },
+          task: [
+            {
+              number: 'DEVK901001',
+              abap_object: [
+                { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_FROM_TASK' },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const mockClient = createTransportClientByNumber({
+      DEVK901000: response,
+    });
+    const { initializeAdk, resolveTransportObjects } =
+      await import('../src/index');
+    initializeAdk(mockClient as any);
+
+    const result = await resolveTransportObjects(['DEVK901000'], {});
+
+    expect(result.sourceTransportMap.get('R3TR/CLAS/ZCL_FROM_TASK')).toBe(
+      'DEVK901001',
+    );
+  });
+
+  it('attributes request-owned objects to the concrete root request', async () => {
+    const response = {
+      root: {
+        object_type: 'K',
+        name: 'DEVK901010',
+        type: 'RQRQ',
+        request: {
+          number: 'DEVK901010',
+          abap_object: [{ pgmid: 'R3TR', type: 'PROG', name: 'ZROOT_PROGRAM' }],
+          task: [
+            {
+              number: 'DEVK901011',
+              abap_object: [
+                { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_TASK_CLASS' },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const mockClient = createTransportClientByNumber({
+      DEVK901010: response,
+    });
+    const { initializeAdk, resolveTransportObjects } =
+      await import('../src/index');
+    initializeAdk(mockClient as any);
+
+    const result = await resolveTransportObjects(['DEVK901010'], {});
+
+    expect(result.sourceTransportMap.get('R3TR/PROG/ZROOT_PROGRAM')).toBe(
+      'DEVK901010',
+    );
+  });
+
+  it('resolves a directly requested task with task provenance', async () => {
+    const response = {
+      root: {
+        object_type: 'T',
+        name: 'DEVK901021',
+        type: 'RQTQ',
+        task: [
+          {
+            number: 'DEVK901021',
+            parent: 'DEVK901020',
+            abap_object: [{ pgmid: 'R3TR', type: 'TABL', name: 'ZTASK_TABLE' }],
+          },
+        ],
+      },
+    };
+    const mockClient = createTransportClientByNumber({
+      DEVK901021: response,
+    });
+    const { initializeAdk, resolveTransportObjects } =
+      await import('../src/index');
+    initializeAdk(mockClient as any);
+
+    const result = await resolveTransportObjects(['DEVK901021'], {});
+
+    expect(result.objects.map((object) => object.key)).toEqual([
+      'R3TR/TABL/ZTASK_TABLE',
+    ]);
+    expect(result.sourceTransportMap.get('R3TR/TABL/ZTASK_TABLE')).toBe(
+      'DEVK901021',
+    );
+    expect(result.scopeTransportNumbers).toEqual(['DEVK901021']);
+  });
+
+  it('preserves ordered first-win provenance across multiple roots', async () => {
+    const firstResponse = {
+      root: {
+        object_type: 'K',
+        name: 'DEVK901030',
+        type: 'RQRQ',
+        request: {
+          number: 'DEVK901030',
+          task: [
+            {
+              number: 'DEVK901031',
+              abap_object: [
+                { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_SHARED' },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const secondResponse = {
+      root: {
+        object_type: 'K',
+        name: 'DEVK901040',
+        type: 'RQRQ',
+        request: {
+          number: 'DEVK901040',
+          task: [
+            {
+              number: 'DEVK901041',
+              abap_object: [
+                { pgmid: 'R3TR', type: 'CLAS', name: 'ZCL_SHARED' },
+                { pgmid: 'R3TR', type: 'PROG', name: 'ZSECOND_ONLY' },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const mockClient = createTransportClientByNumber({
+      DEVK901030: firstResponse,
+      DEVK901040: secondResponse,
+    });
+    const { initializeAdk, resolveTransportObjects } =
+      await import('../src/index');
+    initializeAdk(mockClient as any);
+
+    const result = await resolveTransportObjects(
+      ['DEVK901030', 'DEVK901040'],
+      {},
+    );
+
+    expect(result.objects.map((object) => object.key)).toEqual([
+      'R3TR/CLAS/ZCL_SHARED',
+      'R3TR/PROG/ZSECOND_ONLY',
+    ]);
+    expect(result.sourceTransportMap.get('R3TR/CLAS/ZCL_SHARED')).toBe(
+      'DEVK901031',
+    );
+    expect(result.sourceTransportMap.get('R3TR/PROG/ZSECOND_ONLY')).toBe(
+      'DEVK901041',
+    );
+  });
+
+  it('returns a stable de-duplicated root-plus-task scope', async () => {
+    const firstResponse = {
+      root: {
+        object_type: 'K',
+        name: 'DEVK901050',
+        type: 'RQRQ',
+        request: {
+          number: 'DEVK901050',
+          task: [{ number: 'DEVK901051' }, { number: 'DEVK901052' }],
+        },
+        task: [{ number: 'DEVK901051' }],
+      },
+    };
+    const secondResponse = {
+      root: {
+        object_type: 'K',
+        name: 'DEVK901060',
+        type: 'RQRQ',
+        request: {
+          number: 'DEVK901060',
+          task: [{ number: 'DEVK901052' }, { number: 'DEVK901061' }],
+        },
+      },
+    };
+    const mockClient = createTransportClientByNumber({
+      DEVK901050: firstResponse,
+      DEVK901060: secondResponse,
+    });
+    const { initializeAdk, resolveTransportObjects } =
+      await import('../src/index');
+    initializeAdk(mockClient as any);
+
+    const result = await resolveTransportObjects(
+      ['DEVK901050', 'DEVK901060'],
+      {},
+    );
+
+    expect(result.scopeTransportNumbers).toEqual([
+      'DEVK901050',
+      'DEVK901051',
+      'DEVK901052',
+      'DEVK901060',
+      'DEVK901061',
+    ]);
   });
 });

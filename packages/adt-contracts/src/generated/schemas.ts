@@ -54,6 +54,7 @@ export const includes = toSpeciSchema(adtSchemas.includes);
 export const interfaces = toSpeciSchema(adtSchemas.interfaces);
 export const log = toSpeciSchema(adtSchemas.log);
 export const logpoint = toSpeciSchema(adtSchemas.logpoint);
+export const objectProperties = toSpeciSchema(adtSchemas.objectProperties);
 export const packagesV1 = toSpeciSchema(adtSchemas.packagesV1);
 export const programs = toSpeciSchema(adtSchemas.programs);
 export const quickfixes = toSpeciSchema(adtSchemas.quickfixes);

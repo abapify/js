@@ -7,64 +7,64 @@
 
 export type AbapsourceSchema = {
     syntaxConfigurations: {
-        syntaxConfiguration?: {
-            language?: {
-                version?: string;
-                description?: string;
-                link?: {
+        syntaxConfiguration?: undefined | {
+            language?: undefined | {
+                version?: string | undefined;
+                description?: string | undefined;
+                link?: undefined | {
                     href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
+                    rel?: string | undefined;
+                    type?: string | undefined;
+                    hreflang?: string | undefined;
+                    title?: string | undefined;
+                    length?: number | undefined;
+                    etag?: string | undefined;
+                    _text?: string | undefined;
                 }[];
             };
-            objectUsage?: {
-                link?: {
+            objectUsage?: undefined | {
+                link?: undefined | {
                     href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
+                    rel?: string | undefined;
+                    type?: string | undefined;
+                    hreflang?: string | undefined;
+                    title?: string | undefined;
+                    length?: number | undefined;
+                    etag?: string | undefined;
+                    _text?: string | undefined;
                 }[];
-                restricted?: boolean;
+                restricted?: boolean | undefined;
             };
         }[];
     };
 } | {
     syntaxConfiguration: {
-        language?: {
-            version?: string;
-            description?: string;
-            link?: {
+        language?: undefined | {
+            version?: string | undefined;
+            description?: string | undefined;
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
         };
-        objectUsage?: {
-            link?: {
+        objectUsage?: undefined | {
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
-            restricted?: boolean;
+            restricted?: boolean | undefined;
         };
     };
 };

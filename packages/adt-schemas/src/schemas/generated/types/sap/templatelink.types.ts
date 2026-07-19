@@ -9,8 +9,8 @@ export type TemplatelinkSchema = {
     templateLink: {
         template: string;
         rel: string;
-        type?: string;
-        title?: string;
-        _text?: string;
+        type?: string | undefined;
+        title?: string | undefined;
+        _text?: string | undefined;
     };
 };

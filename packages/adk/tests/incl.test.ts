@@ -79,6 +79,8 @@ function createCtx(
         },
       },
       services: {} as any,
+      fetch: vi.fn().mockResolvedValue('REPORT existing_skeleton.'),
+      clearETag: vi.fn(),
     } as any,
     lockService: lockService ?? createMockLockService(),
   } as unknown as AdkContext;
@@ -137,6 +139,180 @@ describe('AdkInclude', () => {
         description: 'Test Include',
       }),
     });
+  });
+
+  it('reports a resumable post-create lock conflict without retrying POST', async () => {
+    const lockService = createMockLockService();
+    lockService.lock.mockRejectedValueOnce(
+      new Error(
+        'HTTP 500: Object R3TR PROG ZTEST_INCLUDE is already locked in request DEVK900001',
+      ),
+    );
+    const { ctx, includes } = createCtx(undefined, lockService, {
+      getThrows: true,
+    });
+    const obj = new AdkInclude(ctx, 'ZTEST_INCLUDE');
+    (obj as unknown as { setData(data: unknown): void }).setData(
+      DEFAULT_INCLUDE_META.abapInclude,
+    );
+    (obj as unknown as { _pendingSource: string })._pendingSource =
+      'REPORT ztest_include.';
+
+    await expect(
+      obj.save({ mode: 'create', transport: 'DEVK900001' }),
+    ).rejects.toMatchObject({
+      name: 'AdkPostCreateLockError',
+      code: 'ADT_POST_CREATE_LOCKED',
+      objectUri: '/sap/bc/adt/programs/includes/ztest_include',
+      transport: 'DEVK900001',
+    });
+
+    expect(includes.post).toHaveBeenCalledTimes(1);
+    expect(lockService.lock).toHaveBeenCalledTimes(1);
+    expect(lockService.lock).toHaveBeenCalledWith(
+      '/sap/bc/adt/programs/includes/ztest_include',
+      expect.objectContaining({ transport: 'DEVK900001' }),
+    );
+    expect(includes.source.main.put).not.toHaveBeenCalled();
+  });
+
+  it('retries only the post-create lock before writing the pending source', async () => {
+    const lockService = createMockLockService();
+    lockService.lock
+      .mockRejectedValueOnce(
+        new Error(
+          'HTTP 500: Object R3TR PROG ZTEST_INCLUDE is already locked in request DEVK900001',
+        ),
+      )
+      .mockResolvedValue({ handle: 'LOCK_AFTER_POST_CREATE' });
+    const { ctx, includes } = createCtx(undefined, lockService, {
+      getThrows: true,
+    });
+    const obj = new AdkInclude(ctx, 'ZTEST_INCLUDE');
+    (obj as unknown as { setData(data: unknown): void }).setData(
+      DEFAULT_INCLUDE_META.abapInclude,
+    );
+    (obj as unknown as { _pendingSource: string })._pendingSource =
+      'REPORT ztest_include.';
+
+    await obj.save({
+      mode: 'create',
+      transport: 'DEVK900001',
+      postCreateLockRetry: { attempts: 2, delayMs: 0 },
+    });
+
+    expect(includes.post).toHaveBeenCalledTimes(1);
+    expect(lockService.lock).toHaveBeenCalledTimes(2);
+    expect((ctx.client as any).fetch).toHaveBeenCalledWith(
+      '/sap/bc/adt/programs/includes/ztest_include/source/main?lockHandle=LOCK_AFTER_POST_CREATE&corrNr=DEVK900001',
+      expect.objectContaining({ method: 'PUT', body: 'REPORT ztest_include.' }),
+    );
+    expect(lockService.unlock).toHaveBeenCalledWith(
+      '/sap/bc/adt/programs/includes/ztest_include',
+      { lockHandle: 'LOCK_AFTER_POST_CREATE' },
+    );
+  });
+
+  it('resumes an existing post-create skeleton without issuing another POST', async () => {
+    const lockService = createMockLockService();
+    lockService.lock
+      .mockRejectedValueOnce(
+        new Error(
+          'HTTP 500: Object R3TR PROG ZTEST_INCLUDE is already locked in request DEVK900001',
+        ),
+      )
+      .mockResolvedValue({ handle: 'LOCK_AFTER_RESUME' });
+    const { ctx, includes } = createCtx(undefined, lockService);
+    const obj = new AdkInclude(ctx, 'ZTEST_INCLUDE');
+    (obj as unknown as { setData(data: unknown): void }).setData(
+      DEFAULT_INCLUDE_META.abapInclude,
+    );
+    (obj as unknown as { _pendingSource: string })._pendingSource =
+      'REPORT ztest_include.';
+
+    await obj.save({
+      mode: 'create',
+      transport: 'DEVK900001',
+      postCreateLockRetry: { attempts: 2, delayMs: 0 },
+    });
+
+    expect(includes.post).not.toHaveBeenCalled();
+    expect(lockService.lock).toHaveBeenCalledTimes(2);
+    expect((ctx.client as any).fetch).toHaveBeenCalledWith(
+      '/sap/bc/adt/programs/includes/ztest_include/source/main?lockHandle=LOCK_AFTER_RESUME&corrNr=DEVK900001',
+      expect.objectContaining({ method: 'PUT', body: 'REPORT ztest_include.' }),
+    );
+  });
+
+  it('retries a post-create conflict from an error-like client boundary', async () => {
+    const lockService = createMockLockService();
+    lockService.lock
+      .mockRejectedValueOnce({
+        message:
+          'HTTP 500: Object R3TR PROG ZTEST_INCLUDE is already locked in request DEVK900001',
+      })
+      .mockResolvedValue({ handle: 'LOCK_FROM_CLIENT_BOUNDARY' });
+    const { ctx } = createCtx(undefined, lockService);
+    const obj = new AdkInclude(ctx, 'ZTEST_INCLUDE');
+    (obj as unknown as { setData(data: unknown): void }).setData(
+      DEFAULT_INCLUDE_META.abapInclude,
+    );
+    (obj as unknown as { _pendingSource: string })._pendingSource =
+      'REPORT ztest_include.';
+
+    await obj.save({
+      mode: 'create',
+      transport: 'DEVK900001',
+      postCreateLockRetry: { attempts: 2, delayMs: 0 },
+    });
+
+    expect(lockService.lock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a post-create conflict from a string-only client boundary', async () => {
+    const lockService = createMockLockService();
+    lockService.lock
+      .mockRejectedValueOnce(
+        'HTTP 500: Object R3TR PROG ZTEST_INCLUDE is already locked in request DEVK900001',
+      )
+      .mockResolvedValue({ handle: 'LOCK_FROM_STRING_BOUNDARY' });
+    const { ctx } = createCtx(undefined, lockService);
+    const obj = new AdkInclude(ctx, 'ZTEST_INCLUDE');
+    (obj as unknown as { setData(data: unknown): void }).setData(
+      DEFAULT_INCLUDE_META.abapInclude,
+    );
+    (obj as unknown as { _pendingSource: string })._pendingSource =
+      'REPORT ztest_include.';
+
+    await obj.save({
+      mode: 'create',
+      transport: 'DEVK900001',
+      postCreateLockRetry: { attempts: 2, delayMs: 0 },
+    });
+
+    expect(lockService.lock).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the transport returned by LOCK for a source write', async () => {
+    const lockService = createMockLockService();
+    lockService.lock.mockResolvedValue({
+      handle: 'LOCK_WITH_ROOT_TRANSPORT',
+      correlationNumber: 'DEVK900000',
+    });
+    const { ctx } = createCtx(undefined, lockService);
+    const obj = new AdkInclude(ctx, 'ZTEST_INCLUDE');
+    (obj as unknown as { setData(data: unknown): void }).setData(
+      DEFAULT_INCLUDE_META.abapInclude,
+    );
+    (obj as unknown as { _pendingSource: string })._pendingSource =
+      'REPORT ztest_include.';
+
+    await obj.save({ mode: 'update', transport: 'DEVK900001' });
+
+    expect((ctx.client as any).fetch).toHaveBeenCalledWith(
+      '/sap/bc/adt/programs/includes/ztest_include/source/main?lockHandle=LOCK_WITH_ROOT_TRANSPORT&corrNr=DEVK900000',
+      expect.objectContaining({ method: 'PUT', body: 'REPORT ztest_include.' }),
+    );
   });
 
   it('AdkInclude.create with master sets contextRef to the main program', async () => {

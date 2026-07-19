@@ -9,9 +9,13 @@
  */
 
 import { Command } from 'commander';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
 import { normalizeSearchResults } from '../utils/lock-helpers';
+import {
+  ExactSourceHistoryService,
+  type ListObjectVersionsResult,
+} from '../services/source-history';
 import { createLockService } from '@abapify/adt-locks';
 import { getObjectUri } from '@abapify/adk';
 import {
@@ -21,6 +25,79 @@ import {
 } from '@abapify/adt-lint';
 
 type AdtClient = Awaited<ReturnType<typeof getAdtClientV2>>;
+
+type SourceHistoryServicePort = Pick<
+  ExactSourceHistoryService,
+  'listObjectVersions' | 'getVersionSource'
+>;
+
+export interface SourceHistoryCommandDependencies {
+  getClient: () => Promise<AdtClient>;
+  createService: (client: AdtClient) => SourceHistoryServicePort;
+  writeStdout: (content: string) => void;
+  writeFile: (path: string, content: string) => Promise<void>;
+  writeLine: (content: string) => void;
+  writeError: (content: string) => void;
+  setExitCode: (code: number) => void;
+}
+
+const DEFAULT_SOURCE_HISTORY_DEPENDENCIES: SourceHistoryCommandDependencies = {
+  getClient: getAdtClientV2,
+  createService: (client) => new ExactSourceHistoryService(client),
+  writeStdout: (content) => process.stdout.write(content),
+  writeFile: async (path, content) => writeFile(path, content, 'utf8'),
+  writeLine: (content) => console.log(content),
+  writeError: (content) => console.error(content),
+  setExitCode: (code) => {
+    process.exitCode = code;
+  },
+};
+
+function sourceHistoryDependencies(
+  overrides: Partial<SourceHistoryCommandDependencies>,
+): SourceHistoryCommandDependencies {
+  return { ...DEFAULT_SOURCE_HISTORY_DEPENDENCIES, ...overrides };
+}
+
+function safeErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : 'Unknown source-history error.';
+}
+
+function formatObjectVersions(result: ListObjectVersionsResult): string[] {
+  const lines = [`${result.object.type} ${result.object.name}`];
+  if (result.object.packageName) {
+    lines[0] += ` (${result.object.packageName})`;
+  }
+
+  if (result.components.length === 0) {
+    lines.push('  No source components found.');
+    return lines;
+  }
+
+  for (const component of result.components) {
+    if (component.diagnostic !== undefined) {
+      lines.push(
+        `  ${component.id}: unavailable [${component.diagnostic.code}] ${component.diagnostic.message}`,
+      );
+      continue;
+    }
+
+    lines.push(`  ${component.id}: ${component.versions.length} version(s)`);
+    for (const version of component.versions) {
+      const transports =
+        version.transports.length > 0
+          ? version.transports.join(', ')
+          : 'no transport provenance';
+      lines.push(
+        `    #${version.ordinal} ${version.id} [${transports}] ${version.sourceUri}`,
+      );
+    }
+  }
+
+  return lines;
+}
 
 interface SourceOp {
   get: (name: string) => Promise<string>;
@@ -140,6 +217,87 @@ const getSourceCommand = new Command('get')
       }
     },
   );
+
+/** Create `adt source versions` with injectable I/O for deterministic tests. */
+export function createSourceVersionsCommand(
+  overrides: Partial<SourceHistoryCommandDependencies> = {},
+): Command {
+  const dependencies = sourceHistoryDependencies(overrides);
+
+  return new Command('versions')
+    .description('List immutable source-version metadata for an ABAP object')
+    .argument('<object>', 'ABAP object name')
+    .requiredOption('--type <type>', 'ADT object type (for example CLAS)')
+    .option('--component <name>', 'Exact source component id')
+    .option('--json', 'Output normalized metadata as JSON')
+    .action(
+      async (
+        objectName: string,
+        options: { type: string; component?: string; json?: boolean },
+      ) => {
+        try {
+          const client = await dependencies.getClient();
+          const service = dependencies.createService(client);
+          const result = await service.listObjectVersions({
+            objectName,
+            objectType: options.type,
+            ...(options.component !== undefined
+              ? { component: options.component }
+              : {}),
+          });
+
+          if (options.json) {
+            dependencies.writeLine(JSON.stringify(result, null, 2));
+          } else {
+            for (const line of formatObjectVersions(result)) {
+              dependencies.writeLine(line);
+            }
+          }
+        } catch (error) {
+          dependencies.writeError(
+            `Source-version listing failed: ${safeErrorMessage(error)}`,
+          );
+          dependencies.setExitCode(1);
+        }
+      },
+    );
+}
+
+/** Create `adt source version get` with explicit stdout/file delivery. */
+export function createSourceVersionCommand(
+  overrides: Partial<SourceHistoryCommandDependencies> = {},
+): Command {
+  const dependencies = sourceHistoryDependencies(overrides);
+  const getVersionCommand = new Command('get')
+    .description('Read one immutable historical source version')
+    .requiredOption(
+      '--uri <immutable-uri>',
+      'Immutable server-relative ADT source URI returned by SAP',
+    )
+    .option('--output <file>', "Write source to a file, or '-' for stdout", '-')
+    .action(async (options: { uri: string; output: string }) => {
+      try {
+        const client = await dependencies.getClient();
+        const service = dependencies.createService(client);
+        const source = await service.getVersionSource({ uri: options.uri });
+
+        if (options.output === '-') {
+          dependencies.writeStdout(source);
+        } else {
+          await dependencies.writeFile(options.output, source);
+        }
+      } catch (error) {
+        dependencies.writeError(
+          `Immutable source retrieval failed: ${safeErrorMessage(error)}`,
+        );
+        dependencies.setExitCode(1);
+      }
+    });
+
+  return new Command('version')
+    .description('Operate on one immutable source version')
+    .addCommand(getVersionCommand);
+}
 
 const putSourceCommand = new Command('put')
   .description('Write ABAP source code from a file to an existing object')
@@ -310,4 +468,6 @@ const putSourceCommand = new Command('put')
 export const sourceCommand = new Command('source')
   .description('Read and write ABAP source code')
   .addCommand(getSourceCommand)
-  .addCommand(putSourceCommand);
+  .addCommand(putSourceCommand)
+  .addCommand(createSourceVersionsCommand())
+  .addCommand(createSourceVersionCommand());

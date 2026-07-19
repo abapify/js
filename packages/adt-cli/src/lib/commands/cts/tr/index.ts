@@ -22,6 +22,7 @@ import { ctsSetCommand } from './set';
 import { ctsDeleteCommand } from './delete';
 import { ctsReleaseCommand } from './release';
 import { ctsReassignCommand } from './reassign';
+import { ctsSourceManifestCommand } from './source-manifest';
 
 export function createTrCommand(): Command {
   const trCmd = new Command('tr').description('Transport request operations');
@@ -34,6 +35,7 @@ export function createTrCommand(): Command {
   trCmd.addCommand(ctsDeleteCommand);
   trCmd.addCommand(ctsReleaseCommand);
   trCmd.addCommand(ctsReassignCommand);
+  trCmd.addCommand(ctsSourceManifestCommand);
   // NOTE: ctsCheckCommand not yet implemented (check endpoint not available)
 
   return trCmd;

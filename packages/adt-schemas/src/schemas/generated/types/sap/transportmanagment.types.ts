@@ -8,751 +8,751 @@
 export type TransportmanagmentSchema = {
     root: {
         workbench: {
-            target?: {
+            target?: undefined | {
                 modifiable: {
-                    request?: {
-                        task?: {
-                            abap_object?: {
-                                pgmid?: string;
-                                type?: string;
-                                name?: string;
-                                wbtype?: string;
-                                uri?: string;
-                                dummy_uri?: string;
-                                obj_info?: string;
-                                obj_desc?: string;
+                    request?: undefined | {
+                        task?: undefined | {
+                            abap_object?: undefined | {
+                                pgmid?: string | undefined;
+                                type?: string | undefined;
+                                name?: string | undefined;
+                                wbtype?: string | undefined;
+                                uri?: string | undefined;
+                                dummy_uri?: string | undefined;
+                                obj_info?: string | undefined;
+                                obj_desc?: string | undefined;
                             }[];
-                            link?: {
+                            link?: undefined | {
                                 href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
+                                rel?: string | undefined;
+                                type?: string | undefined;
+                                hreflang?: string | undefined;
+                                title?: string | undefined;
+                                length?: number | undefined;
+                                etag?: string | undefined;
+                                _text?: string | undefined;
                             }[];
-                            number?: string;
-                            owner?: string;
-                            desc?: string;
-                            status?: string;
-                            uri?: string;
+                            number?: string | undefined;
+                            owner?: string | undefined;
+                            desc?: string | undefined;
+                            status?: string | undefined;
+                            uri?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    status?: string;
+                    status?: string | undefined;
                 };
                 relstarted: {
-                    request?: {
-                        task?: {
-                            abap_object?: {
-                                pgmid?: string;
-                                type?: string;
-                                name?: string;
-                                wbtype?: string;
-                                uri?: string;
-                                dummy_uri?: string;
-                                obj_info?: string;
-                                obj_desc?: string;
+                    request?: undefined | {
+                        task?: undefined | {
+                            abap_object?: undefined | {
+                                pgmid?: string | undefined;
+                                type?: string | undefined;
+                                name?: string | undefined;
+                                wbtype?: string | undefined;
+                                uri?: string | undefined;
+                                dummy_uri?: string | undefined;
+                                obj_info?: string | undefined;
+                                obj_desc?: string | undefined;
                             }[];
-                            link?: {
+                            link?: undefined | {
                                 href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
+                                rel?: string | undefined;
+                                type?: string | undefined;
+                                hreflang?: string | undefined;
+                                title?: string | undefined;
+                                length?: number | undefined;
+                                etag?: string | undefined;
+                                _text?: string | undefined;
                             }[];
-                            number?: string;
-                            owner?: string;
-                            desc?: string;
-                            status?: string;
-                            uri?: string;
+                            number?: string | undefined;
+                            owner?: string | undefined;
+                            desc?: string | undefined;
+                            status?: string | undefined;
+                            uri?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    status?: string;
+                    status?: string | undefined;
                 };
                 released: {
-                    request?: {
-                        task?: {
-                            abap_object?: {
-                                pgmid?: string;
-                                type?: string;
-                                name?: string;
-                                wbtype?: string;
-                                uri?: string;
-                                dummy_uri?: string;
-                                obj_info?: string;
-                                obj_desc?: string;
+                    request?: undefined | {
+                        task?: undefined | {
+                            abap_object?: undefined | {
+                                pgmid?: string | undefined;
+                                type?: string | undefined;
+                                name?: string | undefined;
+                                wbtype?: string | undefined;
+                                uri?: string | undefined;
+                                dummy_uri?: string | undefined;
+                                obj_info?: string | undefined;
+                                obj_desc?: string | undefined;
                             }[];
-                            link?: {
+                            link?: undefined | {
                                 href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
+                                rel?: string | undefined;
+                                type?: string | undefined;
+                                hreflang?: string | undefined;
+                                title?: string | undefined;
+                                length?: number | undefined;
+                                etag?: string | undefined;
+                                _text?: string | undefined;
                             }[];
-                            number?: string;
-                            owner?: string;
-                            desc?: string;
-                            status?: string;
-                            uri?: string;
+                            number?: string | undefined;
+                            owner?: string | undefined;
+                            desc?: string | undefined;
+                            status?: string | undefined;
+                            uri?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    status?: string;
+                    status?: string | undefined;
                 };
-                name?: string;
-                desc?: string;
+                name?: string | undefined;
+                desc?: string | undefined;
             }[];
             modifiable: {
-                request?: {
-                    task?: {
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                request?: undefined | {
+                    task?: undefined | {
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    abap_object?: {
-                        pgmid?: string;
-                        type?: string;
-                        name?: string;
-                        wbtype?: string;
-                        uri?: string;
-                        dummy_uri?: string;
-                        obj_info?: string;
-                        obj_desc?: string;
+                    abap_object?: undefined | {
+                        pgmid?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        wbtype?: string | undefined;
+                        uri?: string | undefined;
+                        dummy_uri?: string | undefined;
+                        obj_info?: string | undefined;
+                        obj_desc?: string | undefined;
                     }[];
-                    number?: string;
-                    owner?: string;
-                    desc?: string;
-                    status?: string;
-                    uri?: string;
+                    number?: string | undefined;
+                    owner?: string | undefined;
+                    desc?: string | undefined;
+                    status?: string | undefined;
+                    uri?: string | undefined;
                 }[];
-                status?: string;
+                status?: string | undefined;
             };
             relstarted: {
-                request?: {
-                    task?: {
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                request?: undefined | {
+                    task?: undefined | {
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    abap_object?: {
-                        pgmid?: string;
-                        type?: string;
-                        name?: string;
-                        wbtype?: string;
-                        uri?: string;
-                        dummy_uri?: string;
-                        obj_info?: string;
-                        obj_desc?: string;
+                    abap_object?: undefined | {
+                        pgmid?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        wbtype?: string | undefined;
+                        uri?: string | undefined;
+                        dummy_uri?: string | undefined;
+                        obj_info?: string | undefined;
+                        obj_desc?: string | undefined;
                     }[];
-                    number?: string;
-                    owner?: string;
-                    desc?: string;
-                    status?: string;
-                    uri?: string;
+                    number?: string | undefined;
+                    owner?: string | undefined;
+                    desc?: string | undefined;
+                    status?: string | undefined;
+                    uri?: string | undefined;
                 }[];
-                status?: string;
+                status?: string | undefined;
             };
             released: {
-                request?: {
-                    task?: {
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                request?: undefined | {
+                    task?: undefined | {
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    abap_object?: {
-                        pgmid?: string;
-                        type?: string;
-                        name?: string;
-                        wbtype?: string;
-                        uri?: string;
-                        dummy_uri?: string;
-                        obj_info?: string;
-                        obj_desc?: string;
+                    abap_object?: undefined | {
+                        pgmid?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        wbtype?: string | undefined;
+                        uri?: string | undefined;
+                        dummy_uri?: string | undefined;
+                        obj_info?: string | undefined;
+                        obj_desc?: string | undefined;
                     }[];
-                    number?: string;
-                    owner?: string;
-                    desc?: string;
-                    status?: string;
-                    uri?: string;
+                    number?: string | undefined;
+                    owner?: string | undefined;
+                    desc?: string | undefined;
+                    status?: string | undefined;
+                    uri?: string | undefined;
                 }[];
-                status?: string;
+                status?: string | undefined;
             };
-            category?: string;
+            category?: string | undefined;
         };
         customizing: {
-            target?: {
+            target?: undefined | {
                 modifiable: {
-                    request?: {
-                        task?: {
-                            abap_object?: {
-                                pgmid?: string;
-                                type?: string;
-                                name?: string;
-                                wbtype?: string;
-                                uri?: string;
-                                dummy_uri?: string;
-                                obj_info?: string;
-                                obj_desc?: string;
+                    request?: undefined | {
+                        task?: undefined | {
+                            abap_object?: undefined | {
+                                pgmid?: string | undefined;
+                                type?: string | undefined;
+                                name?: string | undefined;
+                                wbtype?: string | undefined;
+                                uri?: string | undefined;
+                                dummy_uri?: string | undefined;
+                                obj_info?: string | undefined;
+                                obj_desc?: string | undefined;
                             }[];
-                            link?: {
+                            link?: undefined | {
                                 href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
+                                rel?: string | undefined;
+                                type?: string | undefined;
+                                hreflang?: string | undefined;
+                                title?: string | undefined;
+                                length?: number | undefined;
+                                etag?: string | undefined;
+                                _text?: string | undefined;
                             }[];
-                            number?: string;
-                            owner?: string;
-                            desc?: string;
-                            status?: string;
-                            uri?: string;
+                            number?: string | undefined;
+                            owner?: string | undefined;
+                            desc?: string | undefined;
+                            status?: string | undefined;
+                            uri?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    status?: string;
+                    status?: string | undefined;
                 };
                 relstarted: {
-                    request?: {
-                        task?: {
-                            abap_object?: {
-                                pgmid?: string;
-                                type?: string;
-                                name?: string;
-                                wbtype?: string;
-                                uri?: string;
-                                dummy_uri?: string;
-                                obj_info?: string;
-                                obj_desc?: string;
+                    request?: undefined | {
+                        task?: undefined | {
+                            abap_object?: undefined | {
+                                pgmid?: string | undefined;
+                                type?: string | undefined;
+                                name?: string | undefined;
+                                wbtype?: string | undefined;
+                                uri?: string | undefined;
+                                dummy_uri?: string | undefined;
+                                obj_info?: string | undefined;
+                                obj_desc?: string | undefined;
                             }[];
-                            link?: {
+                            link?: undefined | {
                                 href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
+                                rel?: string | undefined;
+                                type?: string | undefined;
+                                hreflang?: string | undefined;
+                                title?: string | undefined;
+                                length?: number | undefined;
+                                etag?: string | undefined;
+                                _text?: string | undefined;
                             }[];
-                            number?: string;
-                            owner?: string;
-                            desc?: string;
-                            status?: string;
-                            uri?: string;
+                            number?: string | undefined;
+                            owner?: string | undefined;
+                            desc?: string | undefined;
+                            status?: string | undefined;
+                            uri?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    status?: string;
+                    status?: string | undefined;
                 };
                 released: {
-                    request?: {
-                        task?: {
-                            abap_object?: {
-                                pgmid?: string;
-                                type?: string;
-                                name?: string;
-                                wbtype?: string;
-                                uri?: string;
-                                dummy_uri?: string;
-                                obj_info?: string;
-                                obj_desc?: string;
+                    request?: undefined | {
+                        task?: undefined | {
+                            abap_object?: undefined | {
+                                pgmid?: string | undefined;
+                                type?: string | undefined;
+                                name?: string | undefined;
+                                wbtype?: string | undefined;
+                                uri?: string | undefined;
+                                dummy_uri?: string | undefined;
+                                obj_info?: string | undefined;
+                                obj_desc?: string | undefined;
                             }[];
-                            link?: {
+                            link?: undefined | {
                                 href: string;
-                                rel?: string;
-                                type?: string;
-                                hreflang?: string;
-                                title?: string;
-                                length?: number;
-                                etag?: string;
-                                _text?: string;
+                                rel?: string | undefined;
+                                type?: string | undefined;
+                                hreflang?: string | undefined;
+                                title?: string | undefined;
+                                length?: number | undefined;
+                                etag?: string | undefined;
+                                _text?: string | undefined;
                             }[];
-                            number?: string;
-                            owner?: string;
-                            desc?: string;
-                            status?: string;
-                            uri?: string;
+                            number?: string | undefined;
+                            owner?: string | undefined;
+                            desc?: string | undefined;
+                            status?: string | undefined;
+                            uri?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    status?: string;
+                    status?: string | undefined;
                 };
-                name?: string;
-                desc?: string;
+                name?: string | undefined;
+                desc?: string | undefined;
             }[];
             modifiable: {
-                request?: {
-                    task?: {
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                request?: undefined | {
+                    task?: undefined | {
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    abap_object?: {
-                        pgmid?: string;
-                        type?: string;
-                        name?: string;
-                        wbtype?: string;
-                        uri?: string;
-                        dummy_uri?: string;
-                        obj_info?: string;
-                        obj_desc?: string;
+                    abap_object?: undefined | {
+                        pgmid?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        wbtype?: string | undefined;
+                        uri?: string | undefined;
+                        dummy_uri?: string | undefined;
+                        obj_info?: string | undefined;
+                        obj_desc?: string | undefined;
                     }[];
-                    number?: string;
-                    owner?: string;
-                    desc?: string;
-                    status?: string;
-                    uri?: string;
+                    number?: string | undefined;
+                    owner?: string | undefined;
+                    desc?: string | undefined;
+                    status?: string | undefined;
+                    uri?: string | undefined;
                 }[];
-                status?: string;
+                status?: string | undefined;
             };
             relstarted: {
-                request?: {
-                    task?: {
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                request?: undefined | {
+                    task?: undefined | {
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    abap_object?: {
-                        pgmid?: string;
-                        type?: string;
-                        name?: string;
-                        wbtype?: string;
-                        uri?: string;
-                        dummy_uri?: string;
-                        obj_info?: string;
-                        obj_desc?: string;
+                    abap_object?: undefined | {
+                        pgmid?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        wbtype?: string | undefined;
+                        uri?: string | undefined;
+                        dummy_uri?: string | undefined;
+                        obj_info?: string | undefined;
+                        obj_desc?: string | undefined;
                     }[];
-                    number?: string;
-                    owner?: string;
-                    desc?: string;
-                    status?: string;
-                    uri?: string;
+                    number?: string | undefined;
+                    owner?: string | undefined;
+                    desc?: string | undefined;
+                    status?: string | undefined;
+                    uri?: string | undefined;
                 }[];
-                status?: string;
+                status?: string | undefined;
             };
             released: {
-                request?: {
-                    task?: {
-                        abap_object?: {
-                            pgmid?: string;
-                            type?: string;
-                            name?: string;
-                            wbtype?: string;
-                            uri?: string;
-                            dummy_uri?: string;
-                            obj_info?: string;
-                            obj_desc?: string;
+                request?: undefined | {
+                    task?: undefined | {
+                        abap_object?: undefined | {
+                            pgmid?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            wbtype?: string | undefined;
+                            uri?: string | undefined;
+                            dummy_uri?: string | undefined;
+                            obj_info?: string | undefined;
+                            obj_desc?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        number?: string;
-                        owner?: string;
-                        desc?: string;
-                        status?: string;
-                        uri?: string;
+                        number?: string | undefined;
+                        owner?: string | undefined;
+                        desc?: string | undefined;
+                        status?: string | undefined;
+                        uri?: string | undefined;
                     }[];
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    abap_object?: {
-                        pgmid?: string;
-                        type?: string;
-                        name?: string;
-                        wbtype?: string;
-                        uri?: string;
-                        dummy_uri?: string;
-                        obj_info?: string;
-                        obj_desc?: string;
+                    abap_object?: undefined | {
+                        pgmid?: string | undefined;
+                        type?: string | undefined;
+                        name?: string | undefined;
+                        wbtype?: string | undefined;
+                        uri?: string | undefined;
+                        dummy_uri?: string | undefined;
+                        obj_info?: string | undefined;
+                        obj_desc?: string | undefined;
                     }[];
-                    number?: string;
-                    owner?: string;
-                    desc?: string;
-                    status?: string;
-                    uri?: string;
+                    number?: string | undefined;
+                    owner?: string | undefined;
+                    desc?: string | undefined;
+                    status?: string | undefined;
+                    uri?: string | undefined;
                 }[];
-                status?: string;
+                status?: string | undefined;
             };
-            category?: string;
+            category?: string | undefined;
         };
         releasereports: {
-            checkReport?: {
-                checkMessageList?: {
-                    checkMessage?: {
-                        t100Key?: {
-                            msgno?: number;
-                            msgid?: string;
-                            msgv1?: string;
-                            msgv2?: string;
-                            msgv3?: string;
-                            msgv4?: string;
+            checkReport?: undefined | {
+                checkMessageList?: undefined | {
+                    checkMessage?: undefined | {
+                        t100Key?: undefined | {
+                            msgno?: number | undefined;
+                            msgid?: string | undefined;
+                            msgv1?: string | undefined;
+                            msgv2?: string | undefined;
+                            msgv3?: string | undefined;
+                            msgv4?: string | undefined;
                         };
-                        correctionHint?: {
-                            number?: number;
-                            kind?: string;
-                            line?: number;
-                            column?: number;
-                            word?: string;
+                        correctionHint?: undefined | {
+                            number?: number | undefined;
+                            kind?: string | undefined;
+                            line?: number | undefined;
+                            column?: number | undefined;
+                            word?: string | undefined;
                         }[];
-                        link?: {
+                        link?: undefined | {
                             href: string;
-                            rel?: string;
-                            type?: string;
-                            hreflang?: string;
-                            title?: string;
-                            length?: number;
-                            etag?: string;
-                            _text?: string;
+                            rel?: string | undefined;
+                            type?: string | undefined;
+                            hreflang?: string | undefined;
+                            title?: string | undefined;
+                            length?: number | undefined;
+                            etag?: string | undefined;
+                            _text?: string | undefined;
                         }[];
-                        uri?: string;
-                        type?: unknown;
-                        shortText?: string;
-                        category?: string;
-                        code?: string;
+                        uri?: string | undefined;
+                        type?: undefined | unknown;
+                        shortText?: string | undefined;
+                        category?: string | undefined;
+                        code?: string | undefined;
                     }[];
                 };
-                reporter?: string;
-                triggeringUri?: string;
-                status?: string;
-                statusText?: string;
+                reporter?: string | undefined;
+                triggeringUri?: string | undefined;
+                status?: string | undefined;
+                statusText?: string | undefined;
             }[];
         };
-        targetuser?: string;
-        useraction?: string;
-        releasetimestamp?: string;
-        releaseobjlock?: string;
-        number?: string;
-        desc?: string;
-        uri?: string;
+        targetuser?: string | undefined;
+        useraction?: string | undefined;
+        releasetimestamp?: string | undefined;
+        releaseobjlock?: string | undefined;
+        number?: string | undefined;
+        desc?: string | undefined;
+        uri?: string | undefined;
     };
 };
