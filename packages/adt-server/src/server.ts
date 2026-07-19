@@ -14,12 +14,14 @@ import {
 } from './source-capabilities.js';
 import {
   sourceVersionReadBody,
+  sourceVersionReadResponse,
   transportDetailResponse,
   transportListResponse,
   transportObjectsResponse,
   transportPathParameter,
   parseTransportSearchQuery,
   transportSourceManifestBody,
+  transportSourceManifestResponse,
   type TransportSearchCriteria,
   type TransportSourceManifestInput,
 } from './rest-schemas.js';
@@ -378,24 +380,10 @@ export async function startAdtServer(
           writeProblem(response, 404, 'Not found');
           return;
         }
+        let input: TransportSourceManifestInput;
         try {
-          const input = transportSourceManifestBody.parse(
+          input = transportSourceManifestBody.parse(
             await readJsonBody(request),
-          );
-          const manifest =
-            await options.operations.buildTransportSourceManifest(
-              sourceManifestMatch[1]!,
-              input,
-            );
-          response.writeHead(200, { 'content-type': 'application/json' });
-          response.end(
-            JSON.stringify(
-              toRestTransportSourceManifest(
-                manifest,
-                sourceCapabilities,
-                sourceManifestMatch[1]!,
-              ),
-            ),
           );
         } catch (error) {
           if (
@@ -407,6 +395,19 @@ export async function startAdtServer(
           }
           throw error;
         }
+        const manifest = await options.operations.buildTransportSourceManifest(
+          sourceManifestMatch[1]!,
+          input,
+        );
+        const data = transportSourceManifestResponse.parse(
+          toRestTransportSourceManifest(
+            manifest,
+            sourceCapabilities,
+            sourceManifestMatch[1]!,
+          ),
+        );
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify(data));
         return;
       }
       if (request.method === 'POST' && sourceVersionReadMatch) {
@@ -414,10 +415,20 @@ export async function startAdtServer(
           writeProblem(response, 404, 'Not found');
           return;
         }
+        let input: ReturnType<typeof sourceVersionReadBody.parse>;
         try {
-          const input = sourceVersionReadBody.parse(
-            await readJsonBody(request),
-          );
+          input = sourceVersionReadBody.parse(await readJsonBody(request));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof InvalidJsonBodyError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        try {
           const source = sourceCapabilities.resolve({
             sourceCapability: input.sourceCapability,
             destination: sourceVersionReadMatch[1]!,
@@ -436,8 +447,9 @@ export async function startAdtServer(
               'Bounded source operation returned an invalid body',
             );
           }
+          const data = sourceVersionReadResponse.parse(result);
           response.writeHead(200, { 'content-type': 'application/json' });
-          response.end(JSON.stringify(result));
+          response.end(JSON.stringify(data));
         } catch (error) {
           if (error instanceof RestSourceCapabilityError) {
             writeProblem(response, 404, 'Source unavailable');
@@ -445,13 +457,6 @@ export async function startAdtServer(
           }
           if (error instanceof SourceVersionTooLargeError) {
             writeProblem(response, 413, 'Source too large');
-            return;
-          }
-          if (
-            error instanceof z.ZodError ||
-            error instanceof InvalidJsonBodyError
-          ) {
-            writeProblem(response, 400, 'Invalid request');
             return;
           }
           throw error;

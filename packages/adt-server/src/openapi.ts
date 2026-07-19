@@ -2,18 +2,26 @@ import YAML from 'yaml';
 import { z } from 'zod';
 import {
   sourceVersionReadBody,
+  sourceVersionReadResponse,
   transportDetailResponse,
   transportListResponse,
   transportObjectsResponse,
   transportPathParameter,
   transportSearchQuery,
   transportSourceManifestBody,
+  transportSourceManifestResponse,
 } from './rest-schemas.js';
 
 const transportSourceManifestSchema = z.toJSONSchema(
   transportSourceManifestBody,
 );
 const sourceVersionReadSchema = z.toJSONSchema(sourceVersionReadBody);
+const sourceVersionReadResponseSchema = z.toJSONSchema(
+  sourceVersionReadResponse,
+);
+const transportSourceManifestResponseSchema = z.toJSONSchema(
+  transportSourceManifestResponse,
+);
 const transportSearchQuerySchema = z.toJSONSchema(transportSearchQuery);
 const transportListResponseSchema = z.toJSONSchema(transportListResponse);
 const transportDetailResponseSchema = z.toJSONSchema(transportDetailResponse);
@@ -140,6 +148,11 @@ export const openApiDocument = {
           '200': {
             description:
               'Metadata-only transport source manifest with opaque source capabilities',
+            content: {
+              'application/json': {
+                schema: transportSourceManifestResponseSchema,
+              },
+            },
           },
           '400': { description: 'Invalid request' },
         },
@@ -160,6 +173,9 @@ export const openApiDocument = {
         responses: {
           '200': {
             description: 'Complete immutable source body under byte cap',
+            content: {
+              'application/json': { schema: sourceVersionReadResponseSchema },
+            },
           },
           '400': { description: 'Invalid request' },
           '404': { description: 'Source capability unavailable' },
