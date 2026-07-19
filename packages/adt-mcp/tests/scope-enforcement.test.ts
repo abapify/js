@@ -239,3 +239,36 @@ test('createMcpServer denies a crafted write call in destination mode', async ()
     await destinations.shutdown();
   }
 });
+
+test('destination mode exposes capability-bound immutable source selection without a raw URI', async () => {
+  const destinations = destinationRegistry(() => undefined);
+  const server = createMcpServer({
+    destinationRegistry: destinations,
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+  });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new Client({
+    name: 'source-version-schema-test',
+    version: '0.0.1',
+  });
+  await client.connect(clientTransport);
+
+  try {
+    const tool = (await client.listTools()).tools.find(
+      (candidate) => candidate.name === 'get_source_version',
+    );
+    const properties = tool?.inputSchema.properties as
+      | Record<string, unknown>
+      | undefined;
+
+    assert.ok(tool);
+    assert.ok(properties?.sourceCapability);
+    assert.ok(!Object.hasOwn(properties ?? {}, 'uri'));
+  } finally {
+    await client.close();
+    await server.close();
+    await destinations.shutdown();
+  }
+});

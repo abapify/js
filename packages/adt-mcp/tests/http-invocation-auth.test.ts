@@ -320,7 +320,7 @@ test('AI Review redeems only the signed source component before acquiring its de
   const { privateKey, publicKey } = await generateKeyPair('ES256');
   let leases = 0;
   let contexts = 0;
-  let sourceFetches = 0;
+  let boundedSourceReads = 0;
   const resolverCalls: Array<{
     destination: string;
     systemSid: string;
@@ -344,12 +344,13 @@ test('AI Review redeems only the signed source component before acquiring its de
         contexts++;
         return {
           client: {
-            async fetch(uri: string) {
-              sourceFetches++;
+            async readTextBounded(uri: string, maxBytes: number) {
+              boundedSourceReads++;
               assert.strictEqual(
                 uri,
                 '/sap/bc/adt/oo/classes/zcl_scope_test/source/main',
               );
+              assert.strictEqual(maxBytes, 65_536);
               return 'CLASS zcl_scope_test DEFINITION PUBLIC.';
             },
           } as never,
@@ -444,7 +445,7 @@ test('AI Review redeems only the signed source component before acquiring its de
     ]);
     assert.strictEqual(leases, 1);
     assert.strictEqual(contexts, 1);
-    assert.strictEqual(sourceFetches, 1);
+    assert.strictEqual(boundedSourceReads, 1);
     assert.deepStrictEqual(
       JSON.parse(
         (accepted.content as Array<{ type: 'text'; text: string }>)[0]?.text ??
