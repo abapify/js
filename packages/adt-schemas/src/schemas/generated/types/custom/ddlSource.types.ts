@@ -7,64 +7,64 @@
 
 export type DdlSourceSchema = {
     source: {
-        containerRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        containerRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
-        adtTemplate?: {
-            adtProperty?: {
-                $value?: string;
-                key?: string;
+        adtTemplate?: undefined | {
+            adtProperty?: undefined | {
+                $value?: string | undefined;
+                key?: string | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         };
-        packageRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        packageRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
-        template?: {
-            property?: {
-                $value?: string;
-                key?: string;
+        template?: undefined | {
+            property?: undefined | {
+                $value?: string | undefined;
+                key?: string | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         };
-        syntaxConfiguration?: {
-            language?: {
-                version?: string;
-                description?: string;
+        syntaxConfiguration?: undefined | {
+            language?: undefined | {
+                version?: string | undefined;
+                description?: string | undefined;
             };
-            objectUsage?: {
-                restricted?: boolean;
+            objectUsage?: undefined | {
+                restricted?: boolean | undefined;
             };
         };
         name: string;
         type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-        sourceUri?: string;
-        sourceObjectStatus?: "SAPStandardProduction" | "customerProduction" | "system" | "test";
-        fixPointArithmetic?: boolean;
-        activeUnicodeCheck?: boolean;
+        changedBy?: string | undefined;
+        changedAt?: string | undefined;
+        createdAt?: string | undefined;
+        createdBy?: string | undefined;
+        version?: undefined | "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+        description?: string | undefined;
+        descriptionTextLimit?: number | undefined;
+        language?: string | undefined;
+        masterSystem?: string | undefined;
+        masterLanguage?: string | undefined;
+        responsible?: string | undefined;
+        abapLanguageVersion?: string | undefined;
+        sourceUri?: string | undefined;
+        sourceObjectStatus?: undefined | "SAPStandardProduction" | "customerProduction" | "system" | "test";
+        fixPointArithmetic?: boolean | undefined;
+        activeUnicodeCheck?: boolean | undefined;
     };
 };

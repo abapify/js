@@ -4,6 +4,7 @@
 
 export * from './informationsystem';
 export * from './objectstructure';
+export * from './sourceversions';
 
 import {
   informationsystemContract,
@@ -13,13 +14,19 @@ import {
   objectstructureContract,
   type ObjectstructureContract,
 } from './objectstructure';
+import {
+  sourceversionsContract,
+  type SourceversionsContract,
+} from './sourceversions';
 
 export interface RepositoryContract {
   informationsystem: InformationSystemContract;
   objectstructure: ObjectstructureContract;
+  sourceversions: SourceversionsContract;
 }
 
 export const repositoryContract: RepositoryContract = {
   informationsystem: informationsystemContract,
   objectstructure: objectstructureContract,
+  sourceversions: sourceversionsContract,
 };

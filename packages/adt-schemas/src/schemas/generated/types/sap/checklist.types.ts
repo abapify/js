@@ -7,51 +7,51 @@
 
 export type ChecklistSchema = {
     messages: {
-        msg?: {
+        msg?: undefined | {
             shortText: {
                 txt: string[];
             };
-            longText?: {
+            longText?: undefined | {
                 txt: string[];
             };
-            t100Key?: {
-                msgno?: number;
-                msgid?: string;
-                msgv1?: string;
-                msgv2?: string;
-                msgv3?: string;
-                msgv4?: string;
+            t100Key?: undefined | {
+                msgno?: number | undefined;
+                msgid?: string | undefined;
+                msgv1?: string | undefined;
+                msgv2?: string | undefined;
+                msgv3?: string | undefined;
+                msgv4?: string | undefined;
             };
-            correctionHint?: {
-                number?: number;
-                kind?: string;
-                line?: number;
-                column?: number;
-                word?: string;
+            correctionHint?: undefined | {
+                number?: number | undefined;
+                kind?: string | undefined;
+                line?: number | undefined;
+                column?: number | undefined;
+                word?: string | undefined;
             }[];
-            link?: {
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
             objDescr: string;
             type: unknown;
-            line?: number;
-            offset?: number;
-            href?: string;
-            forceSupported?: boolean;
-            code?: string;
+            line?: number | undefined;
+            offset?: number | undefined;
+            href?: string | undefined;
+            forceSupported?: boolean | undefined;
+            code?: string | undefined;
         }[];
         properties: {
-            checkExecuted?: boolean;
-            activationExecuted?: boolean;
-            generationExecuted?: boolean;
+            checkExecuted?: boolean | undefined;
+            activationExecuted?: boolean | undefined;
+            generationExecuted?: boolean | undefined;
         };
-        forceSupported?: boolean;
+        forceSupported?: boolean | undefined;
     };
 };

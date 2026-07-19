@@ -7,7 +7,7 @@
 
 export type TracesSchema = {
     activations: {
-        activation?: {
+        activation?: undefined | {
             activationId: string;
             deletionTime: string;
             description: string;
@@ -22,14 +22,14 @@ export type TracesSchema = {
             changeUser: string;
             changeTime: string;
             components: {
-                component?: {
+                component?: undefined | {
                     component: string;
                     traceLevel: number;
                 }[];
             };
-            numberOfTraces?: number;
-            maxNumberOfTraces?: number;
-            noContent?: boolean;
+            numberOfTraces?: number | undefined;
+            maxNumberOfTraces?: number | undefined;
+            noContent?: boolean | undefined;
         }[];
     };
 } | {
@@ -48,18 +48,18 @@ export type TracesSchema = {
         changeUser: string;
         changeTime: string;
         components: {
-            component?: {
+            component?: undefined | {
                 component: string;
                 traceLevel: number;
             }[];
         };
-        numberOfTraces?: number;
-        maxNumberOfTraces?: number;
-        noContent?: boolean;
+        numberOfTraces?: number | undefined;
+        maxNumberOfTraces?: number | undefined;
+        noContent?: boolean | undefined;
     };
 } | {
     traces: {
-        trace?: {
+        trace?: undefined | {
             traceId: string;
             user: string;
             server: string;
@@ -73,13 +73,13 @@ export type TracesSchema = {
             eppConnectionId: string;
             eppConnectionCounter: number;
             properties: {
-                property?: {
+                property?: undefined | {
                     component: string;
                     key: string;
                     value: string;
                 }[];
             };
-            activation?: {
+            activation?: undefined | {
                 activationId: string;
                 deletionTime: string;
                 description: string;
@@ -94,25 +94,25 @@ export type TracesSchema = {
                 changeUser: string;
                 changeTime: string;
                 components: {
-                    component?: {
+                    component?: undefined | {
                         component: string;
                         traceLevel: number;
                     }[];
                 };
-                numberOfTraces?: number;
-                maxNumberOfTraces?: number;
-                noContent?: boolean;
+                numberOfTraces?: number | undefined;
+                maxNumberOfTraces?: number | undefined;
+                noContent?: boolean | undefined;
             };
-            recordsSummary?: {
-                componentNames?: {
-                    componentName?: string[];
+            recordsSummary?: undefined | {
+                componentNames?: undefined | {
+                    componentName?: undefined | string[];
                 };
                 numberOfRecords: number;
                 minRecordsTimestamp: string;
                 maxRecordsTimestamp: string;
                 contentSize: number;
             };
-            originalImportMetadata?: {
+            originalImportMetadata?: undefined | {
                 originalTraceId: string;
                 originalTraceSystem: string;
                 originalTraceClient: string;
@@ -140,13 +140,13 @@ export type TracesSchema = {
         eppConnectionId: string;
         eppConnectionCounter: number;
         properties: {
-            property?: {
+            property?: undefined | {
                 component: string;
                 key: string;
                 value: string;
             }[];
         };
-        activation?: {
+        activation?: undefined | {
             activationId: string;
             deletionTime: string;
             description: string;
@@ -161,25 +161,25 @@ export type TracesSchema = {
             changeUser: string;
             changeTime: string;
             components: {
-                component?: {
+                component?: undefined | {
                     component: string;
                     traceLevel: number;
                 }[];
             };
-            numberOfTraces?: number;
-            maxNumberOfTraces?: number;
-            noContent?: boolean;
+            numberOfTraces?: number | undefined;
+            maxNumberOfTraces?: number | undefined;
+            noContent?: boolean | undefined;
         };
-        recordsSummary?: {
-            componentNames?: {
-                componentName?: string[];
+        recordsSummary?: undefined | {
+            componentNames?: undefined | {
+                componentName?: undefined | string[];
             };
             numberOfRecords: number;
             minRecordsTimestamp: string;
             maxRecordsTimestamp: string;
             contentSize: number;
         };
-        originalImportMetadata?: {
+        originalImportMetadata?: undefined | {
             originalTraceId: string;
             originalTraceSystem: string;
             originalTraceClient: string;
@@ -193,49 +193,49 @@ export type TracesSchema = {
     };
 } | {
     records: {
-        record?: {
+        record?: undefined | {
             traceId: string;
             recordNumber: number;
-            parentNumber?: number;
+            parentNumber?: number | undefined;
             creationTime: string;
-            traceComponent?: string;
-            traceObject?: string;
-            traceProcedure?: string;
+            traceComponent?: string | undefined;
+            traceObject?: string | undefined;
+            traceProcedure?: string | undefined;
             traceLevel: number;
-            callStack?: string;
-            message?: string;
-            contentType?: string;
-            hierarchyType?: string;
-            hierarchyNumber?: number;
-            hierarchiesLevel?: number;
-            content?: string;
-            contentLength?: number;
-            properties?: {
-                property?: {
+            callStack?: string | undefined;
+            message?: string | undefined;
+            contentType?: string | undefined;
+            hierarchyType?: string | undefined;
+            hierarchyNumber?: number | undefined;
+            hierarchiesLevel?: number | undefined;
+            content?: string | undefined;
+            contentLength?: number | undefined;
+            properties?: undefined | {
+                property?: undefined | {
                     component: string;
                     key: string;
                     value: string;
                 }[];
             };
-            options?: {
-                noSensitiveData?: boolean;
-                callStackOffset?: number;
-                fullCallStack?: boolean;
-                highlighting?: string;
+            options?: undefined | {
+                noSensitiveData?: boolean | undefined;
+                callStackOffset?: number | undefined;
+                fullCallStack?: boolean | undefined;
+                highlighting?: string | undefined;
             };
-            processedObjects?: string;
+            processedObjects?: string | undefined;
         }[];
     };
 } | {
     uriMapping: {
         objectReference: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
     };
 };

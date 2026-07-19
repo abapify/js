@@ -7,74 +7,74 @@
 
 export type DataelementWrapperSchema = {
     wbobj: {
-        containerRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        containerRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
-        adtTemplate?: {
-            adtProperty?: {
-                $value?: string;
-                key?: string;
+        adtTemplate?: undefined | {
+            adtProperty?: undefined | {
+                $value?: string | undefined;
+                key?: string | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         };
-        packageRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        packageRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
-        dataElement?: {
+        dataElement?: undefined | {
             typeKind: "domain" | "predefinedAbapType" | "refToPredefinedAbapType" | "refToDictionaryType" | "refToClifType";
-            typeName?: string;
-            dataType?: string;
-            dataTypeLength?: number;
-            dataTypeLengthEnabled?: boolean;
-            dataTypeDecimals?: number;
-            dataTypeDecimalsEnabled?: boolean;
-            shortFieldLabel?: string;
-            shortFieldLength?: number;
-            shortFieldMaxLength?: number;
-            mediumFieldLabel?: string;
-            mediumFieldLength?: number;
-            mediumFieldMaxLength?: number;
-            longFieldLabel?: string;
-            longFieldLength?: number;
-            longFieldMaxLength?: number;
-            headingFieldLabel?: string;
-            headingFieldLength?: number;
-            headingFieldMaxLength?: number;
-            searchHelp?: string;
-            searchHelpParameter?: string;
-            setGetParameter?: string;
-            defaultComponentName?: string;
-            deactivateInputHistory?: boolean;
-            changeDocument?: boolean;
-            leftToRightDirection?: boolean;
-            deactivateBIDIFiltering?: boolean;
-            documentationStatus?: "required" | "notUsedInScreens" | "explainedByShortText" | "postponed";
+            typeName?: string | undefined;
+            dataType?: string | undefined;
+            dataTypeLength?: number | undefined;
+            dataTypeLengthEnabled?: boolean | undefined;
+            dataTypeDecimals?: number | undefined;
+            dataTypeDecimalsEnabled?: boolean | undefined;
+            shortFieldLabel?: string | undefined;
+            shortFieldLength?: number | undefined;
+            shortFieldMaxLength?: number | undefined;
+            mediumFieldLabel?: string | undefined;
+            mediumFieldLength?: number | undefined;
+            mediumFieldMaxLength?: number | undefined;
+            longFieldLabel?: string | undefined;
+            longFieldLength?: number | undefined;
+            longFieldMaxLength?: number | undefined;
+            headingFieldLabel?: string | undefined;
+            headingFieldLength?: number | undefined;
+            headingFieldMaxLength?: number | undefined;
+            searchHelp?: string | undefined;
+            searchHelpParameter?: string | undefined;
+            setGetParameter?: string | undefined;
+            defaultComponentName?: string | undefined;
+            deactivateInputHistory?: boolean | undefined;
+            changeDocument?: boolean | undefined;
+            leftToRightDirection?: boolean | undefined;
+            deactivateBIDIFiltering?: boolean | undefined;
+            documentationStatus?: undefined | "required" | "notUsedInScreens" | "explainedByShortText" | "postponed";
         };
         name: string;
         type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
+        changedBy?: string | undefined;
+        changedAt?: string | undefined;
+        createdAt?: string | undefined;
+        createdBy?: string | undefined;
+        version?: undefined | "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+        description?: string | undefined;
+        descriptionTextLimit?: number | undefined;
+        language?: string | undefined;
+        masterSystem?: string | undefined;
+        masterLanguage?: string | undefined;
+        responsible?: string | undefined;
+        abapLanguageVersion?: string | undefined;
     };
 };

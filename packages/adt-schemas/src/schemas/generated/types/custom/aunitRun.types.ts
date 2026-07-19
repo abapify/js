@@ -7,37 +7,37 @@
 
 export type AunitRunSchema = {
     runConfiguration: {
-        external?: {
-            coverage?: {
-                active?: string;
+        external?: undefined | {
+            coverage?: undefined | {
+                active?: string | undefined;
             };
         };
-        options?: {
-            uriType?: {
-                value?: string;
+        options?: undefined | {
+            uriType?: undefined | {
+                value?: string | undefined;
             };
-            testDeterminationStrategy?: {
-                sameProgram?: string;
-                assignedTests?: string;
-                appendAssignedTestsPreview?: string;
+            testDeterminationStrategy?: undefined | {
+                sameProgram?: string | undefined;
+                assignedTests?: string | undefined;
+                appendAssignedTestsPreview?: string | undefined;
             };
-            testRiskLevels?: {
-                harmless?: string;
-                dangerous?: string;
-                critical?: string;
+            testRiskLevels?: undefined | {
+                harmless?: string | undefined;
+                dangerous?: string | undefined;
+                critical?: string | undefined;
             };
-            testDurations?: {
-                short?: string;
-                medium?: string;
-                long?: string;
+            testDurations?: undefined | {
+                short?: string | undefined;
+                medium?: string | undefined;
+                long?: string | undefined;
             };
-            withNavigationUri?: {
-                enabled?: string;
+            withNavigationUri?: undefined | {
+                enabled?: string | undefined;
             };
         };
         objectSets: {
-            objectSet?: {
-                kind?: string;
+            objectSet?: undefined | {
+                kind?: string | undefined;
             }[];
         };
     };

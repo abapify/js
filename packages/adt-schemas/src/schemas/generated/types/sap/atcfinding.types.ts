@@ -7,94 +7,94 @@
 
 export type AtcfindingSchema = {
     finding: {
-        extension?: unknown;
-        link?: {
+        extension?: undefined | unknown;
+        link?: undefined | {
             href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
+            rel?: string | undefined;
+            type?: string | undefined;
+            hreflang?: string | undefined;
+            title?: string | undefined;
+            length?: number | undefined;
+            etag?: string | undefined;
+            _text?: string | undefined;
         }[];
         quickfixes: {
-            manual?: boolean;
-            automatic?: boolean;
-            pseudo?: boolean;
-            ai_enabled?: boolean;
-            aiBasedQF?: boolean;
+            manual?: boolean | undefined;
+            automatic?: boolean | undefined;
+            pseudo?: boolean | undefined;
+            ai_enabled?: boolean | undefined;
+            aiBasedQF?: boolean | undefined;
         };
-        tags?: {
-            tag?: {
-                name?: string;
-                value?: string;
+        tags?: undefined | {
+            tag?: undefined | {
+                name?: string | undefined;
+                value?: string | undefined;
             }[];
         };
-        uri?: string;
-        parentUri?: string;
-        type?: string;
-        name?: string;
-        packageName?: string;
-        description?: string;
-        location?: string;
-        effectOnTransports?: string;
-        priority?: string;
-        checkTitle?: string;
-        checkId?: string;
-        messageTitle?: string;
-        messageId?: string;
-        exemptionKind?: string;
-        exemptionApproval?: string;
-        noExemption?: string;
-        quickfixInfo?: string;
-        contactPerson?: string;
-        lastChangedBy?: string;
-        processor?: string;
-        checksum?: number;
-        remarkText?: string;
-        remarkLink?: string;
+        uri?: string | undefined;
+        parentUri?: string | undefined;
+        type?: string | undefined;
+        name?: string | undefined;
+        packageName?: string | undefined;
+        description?: string | undefined;
+        location?: string | undefined;
+        effectOnTransports?: string | undefined;
+        priority?: string | undefined;
+        checkTitle?: string | undefined;
+        checkId?: string | undefined;
+        messageTitle?: string | undefined;
+        messageId?: string | undefined;
+        exemptionKind?: string | undefined;
+        exemptionApproval?: string | undefined;
+        noExemption?: string | undefined;
+        quickfixInfo?: string | undefined;
+        contactPerson?: string | undefined;
+        lastChangedBy?: string | undefined;
+        processor?: string | undefined;
+        checksum?: number | undefined;
+        remarkText?: string | undefined;
+        remarkLink?: string | undefined;
     };
 } | {
     findingReferences: {
-        findingReference?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        findingReference?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         }[];
     };
 } | {
     items: {
-        item?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
-            processor?: string;
-            status?: number;
-            remarkText?: string;
-            remarkLink?: string;
+        item?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
+            processor?: string | undefined;
+            status?: number | undefined;
+            remarkText?: string | undefined;
+            remarkLink?: string | undefined;
         }[];
     };
 } | {
     remarks: {
-        remark?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
-            remarkText?: string;
-            remarkLink?: string;
+        remark?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
+            remarkText?: string | undefined;
+            remarkLink?: string | undefined;
         }[];
     };
 };

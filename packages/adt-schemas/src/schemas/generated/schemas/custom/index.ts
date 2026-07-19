@@ -16,6 +16,7 @@ export { default as atcRun } from './atcRun';
 export { default as aunitRun } from './aunitRun';
 export { default as aunitResult } from './aunitResult';
 export { default as atomFeed } from './atomFeed';
+export { default as objectProperties } from './objectProperties';
 export { default as transportUseraction } from './transportUseraction';
 export { default as ddlSource } from './ddlSource';
 export { default as dclSource } from './dclSource';

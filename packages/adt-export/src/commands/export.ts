@@ -219,7 +219,7 @@ export const exportCommand: CliCommandPlugin = {
     {
       flags: '--unlock',
       description:
-        'Force-unlock objects locked by current user before saving (auto-retry on 403)',
+        'Release locks with handles persisted by this CLI before saving',
       default: false,
     },
     {
@@ -586,7 +586,7 @@ export const exportCommand: CliCommandPlugin = {
                   const acceptHeader =
                     'application/vnd.sap.adt.packages.v2+xml, application/vnd.sap.adt.packages.v1+xml';
 
-                  // Force-unlock first in case a previous run left it locked
+                  // Recover a persisted lock first if a previous run crashed.
                   if (options.unlock) {
                     try {
                       const lockSvc = adkContext.lockService;
@@ -931,17 +931,17 @@ export const exportCommand: CliCommandPlugin = {
       }
 
       // ============================================
-      // Pre-deploy: force-unlock all objects (--unlock)
+      // Pre-deploy: recover persisted object locks (--unlock)
       // ============================================
       if (options.unlock && !options.dryRun) {
         ctx.logger.info(
-          `\n🔓 --unlock: Force-unlocking all ${objectSet.size} objects...`,
+          `\n🔓 --unlock: Recovering persisted locks for ${objectSet.size} objects...`,
         );
         let unlocked = 0;
         const lockSvc = adkContext.lockService;
         if (!lockSvc) {
           ctx.logger.warn(
-            '⚠️ lockService not available — skipping force-unlock',
+            '⚠️ lockService not available — skipping persisted-lock recovery',
           );
         } else {
           for (const obj of objectSet) {
@@ -949,7 +949,8 @@ export const exportCommand: CliCommandPlugin = {
               await lockSvc.forceUnlock(obj.objectUri);
               unlocked++;
             } catch {
-              // Object wasn't locked or locked by another user — ignore
+              // No persisted handle, or SAP rejected it — deploy will surface
+              // an actionable lock conflict if the object remains locked.
             }
           }
           if (unlocked > 0) {

@@ -57,3 +57,17 @@ export {
   type ResolveConnectionClientHooks,
   type ResolvedConnectionClient,
 } from './lib/services/connection';
+
+// Exact immutable source history — shared by CLI and MCP delivery surfaces.
+export {
+  ExactSourceHistoryService,
+  ExactSourceHistoryServiceError,
+  type BuildTransportManifestInput,
+  type BuildTransportManifestResult,
+  type ExactSourceHistoryOperations,
+  type ExactSourceHistoryServiceErrorCode,
+  type GetVersionSourceInput,
+  type GetVersionSourceResult,
+  type ListObjectVersionsInput,
+  type ListObjectVersionsResult,
+} from './lib/services/source-history';
