@@ -213,6 +213,149 @@ test('lists all system transport headers through CTS FIND and filters ARM-side',
   }
 });
 
+test('maps transport detail and objects to canonical REST references without ADT URIs', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  let lease = 0;
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://arm-api.internal',
+    tokenFile,
+    fetch: async (input) => {
+      if (String(input).endsWith(':acquire')) {
+        lease += 1;
+        return new Response(
+          JSON.stringify({
+            leaseId: `00000000-0000-4000-8000-${String(lease).padStart(12, '0')}`,
+            destination: 'dev',
+            version: 1,
+            expiresAt: '2026-07-20T00:00:00.000Z',
+            connection: {
+              baseUrl: 'https://sap.example.test',
+              sapClient: null,
+              authMethod: 'basic',
+              authConfig: { username: 'service', password: 'secret' },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response(null, { status: 204 });
+    },
+    createClient: async () =>
+      ({
+        adt: {
+          cts: {
+            transportrequests: {
+              async get() {
+                return {
+                  root: {
+                    request: {
+                      number: 'DEVK900001',
+                      owner: 'ALICE',
+                      desc: 'Safe refactor',
+                      status: 'D',
+                      type: 'K',
+                      abap_object: [
+                        {
+                          type: 'CLAS/OC',
+                          name: 'zcl_safe',
+                          pgmid: 'R3TR',
+                          uri: '/sap/bc/adt/oo/classes/zcl_safe',
+                        },
+                      ],
+                      all_objects: {
+                        abap_object: [
+                          {
+                            type: 'CLAS/OC',
+                            name: 'zcl_safe',
+                            pgmid: 'R3TR',
+                            uri: '/sap/bc/adt/oo/classes/zcl_safe',
+                          },
+                        ],
+                      },
+                      task: [
+                        {
+                          number: 'DEVK900002',
+                          owner: 'ALICE',
+                          desc: 'Implementation task',
+                          status: 'D',
+                          type: 'S',
+                          abap_object: [
+                            {
+                              type: 'INTF',
+                              name: 'zif_safe',
+                              uri: '/sap/bc/adt/oo/interfaces/zif_safe',
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                };
+              },
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const detail = await operations.getTransportDetail!('dev', 'DEVK900001');
+    const objects = await operations.listTransportObjects!('dev', 'DEVK900001');
+    assert.deepStrictEqual(detail, {
+      trkorr: 'DEVK900001',
+      owner: 'ALICE',
+      description: 'Safe refactor',
+      status: 'modifiable',
+      statusRaw: 'D',
+      trFunction: 'K',
+      tasks: [
+        {
+          trkorr: 'DEVK900002',
+          owner: 'ALICE',
+          description: 'Implementation task',
+          status: 'modifiable',
+          statusRaw: 'D',
+          trFunction: 'S',
+          parentTrkorr: 'DEVK900001',
+          objects: [
+            {
+              canonicalKey: 'INTF:ZIF_SAFE',
+              objectType: 'INTF',
+              objectName: 'ZIF_SAFE',
+            },
+          ],
+        },
+      ],
+      objects: [
+        {
+          canonicalKey: 'CLAS:ZCL_SAFE',
+          objectType: 'CLAS',
+          objectName: 'ZCL_SAFE',
+          pgmid: 'R3TR',
+        },
+      ],
+    });
+    assert.deepStrictEqual(objects, [
+      {
+        canonicalKey: 'CLAS:ZCL_SAFE',
+        objectType: 'CLAS',
+        objectName: 'ZCL_SAFE',
+        pgmid: 'R3TR',
+      },
+      {
+        canonicalKey: 'INTF:ZIF_SAFE',
+        objectType: 'INTF',
+        objectName: 'ZIF_SAFE',
+      },
+    ]);
+    assert.ok(!JSON.stringify({ detail, objects }).includes('/sap/bc/adt/'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');

@@ -65,6 +65,152 @@ interface TransportSummary {
   changedAt?: string;
 }
 
+interface CanonicalObjectReference {
+  canonicalKey: string;
+  objectType: string;
+  objectName: string;
+  pgmid?: string;
+  objInfo?: string;
+  objDesc?: string;
+  lockStatus?: string;
+}
+
+interface TransportTaskDetail extends TransportSummary {
+  parentTrkorr: string;
+  objects: CanonicalObjectReference[];
+}
+
+interface TransportDetail extends TransportSummary {
+  tasks: TransportTaskDetail[];
+  objects: CanonicalObjectReference[];
+}
+
+type UnknownRecord = Record<string, unknown>;
+
+function record(value: unknown): UnknownRecord | undefined {
+  return value !== null && typeof value === 'object'
+    ? (value as UnknownRecord)
+    : undefined;
+}
+
+function records(value: unknown): UnknownRecord[] {
+  return (Array.isArray(value) ? value : [value]).flatMap((entry) => {
+    const parsed = record(entry);
+    return parsed ? [parsed] : [];
+  });
+}
+
+function stringField(value: UnknownRecord, key: string): string | undefined {
+  const field = value[key];
+  return typeof field === 'string' && field.trim() ? field.trim() : undefined;
+}
+
+function normalizedObjectType(value: string): string | undefined {
+  const type = value.trim().toUpperCase().split('/', 1)[0]?.trim();
+  return type || undefined;
+}
+
+function toCanonicalObjects(value: unknown): CanonicalObjectReference[] {
+  return records(value).flatMap((entry) => {
+    const objectType = normalizedObjectType(stringField(entry, 'type') ?? '');
+    const objectName = stringField(entry, 'name')?.toUpperCase();
+    if (!objectType || !objectName) return [];
+    const optional = (
+      key: string,
+      outputKey: keyof CanonicalObjectReference,
+    ) => {
+      const field = stringField(entry, key);
+      return field ? { [outputKey]: field } : {};
+    };
+    return [
+      {
+        canonicalKey: `${objectType}:${objectName}`,
+        objectType,
+        objectName,
+        ...optional('pgmid', 'pgmid'),
+        ...optional('obj_info', 'objInfo'),
+        ...optional('obj_desc', 'objDesc'),
+        ...optional('lock_status', 'lockStatus'),
+      },
+    ];
+  });
+}
+
+function dedupeCanonicalObjects(
+  values: CanonicalObjectReference[],
+): CanonicalObjectReference[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = `${value.pgmid ?? ''}\u0000${value.canonicalKey}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeChangedAt(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function transportSummaryFromRequest(
+  request: UnknownRecord,
+  fallbackTrkorr: string,
+): TransportSummary {
+  const statusRaw = stringField(request, 'status');
+  return {
+    trkorr: stringField(request, 'number') ?? fallbackTrkorr,
+    owner: stringField(request, 'owner') ?? '',
+    description: stringField(request, 'desc') ?? '',
+    status: mapTransportStatus(statusRaw),
+    ...(statusRaw ? { statusRaw } : {}),
+    ...(stringField(request, 'type')
+      ? { trFunction: stringField(request, 'type')!.toUpperCase() }
+      : {}),
+    ...(stringField(request, 'target')
+      ? { target: stringField(request, 'target')! }
+      : {}),
+    ...(stringField(request, 'client')
+      ? { client: stringField(request, 'client')! }
+      : {}),
+    ...(normalizeChangedAt(request.lastchanged_timestamp)
+      ? { changedAt: normalizeChangedAt(request.lastchanged_timestamp) }
+      : {}),
+  };
+}
+
+function toTransportDetail(
+  response: unknown,
+  transport: string,
+): TransportDetail {
+  const root = record(response)?.root;
+  const request =
+    record(record(root)?.request) ?? record(root) ?? record(response) ?? {};
+  const summary = transportSummaryFromRequest(request, transport);
+  const tasks = records(request.task).flatMap((task) => {
+    const taskTrkorr = stringField(task, 'number');
+    if (!taskTrkorr) return [];
+    return [
+      {
+        ...transportSummaryFromRequest(task, taskTrkorr),
+        parentTrkorr: transport,
+        objects: toCanonicalObjects(task.abap_object),
+      },
+    ];
+  });
+  const allObjects = record(request.all_objects);
+  return {
+    ...summary,
+    tasks,
+    objects: dedupeCanonicalObjects(
+      toCanonicalObjects(request.abap_object).concat(
+        toCanonicalObjects(allObjects?.abap_object),
+      ),
+    ),
+  };
+}
+
 function mapTransportStatus(status?: string): string {
   switch (status) {
     case 'R':
@@ -267,6 +413,33 @@ export function createHttpBrokerOperations(
             extractTransportHeaders(response).map(toTransportSummary),
             criteria,
           );
+        },
+      );
+    },
+    async getTransportDetail(destination, transport) {
+      return await withClient(
+        destination,
+        'get_transport_detail',
+        async (client) =>
+          toTransportDetail(
+            await client.adt.cts.transportrequests.get(transport),
+            transport,
+          ),
+      );
+    },
+    async listTransportObjects(destination, transport) {
+      return await withClient(
+        destination,
+        'list_transport_objects',
+        async (client) => {
+          const detail = toTransportDetail(
+            await client.adt.cts.transportrequests.get(transport),
+            transport,
+          );
+          return dedupeCanonicalObjects([
+            ...detail.objects,
+            ...detail.tasks.flatMap((task) => task.objects),
+          ]);
         },
       );
     },
