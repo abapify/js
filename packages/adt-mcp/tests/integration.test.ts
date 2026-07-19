@@ -23,6 +23,7 @@ import type { ConnectionParams } from '../src/lib/types';
 let mockAdt: MockAdtServer;
 let mockPort: number;
 let client: Client;
+let boundedSourceReadCalls = 0;
 
 /**
  * Helper – call a tool and return the first text content block parsed as JSON.
@@ -65,13 +66,22 @@ describe('adt-mcp integration tests', () => {
 
     // 2. Create MCP server with a client factory that points at mock
     const server = createMcpServer({
-      clientFactory: (params: ConnectionParams): AdtClient =>
-        createAdtClient({
+      clientFactory: (params: ConnectionParams): AdtClient => {
+        const adtClient = createAdtClient({
           baseUrl: params.baseUrl,
           username: params.username ?? '',
           password: params.password ?? '',
           client: params.client,
-        }),
+        });
+        const readTextBounded = adtClient.readTextBounded;
+        return {
+          ...adtClient,
+          readTextBounded: async (...args) => {
+            boundedSourceReadCalls += 1;
+            return readTextBounded(...args);
+          },
+        };
+      },
     });
 
     // 3. Wire up in-memory transport
@@ -282,6 +292,29 @@ describe('adt-mcp integration tests', () => {
       const data = json as { source: string };
       assert.ok(data.source, 'should have source property');
       assert.ok(data.source.length > 0, 'should return source');
+    });
+
+    it('rejects a source body above the requested byte limit without returning it', async () => {
+      boundedSourceReadCalls = 0;
+      const { json, raw } = await callTool('get_source', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        maxBytes: 1,
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+      assert.deepStrictEqual(json, {
+        error: {
+          code: 'SOURCE_TOO_LARGE',
+          message: 'The source exceeds the requested MCP response limit.',
+          maxBytes: 1,
+        },
+      });
+      assert.strictEqual(
+        boundedSourceReadCalls,
+        1,
+        'must enforce the byte cap while reading the HTTP response',
+      );
     });
   });
 
