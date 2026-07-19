@@ -20,11 +20,16 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { createMcpServer } from '../server.js';
 import { createSessionRegistry } from '../session/registry.js';
 import type { SessionRegistry } from '../session/registry.js';
+import type {
+  DestinationContextRegistry,
+  RequestIdentity,
+} from '../session/destination-registry.js';
+import type { McpRequestAccess } from '../tools/scope-catalogue.js';
 import {
   loadMultiSystemConfig,
   type MultiSystemConfig,
 } from './multi-system.js';
-import { createAuthMiddleware, type AuthMode } from './auth.js';
+import { createAuthMiddleware, type AuthMode, type UserHint } from './auth.js';
 import type { OAuthOptions } from './oauth.js';
 import { createCorsHandler } from './cors.js';
 
@@ -76,6 +81,18 @@ export interface HttpServerOptions {
   multiSystem?: MultiSystemConfig;
   /** Override the session registry (mainly for tests). */
   registry?: SessionRegistry;
+  /**
+   * Enables destination-aware shared-server mode. Access and identity are
+   * derived only from the authenticated request's trusted `UserHint` at MCP
+   * session initialization, then captured for the life of that session.
+   */
+  destinationServer?: {
+    destinationRegistry: DestinationContextRegistry;
+    requestIdentity: (input: { userHint?: UserHint }) => RequestIdentity;
+    requestAccess: (input: {
+      userHint?: UserHint;
+    }) => McpRequestAccess | undefined;
+  };
   /** Inject a logger that writes to stderr by default. */
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
 }
@@ -92,6 +109,17 @@ type Middleware = (
   req: http.IncomingMessage,
   res: http.ServerResponse,
 ) => Promise<boolean> | boolean;
+
+/** A deterministic, non-secret value used only for session affinity checks. */
+function sessionIdentityBinding(identity: RequestIdentity): string {
+  if (!identity.principal || typeof identity.principal !== 'string') {
+    throw new Error('Trusted request identity is missing a principal');
+  }
+  if (identity.agentId !== undefined && typeof identity.agentId !== 'string') {
+    throw new Error('Trusted request identity has an invalid agent id');
+  }
+  return JSON.stringify([identity.principal, identity.agentId ?? null]);
+}
 
 function defaultLog(level: 'info' | 'warn' | 'error', msg: string): void {
   // Write to stderr to avoid polluting any stdout-based transport on the
@@ -221,11 +249,13 @@ export async function startHttpServer(
     options.registry ??
     createSessionRegistry({ ttlMs: options.ttlMs ?? 30 * 60 * 1000 });
   const multiSystem = options.multiSystem ?? loadMultiSystemConfig();
+  const destinationServer = options.destinationServer;
 
   // One transport per MCP session, plus the paired McpServer that owns it.
   // The SDK expects `server.connect(transport)` to be called once per pair.
   const transports = new Map<string, StreamableHTTPServerTransport>();
   const servers = new Map<string, McpServer>();
+  const sessionIdentityBindings = new Map<string, string>();
 
   const hostAllow = normaliseHostAllowlist(host, options.allowedHosts);
   const hostValidator = makeHostValidator(hostAllow);
@@ -250,9 +280,34 @@ export async function startHttpServer(
   });
   const cors = createCorsHandler({ allowedOrigins: options.allowedOrigins });
 
+  const sessionMatchesAuthenticatedIdentity = (
+    sessionId: string,
+    userHint: UserHint | undefined,
+    res: http.ServerResponse,
+  ): boolean => {
+    if (!destinationServer) return true;
+    const expected = sessionIdentityBindings.get(sessionId);
+    if (!expected) {
+      writeJsonError(res, 403, 'mcp_session_identity_mismatch');
+      return false;
+    }
+    try {
+      const actual = sessionIdentityBinding(
+        destinationServer.requestIdentity({ userHint }),
+      );
+      if (actual === expected) return true;
+    } catch {
+      // Treat a failed or malformed trusted identity derivation exactly like
+      // a mismatch. Never fall back to a client field or session contents.
+    }
+    writeJsonError(res, 403, 'mcp_session_identity_mismatch');
+    return false;
+  };
+
   const handleMcp = async (
     req: http.IncomingMessage,
     res: http.ServerResponse,
+    userHint: UserHint | undefined,
   ): Promise<void> => {
     const sessionHeader = req.headers['mcp-session-id'];
     const sessionId = Array.isArray(sessionHeader)
@@ -277,6 +332,9 @@ export async function startHttpServer(
       }
 
       if (sessionId && transports.has(sessionId)) {
+        if (!sessionMatchesAuthenticatedIdentity(sessionId, userHint, res)) {
+          return;
+        }
         // Refresh the session's last-used timestamp so the TTL sweep
         // doesn't evict an actively-used session between tool calls.
         registry.touch(sessionId);
@@ -286,16 +344,22 @@ export async function startHttpServer(
       }
 
       if (!sessionId && isInitializeRequest(body)) {
+        let initializedSessionBinding: string | undefined;
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (id) => {
             transports.set(id, transport);
+            if (initializedSessionBinding) {
+              sessionIdentityBindings.set(id, initializedSessionBinding);
+            }
             log('info', `session initialized: ${id}`);
           },
           onsessionclosed: async (id) => {
             log('info', `session closed by client: ${id}`);
             transports.delete(id);
+            sessionIdentityBindings.delete(id);
             await registry.delete(id);
+            await destinationServer?.destinationRegistry.releaseAll(id);
             const s = servers.get(id);
             servers.delete(id);
             try {
@@ -310,10 +374,12 @@ export async function startHttpServer(
           const id = transport.sessionId;
           if (!id) return;
           transports.delete(id);
+          sessionIdentityBindings.delete(id);
           const s = servers.get(id);
           servers.delete(id);
           // Fire-and-forget — registry.delete swallows errors internally.
           void registry.delete(id);
+          void destinationServer?.destinationRegistry.releaseAll(id);
           try {
             void s?.close();
           } catch {
@@ -321,9 +387,42 @@ export async function startHttpServer(
           }
         };
 
+        let sessionIdentity: RequestIdentity | undefined;
+        let sessionAccess: McpRequestAccess | undefined;
+        if (destinationServer) {
+          let identityDerivationFailed = false;
+          try {
+            sessionIdentity = destinationServer.requestIdentity({ userHint });
+            initializedSessionBinding = sessionIdentityBinding(sessionIdentity);
+          } catch {
+            // A failed identity derivation must not turn into caller-selected
+            // identity material. The fallback is audit-safe and fail-closed
+            // once the lease provider applies its ordinary authorization.
+            sessionIdentity = { principal: 'unknown' };
+            identityDerivationFailed = true;
+          }
+          if (!identityDerivationFailed) {
+            try {
+              sessionAccess = destinationServer.requestAccess({ userHint });
+            } catch {
+              // Missing or failed trusted access derivation is intentionally
+              // indistinguishable from no access at dispatch time.
+              sessionAccess = undefined;
+            }
+          }
+        }
+
         const mcp = createMcpServer({
           registry,
           resolveSystem: (id) => multiSystem.resolve(id),
+          ...(destinationServer
+            ? {
+                destinationRegistry: destinationServer.destinationRegistry,
+                requestIdentity: () =>
+                  sessionIdentity ?? { principal: 'unknown' },
+                requestAccess: () => sessionAccess,
+              }
+            : {}),
         });
         await mcp.connect(transport);
         // Store under the generated session id as soon as it exists.
@@ -353,6 +452,9 @@ export async function startHttpServer(
     if (req.method === 'GET' || req.method === 'DELETE') {
       if (!sessionId || !transports.has(sessionId)) {
         writeJsonError(res, 400, 'Missing or unknown Mcp-Session-Id header');
+        return;
+      }
+      if (!sessionMatchesAuthenticatedIdentity(sessionId, userHint, res)) {
         return;
       }
       registry.touch(sessionId);
@@ -392,13 +494,9 @@ export async function startHttpServer(
 
       const authResult = await authMw(req, res);
       if (!authResult.allowed) return;
-      // userHint available for future per-request context propagation
-      // (Wave 3/4). Currently unused but intentionally preserved.
-      void authResult.userHint;
-
       // Accept /mcp and /mcp/ — ignore query string.
       if (pathOnly === '/mcp' || pathOnly === '/mcp/') {
-        await handleMcp(req, res);
+        await handleMcp(req, res, authResult.userHint);
         return;
       }
 
@@ -434,6 +532,15 @@ export async function startHttpServer(
     // Close each outstanding transport + server pair.
     const pairs = Array.from(transports.entries());
     transports.clear();
+    for (const [sessionId] of pairs) sessionIdentityBindings.delete(sessionId);
+    if (destinationServer) {
+      await Promise.allSettled(
+        pairs.map(
+          async ([sessionId]) =>
+            await destinationServer.destinationRegistry.releaseAll(sessionId),
+        ),
+      );
+    }
     await Promise.allSettled(
       pairs.map(async ([, t]) => {
         try {
