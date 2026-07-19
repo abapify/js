@@ -53,7 +53,8 @@ export interface HttpServerOptions {
   /**
    * Authentication mode for incoming requests. Defaults to `'none'` when
    * no token / forwarded-auth flag is configured. Misconfiguration (e.g.
-   * `bearer` without a token) throws synchronously from `startHttpServer`.
+   * `bearer` without a token) throws synchronously when the handler is
+   * created, including through `startHttpServer`.
    */
   authMode?: AuthMode;
   /** Bearer token (required when `authMode === 'bearer'`). */
@@ -106,6 +107,19 @@ export interface RunningHttpServer {
   readonly port: number;
   readonly host: string;
   readonly registry: SessionRegistry;
+  close(): Promise<void>;
+}
+
+/**
+ * A reusable Streamable HTTP MCP request handler.
+ *
+ * The embedding application owns its Node listener and delegates only the
+ * requests routed to MCP to `handle`. Calling `close` releases MCP sessions
+ * and transports, but deliberately never closes that listener.
+ */
+export interface HttpMcpHandler {
+  readonly registry: SessionRegistry;
+  handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -265,15 +279,11 @@ function writeJsonError(
 }
 
 /**
- * Starts the HTTP transport and returns a handle that can be used to
- * close it (and all active sessions) gracefully.
+ * Creates a reusable MCP HTTP handler without binding a Node listener.
  */
-export async function startHttpServer(
+export function createHttpMcpHandler(
   options: HttpServerOptions = {},
-): Promise<RunningHttpServer> {
-  const port =
-    options.port ??
-    (process.env.MCP_PORT ? Number(process.env.MCP_PORT) : 3000);
+): HttpMcpHandler {
   const host = options.host ?? process.env.MCP_HOST ?? '127.0.0.1';
   const log = options.log ?? defaultLog;
 
@@ -501,7 +511,10 @@ export async function startHttpServer(
     res.end();
   };
 
-  const server = http.createServer(async (req, res) => {
+  const handle = async (
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> => {
     try {
       // Pipeline order (security-critical):
       //   1. CORS — handles preflight short-circuit.
@@ -543,19 +556,7 @@ export async function startHttpServer(
       );
       writeJsonError(res, 500, 'Internal server error');
     }
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    const onError = (err: Error) => reject(err);
-    server.once('error', onError);
-    server.listen(port, host, () => {
-      server.removeListener('error', onError);
-      resolve();
-    });
-  });
-
-  const boundPort = (server.address() as { port: number } | null)?.port ?? port;
-  log('info', `listening on http://${host}:${boundPort}/mcp`);
+  };
 
   let closed = false;
   const close = async (): Promise<void> => {
@@ -595,6 +596,52 @@ export async function startHttpServer(
         }
       }),
     );
+  };
+
+  return {
+    registry,
+    handle,
+    close,
+  };
+}
+
+/**
+ * Starts the HTTP transport and returns a handle that can be used to close
+ * both the listener and all active MCP sessions gracefully.
+ *
+ * This is a backwards-compatible listener adapter around
+ * `createHttpMcpHandler` for standalone deployments.
+ */
+export async function startHttpServer(
+  options: HttpServerOptions = {},
+): Promise<RunningHttpServer> {
+  const port =
+    options.port ??
+    (process.env.MCP_PORT ? Number(process.env.MCP_PORT) : 3000);
+  const host = options.host ?? process.env.MCP_HOST ?? '127.0.0.1';
+  const log = options.log ?? defaultLog;
+  const handler = createHttpMcpHandler(options);
+  const server = http.createServer((req, res) => {
+    void handler.handle(req, res);
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const onError = (err: Error) => reject(err);
+    server.once('error', onError);
+    server.listen(port, host, () => {
+      server.removeListener('error', onError);
+      resolve();
+    });
+  });
+
+  const boundPort = (server.address() as { port: number } | null)?.port ?? port;
+  log('info', `listening on http://${host}:${boundPort}/mcp`);
+
+  let closed = false;
+  const close = async (): Promise<void> => {
+    if (closed) return;
+    closed = true;
+    await handler.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   };
 
@@ -602,7 +649,7 @@ export async function startHttpServer(
     url: `http://${host}:${boundPort}/mcp`,
     port: boundPort,
     host,
-    registry,
+    registry: handler.registry,
     close,
   };
 }
