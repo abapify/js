@@ -13,9 +13,11 @@ import {
   createRestSourceCapabilityService,
 } from './source-capabilities.js';
 import {
-  MAX_SOURCE_BYTES,
   sourceVersionReadBody,
+  transportListResponse,
+  parseTransportSearchQuery,
   transportSourceManifestBody,
+  type TransportSearchCriteria,
   type TransportSourceManifestInput,
 } from './rest-schemas.js';
 
@@ -23,7 +25,6 @@ const MAX_JSON_BODY_BYTES = 64 * 1024;
 
 type RawSourceVersion = {
   sourceUri: string;
-  [key: string]: unknown;
 };
 
 type RawTransportSourceManifest = {
@@ -33,11 +34,9 @@ type RawTransportSourceManifest = {
     component: {
       sourceUri?: string;
       versionsUri?: string;
-      [key: string]: unknown;
     };
     base?: RawSourceVersion;
     head?: RawSourceVersion;
-    [key: string]: unknown;
   }>;
 };
 
@@ -52,7 +51,10 @@ export interface DestinationSummary {
 /** The runtime supplies this from ADT's private broker; it never exposes a connection lease. */
 export interface AdtServerOperations {
   listDestinations(): Promise<DestinationSummary[]>;
-  listTransports(destination: string): Promise<unknown>;
+  listTransports(
+    destination: string,
+    criteria?: TransportSearchCriteria,
+  ): Promise<unknown>;
   searchPackages(destination: string): Promise<unknown>;
   searchObjects(destination: string): Promise<unknown>;
   /** Supplied by the broker adapter when immutable-source REST is enabled. */
@@ -124,6 +126,11 @@ async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
   } catch {
     throw new InvalidJsonBodyError();
   }
+}
+
+function readQuery(request: http.IncomingMessage): Record<string, string> {
+  const url = new URL(request.url ?? '/', 'http://adt-server.invalid');
+  return Object.fromEntries(url.searchParams.entries());
 }
 
 function writeProblem(
@@ -287,14 +294,27 @@ export async function startAdtServer(
       }
       if (request.method === 'GET' && match) {
         const [, destination, resource] = match;
-        const data =
-          resource === 'transports'
-            ? await options.operations.listTransports(destination)
-            : resource === 'packages'
-              ? await options.operations.searchPackages(destination)
-              : await options.operations.searchObjects(destination);
-        response.writeHead(200, { 'content-type': 'application/json' });
-        response.end(JSON.stringify(data));
+        try {
+          const data =
+            resource === 'transports'
+              ? transportListResponse.parse(
+                  await options.operations.listTransports(
+                    destination,
+                    parseTransportSearchQuery(readQuery(request)),
+                  ),
+                )
+              : resource === 'packages'
+                ? await options.operations.searchPackages(destination)
+                : await options.operations.searchObjects(destination);
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
         return;
       }
       if (request.method === 'POST' && sourceManifestMatch) {

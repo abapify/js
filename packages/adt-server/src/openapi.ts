@@ -2,6 +2,8 @@ import YAML from 'yaml';
 import { z } from 'zod';
 import {
   sourceVersionReadBody,
+  transportListResponse,
+  transportSearchQuery,
   transportSourceManifestBody,
 } from './rest-schemas.js';
 
@@ -9,6 +11,20 @@ const transportSourceManifestSchema = z.toJSONSchema(
   transportSourceManifestBody,
 );
 const sourceVersionReadSchema = z.toJSONSchema(sourceVersionReadBody);
+const transportSearchQuerySchema = z.toJSONSchema(transportSearchQuery);
+const transportListResponseSchema = z.toJSONSchema(transportListResponse);
+const transportQueryProperties =
+  transportSearchQuerySchema.properties as Record<string, unknown>;
+
+function transportQueryParameter(name: string, description: string) {
+  return {
+    name,
+    in: 'query',
+    required: false,
+    description,
+    schema: transportQueryProperties[name],
+  };
+}
 
 /** Deterministic, owned OpenAPI document. Route schemas are deliberately
  * destination-only; SAP URLs and credentials never occur in this contract. */
@@ -27,8 +43,41 @@ export const openApiDocument = {
     '/v1/destinations/{destination}/transports': {
       get: {
         operationId: 'listTransports',
-        parameters: [{ $ref: '#/components/parameters/destination' }],
-        responses: { '200': { description: 'Transport headers' } },
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          transportQueryParameter('owner', 'Case-insensitive owner match'),
+          transportQueryParameter('type', 'Case-insensitive CTS type match'),
+          transportQueryParameter(
+            'status',
+            'Case-insensitive normalized status match',
+          ),
+          transportQueryParameter('target', 'Case-insensitive target match'),
+          transportQueryParameter(
+            'dateFrom',
+            'Inclusive changed date, YYYY-MM-DD',
+          ),
+          transportQueryParameter(
+            'dateTo',
+            'Inclusive changed date, YYYY-MM-DD',
+          ),
+          transportQueryParameter(
+            'text',
+            'Description/owner text, exact transport or explicit prefix',
+          ),
+          transportQueryParameter(
+            'includeTasks',
+            'Whether task transport headers are included',
+          ),
+        ],
+        responses: {
+          '200': {
+            description: 'Normalized system-wide transport headers',
+            content: {
+              'application/json': { schema: transportListResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
       },
     },
     '/v1/destinations/{destination}/transport-source-manifests': {

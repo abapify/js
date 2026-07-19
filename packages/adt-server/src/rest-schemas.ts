@@ -18,6 +18,55 @@ export const sourceVersionReadBody = z
   })
   .strict();
 
+export const transportSearchQuery = z
+  .object({
+    includeTasks: z.enum(['true', 'false']).optional(),
+    owner: z.string().trim().min(1).max(128).optional(),
+    type: z.string().trim().min(1).max(16).optional(),
+    status: z.string().trim().min(1).max(64).optional(),
+    target: z.string().trim().min(1).max(128).optional(),
+    dateFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/u)
+      .optional(),
+    dateTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/u)
+      .optional(),
+    text: z.string().trim().min(1).max(256).optional(),
+  })
+  .strict();
+
+export const transportSummary = z
+  .object({
+    trkorr: z.string().trim().min(1).max(64),
+    owner: z.string().max(128),
+    description: z.string().max(1_024),
+    status: z.string().max(64),
+    statusRaw: z.string().max(16).optional(),
+    trFunction: z.string().max(16).optional(),
+    target: z.string().max(128).optional(),
+    client: z.string().max(16).optional(),
+    changedAt: z.string().datetime().optional(),
+  })
+  .strict();
+
+export const transportListResponse = z.array(transportSummary);
+
+export function parseTransportSearchQuery(input: unknown) {
+  const query = transportSearchQuery.parse(input);
+  return {
+    ...query,
+    ...(query.includeTasks === undefined
+      ? {}
+      : { includeTasks: query.includeTasks === 'true' }),
+  };
+}
+
 export type TransportSourceManifestInput = z.infer<
   typeof transportSourceManifestBody
+>;
+
+export type TransportSearchCriteria = ReturnType<
+  typeof parseTransportSearchQuery
 >;
