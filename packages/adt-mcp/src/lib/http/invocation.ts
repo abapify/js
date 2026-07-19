@@ -6,6 +6,7 @@
  * or `undefined`. It does not log or throw token-validation failures, so a
  * bearer credential or its decoded payload can never leak through an error.
  */
+import type { KeyObject } from 'node:crypto';
 import { jwtVerify, type CryptoKey, type JWTPayload } from 'jose';
 
 const INVOCATION_VERSION = 1;
@@ -41,7 +42,7 @@ export interface TrustedMcpInvocationClaims {
 
 export interface McpInvocationVerifierOptions {
   /** ES256 public key mounted at ADT Server; it cannot issue credentials. */
-  publicKey: CryptoKey;
+  publicKey: CryptoKey | KeyObject;
   /** The exact key id required in both JWS header and JWT payload. */
   keyId: string;
   /** The exact ADT API issuer expected in `iss`. */
