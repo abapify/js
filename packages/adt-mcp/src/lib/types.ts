@@ -10,6 +10,7 @@ import type {
   RequestIdentity,
 } from './session/destination-registry.js';
 import type { McpRequestAccess } from './tools/scope-catalogue.js';
+import type { createSourceCapabilityRegistry } from './source-capabilities.js';
 
 /**
  * Connection parameters that every tool receives.
@@ -61,4 +62,6 @@ export interface ToolContext {
     systemSid: string;
     sourceRef: string;
   }) => Promise<{ sourceUri: string }>;
+  /** Opaque, short-lived source capabilities issued by this MCP server. */
+  sourceCapabilities?: ReturnType<typeof createSourceCapabilityRegistry>;
 }

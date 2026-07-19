@@ -6,13 +6,14 @@
 import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ExactSourceHistoryService } from '@abapify/adt-cli';
+import { SourceVersionTooLargeError } from '@abapify/adt-client';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
+import { SourceCapabilityError } from '../source-capabilities.js';
 
 const DEFAULT_MAX_SOURCE_BYTES = 1024 * 1024;
-const HARD_MAX_SOURCE_BYTES = 4 * 1024 * 1024;
+const HARD_MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 
 export function registerGetSourceVersionTool(
   server: McpServer,
@@ -20,13 +21,16 @@ export function registerGetSourceVersionTool(
 ): void {
   server.tool(
     'get_source_version',
-    'Explicitly read one immutable ADT source version. The UTF-8 response is bounded and is never silently truncated.',
+    'Read one manifest-authorised immutable ADT source version. The UTF-8 response is bounded and is never silently truncated.',
     {
       ...sessionOrConnectionShape,
-      uri: z
+      sourceCapability: z
         .string()
         .min(1)
-        .describe('Immutable server-relative SAP ADT source URI'),
+        .max(256)
+        .describe(
+          'Opaque capability returned by cts_transport_source_manifest',
+        ),
       maxBytes: z
         .number()
         .int()
@@ -39,45 +43,52 @@ export function registerGetSourceVersionTool(
     },
     async (args, extra) => {
       try {
+        const destination = (args as { destination?: string }).destination;
+        const sourceReference = ctx.sourceCapabilities?.resolve({
+          sourceCapability: args.sourceCapability,
+          sessionId: extra?.sessionId,
+          ...(destination !== undefined ? { destination } : {}),
+        });
+        if (!sourceReference) throw new SourceCapabilityError();
         const { client } = await resolveClient(ctx, args, extra ?? {});
-        const service = new ExactSourceHistoryService(client);
-        const source = await service.getVersionSource({ uri: args.uri });
-        const bytes = Buffer.byteLength(source, 'utf8');
         const maxBytes = args.maxBytes ?? DEFAULT_MAX_SOURCE_BYTES;
-
-        if (bytes > maxBytes) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text' as const,
-                text: JSON.stringify(
-                  {
-                    error: {
-                      code: 'SOURCE_VERSION_TOO_LARGE',
-                      message:
-                        'The immutable source version exceeds the requested MCP response limit.',
-                      actualBytes: bytes,
-                      maxBytes,
-                    },
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        }
+        const source =
+          await client.services.sourceHistory.readVersionSourceBounded(
+            sourceReference.sourceUri,
+            maxBytes,
+          );
 
         return {
           content: [
             {
               type: 'text' as const,
-              text: JSON.stringify({ bytes, source }, null, 2),
+              text: JSON.stringify(
+                { bytes: Buffer.byteLength(source, 'utf8'), source },
+                null,
+                2,
+              ),
             },
           ],
         };
-      } catch {
+      } catch (error) {
+        if (error instanceof SourceVersionTooLargeError) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({
+                  error: {
+                    code: 'SOURCE_VERSION_TOO_LARGE',
+                    message:
+                      'The immutable source version exceeds the requested MCP response limit.',
+                    maxBytes: error.maxBytes,
+                  },
+                }),
+              },
+            ],
+          };
+        }
         return {
           isError: true,
           content: [
@@ -86,9 +97,14 @@ export function registerGetSourceVersionTool(
               text: JSON.stringify(
                 {
                   error: {
-                    code: 'SOURCE_VERSION_READ_FAILED',
+                    code:
+                      error instanceof SourceCapabilityError
+                        ? 'SOURCE_CAPABILITY_UNAVAILABLE'
+                        : 'SOURCE_VERSION_READ_FAILED',
                     message:
-                      'Could not read the requested immutable source version.',
+                      error instanceof SourceCapabilityError
+                        ? 'The immutable source capability is unavailable.'
+                        : 'Could not read the requested immutable source version.',
                   },
                 },
                 null,
