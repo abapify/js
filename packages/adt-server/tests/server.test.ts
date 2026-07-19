@@ -379,6 +379,71 @@ test('serves canonical transport detail and aggregated objects without SAP URI f
   }
 });
 
+test('serves a bounded canonical package page with an opaque query-bound cursor', async () => {
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async searchPackages(destination, criteria) {
+        calls.push({ destination, criteria });
+        return {
+          data: [
+            { name: 'ZALPHA', description: 'Alpha' },
+            { name: 'ZBETA', parent: 'ZROOT', description: 'Beta' },
+          ],
+          truncated: true,
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const first = await fetch(
+      `${server.url}/v1/destinations/dev/packages?q=z&maxResults=10&limit=1`,
+    );
+    assert.strictEqual(first.status, 200);
+    const firstBody = (await first.json()) as {
+      data: unknown[];
+      nextCursor: string | null;
+      truncated: boolean;
+      observedAt: string;
+    };
+    assert.deepStrictEqual(firstBody.data, [
+      { name: 'ZALPHA', description: 'Alpha' },
+    ]);
+    assert.ok(firstBody.nextCursor);
+    assert.strictEqual(firstBody.truncated, true);
+    assert.ok(firstBody.observedAt.endsWith('Z'));
+    assert.ok(!JSON.stringify(firstBody).includes('uri'));
+
+    const second = await fetch(
+      `${server.url}/v1/destinations/dev/packages?q=z&maxResults=10&limit=1&cursor=${encodeURIComponent(firstBody.nextCursor!)}`,
+    );
+    assert.strictEqual(second.status, 200);
+    assert.deepStrictEqual((await second.json()).data, [
+      { name: 'ZBETA', parent: 'ZROOT', description: 'Beta' },
+    ]);
+    assert.deepStrictEqual(calls, [
+      { destination: 'dev', criteria: { q: 'z', maxResults: 10 } },
+      { destination: 'dev', criteria: { q: 'z', maxResults: 10 } },
+    ]);
+
+    const invalid = await fetch(
+      `${server.url}/v1/destinations/dev/packages?cursor=invalid`,
+    );
+    assert.strictEqual(invalid.status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
 test('REST source reads redeem an opaque destination-bound manifest capability', async () => {
   const sourceUri =
     '/sap/bc/adt/programs/programs/zsafe/source/main/versions/1';

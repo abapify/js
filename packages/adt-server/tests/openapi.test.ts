@@ -97,3 +97,17 @@ test('documents canonical transport detail and object reads without SAP URI fiel
   );
   assert.ok(!JSON.stringify(openApiDocument).includes('sourceUri'));
 });
+
+test('documents the bounded canonical package search page', () => {
+  const packages =
+    openApiDocument.paths['/v1/destinations/{destination}/packages'].get;
+
+  assert.strictEqual(packages.operationId, 'searchPackages');
+  assert.ok(
+    packages.parameters?.some(
+      (parameter) => !('$ref' in parameter) && parameter.name === 'limit',
+    ),
+  );
+  assert.ok(packages.responses['200'].content?.['application/json'].schema);
+  assert.ok(!JSON.stringify(packages).includes('uri'));
+});

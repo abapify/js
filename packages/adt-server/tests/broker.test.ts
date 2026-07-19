@@ -356,6 +356,91 @@ test('maps transport detail and objects to canonical REST references without ADT
   }
 });
 
+test('maps a bounded package quick search without exposing ADT URIs', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const queries: unknown[] = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async (input) => {
+      if (String(input).endsWith(':acquire')) {
+        return new Response(
+          JSON.stringify({
+            leaseId: '44444444-4444-4444-8444-444444444444',
+            destination: 'dev',
+            version: 1,
+            expiresAt: '2026-07-20T00:00:00.000Z',
+            connection: {
+              baseUrl: 'https://sap.example.test',
+              sapClient: null,
+              authMethod: 'basic',
+              authConfig: { username: 'service', password: 'secret' },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response(null, { status: 204 });
+    },
+    createClient: async () =>
+      ({
+        adt: {
+          repository: {
+            informationsystem: {
+              search: {
+                async quickSearch(input: unknown) {
+                  queries.push(input);
+                  return {
+                    objectReferences: {
+                      objectReference: [
+                        {
+                          type: 'DEVC/K',
+                          name: 'zalpha',
+                          packageName: 'zroot',
+                          description: 'Alpha',
+                          uri: '/sap/bc/adt/packages/zalpha',
+                        },
+                        {
+                          type: 'DEVC/K',
+                          name: 'zalpha',
+                          uri: '/sap/bc/adt/packages/zalpha',
+                        },
+                        {
+                          type: 'CLAS/OC',
+                          name: 'ZCL_NOT_A_PACKAGE',
+                          uri: '/sap/bc/adt/oo/classes/zcl_not_a_package',
+                        },
+                      ],
+                    },
+                  };
+                },
+              },
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.searchPackages('dev', {
+      q: 'za',
+      maxResults: 2,
+    });
+    assert.deepStrictEqual(queries, [
+      { query: 'za*', objectType: 'DEVC', maxResults: 3 },
+    ]);
+    assert.deepStrictEqual(result, {
+      data: [{ name: 'ZALPHA', parent: 'ZROOT', description: 'Alpha' }],
+      truncated: true,
+    });
+    assert.ok(!JSON.stringify(result).includes('/sap/bc/adt/'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');
