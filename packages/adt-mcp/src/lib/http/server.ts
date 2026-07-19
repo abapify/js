@@ -34,6 +34,11 @@ import {
   type MultiSystemConfig,
 } from './multi-system.js';
 import { createAuthMiddleware, type AuthMode, type UserHint } from './auth.js';
+import { isMcpInvocationDispatchPolicySupported } from './invocation.js';
+import type {
+  McpInvocationVerifier,
+  TrustedMcpInvocationClaims,
+} from './invocation.js';
 import type { OAuthOptions } from './oauth.js';
 import { createCorsHandler } from './cors.js';
 
@@ -72,6 +77,12 @@ export interface HttpServerOptions {
    */
   oauth?: OAuthOptions;
   /**
+   * ADT-issued invocation verifier (required when `authMode ===
+   * 'invocation'`). Its trusted claims are the only source for identity and
+   * scope in destination-aware sidecar mode.
+   */
+  invocationVerifier?: McpInvocationVerifier;
+  /**
    * Internal test hook — called with each successful OAuth `userHint`.
    * Not part of the public API.
    * @internal
@@ -93,9 +104,13 @@ export interface HttpServerOptions {
    */
   destinationServer?: {
     destinationRegistry: DestinationContextRegistry;
-    requestIdentity: (input: { userHint?: UserHint }) => RequestIdentity;
+    requestIdentity: (input: {
+      userHint?: UserHint;
+      invocation?: TrustedMcpInvocationClaims;
+    }) => RequestIdentity;
     requestAccess: (input: {
       userHint?: UserHint;
+      invocation?: TrustedMcpInvocationClaims;
     }) => McpRequestAccess | undefined;
   };
   /** Inject a logger that writes to stderr by default. */
@@ -157,14 +172,45 @@ function snapshotRequestAccess(
 }
 
 /** A deterministic, non-secret value used only for session affinity checks. */
-function sessionIdentityBinding(identity: RequestIdentity): string {
+function sessionIdentityBinding(
+  identity: RequestIdentity,
+  invocationTokenId?: string,
+): string {
   if (!identity.principal || typeof identity.principal !== 'string') {
     throw new Error('Trusted request identity is missing a principal');
   }
   if (identity.agentId !== undefined && typeof identity.agentId !== 'string') {
     throw new Error('Trusted request identity has an invalid agent id');
   }
-  return JSON.stringify([identity.principal, identity.agentId ?? null]);
+  return JSON.stringify([
+    identity.principal,
+    identity.agentId ?? null,
+    invocationTokenId ?? null,
+  ]);
+}
+
+function invocationRequestIdentity(
+  invocation: TrustedMcpInvocationClaims | undefined,
+): RequestIdentity {
+  if (!invocation) {
+    throw new Error('Trusted MCP invocation identity is missing');
+  }
+  return {
+    principal: invocation.principal,
+    agentId: invocation.agentId,
+  };
+}
+
+function invocationRequestAccess(
+  invocation: TrustedMcpInvocationClaims | undefined,
+): McpRequestAccess | undefined {
+  if (!invocation || !isMcpInvocationDispatchPolicySupported(invocation)) {
+    return undefined;
+  }
+  return snapshotRequestAccess({
+    classes: invocation.classes,
+    destinationKeys: invocation.destinationKeys,
+  });
 }
 
 function defaultLog(level: 'info' | 'warn' | 'error', msg: string): void {
@@ -314,10 +360,21 @@ export function createHttpMcpHandler(
       'startHttpServer: authMode=oauth requires `oauth` options (issuer at minimum)',
     );
   }
+  if (authMode === 'invocation' && !options.invocationVerifier) {
+    throw new Error(
+      'createHttpMcpHandler: authMode=invocation requires an invocation verifier',
+    );
+  }
+  if (authMode === 'invocation' && !destinationServer) {
+    throw new Error(
+      'createHttpMcpHandler: authMode=invocation requires destinationServer scope enforcement',
+    );
+  }
   const authMw = createAuthMiddleware({
     mode: authMode,
     token: options.authToken,
     oauth: options.oauth,
+    invocationVerifier: options.invocationVerifier,
     onUserHint: options.onOAuthUserHint,
   });
   const cors = createCorsHandler({ allowedOrigins: options.allowedOrigins });
@@ -325,6 +382,7 @@ export function createHttpMcpHandler(
   const sessionMatchesAuthenticatedIdentity = (
     sessionId: string,
     userHint: UserHint | undefined,
+    invocation: TrustedMcpInvocationClaims | undefined,
     res: http.ServerResponse,
   ): boolean => {
     if (!destinationServer) return true;
@@ -334,9 +392,11 @@ export function createHttpMcpHandler(
       return false;
     }
     try {
-      const actual = sessionIdentityBinding(
-        destinationServer.requestIdentity({ userHint }),
-      );
+      const identity =
+        authMode === 'invocation'
+          ? invocationRequestIdentity(invocation)
+          : destinationServer.requestIdentity({ userHint, invocation });
+      const actual = sessionIdentityBinding(identity, invocation?.tokenId);
       if (actual === expected) return true;
     } catch {
       // Treat a failed or malformed trusted identity derivation exactly like
@@ -350,6 +410,7 @@ export function createHttpMcpHandler(
     req: http.IncomingMessage,
     res: http.ServerResponse,
     userHint: UserHint | undefined,
+    invocation: TrustedMcpInvocationClaims | undefined,
   ): Promise<void> => {
     const sessionHeader = req.headers['mcp-session-id'];
     const sessionId = Array.isArray(sessionHeader)
@@ -374,7 +435,14 @@ export function createHttpMcpHandler(
       }
 
       if (sessionId && transports.has(sessionId)) {
-        if (!sessionMatchesAuthenticatedIdentity(sessionId, userHint, res)) {
+        if (
+          !sessionMatchesAuthenticatedIdentity(
+            sessionId,
+            userHint,
+            invocation,
+            res,
+          )
+        ) {
           return;
         }
         // Refresh the session's last-used timestamp so the TTL sweep
@@ -434,8 +502,14 @@ export function createHttpMcpHandler(
         if (destinationServer) {
           let identityDerivationFailed = false;
           try {
-            sessionIdentity = destinationServer.requestIdentity({ userHint });
-            initializedSessionBinding = sessionIdentityBinding(sessionIdentity);
+            sessionIdentity =
+              authMode === 'invocation'
+                ? invocationRequestIdentity(invocation)
+                : destinationServer.requestIdentity({ userHint, invocation });
+            initializedSessionBinding = sessionIdentityBinding(
+              sessionIdentity,
+              invocation?.tokenId,
+            );
           } catch {
             // A failed identity derivation must not turn into caller-selected
             // identity material. The fallback is audit-safe and fail-closed
@@ -445,9 +519,12 @@ export function createHttpMcpHandler(
           }
           if (!identityDerivationFailed) {
             try {
-              sessionAccess = snapshotRequestAccess(
-                destinationServer.requestAccess({ userHint }),
-              );
+              sessionAccess =
+                authMode === 'invocation'
+                  ? invocationRequestAccess(invocation)
+                  : snapshotRequestAccess(
+                      destinationServer.requestAccess({ userHint, invocation }),
+                    );
             } catch {
               // Missing or failed trusted access derivation is intentionally
               // indistinguishable from no access at dispatch time.
@@ -498,7 +575,14 @@ export function createHttpMcpHandler(
         writeJsonError(res, 400, 'Missing or unknown Mcp-Session-Id header');
         return;
       }
-      if (!sessionMatchesAuthenticatedIdentity(sessionId, userHint, res)) {
+      if (
+        !sessionMatchesAuthenticatedIdentity(
+          sessionId,
+          userHint,
+          invocation,
+          res,
+        )
+      ) {
         return;
       }
       registry.touch(sessionId);
@@ -543,7 +627,7 @@ export function createHttpMcpHandler(
       if (!authResult.allowed) return;
       // Accept /mcp and /mcp/ — ignore query string.
       if (pathOnly === '/mcp' || pathOnly === '/mcp/') {
-        await handleMcp(req, res, authResult.userHint);
+        await handleMcp(req, res, authResult.userHint, authResult.invocation);
         return;
       }
 
@@ -642,6 +726,12 @@ export async function startHttpServer(
     if (closed) return;
     closed = true;
     await handler.close();
+    // `server.close()` stops accepting new requests but can otherwise wait
+    // indefinitely for a keep-alive socket which never created an MCP
+    // transport (for example, a rejected bearer credential). Handler-owned
+    // MCP transports have already been closed above, so force remaining HTTP
+    // sockets closed before awaiting the listener callback.
+    server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   };
 

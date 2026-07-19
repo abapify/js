@@ -1,7 +1,7 @@
 /**
  * Auth middleware for the adt-mcp HTTP transport.
  *
- * Four modes:
+ * Five modes:
  *   - `none`   — no authentication (dev / behind already-authenticated transport).
  *   - `bearer` — require `Authorization: Bearer <token>` where `<token>` matches
  *                the configured secret. Compared with `crypto.timingSafeEqual`.
@@ -12,6 +12,8 @@
  *   - `oauth`  — validate an OIDC-issued JWT (Okta, Entra ID, Cognito, …)
  *                against the configured issuer + audience + scopes. See
  *                `./oauth.ts` for the validator implementation.
+ *   - `invocation` — validate an ADT-issued ES256 invocation credential and
+ *                surface only its immutable, trusted claims to the transport.
  *
  * The middleware writes a 401 JSON response on failure and returns
  * `{ allowed: false }`. The caller should stop processing. On success it
@@ -22,8 +24,12 @@ import http from 'node:http';
 import { Buffer } from 'node:buffer';
 import { timingSafeEqual } from 'node:crypto';
 import { createOAuthValidator, type OAuthOptions } from './oauth.js';
+import type {
+  McpInvocationVerifier,
+  TrustedMcpInvocationClaims,
+} from './invocation.js';
 
-export type AuthMode = 'none' | 'bearer' | 'proxy' | 'oauth';
+export type AuthMode = 'none' | 'bearer' | 'proxy' | 'oauth' | 'invocation';
 
 export interface AuthMiddlewareOptions {
   mode: AuthMode;
@@ -31,6 +37,8 @@ export interface AuthMiddlewareOptions {
   token?: string;
   /** Required when mode==='oauth'. OIDC issuer / audience / scopes. */
   oauth?: OAuthOptions;
+  /** Required when mode==='invocation'. ADT ES256 credential verifier. */
+  invocationVerifier?: McpInvocationVerifier;
   /**
    * Test-only hook: invoked synchronously whenever an OAuth request
    * successfully authenticates, with the derived user hint. Production
@@ -49,6 +57,8 @@ export interface UserHint {
 export interface AuthResult {
   allowed: boolean;
   userHint?: UserHint;
+  /** Immutable claims supplied only by a successful invocation verifier. */
+  invocation?: TrustedMcpInvocationClaims;
 }
 
 export type AuthMiddleware = (
@@ -202,6 +212,25 @@ export function createAuthMiddleware(
       }
       if (onUserHint) onUserHint(result.userHint);
       return { allowed: true, userHint: result.userHint };
+    };
+  }
+
+  if (options.mode === 'invocation') {
+    if (!options.invocationVerifier) {
+      throw new Error(
+        'createAuthMiddleware: invocation mode requires an invocation verifier',
+      );
+    }
+    const verifier = options.invocationVerifier;
+    return async (req, res) => {
+      const invocation = await verifier.verify(req.headers.authorization);
+      if (!invocation) {
+        // Do not expose verifier failures, decoded claims, or a distinction
+        // between a missing, expired, or invalid credential.
+        writeUnauthorized(res, 'invalid_token');
+        return { allowed: false };
+      }
+      return { allowed: true, invocation };
     };
   }
 
