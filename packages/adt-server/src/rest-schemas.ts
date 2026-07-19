@@ -130,6 +130,18 @@ export const packageSearchResult = z
   })
   .strict();
 
+export const pageQuery = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    cursor: z
+      .string()
+      .trim()
+      .min(1)
+      .max(4 * 1_024)
+      .optional(),
+  })
+  .strict();
+
 export const objectSearchQuery = z
   .object({
     query: z.string().trim().min(1).max(256).optional(),
@@ -278,6 +290,14 @@ export const transportPathParameter = z
   .max(64)
   .regex(/^[A-Za-z0-9_-]+$/u);
 
+/** Package names can contain spaces and slash when URL-encoded on the wire. */
+export const packagePathParameter = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[^\u0000-\u001F\u007F]+$/u);
+
 export function parseTransportSearchQuery(input: unknown) {
   const query = transportSearchQuery.parse(input);
   return {
@@ -302,6 +322,11 @@ export function parseObjectSearchQuery(input: unknown) {
     criteria,
     page: { limit: limit ?? 200, ...(cursor ? { cursor } : {}) },
   };
+}
+
+export function parsePageQuery(input: unknown) {
+  const { limit, cursor } = pageQuery.parse(input);
+  return { limit: limit ?? 200, ...(cursor ? { cursor } : {}) };
 }
 
 export type TransportSourceManifestInput = z.infer<
