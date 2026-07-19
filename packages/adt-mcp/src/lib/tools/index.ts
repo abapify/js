@@ -22,6 +22,7 @@ import { registerCtsDeleteTransportTool } from './cts-delete-transport';
 import { registerCtsSearchTransportsTool } from './cts-search-transports';
 import { registerAtcRunTool } from './atc-run';
 import { registerGetSourceTool } from './get-source';
+import { registerGetFrozenSourceTool } from './get-frozen-source';
 import { registerUpdateSourceTool } from './update-source';
 import { registerLintAbapTool } from './lint-abap';
 import { registerActivateObjectTool } from './activate-object';
@@ -143,6 +144,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerCtsDeleteTransportTool(server, ctx);
   registerCtsSearchTransportsTool(server, ctx);
   registerAtcRunTool(server, ctx);
+  registerGetFrozenSourceTool(server, ctx);
   registerGetSourceTool(server, ctx);
   registerUpdateSourceTool(server, ctx);
   registerLintAbapTool(server, ctx);

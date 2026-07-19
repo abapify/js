@@ -47,6 +47,8 @@ export interface McpServerOptions {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
+  /** Private ADT broker resolver for signed frozen-source capabilities. */
+  resolveFrozenSource?: ToolContext['resolveFrozenSource'];
 }
 
 /**
@@ -82,6 +84,10 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
       ? {
           destinationRegistry: options.destinationRegistry,
           requestIdentity: options.requestIdentity,
+          requestAccess: options.requestAccess,
+          ...(options.resolveFrozenSource
+            ? { resolveFrozenSource: options.resolveFrozenSource }
+            : {}),
         }
       : {}),
   };

@@ -3,6 +3,7 @@ import {
   createHttpMcpHandler,
   type DestinationContextRegistry,
   type McpInvocationVerifier,
+  type ToolContext,
 } from '@abapify/adt-mcp';
 import { openApiDocument, openApiYaml } from './openapi.js';
 
@@ -31,6 +32,11 @@ export interface AdtServerMcpOptions {
   invocationVerifier: McpInvocationVerifier;
   /** Ownership transfers to the running server, which shuts it down on close. */
   destinationRegistry: DestinationContextRegistry;
+  /**
+   * Private ADT broker resolver for the opaque, signed source capabilities
+   * carried only in an AI Review invocation policy.
+   */
+  resolveFrozenSource: NonNullable<ToolContext['resolveFrozenSource']>;
   allowedHosts?: string[];
 }
 
@@ -86,6 +92,7 @@ export async function startAdtServer(
                   destinationKeys: invocation.destinationKeys,
                 }
               : undefined,
+          resolveFrozenSource: options.mcp.resolveFrozenSource,
         },
       })
     : undefined;

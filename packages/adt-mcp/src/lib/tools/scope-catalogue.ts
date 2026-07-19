@@ -25,6 +25,18 @@ export interface McpRequestAccess {
   classes: readonly McpOperationClass[];
   /** Explicit trusted destination keys. An empty list authorises no SAP I/O. */
   destinationKeys: readonly string[];
+  /** A typed signed policy that removes ambient AI Review read authority. */
+  frozenSource?: McpFrozenSourceAccess;
+}
+
+export interface McpFrozenSourceAccess {
+  readonly systemSid: string;
+  readonly sources: readonly {
+    readonly canonicalKey: string;
+    /** Opaque ADT capability; never accepted as a model/tool argument. */
+    readonly sourceRef: string;
+  }[];
+  readonly maxSourceBytes: number;
 }
 
 type StaticToolScope = {
@@ -81,6 +93,7 @@ export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
       'get_object_structure',
       'get_package',
       'get_short_dumps',
+      'get_frozen_source',
       'get_source',
       'get_source_version',
       'get_srvb',
@@ -225,6 +238,26 @@ export function isMcpToolAllowed(
   );
 }
 
+/**
+ * Applies a signed resource constraint after the ordinary class check. A
+ * frozen AI Review has no ambient read authority: it can ask only for an exact
+ * canonical object through the capability-mediated source tool.
+ */
+export function isMcpToolResourceAllowed(
+  access: McpRequestAccess | undefined,
+  name: string,
+  arguments_: Record<string, unknown> = {},
+): boolean {
+  const frozenSource = access?.frozenSource;
+  if (!frozenSource) return name !== 'get_frozen_source';
+  if (name !== 'get_frozen_source') return false;
+  const canonicalKey = arguments_.canonicalKey;
+  return Boolean(
+    typeof canonicalKey === 'string' &&
+    frozenSource.sources.some((source) => source.canonicalKey === canonicalKey),
+  );
+}
+
 /** Missing or untrusted destination keys fail closed before SAP state exists. */
 export function isMcpDestinationAllowed(
   access: McpRequestAccess | undefined,
@@ -261,6 +294,8 @@ export function isMcpToolListed(
   ) {
     return false;
   }
+  if (access.frozenSource) return name === 'get_frozen_source';
+  if (name === 'get_frozen_source') return false;
   const classes =
     'actionClasses' in entry
       ? Object.values(entry.actionClasses)

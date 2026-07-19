@@ -159,6 +159,11 @@ async function clientFromConnection(
 export function createHttpDestinationContexts(options: HttpBrokerOptions): {
   leaseProvider: DestinationLeaseProvider;
   contextFactory: DestinationContextFactory;
+  resolveFrozenSource(input: {
+    destination: string;
+    systemSid: string;
+    sourceRef: string;
+  }): Promise<{ sourceUri: string }>;
 } {
   const fetcher = options.fetch ?? globalThis.fetch;
   const acquire = async (destination: string): Promise<BrokerLease> => {
@@ -203,6 +208,35 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
           close: async () => undefined,
         };
       },
+    },
+    async resolveFrozenSource(input) {
+      const token = (await readFile(options.tokenFile, 'utf8')).trim();
+      if (!token) throw new Error('ADT Server broker token file is empty');
+      const response = await fetcher(
+        new URL(
+          '/internal/adt-server/frozen-source-references:resolve',
+          options.baseUrl,
+        ),
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-adt-server-token': token,
+          },
+          body: JSON.stringify(input),
+        },
+      );
+      if (!response.ok)
+        throw new Error('Frozen source reference is unavailable');
+      const body = (await response.json()) as { sourceUri?: unknown };
+      if (
+        typeof body.sourceUri !== 'string' ||
+        !body.sourceUri.startsWith('/sap/bc/adt/') ||
+        /[\s\\\u0000-\u001f\u007f]/u.test(body.sourceUri)
+      ) {
+        throw new Error('Frozen source reference is unavailable');
+      }
+      return { sourceUri: body.sourceUri };
     },
   };
 }

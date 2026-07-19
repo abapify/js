@@ -13,7 +13,13 @@ const INVOCATION_VERSION = 1;
 const MAX_IDENTIFIER_LENGTH = 256;
 const MAX_JSON_DEPTH = 8;
 const MAX_TOKEN_LIFETIME_SECONDS = 5 * 60;
+const MAX_FROZEN_SOURCES = 500;
+const MAX_SOURCE_REFERENCE_LENGTH = 8 * 1024;
+const MAX_FROZEN_SOURCE_BYTES = 2 * 1024 * 1024;
 const destinationKeyPattern = /^[a-z][a-z0-9-]{1,62}$/u;
+const canonicalKeyPattern = /^[A-Z0-9_]+:.+$/u;
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 const trustedAgentIds = new Set(['ai-review', 'system-assistant']);
 const trustedOperationClasses = new Set(['server', 'read']);
@@ -38,6 +44,22 @@ export interface TrustedMcpInvocationClaims {
   readonly correlationId: string;
   readonly constraint: Readonly<Record<string, McpInvocationJsonValue>>;
   readonly limits: Readonly<Record<string, McpInvocationJsonValue>>;
+}
+
+/**
+ * Fully enforced narrowing policy for an AI Review source read. `sourceRef`
+ * remains opaque to MCP clients and models; only ADT's private broker can
+ * redeem it after this policy has selected the exact canonical object.
+ */
+export interface AiReviewFrozenSourcePolicy {
+  readonly reviewId: string;
+  readonly runId: string;
+  readonly systemSid: string;
+  readonly sources: readonly {
+    readonly canonicalKey: string;
+    readonly sourceRef: string;
+  }[];
+  readonly maxSourceBytes: number;
 }
 
 export interface McpInvocationVerifierOptions {
@@ -76,14 +98,132 @@ export interface McpInvocationVerifier {
 export function isMcpInvocationDispatchPolicySupported(
   claims: TrustedMcpInvocationClaims,
 ): boolean {
-  if (claims.agentId !== 'system-assistant') return false;
-  if (Object.keys(claims.limits).length !== 0) return false;
-
-  const constraintKeys = Object.keys(claims.constraint);
-  if (constraintKeys.length !== 1 || constraintKeys[0] !== 'systemSid') {
-    return false;
+  if (claims.agentId === 'system-assistant') {
+    if (Object.keys(claims.limits).length !== 0) return false;
+    const constraintKeys = Object.keys(claims.constraint);
+    return (
+      constraintKeys.length === 1 &&
+      constraintKeys[0] === 'systemSid' &&
+      requiredIdentifier(claims.constraint.systemSid) !== undefined
+    );
   }
-  return requiredIdentifier(claims.constraint.systemSid) !== undefined;
+  if (claims.agentId !== 'ai-review') return false;
+  return (
+    claims.classes.length === 2 &&
+    claims.classes.includes('server') &&
+    claims.classes.includes('read') &&
+    claims.destinationKeys.length === 1 &&
+    parseAiReviewFrozenSourcePolicy(claims) !== undefined
+  );
+}
+
+function requiredUuid(value: unknown): string | undefined {
+  return typeof value === 'string' && uuidPattern.test(value)
+    ? value
+    : undefined;
+}
+
+function requiredSourceReference(value: unknown): string | undefined {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_SOURCE_REFERENCE_LENGTH ||
+    /[\s\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    return undefined;
+  }
+  return value;
+}
+
+/**
+ * Parse the only AI Review policy currently safe to dispatch. Every property
+ * is deliberately exact: accepting a valid JWS with one ignored narrowing
+ * field would widen the Review beyond its frozen materialisation.
+ */
+export function parseAiReviewFrozenSourcePolicy(
+  claims: TrustedMcpInvocationClaims,
+): AiReviewFrozenSourcePolicy | undefined {
+  if (claims.agentId !== 'ai-review') return undefined;
+  const constraint = claims.constraint;
+  const constraintKeys = Object.keys(constraint).sort();
+  const expectedConstraintKeys = [
+    'frozenSources',
+    'kind',
+    'reviewId',
+    'runId',
+    'systemSid',
+  ];
+  if (
+    constraintKeys.length !== expectedConstraintKeys.length ||
+    constraintKeys.some(
+      (key, index) => key !== expectedConstraintKeys[index],
+    ) ||
+    constraint.kind !== 'ai-review-frozen-v1'
+  ) {
+    return undefined;
+  }
+  const reviewId = requiredUuid(constraint.reviewId);
+  const runId = requiredUuid(constraint.runId);
+  const systemSid = requiredIdentifier(constraint.systemSid);
+  if (!reviewId || !runId || !systemSid || systemSid.length > 16)
+    return undefined;
+
+  const rawSources = constraint.frozenSources;
+  if (
+    !Array.isArray(rawSources) ||
+    rawSources.length === 0 ||
+    rawSources.length > MAX_FROZEN_SOURCES
+  ) {
+    return undefined;
+  }
+  const canonicalKeys = new Set<string>();
+  const sourceRefs = new Set<string>();
+  const sources: { canonicalKey: string; sourceRef: string }[] = [];
+  for (const rawSource of rawSources) {
+    if (!isPlainObject(rawSource)) return undefined;
+    const sourceKeys = Object.keys(rawSource).sort();
+    if (
+      sourceKeys.length !== 2 ||
+      sourceKeys[0] !== 'canonicalKey' ||
+      sourceKeys[1] !== 'sourceRef'
+    ) {
+      return undefined;
+    }
+    const canonicalKey = rawSource.canonicalKey;
+    const sourceRef = requiredSourceReference(rawSource.sourceRef);
+    if (
+      typeof canonicalKey !== 'string' ||
+      !canonicalKeyPattern.test(canonicalKey) ||
+      !sourceRef ||
+      canonicalKeys.has(canonicalKey) ||
+      sourceRefs.has(sourceRef)
+    ) {
+      return undefined;
+    }
+    canonicalKeys.add(canonicalKey);
+    sourceRefs.add(sourceRef);
+    sources.push(Object.freeze({ canonicalKey, sourceRef }));
+  }
+
+  const limitKeys = Object.keys(claims.limits);
+  const maxSourceBytes = claims.limits.maxSourceBytes;
+  if (
+    limitKeys.length !== 1 ||
+    limitKeys[0] !== 'maxSourceBytes' ||
+    typeof maxSourceBytes !== 'number' ||
+    !Number.isSafeInteger(maxSourceBytes) ||
+    maxSourceBytes < 1 ||
+    maxSourceBytes > MAX_FROZEN_SOURCE_BYTES
+  ) {
+    return undefined;
+  }
+  return Object.freeze({
+    reviewId,
+    runId,
+    systemSid,
+    sources: Object.freeze(sources),
+    maxSourceBytes,
+  });
 }
 
 function requiredIdentifier(value: unknown): string | undefined {

@@ -27,6 +27,7 @@ import type {
 import {
   isMcpDestinationKey,
   isMcpOperationClass,
+  type McpFrozenSourceAccess,
   type McpRequestAccess,
 } from '../tools/scope-catalogue.js';
 import {
@@ -34,7 +35,10 @@ import {
   type MultiSystemConfig,
 } from './multi-system.js';
 import { createAuthMiddleware, type AuthMode, type UserHint } from './auth.js';
-import { isMcpInvocationDispatchPolicySupported } from './invocation.js';
+import {
+  isMcpInvocationDispatchPolicySupported,
+  parseAiReviewFrozenSourcePolicy,
+} from './invocation.js';
 import type {
   McpInvocationVerifier,
   TrustedMcpInvocationClaims,
@@ -112,6 +116,9 @@ export interface HttpServerOptions {
       userHint?: UserHint;
       invocation?: TrustedMcpInvocationClaims;
     }) => McpRequestAccess | undefined;
+    resolveFrozenSource?: NonNullable<
+      import('../types.js').ToolContext['resolveFrozenSource']
+    >;
   };
   /** Inject a logger that writes to stderr by default. */
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
@@ -165,9 +172,63 @@ function snapshotRequestAccess(
     return undefined;
   }
 
+  const frozenSource = snapshotFrozenSourceAccess(access.frozenSource);
+  if (access.frozenSource && !frozenSource) return undefined;
+
   return Object.freeze({
     classes: Object.freeze([...classes]),
     destinationKeys: Object.freeze([...destinationKeys]),
+    ...(frozenSource ? { frozenSource } : {}),
+  });
+}
+
+function snapshotFrozenSourceAccess(
+  access: McpFrozenSourceAccess | undefined,
+): McpFrozenSourceAccess | undefined {
+  if (!access) return undefined;
+  if (
+    typeof access.systemSid !== 'string' ||
+    access.systemSid.length === 0 ||
+    access.systemSid.length > 16 ||
+    !Number.isSafeInteger(access.maxSourceBytes) ||
+    access.maxSourceBytes < 1 ||
+    access.maxSourceBytes > 2 * 1024 * 1024 ||
+    !Array.isArray(access.sources) ||
+    access.sources.length === 0 ||
+    access.sources.length > 500
+  ) {
+    return undefined;
+  }
+  const canonicalKeys = new Set<string>();
+  const sourceRefs = new Set<string>();
+  const sources: { canonicalKey: string; sourceRef: string }[] = [];
+  for (const source of access.sources) {
+    if (
+      !source ||
+      typeof source.canonicalKey !== 'string' ||
+      !/^[A-Z0-9_]+:.+$/u.test(source.canonicalKey) ||
+      typeof source.sourceRef !== 'string' ||
+      source.sourceRef.length === 0 ||
+      source.sourceRef.length > 8 * 1024 ||
+      /[\s\u0000-\u001f\u007f]/u.test(source.sourceRef) ||
+      canonicalKeys.has(source.canonicalKey) ||
+      sourceRefs.has(source.sourceRef)
+    ) {
+      return undefined;
+    }
+    canonicalKeys.add(source.canonicalKey);
+    sourceRefs.add(source.sourceRef);
+    sources.push(
+      Object.freeze({
+        canonicalKey: source.canonicalKey,
+        sourceRef: source.sourceRef,
+      }),
+    );
+  }
+  return Object.freeze({
+    systemSid: access.systemSid,
+    sources: Object.freeze(sources),
+    maxSourceBytes: access.maxSourceBytes,
   });
 }
 
@@ -207,9 +268,11 @@ function invocationRequestAccess(
   if (!invocation || !isMcpInvocationDispatchPolicySupported(invocation)) {
     return undefined;
   }
+  const frozenSource = parseAiReviewFrozenSourcePolicy(invocation);
   return snapshotRequestAccess({
     classes: invocation.classes,
     destinationKeys: invocation.destinationKeys,
+    ...(frozenSource ? { frozenSource } : {}),
   });
 }
 
@@ -542,6 +605,12 @@ export function createHttpMcpHandler(
                 requestIdentity: () =>
                   sessionIdentity ?? { principal: 'unknown' },
                 requestAccess: () => sessionAccess,
+                ...(destinationServer.resolveFrozenSource
+                  ? {
+                      resolveFrozenSource:
+                        destinationServer.resolveFrozenSource,
+                    }
+                  : {}),
               }
             : {}),
         });
