@@ -529,6 +529,15 @@ describe('adt-mcp integration tests', () => {
       });
       assert.strictEqual(raw.isError, true);
     });
+
+    it('rejects raw ADT object URIs', async () => {
+      const { raw } = await callTool('grep_objects', {
+        ...connArgs(),
+        pattern: 'METHOD',
+        objectUris: ['/sap/bc/adt/oo/classes/zcl_example'],
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+    });
   });
 
   // ── grep_packages ──────────────────────────────────────────────
@@ -621,6 +630,16 @@ describe('adt-mcp integration tests', () => {
       const data = json as { objectName: string };
       assert.strictEqual(data.objectName, 'ZCL_EXAMPLE');
     });
+
+    it('rejects a raw ADT URI as the reference target', async () => {
+      const { raw } = await callTool('find_references', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        objectUri: '/sap/bc/adt/oo/classes/zcl_example',
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+    });
   });
 
   // ── get_callers_of ─────────────────────────────────────────────
@@ -636,6 +655,16 @@ describe('adt-mcp integration tests', () => {
       assert.strictEqual(data.objectName, 'ZCL_EXAMPLE');
       assert.ok(data.callers !== undefined);
     });
+
+    it('rejects a raw ADT URI as the hierarchy target', async () => {
+      const { raw } = await callTool('get_callers_of', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        objectUri: '/sap/bc/adt/oo/classes/zcl_example',
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+    });
   });
 
   // ── get_callees_of ─────────────────────────────────────────────
@@ -650,6 +679,16 @@ describe('adt-mcp integration tests', () => {
       const data = json as { objectName: string; callees: unknown };
       assert.strictEqual(data.objectName, 'ZCL_EXAMPLE');
       assert.ok(data.callees !== undefined);
+    });
+
+    it('rejects a raw ADT URI as the hierarchy target', async () => {
+      const { raw } = await callTool('get_callees_of', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        objectUri: '/sap/bc/adt/oo/classes/zcl_example',
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
     });
   });
 
