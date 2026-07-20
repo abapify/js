@@ -158,3 +158,25 @@ test('documents bounded direct package objects without ADT URI fields', () => {
   );
   assert.ok(!JSON.stringify(packageObjects).includes('uri'));
 });
+
+test('documents canonical object metadata without raw ADT links', () => {
+  const metadata =
+    openApiDocument.paths[
+      '/v1/destinations/{destination}/objects/{type}/{name}'
+    ].get;
+
+  assert.strictEqual(metadata.operationId, 'getObjectMetadata');
+  assert.deepStrictEqual(
+    metadata.parameters?.map((parameter) =>
+      '$ref' in parameter ? parameter.$ref : parameter.name,
+    ),
+    [
+      '#/components/parameters/destination',
+      '#/components/parameters/objectType',
+      '#/components/parameters/objectName',
+    ],
+  );
+  assert.ok(metadata.responses['200'].content?.['application/json'].schema);
+  assert.ok(!JSON.stringify(metadata).includes('uri'));
+  assert.ok(!JSON.stringify(metadata).includes('href'));
+});

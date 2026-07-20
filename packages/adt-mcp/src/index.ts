@@ -7,6 +7,11 @@
 
 export { createMcpServer, type McpServerOptions } from './lib/server';
 export { registerTools } from './lib/tools/index';
+/**
+ * Canonical typed-first object resolution used by trusted server adapters.
+ * The returned ADT URI is adapter-local and must never cross a public boundary.
+ */
+export { resolveObjectUri } from './lib/tools/utils.js';
 export {
   MCP_TOOL_SCOPE_CATALOGUE,
   assertMcpToolIsClassified,
