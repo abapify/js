@@ -10,7 +10,10 @@ import {
   type CryptoKey,
   type JWTPayload,
 } from 'jose';
-import { createMcpInvocationVerifier } from '../src/lib/http/invocation.js';
+import {
+  createMcpInvocationVerifier,
+  isMcpInvocationDispatchPolicySupported,
+} from '../src/lib/http/invocation.js';
 
 const issuer = 'arm-api';
 const audience = 'adt-server-mcp';
@@ -187,6 +190,41 @@ describe('MCP invocation verifier', () => {
       await verifier.verify(`Bearer ${unrecognised}`),
       undefined,
     );
+  });
+
+  it('accepts only the exact read-only autonomous review agent scope', async () => {
+    const executionId = '11111111-1111-4111-8111-111111111111';
+    const credential = await sign({
+      agentId: 'autonomous-review-agent',
+      classes: ['server', 'read'],
+      destinationKeys: ['bhf-rise'],
+      constraint: { executionId, systemSid: 'BHF' },
+      limits: {},
+    });
+
+    const verified = await verifier.verify(`Bearer ${credential}`);
+
+    assert.ok(verified);
+    assert.strictEqual(verified.agentId, 'autonomous-review-agent');
+    assert.strictEqual(isMcpInvocationDispatchPolicySupported(verified), true);
+  });
+
+  it('rejects a relaxed autonomous review system constraint', async () => {
+    const credential = await sign({
+      agentId: 'autonomous-review-agent',
+      classes: ['server', 'read'],
+      destinationKeys: ['bhf-rise'],
+      constraint: {
+        executionId: '11111111-1111-4111-8111-111111111111',
+        systemSid: 'BHF!',
+      },
+      limits: {},
+    });
+
+    const verified = await verifier.verify(`Bearer ${credential}`);
+
+    assert.ok(verified);
+    assert.strictEqual(isMcpInvocationDispatchPolicySupported(verified), false);
   });
 
   it('rejects an invocation that requests write authority', async () => {
