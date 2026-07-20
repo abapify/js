@@ -16,6 +16,7 @@ import { resolveObjectUri } from '@abapify/adt-mcp';
 import type { DestinationSummary, AdtServerOperations } from './server.js';
 import {
   MAX_SOURCE_BYTES,
+  type AtcRunBody,
   type ObjectSearchCriteria,
   type PackageSearchCriteria,
   type TransportSearchCriteria,
@@ -139,6 +140,36 @@ interface TransportDetail extends TransportSummary {
   objects: CanonicalObjectReference[];
 }
 
+type CanonicalAtcFinding = {
+  checkId: string;
+  checkTitle: string;
+  messageText: string;
+  priority: number;
+  objectType: string;
+  objectName: string;
+  lineStart?: number;
+  lineEnd?: number;
+  messageId?: string;
+  packageName?: string;
+  objectDescription?: string;
+  contactPerson?: string;
+  processor?: string;
+  lastChangedBy?: string;
+  exemptionKind?: string;
+  exemptionApproval?: string;
+  noExemption?: boolean;
+  quickfixInfo?: string;
+  quickfixes?: { manual?: boolean; automatic?: boolean; pseudo?: boolean };
+  checksum?: string;
+  /** Broker-local until the server seals it into a destination capability. */
+  documentationUri?: string;
+};
+
+type CanonicalAtcRunResult = {
+  checkVariant: string;
+  findings: CanonicalAtcFinding[];
+};
+
 type UnknownRecord = Record<string, unknown>;
 
 function record(value: unknown): UnknownRecord | undefined {
@@ -162,6 +193,183 @@ function stringField(value: UnknownRecord, key: string): string | undefined {
 function booleanField(value: UnknownRecord, key: string): boolean | undefined {
   const field = value[key];
   return typeof field === 'boolean' ? field : undefined;
+}
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function optionalAtcBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
+function atcLineFromLocation(value: unknown): number | undefined {
+  if (typeof value !== 'string') return undefined;
+  const match = /(?:^|[?&])start=(\d+)(?:&|$)/u.exec(value);
+  if (!match) return undefined;
+  const line = Number.parseInt(match[1]!, 10);
+  return Number.isSafeInteger(line) && line > 0 ? line : undefined;
+}
+
+const ATC_DOCUMENTATION_URI =
+  /^\/sap\/bc\/adt\/documentation\/atc\/documents\/itemid\/[A-Za-z0-9_-]+\/index\/\d+$/u;
+const ATC_FINDING_URI =
+  /^\/sap\/bc\/adt\/atc\/findings\/itemid\/([A-Za-z0-9_-]+)\/index\/(\d+)$/u;
+
+function trustedAtcDocumentationUri(value: unknown): string | undefined {
+  return typeof value === 'string' && ATC_DOCUMENTATION_URI.test(value)
+    ? value
+    : undefined;
+}
+
+function documentationUriForFinding(
+  finding: UnknownRecord,
+): string | undefined {
+  const link = records(finding.link).find(
+    (entry) =>
+      stringField(entry, 'rel') ===
+      'http://www.sap.com/adt/relations/documentation',
+  );
+  const linked = trustedAtcDocumentationUri(link && stringField(link, 'href'));
+  if (linked) return linked;
+  const findingUri = stringField(finding, 'uri');
+  const match = findingUri && ATC_FINDING_URI.exec(findingUri);
+  return match
+    ? `/sap/bc/adt/documentation/atc/documents/itemid/${match[1]}/index/${match[2]}`
+    : undefined;
+}
+
+function toCanonicalAtcFindings(response: unknown): CanonicalAtcFinding[] {
+  const worklist = record(response)?.worklist;
+  const objects = records(
+    record(worklist)?.objects && record(worklist)?.objects,
+  ).flatMap((objects) => records(objects.object));
+  return objects.flatMap((object) =>
+    records(record(object.findings)?.finding).map((finding) => {
+      const line = atcLineFromLocation(finding.location);
+      const quickfixes = record(finding.quickfixes);
+      return {
+        checkId: stringField(finding, 'checkId') ?? '',
+        checkTitle: stringField(finding, 'checkTitle') ?? '',
+        messageText: stringField(finding, 'messageTitle') ?? '',
+        priority: Number.parseInt(stringField(finding, 'priority') ?? '3', 10),
+        objectType: stringField(object, 'type') ?? '',
+        objectName: stringField(object, 'name') ?? '',
+        ...(line ? { lineStart: line, lineEnd: line } : {}),
+        ...(optionalText(finding.messageId)
+          ? { messageId: optionalText(finding.messageId) }
+          : {}),
+        ...(optionalText(object.packageName)
+          ? { packageName: optionalText(object.packageName) }
+          : {}),
+        ...(optionalText(object.description)
+          ? { objectDescription: optionalText(object.description) }
+          : {}),
+        ...(optionalText(finding.contactPerson)
+          ? { contactPerson: optionalText(finding.contactPerson) }
+          : {}),
+        ...(optionalText(finding.processor)
+          ? { processor: optionalText(finding.processor) }
+          : {}),
+        ...(optionalText(finding.lastChangedBy)
+          ? { lastChangedBy: optionalText(finding.lastChangedBy) }
+          : {}),
+        ...(optionalText(finding.exemptionKind)
+          ? { exemptionKind: optionalText(finding.exemptionKind) }
+          : {}),
+        ...(optionalText(finding.exemptionApproval)
+          ? { exemptionApproval: optionalText(finding.exemptionApproval) }
+          : {}),
+        ...(optionalAtcBoolean(finding.noExemption) === undefined
+          ? {}
+          : { noExemption: optionalAtcBoolean(finding.noExemption) }),
+        ...(optionalText(finding.quickfixInfo)
+          ? { quickfixInfo: optionalText(finding.quickfixInfo) }
+          : {}),
+        ...(quickfixes
+          ? {
+              quickfixes: {
+                ...(optionalAtcBoolean(quickfixes.manual) === undefined
+                  ? {}
+                  : { manual: optionalAtcBoolean(quickfixes.manual) }),
+                ...(optionalAtcBoolean(quickfixes.automatic) === undefined
+                  ? {}
+                  : { automatic: optionalAtcBoolean(quickfixes.automatic) }),
+                ...(optionalAtcBoolean(quickfixes.pseudo) === undefined
+                  ? {}
+                  : { pseudo: optionalAtcBoolean(quickfixes.pseudo) }),
+              },
+            }
+          : {}),
+        ...(finding.checksum === undefined
+          ? {}
+          : { checksum: String(finding.checksum) }),
+        ...(documentationUriForFinding(finding)
+          ? { documentationUri: documentationUriForFinding(finding) }
+          : {}),
+      };
+    }),
+  );
+}
+
+async function resolveAtcScopeUris(
+  client: AdtClient,
+  scope: AtcRunBody['scope'],
+): Promise<string[]> {
+  switch (scope.kind) {
+    case 'package':
+      return [
+        assertAdtUri(`/sap/bc/adt/packages/${scope.packageName.toUpperCase()}`),
+      ];
+    case 'transport_request':
+      return [
+        assertAdtUri(
+          `/sap/bc/adt/cts/transportrequests/${scope.trkorr.toUpperCase()}`,
+        ),
+      ];
+    case 'objects':
+      return await Promise.all(
+        scope.objects.map(async (object) => {
+          const uri = await resolveObjectUri(
+            client,
+            object.objectName,
+            adtSearchObjectType(object.objectType),
+          );
+          if (!uri) throw new Error('ATC object is unavailable');
+          return uri;
+        }),
+      );
+  }
+}
+
+async function resolveAtcVariant(
+  client: AdtClient,
+  requested: string | undefined,
+): Promise<string> {
+  if (requested) return requested;
+  const customizing = await client.adt.atc.customizing.get();
+  const properties = record(record(customizing)?.customizing)?.properties;
+  const property = records(record(properties)?.property).find(
+    (entry) => stringField(entry, 'name') === 'systemCheckVariant',
+  );
+  return stringField(property ?? {}, 'value') ?? 'DEFAULT';
+}
+
+function extractAtcWorklistId(response: unknown): string {
+  if (typeof response === 'string') {
+    const match = /id="([^"]+)"/u.exec(response);
+    if (match) return match[1]!;
+    if (response.trim()) return response.trim();
+  }
+  const object = record(response);
+  const worklistId = stringField(record(object?.worklist) ?? {}, 'id');
+  const runId = stringField(record(object?.worklistRun) ?? {}, 'worklistId');
+  if (worklistId) return worklistId;
+  if (runId) return runId;
+  throw new Error('ATC worklist is unavailable');
 }
 
 function normalizedObjectType(value: string): string | undefined {
@@ -915,6 +1123,65 @@ export function createHttpBrokerOperations(
             data: objects.slice(0, cap),
             truncated: quickSearchReferences(response).length >= cap,
           };
+        },
+      );
+    },
+    async runAtc(input): Promise<CanonicalAtcRunResult> {
+      return await withClient(input.destination, 'run_atc', async (client) => {
+        const checkVariant = await resolveAtcVariant(client, input.variant);
+        const created = await client.adt.atc.worklists.create({
+          checkVariant,
+        });
+        const worklistId = extractAtcWorklistId(created);
+        const targetUris = await resolveAtcScopeUris(client, input.scope);
+        await client.adt.atc.runs.post(
+          { worklistId },
+          {
+            run: {
+              maximumVerdicts: 10_000,
+              objectSets: {
+                objectSet: [
+                  {
+                    kind: 'inclusive',
+                    objectReferences: {
+                      objectReference: targetUris.map((uri) => ({ uri })),
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        );
+        const worklist = await client.adt.atc.worklists.get(worklistId, {
+          includeExemptedFindings: 'false',
+        });
+        return {
+          checkVariant,
+          findings: toCanonicalAtcFindings(worklist),
+        };
+      });
+    },
+    async readAtcFindingDocumentation(input) {
+      return await withClient(
+        input.destination,
+        'read_atc_finding_documentation',
+        async (client) => {
+          const documentationUri = trustedAtcDocumentationUri(
+            input.documentationUri,
+          );
+          if (!documentationUri) {
+            throw new Error('ATC documentation is unavailable');
+          }
+          const html = await client.readTextBounded(
+            documentationUri,
+            input.maxBytes,
+            {
+              headers: {
+                Accept: 'application/vnd.sap.adt.docu.v1+html',
+              },
+            },
+          );
+          return { bytes: Buffer.byteLength(html, 'utf8'), html };
         },
       );
     },

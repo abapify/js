@@ -1,6 +1,10 @@
 import YAML from 'yaml';
 import { z } from 'zod';
 import {
+  atcDocumentationReadBody,
+  atcDocumentationReadResponse,
+  atcRunBody,
+  atcRunResponse,
   objectMetadataResponse,
   objectNamePathParameter,
   objectPageResponse,
@@ -21,6 +25,13 @@ import {
   transportSourceManifestBody,
   transportSourceManifestResponse,
 } from './rest-schemas.js';
+
+const atcDocumentationReadBodySchema = z.toJSONSchema(atcDocumentationReadBody);
+const atcDocumentationReadResponseSchema = z.toJSONSchema(
+  atcDocumentationReadResponse,
+);
+const atcRunBodySchema = z.toJSONSchema(atcRunBody);
+const atcRunResponseSchema = z.toJSONSchema(atcRunResponse);
 
 const transportSourceManifestSchema = z.toJSONSchema(
   transportSourceManifestBody,
@@ -368,6 +379,53 @@ export const openApiDocument = {
           },
           '400': { description: 'Invalid request' },
           '413': { description: 'Source exceeds the fixed byte cap' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/atc-runs': {
+      post: {
+        operationId: 'runAtc',
+        parameters: [{ $ref: '#/components/parameters/destination' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: atcRunBodySchema },
+          },
+        },
+        responses: {
+          '200': {
+            description:
+              'Normalized ATC findings with opaque documentation capabilities',
+            content: {
+              'application/json': { schema: atcRunResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/atc-finding-documentation:read': {
+      post: {
+        operationId: 'readAtcFindingDocumentation',
+        parameters: [{ $ref: '#/components/parameters/destination' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: atcDocumentationReadBodySchema },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Complete bounded ATC documentation HTML',
+            content: {
+              'application/json': {
+                schema: atcDocumentationReadResponseSchema,
+              },
+            },
+          },
+          '400': { description: 'Invalid request' },
+          '404': { description: 'Documentation capability is unavailable' },
+          '413': { description: 'Documentation exceeds the byte cap' },
         },
       },
     },

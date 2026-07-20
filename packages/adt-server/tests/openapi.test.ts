@@ -225,3 +225,23 @@ test('documents bounded canonical object source reads without SAP URI input', ()
   assert.ok(!JSON.stringify(source).includes('uri'));
   assert.ok(!JSON.stringify(source).includes('href'));
 });
+
+test('documents canonical ATC runs and opaque bounded documentation reads', () => {
+  const run =
+    openApiDocument.paths['/v1/destinations/{destination}/atc-runs'].post;
+  const documentation =
+    openApiDocument.paths[
+      '/v1/destinations/{destination}/atc-finding-documentation:read'
+    ].post;
+
+  assert.strictEqual(run.operationId, 'runAtc');
+  assert.strictEqual(documentation.operationId, 'readAtcFindingDocumentation');
+  assert.ok(run.requestBody?.content?.['application/json'].schema);
+  assert.ok(run.responses['200'].content?.['application/json'].schema);
+  assert.ok(documentation.requestBody?.content?.['application/json'].schema);
+  assert.ok(
+    documentation.responses['200'].content?.['application/json'].schema,
+  );
+  assert.ok(!JSON.stringify(run).includes('/sap/bc/adt/'));
+  assert.ok(!JSON.stringify(documentation).includes('/sap/bc/adt/'));
+});
