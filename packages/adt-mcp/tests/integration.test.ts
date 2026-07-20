@@ -256,14 +256,36 @@ describe('adt-mcp integration tests', () => {
   // ── atc_run ────────────────────────────────────────────────────
 
   describe('atc_run tool', () => {
-    it('runs ATC and returns worklist', async () => {
-      const { json } = await callTool('atc_run', {
+    it('runs a canonical package scope and returns URI-free findings', async () => {
+      const { json, raw } = await callTool('atc_run', {
+        ...connArgs(),
+        scope: { kind: 'package', packageName: 'ZPACKAGE' },
+        variant: 'TEST_VARIANT',
+      });
+      assert.notStrictEqual((raw as { isError?: boolean }).isError, true);
+      const data = json as {
+        checkVariant: string;
+        findings: Array<Record<string, unknown>>;
+      };
+      assert.ok(data.checkVariant, 'should identify the ATC variant');
+      assert.ok(Array.isArray(data.findings), 'should return findings');
+      assert.doesNotMatch(
+        JSON.stringify(data),
+        /(?:objectUri|worklist|\/sap\/bc\/adt)/iu,
+        'the model-facing response must not contain raw ADT routing data',
+      );
+    });
+
+    it('rejects a raw ADT URI as an ATC target', async () => {
+      const { raw } = await callTool('atc_run', {
         ...connArgs(),
         objectUri: '/sap/bc/adt/packages/ZPACKAGE',
       });
-      const data = json as { status: string; worklist?: unknown };
-      assert.strictEqual(data.status, 'completed');
-      assert.ok(data.worklist, 'should contain worklist');
+      assert.strictEqual(
+        (raw as { isError?: boolean }).isError,
+        true,
+        'the public contract must not admit model-supplied ADT URIs',
+      );
     });
   });
 
