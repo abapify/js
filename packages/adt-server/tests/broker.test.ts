@@ -747,6 +747,103 @@ test('resolves canonical object metadata through the upstream resolver without l
   }
 });
 
+test('maps object source history to metadata only without leaking immutable source URIs', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const versionReads: string[] = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          leaseId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+          destination: 'dev',
+          version: 1,
+          expiresAt: '2026-07-20T00:00:00.000Z',
+          connection: {
+            baseUrl: 'https://sap.example.test',
+            sapClient: null,
+            authMethod: 'basic',
+            authConfig: { username: 'service', password: 'secret' },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    createClient: async () =>
+      ({
+        adt: {
+          repository: {
+            informationsystem: {
+              objectProperties: {
+                async values() {
+                  return {
+                    objectProperties: {
+                      object: {
+                        link: [
+                          {
+                            rel: 'http://www.sap.com/adt/relations/versions',
+                            href: 'versions',
+                          },
+                        ],
+                      },
+                    },
+                  };
+                },
+              },
+            },
+          },
+        },
+        services: {
+          sourceHistory: {
+            async listVersions(versionsUri: string) {
+              versionReads.push(versionsUri);
+              return [
+                {
+                  id: 'version-2',
+                  ordinal: 0,
+                  title: 'Latest change',
+                  author: 'ALICE',
+                  transports: ['DEVK900001'],
+                  sourceUri:
+                    '/sap/bc/adt/oo/classes/zcl_safe/source/main/versions/2',
+                },
+              ];
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.getObjectSourceHistory!(
+      'dev',
+      'CLAS',
+      'ZCL_SAFE',
+    );
+    assert.deepStrictEqual(versionReads, [
+      '/sap/bc/adt/oo/classes/zcl_safe/versions',
+    ]);
+    assert.deepStrictEqual(result, {
+      available: true,
+      versions: [
+        {
+          id: 'version-2',
+          ordinal: 0,
+          title: 'Latest change',
+          author: 'ALICE',
+          transports: ['DEVK900001'],
+        },
+      ],
+    });
+    assert.ok(!JSON.stringify(result).includes('uri'));
+    assert.ok(!JSON.stringify(result).includes('href'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');
