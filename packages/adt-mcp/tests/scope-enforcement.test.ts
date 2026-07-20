@@ -315,3 +315,45 @@ test('destination mode hides and rejects the legacy raw ATC URI target', async (
     await destinations.shutdown();
   }
 });
+
+test('destination mode hides raw URI fields from all canonical read tools', async () => {
+  const destinations = destinationRegistry(() => undefined);
+  const server = createMcpServer({
+    destinationRegistry: destinations,
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+  });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new Client({
+    name: 'canonical-read-schema-test',
+    version: '0.0.1',
+  });
+  await client.connect(clientTransport);
+
+  try {
+    const tools = await client.listTools();
+    const forbiddenFields: Readonly<Record<string, string>> = {
+      atc_run: 'objectUri',
+      get_callers_of: 'objectUri',
+      get_callees_of: 'objectUri',
+      find_references: 'objectUri',
+      grep_objects: 'objectUris',
+    };
+    for (const [name, forbiddenField] of Object.entries(forbiddenFields)) {
+      const tool = tools.tools.find((candidate) => candidate.name === name);
+      const properties = tool?.inputSchema.properties as
+        | Record<string, unknown>
+        | undefined;
+      assert.ok(tool, `${name} must be listed to a read-scoped caller`);
+      assert.ok(
+        !Object.hasOwn(properties ?? {}, forbiddenField),
+        `${name} must not publish ${forbiddenField}`,
+      );
+    }
+  } finally {
+    await client.close();
+    await server.close();
+    await destinations.shutdown();
+  }
+});

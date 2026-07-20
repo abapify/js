@@ -27,12 +27,7 @@ const callHierarchyShape = {
     .string()
     .optional()
     .describe('Object type (e.g. CLAS, FUGR, PROG)'),
-  objectUri: z
-    .string()
-    .optional()
-    .describe(
-      'Direct ADT URI of the object (skips name resolution if provided)',
-    ),
+  objectUri: z.never().optional(),
   maxResults: z
     .number()
     .optional()
@@ -44,11 +39,9 @@ async function fetchCallHierarchy(
   endpoint: 'callers' | 'callees',
   objectName: string,
   objectType: string | undefined,
-  objectUri: string | undefined,
   maxResults: number,
 ): Promise<{ objectUri: string; result: unknown } | null> {
-  const resolvedUri =
-    objectUri ?? (await resolveObjectUri(client, objectName, objectType));
+  const resolvedUri = await resolveObjectUri(client, objectName, objectType);
   if (!resolvedUri) return null;
 
   const params = new URLSearchParams({
@@ -89,7 +82,6 @@ function registerCallHierarchyTool(
           config.endpoint,
           args.objectName,
           args.objectType,
-          args.objectUri,
           args.maxResults ?? 50,
         );
         if (!res) {
