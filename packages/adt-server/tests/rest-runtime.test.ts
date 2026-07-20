@@ -14,6 +14,7 @@ test('keeps REST disabled when its mounted bearer secret is empty', async () => 
     const security = await loadRestRuntimeSecurity({ tokenFile });
     assert.strictEqual(security.restAuthorizer, undefined);
     assert.strictEqual(security.sourceCapabilities, undefined);
+    assert.strictEqual(security.atcDocumentationCapabilities, undefined);
     assert.strictEqual(security.pageCursors, undefined);
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -48,6 +49,7 @@ test('requires distinct mounted REST state secrets when bearer auth is enabled',
     });
     assert.ok(security.restAuthorizer);
     assert.ok(security.sourceCapabilities);
+    assert.ok(security.atcDocumentationCapabilities);
     assert.ok(security.pageCursors);
 
     const sourceCapability = security.sourceCapabilities!.issue({
@@ -55,6 +57,13 @@ test('requires distinct mounted REST state secrets when bearer auth is enabled',
       sourceUri: '/sap/bc/adt/oo/classes/zcl_safe/source/main/versions/1',
     });
     assert.ok(!sourceCapability.includes('/sap/bc/adt/'));
+    const documentationCapability =
+      security.atcDocumentationCapabilities!.issue({
+        destination: 'dev',
+        documentationUri:
+          '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+      });
+    assert.ok(!documentationCapability.includes('/sap/bc/adt/'));
     const first = security.pageCursors!.paginate({
       data: [{ key: 'A' }, { key: 'B' }],
       fingerprint: 'objects:dev:*:::',
