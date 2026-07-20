@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import {
+  AdtResponseTooLargeError,
   assertAdtUri,
   createAdtClient,
+  SourceVersionTooLargeError,
   type AdtClient,
 } from '@abapify/adt-client';
 import { ExactSourceHistoryService } from '@abapify/adt-cli';
@@ -12,10 +14,11 @@ import type {
 } from '@abapify/adt-mcp';
 import { resolveObjectUri } from '@abapify/adt-mcp';
 import type { DestinationSummary, AdtServerOperations } from './server.js';
-import type {
-  ObjectSearchCriteria,
-  PackageSearchCriteria,
-  TransportSearchCriteria,
+import {
+  MAX_SOURCE_BYTES,
+  type ObjectSearchCriteria,
+  type PackageSearchCriteria,
+  type TransportSearchCriteria,
 } from './rest-schemas.js';
 
 export interface HttpBrokerOptions {
@@ -437,6 +440,15 @@ function toCanonicalObjectMetadata(
   };
 }
 
+function isAdtNotFound(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === 'AdtError' &&
+    'status' in error &&
+    (error as { status?: unknown }).status === 404
+  );
+}
+
 function adtPrefixQuery(query?: string): string {
   const trimmed = query?.trim();
   return !trimmed ? '*' : /[*?]/u.test(trimmed) ? trimmed : `${trimmed}*`;
@@ -842,6 +854,47 @@ export function createHttpBrokerOperations(
               ({ sourceUri: _sourceUri, ...version }) => ({ ...version }),
             ),
           };
+        },
+      );
+    },
+    async readObjectSource(input) {
+      return await withClient(
+        input.destination,
+        'read_object_source',
+        async (client) => {
+          const objectUri = await resolveObjectUri(
+            client,
+            input.objectName,
+            adtSearchObjectType(input.objectType),
+          );
+          if (!objectUri) throw new Error('Object source is unavailable');
+          const sourcePath =
+            `${objectUri.replace(/\/$/u, '')}/source/main` +
+            (input.version
+              ? `?version=${encodeURIComponent(input.version)}`
+              : '');
+          let source: string;
+          try {
+            source = await client.readTextBounded(
+              sourcePath,
+              MAX_SOURCE_BYTES,
+              {
+                headers: { Accept: 'text/plain' },
+              },
+            );
+          } catch (error) {
+            if (error instanceof AdtResponseTooLargeError) {
+              throw new SourceVersionTooLargeError(
+                error.maxBytes,
+                error.receivedBytes,
+              );
+            }
+            // Preserve the direct SapPort convention: only an explicit ADT 404
+            // means the object simply has no fetchable source.
+            if (isAdtNotFound(error)) return { bytes: 0, source: '' };
+            throw error;
+          }
+          return { bytes: Buffer.byteLength(source, 'utf8'), source };
         },
       );
     },

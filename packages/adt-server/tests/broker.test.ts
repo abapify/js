@@ -844,6 +844,75 @@ test('maps object source history to metadata only without leaking immutable sour
   }
 });
 
+test('reads a bounded canonical object source without accepting or returning an ADT URI', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const sourceReads: Array<{
+    path: string;
+    maxBytes: number;
+    accept?: string;
+  }> = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          leaseId: '12121212-1212-4212-8212-121212121212',
+          destination: 'dev',
+          version: 1,
+          expiresAt: '2026-07-20T00:00:00.000Z',
+          connection: {
+            baseUrl: 'https://sap.example.test',
+            sapClient: null,
+            authMethod: 'basic',
+            authConfig: { username: 'service', password: 'secret' },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    createClient: async () =>
+      ({
+        async readTextBounded(
+          path: string,
+          maxBytes: number,
+          options: { headers?: { Accept?: string } },
+        ) {
+          sourceReads.push({
+            path,
+            maxBytes,
+            accept: options.headers?.Accept,
+          });
+          return 'CLASS zcl_safe DEFINITION.';
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.readObjectSource!({
+      destination: 'dev',
+      objectType: 'CLAS',
+      objectName: 'ZCL_SAFE',
+      version: 'inactive',
+    });
+    assert.deepStrictEqual(sourceReads, [
+      {
+        path: '/sap/bc/adt/oo/classes/zcl_safe/source/main?version=inactive',
+        maxBytes: 2 * 1024 * 1024,
+        accept: 'text/plain',
+      },
+    ]);
+    assert.deepStrictEqual(result, {
+      bytes: Buffer.byteLength('CLASS zcl_safe DEFINITION.', 'utf8'),
+      source: 'CLASS zcl_safe DEFINITION.',
+    });
+    assert.ok(!JSON.stringify(result).includes('uri'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');

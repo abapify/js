@@ -380,6 +380,13 @@ export const objectSourceHistoryResponse = z
   })
   .strict();
 
+/** One canonical object source selector; raw ADT paths are never accepted. */
+export const objectSourceReadBody = z
+  .object({
+    version: z.string().trim().min(1).max(256).optional(),
+  })
+  .strict();
+
 export function parseTransportSearchQuery(input: unknown) {
   const query = transportSearchQuery.parse(input);
   return {

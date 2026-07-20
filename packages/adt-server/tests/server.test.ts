@@ -703,6 +703,103 @@ test('serves metadata-only canonical object source history without ADT URIs', as
   }
 });
 
+test('reads bounded canonical object source without accepting a SAP URI', async () => {
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async readObjectSource(input) {
+        calls.push(input);
+        return {
+          bytes: Buffer.byteLength('CLASS zcl_safe DEFINITION.', 'utf8'),
+          source: 'CLASS zcl_safe DEFINITION.',
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(
+      `${server.url}/v1/destinations/dev/objects/CLAS/ZCL_SAFE/source:read`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ version: 'inactive' }),
+      },
+    );
+    assert.strictEqual(response.status, 200);
+    const body = await response.json();
+    assert.deepStrictEqual(body, {
+      bytes: Buffer.byteLength('CLASS zcl_safe DEFINITION.', 'utf8'),
+      source: 'CLASS zcl_safe DEFINITION.',
+    });
+    assert.deepStrictEqual(calls, [
+      {
+        destination: 'dev',
+        objectType: 'CLAS',
+        objectName: 'ZCL_SAFE',
+        version: 'inactive',
+      },
+    ]);
+    assert.ok(!JSON.stringify(body).includes('uri'));
+    assert.ok(!JSON.stringify(body).includes('href'));
+
+    const invalid = await fetch(
+      `${server.url}/v1/destinations/dev/objects/CLAS/ZCL_SAFE/source:read`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sourceUri: '/sap/bc/adt/unsafe' }),
+      },
+    );
+    assert.strictEqual(invalid.status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
+test('rejects an oversized canonical object source without a partial body', async () => {
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async readObjectSource() {
+        throw new SourceVersionTooLargeError(2 * 1024 * 1024);
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(
+      `${server.url}/v1/destinations/dev/objects/CLAS/ZCL_SAFE/source:read`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      },
+    );
+    assert.strictEqual(response.status, 413);
+    const body = await response.json();
+    assert.deepStrictEqual(body, { title: 'Source too large', status: 413 });
+    assert.ok(!JSON.stringify(body).includes('source'));
+  } finally {
+    await server.close();
+  }
+});
+
 test('serves direct package objects as a bounded canonical page without ADT URIs', async () => {
   const calls: unknown[] = [];
   const server = await startAdtServer({
