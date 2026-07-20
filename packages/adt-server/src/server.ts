@@ -17,10 +17,12 @@ import {
   createRestPageCursorService,
 } from './page-cursors.js';
 import {
+  MAX_SOURCE_BYTES,
   objectPageResponse,
   objectMetadataResponse,
   objectNamePathParameter,
   objectSearchResult,
+  objectSourceReadBody,
   objectSourceHistoryResponse,
   objectTypePathParameter,
   parseObjectSearchQuery,
@@ -100,6 +102,13 @@ export interface AdtServerOperations {
     objectType: string,
     objectName: string,
   ): Promise<unknown>;
+  /** Bounded current/named source selected only by canonical object identity. */
+  readObjectSource?(input: {
+    destination: string;
+    objectType: string;
+    objectName: string;
+    version?: string;
+  }): Promise<{ bytes: number; source: string }>;
   /** Public canonical detail; never contains SAP URI fields. */
   getTransportDetail?(destination: string, transport: string): Promise<unknown>;
   /** Public canonical aggregate; never contains SAP URI fields. */
@@ -322,6 +331,10 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source-history$/u.exec(
           path,
         );
+      const objectSourceReadMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source:read$/u.exec(
+          path,
+        );
       const sourceManifestMatch =
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u.exec(
           path,
@@ -340,6 +353,7 @@ export async function startAdtServer(
         (request.method === 'GET' && packageObjectsMatch) ||
         (request.method === 'GET' && objectMetadataMatch) ||
         (request.method === 'GET' && objectSourceHistoryMatch) ||
+        (request.method === 'POST' && objectSourceReadMatch) ||
         (request.method === 'GET' && transportDetailMatch) ||
         (request.method === 'POST' &&
           (sourceManifestMatch || sourceVersionReadMatch));
@@ -555,6 +569,56 @@ export async function startAdtServer(
             error instanceof InvalidPathParameterError
           ) {
             writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'POST' && objectSourceReadMatch) {
+        const [, destination, rawObjectType, rawObjectName] =
+          objectSourceReadMatch;
+        try {
+          const objectType = objectTypePathParameter.parse(
+            decodePathParameter(rawObjectType!),
+          );
+          const objectName = objectNamePathParameter.parse(
+            decodePathParameter(rawObjectName!),
+          );
+          const input = objectSourceReadBody.parse(await readJsonBody(request));
+          if (!options.operations.readObjectSource) {
+            writeProblem(response, 404, 'Not found');
+            return;
+          }
+          const result = await options.operations.readObjectSource({
+            destination: destination!,
+            objectType,
+            objectName,
+            ...(input.version ? { version: input.version } : {}),
+          });
+          if (
+            typeof result.source !== 'string' ||
+            result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
+            result.bytes > MAX_SOURCE_BYTES
+          ) {
+            throw new Error(
+              'Bounded object source operation returned an invalid body',
+            );
+          }
+          const data = sourceVersionReadResponse.parse(result);
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof InvalidPathParameterError ||
+            error instanceof InvalidJsonBodyError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          if (error instanceof SourceVersionTooLargeError) {
+            writeProblem(response, 413, 'Source too large');
             return;
           }
           throw error;

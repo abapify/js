@@ -5,6 +5,7 @@ import {
   objectNamePathParameter,
   objectPageResponse,
   objectSearchQuery,
+  objectSourceReadBody,
   objectSourceHistoryResponse,
   objectTypePathParameter,
   packagePathParameter,
@@ -38,6 +39,7 @@ const objectMetadataResponseSchema = z.toJSONSchema(objectMetadataResponse);
 const objectSourceHistoryResponseSchema = z.toJSONSchema(
   objectSourceHistoryResponse,
 );
+const objectSourceReadBodySchema = z.toJSONSchema(objectSourceReadBody);
 const objectSearchQuerySchema = z.toJSONSchema(objectSearchQuery);
 const objectTypePathParameterSchema = z.toJSONSchema(objectTypePathParameter);
 const objectNamePathParameterSchema = z.toJSONSchema(objectNamePathParameter);
@@ -340,6 +342,32 @@ export const openApiDocument = {
             },
           },
           '400': { description: 'Invalid request' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/objects/{type}/{name}/source:read': {
+      post: {
+        operationId: 'readObjectSource',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          { $ref: '#/components/parameters/objectType' },
+          { $ref: '#/components/parameters/objectName' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: objectSourceReadBodySchema },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Complete bounded canonical object source body',
+            content: {
+              'application/json': { schema: sourceVersionReadResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+          '413': { description: 'Source exceeds the fixed byte cap' },
         },
       },
     },
