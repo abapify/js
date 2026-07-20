@@ -202,3 +202,26 @@ test('documents canonical object source history without source locators', () => 
   assert.ok(!JSON.stringify(history).includes('uri'));
   assert.ok(!JSON.stringify(history).includes('href'));
 });
+
+test('documents bounded canonical object source reads without SAP URI input', () => {
+  const source =
+    openApiDocument.paths[
+      '/v1/destinations/{destination}/objects/{type}/{name}/source:read'
+    ].post;
+
+  assert.strictEqual(source.operationId, 'readObjectSource');
+  assert.deepStrictEqual(
+    source.parameters?.map((parameter) =>
+      '$ref' in parameter ? parameter.$ref : parameter.name,
+    ),
+    [
+      '#/components/parameters/destination',
+      '#/components/parameters/objectType',
+      '#/components/parameters/objectName',
+    ],
+  );
+  assert.ok(source.requestBody?.content?.['application/json'].schema);
+  assert.ok(source.responses['200'].content?.['application/json'].schema);
+  assert.ok(!JSON.stringify(source).includes('uri'));
+  assert.ok(!JSON.stringify(source).includes('href'));
+});
