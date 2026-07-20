@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
+export const MAX_ATC_DOCUMENTATION_BYTES = 1024 * 1024;
 export const MAX_PACKAGE_SEARCH_RESULTS = 5_000;
 export const MAX_OBJECT_SEARCH_RESULTS = 5_000;
 
@@ -387,6 +388,118 @@ export const objectSourceReadBody = z
   })
   .strict();
 
+const atcScopeObject = z
+  .object({
+    objectType: objectTypePathParameter,
+    objectName: objectNamePathParameter,
+  })
+  .strict();
+
+const atcPackageName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9_/$-]+$/u);
+
+/** Canonical ATC target set; an ADT URI is never a REST argument. */
+export const atcRunBody = z
+  .object({
+    scope: z.discriminatedUnion('kind', [
+      z
+        .object({
+          kind: z.literal('package'),
+          packageName: atcPackageName,
+        })
+        .strict(),
+      z
+        .object({
+          kind: z.literal('transport_request'),
+          trkorr: transportPathParameter,
+        })
+        .strict(),
+      z
+        .object({
+          kind: z.literal('objects'),
+          objects: z.array(atcScopeObject).min(1).max(1_024),
+        })
+        .strict(),
+    ]),
+    variant: z.string().trim().min(1).max(256).optional(),
+  })
+  .strict();
+
+const atcQuickfixes = z
+  .object({
+    manual: z.boolean().optional(),
+    automatic: z.boolean().optional(),
+    pseudo: z.boolean().optional(),
+  })
+  .strict();
+
+/** Safe, URI-free ATC evidence. Documentation is a sealed capability. */
+export const atcFindingResponse = z
+  .object({
+    checkId: z.string().max(256),
+    checkTitle: z.string().max(1_024),
+    messageText: z.string().max(8 * 1_024),
+    priority: z.number().int().min(1).max(99),
+    objectType: objectTypePathParameter,
+    objectName: objectNamePathParameter,
+    lineStart: z.number().int().positive().optional(),
+    lineEnd: z.number().int().positive().optional(),
+    messageId: z.string().trim().min(1).max(256).optional(),
+    packageName: packagePathParameter.optional(),
+    objectDescription: z.string().max(1_024).optional(),
+    contactPerson: z.string().trim().min(1).max(256).optional(),
+    processor: z.string().trim().min(1).max(256).optional(),
+    lastChangedBy: z.string().trim().min(1).max(256).optional(),
+    exemptionKind: z.string().trim().min(1).max(256).optional(),
+    exemptionApproval: z.string().trim().min(1).max(256).optional(),
+    noExemption: z.boolean().optional(),
+    quickfixInfo: z.string().max(1_024).optional(),
+    quickfixes: atcQuickfixes.optional(),
+    checksum: z.string().trim().min(1).max(1_024).optional(),
+    documentationCapability: z
+      .string()
+      .trim()
+      .min(1)
+      .max(8 * 1_024)
+      .optional(),
+  })
+  .strict();
+
+export const atcRunResponse = z
+  .object({
+    checkVariant: z.string().trim().min(1).max(256),
+    findings: z.array(atcFindingResponse).max(10_000),
+  })
+  .strict();
+
+/** Redeems a capability issued by an ATC-run response, never a SAP URI. */
+export const atcDocumentationReadBody = z
+  .object({
+    documentationCapability: z
+      .string()
+      .trim()
+      .min(1)
+      .max(8 * 1_024),
+    maxBytes: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_ATC_DOCUMENTATION_BYTES)
+      .optional(),
+  })
+  .strict();
+
+export const atcDocumentationReadResponse = z
+  .object({
+    bytes: z.number().int().nonnegative().max(MAX_ATC_DOCUMENTATION_BYTES),
+    html: z.string(),
+  })
+  .strict();
+
 export function parseTransportSearchQuery(input: unknown) {
   const query = transportSearchQuery.parse(input);
   return {
@@ -421,6 +534,9 @@ export function parsePageQuery(input: unknown) {
 export type TransportSourceManifestInput = z.infer<
   typeof transportSourceManifestBody
 >;
+
+export type AtcRunBody = z.infer<typeof atcRunBody>;
+export type AtcRunResponse = z.infer<typeof atcRunResponse>;
 
 export type TransportSearchCriteria = ReturnType<
   typeof parseTransportSearchQuery

@@ -11,6 +11,7 @@ import { SourceVersionTooLargeError } from '@abapify/adt-client';
 import { createRestBearerAuthorizer } from '../src/rest-auth.js';
 import { startAdtServer } from '../src/server.js';
 import { createRestSourceCapabilityService } from '../src/source-capabilities.js';
+import { createRestAtcDocumentationCapabilityService } from '../src/atc-documentation-capabilities.js';
 
 const operations = {
   async listDestinations() {
@@ -795,6 +796,146 @@ test('rejects an oversized canonical object source without a partial body', asyn
     const body = await response.json();
     assert.deepStrictEqual(body, { title: 'Source too large', status: 413 });
     assert.ok(!JSON.stringify(body).includes('source'));
+  } finally {
+    await server.close();
+  }
+});
+
+test('runs ATC only from a canonical scope and returns an opaque documentation capability', async () => {
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async runAtc(input: unknown) {
+        calls.push(input);
+        return {
+          checkVariant: 'DEFAULT',
+          findings: [
+            {
+              checkId: 'SCI',
+              checkTitle: 'Safe check',
+              messageText: 'Avoid unsafe access',
+              priority: 2,
+              objectType: 'CLAS',
+              objectName: 'ZCL_SAFE',
+              lineStart: 12,
+              lineEnd: 12,
+              documentationUri:
+                '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+              objectUri: '/sap/bc/adt/oo/classes/zcl_safe',
+              location: '/sap/bc/adt/oo/classes/zcl_safe/source/main?start=12',
+              findingId: '/sap/bc/adt/atc/findings/itemid/ABC/index/1',
+            },
+          ],
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${server.url}/v1/destinations/dev/atc-runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        scope: {
+          kind: 'objects',
+          objects: [{ objectType: 'CLAS', objectName: 'ZCL_SAFE' }],
+        },
+      }),
+    });
+
+    assert.strictEqual(response.status, 200);
+    const body = await response.json();
+    assert.deepStrictEqual(calls, [
+      {
+        destination: 'dev',
+        scope: {
+          kind: 'objects',
+          objects: [{ objectType: 'CLAS', objectName: 'ZCL_SAFE' }],
+        },
+      },
+    ]);
+    assert.strictEqual(body.checkVariant, 'DEFAULT');
+    assert.deepStrictEqual(body.findings[0], {
+      checkId: 'SCI',
+      checkTitle: 'Safe check',
+      messageText: 'Avoid unsafe access',
+      priority: 2,
+      objectType: 'CLAS',
+      objectName: 'ZCL_SAFE',
+      lineStart: 12,
+      lineEnd: 12,
+      documentationCapability: body.findings[0].documentationCapability,
+    });
+    assert.match(body.findings[0].documentationCapability, /^atcdoc\.v1\./u);
+    assert.ok(!JSON.stringify(body).includes('/sap/bc/adt/'));
+  } finally {
+    await server.close();
+  }
+});
+
+test('reads ATC documentation only through a destination-scoped opaque capability', async () => {
+  const capabilities = createRestAtcDocumentationCapabilityService({
+    secret: 'test-documentation-capability-secret',
+  });
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async readAtcFindingDocumentation(input: unknown) {
+        calls.push(input);
+        return {
+          bytes: Buffer.byteLength('<p>Use a safe API.</p>', 'utf8'),
+          html: '<p>Use a safe API.</p>',
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+    atcDocumentationCapabilities: capabilities,
+  });
+  const documentationCapability = capabilities.issue({
+    destination: 'dev',
+    documentationUri:
+      '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+  });
+
+  try {
+    const response = await fetch(
+      `${server.url}/v1/destinations/dev/atc-finding-documentation:read`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ documentationCapability }),
+      },
+    );
+
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(await response.json(), {
+      bytes: Buffer.byteLength('<p>Use a safe API.</p>', 'utf8'),
+      html: '<p>Use a safe API.</p>',
+    });
+    assert.deepStrictEqual(calls, [
+      {
+        destination: 'dev',
+        documentationUri:
+          '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+        maxBytes: 1024 * 1024,
+      },
+    ]);
+    assert.ok(!JSON.stringify(calls).includes(documentationCapability));
   } finally {
     await server.close();
   }
