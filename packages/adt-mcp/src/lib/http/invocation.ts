@@ -22,7 +22,11 @@ const canonicalKeyPattern = /^[A-Z0-9_]+:.+$/u;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-const trustedAgentIds = new Set(['ai-review', 'system-assistant']);
+const trustedAgentIds = new Set([
+  'ai-review',
+  'system-assistant',
+  'autonomous-review-agent',
+]);
 const trustedOperationClasses = new Set(['server', 'read']);
 
 export type McpTrustedOperationClass = 'server' | 'read';
@@ -39,7 +43,10 @@ export type McpInvocationJsonValue =
 export interface TrustedMcpInvocationClaims {
   readonly tokenId: string;
   readonly principal: string;
-  readonly agentId: 'ai-review' | 'system-assistant';
+  readonly agentId:
+    | 'ai-review'
+    | 'system-assistant'
+    | 'autonomous-review-agent';
   readonly classes: readonly McpTrustedOperationClass[];
   readonly destinationKeys: readonly string[];
   readonly correlationId: string;
@@ -110,6 +117,15 @@ export function isMcpInvocationDispatchPolicySupported(
       requiredIdentifier(claims.constraint.systemSid) !== undefined
     );
   }
+  if (claims.agentId === 'autonomous-review-agent') {
+    return (
+      claims.classes.length === 2 &&
+      claims.classes.includes('server') &&
+      claims.classes.includes('read') &&
+      claims.destinationKeys.length === 1 &&
+      parseAutonomousReviewAgentPolicy(claims) !== undefined
+    );
+  }
   if (claims.agentId !== 'ai-review') return false;
   return (
     claims.classes.length === 2 &&
@@ -118,6 +134,31 @@ export function isMcpInvocationDispatchPolicySupported(
     claims.destinationKeys.length === 1 &&
     parseAiReviewFrozenSourcePolicy(claims) !== undefined
   );
+}
+
+/**
+ * The autonomous agent may inspect exactly one System through exactly one
+ * Destination. Its execution id binds every ADT activity to ADT's durable
+ * Agent Execution, while the sidecar's ordinary scope catalogue continues to
+ * deny write tools. No ambient limits or additional constraints are accepted.
+ */
+export function parseAutonomousReviewAgentPolicy(
+  claims: TrustedMcpInvocationClaims,
+): { readonly executionId: string; readonly systemSid: string } | undefined {
+  if (claims.agentId !== 'autonomous-review-agent') return undefined;
+  if (Object.keys(claims.limits).length !== 0) return undefined;
+  const constraintKeys = Object.keys(claims.constraint).sort();
+  if (
+    constraintKeys.length !== 2 ||
+    constraintKeys[0] !== 'executionId' ||
+    constraintKeys[1] !== 'systemSid'
+  ) {
+    return undefined;
+  }
+  const executionId = requiredUuid(claims.constraint.executionId);
+  const systemSid = requiredSystemSid(claims.constraint.systemSid);
+  if (!executionId || !systemSid) return undefined;
+  return Object.freeze({ executionId, systemSid });
 }
 
 function requiredUuid(value: unknown): string | undefined {
@@ -251,6 +292,15 @@ function requiredIdentifier(value: unknown): string | undefined {
     return undefined;
   }
   return value;
+}
+
+function requiredSystemSid(value: unknown): string | undefined {
+  const systemSid = requiredIdentifier(value);
+  return systemSid &&
+    systemSid.length <= 16 &&
+    /^[A-Za-z0-9_-]+$/u.test(systemSid)
+    ? systemSid
+    : undefined;
 }
 
 function requiredComponentIdentifier(value: unknown): string | undefined {
