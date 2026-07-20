@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createRestPageCursorService } from './page-cursors.js';
 import { loadOptionalRestBearerAuthorizer } from './rest-auth.js';
+import { createRestAtcDocumentationCapabilityService } from './atc-documentation-capabilities.js';
 import { createRestSourceCapabilityService } from './source-capabilities.js';
 
 export interface RestRuntimeSecurityOptions {
@@ -29,6 +30,9 @@ export async function loadRestRuntimeSecurity(
   sourceCapabilities:
     | ReturnType<typeof createRestSourceCapabilityService>
     | undefined;
+  atcDocumentationCapabilities:
+    | ReturnType<typeof createRestAtcDocumentationCapabilityService>
+    | undefined;
   pageCursors: ReturnType<typeof createRestPageCursorService> | undefined;
 }> {
   const restAuthorizer = await loadOptionalRestBearerAuthorizer(
@@ -38,6 +42,7 @@ export async function loadRestRuntimeSecurity(
     return {
       restAuthorizer: undefined,
       sourceCapabilities: undefined,
+      atcDocumentationCapabilities: undefined,
       pageCursors: undefined,
     };
   }
@@ -53,6 +58,9 @@ export async function loadRestRuntimeSecurity(
   return {
     restAuthorizer,
     sourceCapabilities: createRestSourceCapabilityService({
+      secret: sourceSecret,
+    }),
+    atcDocumentationCapabilities: createRestAtcDocumentationCapabilityService({
       secret: sourceSecret,
     }),
     pageCursors: createRestPageCursorService({ secret: pageCursorSecret }),

@@ -913,6 +913,216 @@ test('reads a bounded canonical object source without accepting or returning an 
   }
 });
 
+test('runs ATC from a canonical package scope and retains only the trusted documentation relation', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const calls: Array<{ kind: string; value: unknown }> = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://arm-api.internal',
+    tokenFile,
+    fetch: async (input) => {
+      if (String(input).endsWith(':acquire')) {
+        return new Response(
+          JSON.stringify({
+            leaseId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            destination: 'dev',
+            version: 1,
+            expiresAt: '2026-07-20T00:00:00.000Z',
+            connection: {
+              baseUrl: 'https://sap.example.test',
+              sapClient: null,
+              authMethod: 'basic',
+              authConfig: { username: 'service', password: 'secret' },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response(null, { status: 204 });
+    },
+    createClient: async () =>
+      ({
+        adt: {
+          atc: {
+            customizing: {
+              async get() {
+                calls.push({ kind: 'customizing', value: undefined });
+                return { customizing: { properties: { property: [] } } };
+              },
+            },
+            worklists: {
+              async create(value: unknown) {
+                calls.push({ kind: 'create', value });
+                return { worklist: { id: 'worklist-1' } };
+              },
+              async get(value: unknown, options: unknown) {
+                calls.push({ kind: 'get', value: { value, options } });
+                return {
+                  worklist: {
+                    objects: {
+                      object: [
+                        {
+                          uri: '/sap/bc/adt/oo/classes/zcl_safe',
+                          type: 'CLAS',
+                          name: 'ZCL_SAFE',
+                          findings: {
+                            finding: [
+                              {
+                                uri: '/sap/bc/adt/atc/findings/itemid/ABC/index/1',
+                                priority: '2',
+                                checkId: 'SCI',
+                                checkTitle: 'Safe check',
+                                messageTitle: 'Avoid unsafe access',
+                                location:
+                                  '/sap/bc/adt/oo/classes/zcl_safe/source/main?start=12',
+                                link: [
+                                  {
+                                    rel: 'http://www.sap.com/adt/relations/documentation',
+                                    href: '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                    },
+                  },
+                };
+              },
+            },
+            runs: {
+              async post(value: unknown, body: unknown) {
+                calls.push({ kind: 'run', value: { value, body } });
+              },
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.runAtc!({
+      destination: 'dev',
+      scope: { kind: 'package', packageName: '$TEST' },
+    });
+
+    assert.deepStrictEqual(result, {
+      checkVariant: 'DEFAULT',
+      findings: [
+        {
+          checkId: 'SCI',
+          checkTitle: 'Safe check',
+          messageText: 'Avoid unsafe access',
+          priority: 2,
+          objectType: 'CLAS',
+          objectName: 'ZCL_SAFE',
+          lineStart: 12,
+          lineEnd: 12,
+          documentationUri:
+            '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+        },
+      ],
+    });
+    assert.deepStrictEqual(calls, [
+      { kind: 'customizing', value: undefined },
+      { kind: 'create', value: { checkVariant: 'DEFAULT' } },
+      {
+        kind: 'run',
+        value: {
+          value: { worklistId: 'worklist-1' },
+          body: {
+            run: {
+              maximumVerdicts: 10000,
+              objectSets: {
+                objectSet: [
+                  {
+                    kind: 'inclusive',
+                    objectReferences: {
+                      objectReference: [{ uri: '/sap/bc/adt/packages/$TEST' }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        kind: 'get',
+        value: {
+          value: 'worklist-1',
+          options: { includeExemptedFindings: 'false' },
+        },
+      },
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('reads trusted ATC documentation through the bounded text primitive', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const reads: unknown[] = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://arm-api.internal',
+    tokenFile,
+    fetch: async (input) =>
+      String(input).endsWith(':acquire')
+        ? new Response(
+            JSON.stringify({
+              leaseId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+              destination: 'dev',
+              version: 1,
+              expiresAt: '2026-07-20T00:00:00.000Z',
+              connection: {
+                baseUrl: 'https://sap.example.test',
+                sapClient: null,
+                authMethod: 'basic',
+                authConfig: { username: 'service', password: 'secret' },
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        : new Response(null, { status: 204 }),
+    createClient: async () =>
+      ({
+        async readTextBounded(uri: string, maxBytes: number, options: unknown) {
+          reads.push({ uri, maxBytes, options });
+          return '<p>Use a safe API.</p>';
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.readAtcFindingDocumentation!({
+      destination: 'dev',
+      documentationUri:
+        '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+      maxBytes: 1024,
+    });
+
+    assert.deepStrictEqual(result, {
+      bytes: Buffer.byteLength('<p>Use a safe API.</p>', 'utf8'),
+      html: '<p>Use a safe API.</p>',
+    });
+    assert.deepStrictEqual(reads, [
+      {
+        uri: '/sap/bc/adt/documentation/atc/documents/itemid/ABC/index/1',
+        maxBytes: 1024,
+        options: {
+          headers: { Accept: 'application/vnd.sap.adt.docu.v1+html' },
+        },
+      },
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');

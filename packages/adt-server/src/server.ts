@@ -1,5 +1,8 @@
 import http from 'node:http';
-import { SourceVersionTooLargeError } from '@abapify/adt-client';
+import {
+  AdtResponseTooLargeError,
+  SourceVersionTooLargeError,
+} from '@abapify/adt-client';
 import { z } from 'zod';
 import {
   createHttpMcpHandler,
@@ -9,6 +12,10 @@ import {
 } from '@abapify/adt-mcp';
 import { openApiDocument, openApiYaml } from './openapi.js';
 import {
+  createRestAtcDocumentationCapabilityService,
+  RestAtcDocumentationCapabilityError,
+} from './atc-documentation-capabilities.js';
+import {
   RestSourceCapabilityError,
   createRestSourceCapabilityService,
 } from './source-capabilities.js';
@@ -17,6 +24,12 @@ import {
   createRestPageCursorService,
 } from './page-cursors.js';
 import {
+  atcDocumentationReadBody,
+  atcDocumentationReadResponse,
+  atcFindingResponse,
+  atcRunBody,
+  atcRunResponse,
+  MAX_ATC_DOCUMENTATION_BYTES,
   MAX_SOURCE_BYTES,
   objectPageResponse,
   objectMetadataResponse,
@@ -42,6 +55,7 @@ import {
   transportSourceManifestResponse,
   type TransportSearchCriteria,
   type TransportSourceManifestInput,
+  type AtcRunBody,
 } from './rest-schemas.js';
 
 const MAX_JSON_BODY_BYTES = 64 * 1024;
@@ -61,6 +75,18 @@ type RawTransportSourceManifest = {
     base?: RawSourceVersion;
     head?: RawSourceVersion;
   }>;
+};
+
+type AtcRunOperationInput = AtcRunBody & { destination: string };
+
+type AtcRunOperationResult = {
+  checkVariant: string;
+  findings: Array<
+    Omit<z.infer<typeof atcFindingResponse>, 'documentationCapability'> & {
+      /** Trusted broker-local relation; converted before the REST response. */
+      documentationUri?: string;
+    }
+  >;
 };
 
 export interface DestinationSummary {
@@ -109,6 +135,14 @@ export interface AdtServerOperations {
     objectName: string;
     version?: string;
   }): Promise<{ bytes: number; source: string }>;
+  /** Runs ATC from canonical scope selectors; ADT paths remain broker-local. */
+  runAtc?(input: AtcRunOperationInput): Promise<AtcRunOperationResult>;
+  /** Reads an issued ATC documentation relation under a caller-selected cap. */
+  readAtcFindingDocumentation?(input: {
+    destination: string;
+    documentationUri: string;
+    maxBytes: number;
+  }): Promise<{ bytes: number; html: string }>;
   /** Public canonical detail; never contains SAP URI fields. */
   getTransportDetail?(destination: string, transport: string): Promise<unknown>;
   /** Public canonical aggregate; never contains SAP URI fields. */
@@ -162,6 +196,10 @@ export interface AdtServerOptions {
   restAuthorizer?: RestServiceAuthorizer;
   /** Production REST uses a deployment-shared secret; tests may use a local one. */
   sourceCapabilities?: ReturnType<typeof createRestSourceCapabilityService>;
+  /** Shares REST state with source capabilities across sidecar replicas. */
+  atcDocumentationCapabilities?: ReturnType<
+    typeof createRestAtcDocumentationCapabilityService
+  >;
   pageCursors?: ReturnType<typeof createRestPageCursorService>;
 }
 
@@ -247,12 +285,41 @@ function toRestTransportSourceManifest(
   };
 }
 
+function toRestAtcRun(
+  result: AtcRunOperationResult,
+  capabilities: ReturnType<typeof createRestAtcDocumentationCapabilityService>,
+  destination: string,
+) {
+  return {
+    checkVariant: result.checkVariant,
+    findings: result.findings.map(({ documentationUri, ...finding }) => {
+      // The broker may retain more SAP fields internally. Project the allowlist
+      // before adding the sealed relation so no URI-like field can escape.
+      const safeFinding = atcFindingResponse.strip().parse(finding);
+      return {
+        ...safeFinding,
+        ...(documentationUri
+          ? {
+              documentationCapability: capabilities.issue({
+                destination,
+                documentationUri,
+              }),
+            }
+          : {}),
+      };
+    }),
+  };
+}
+
 export async function startAdtServer(
   options: AdtServerOptions,
 ): Promise<RunningAdtServer> {
   const host = options.host ?? '127.0.0.1';
   const sourceCapabilities =
     options.sourceCapabilities ?? createRestSourceCapabilityService();
+  const atcDocumentationCapabilities =
+    options.atcDocumentationCapabilities ??
+    createRestAtcDocumentationCapabilityService();
   const pageCursors = options.pageCursors ?? createRestPageCursorService();
   const mcpHandler = options.mcp
     ? createHttpMcpHandler({
@@ -335,6 +402,12 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source:read$/u.exec(
           path,
         );
+      const atcRunMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/atc-runs$/u.exec(path);
+      const atcDocumentationReadMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/atc-finding-documentation:read$/u.exec(
+          path,
+        );
       const sourceManifestMatch =
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u.exec(
           path,
@@ -354,6 +427,8 @@ export async function startAdtServer(
         (request.method === 'GET' && objectMetadataMatch) ||
         (request.method === 'GET' && objectSourceHistoryMatch) ||
         (request.method === 'POST' && objectSourceReadMatch) ||
+        (request.method === 'POST' && atcRunMatch) ||
+        (request.method === 'POST' && atcDocumentationReadMatch) ||
         (request.method === 'GET' && transportDetailMatch) ||
         (request.method === 'POST' &&
           (sourceManifestMatch || sourceVersionReadMatch));
@@ -619,6 +694,85 @@ export async function startAdtServer(
           }
           if (error instanceof SourceVersionTooLargeError) {
             writeProblem(response, 413, 'Source too large');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'POST' && atcRunMatch) {
+        if (!options.operations.runAtc) {
+          writeProblem(response, 404, 'Not found');
+          return;
+        }
+        try {
+          const input = atcRunBody.parse(await readJsonBody(request));
+          const result = await options.operations.runAtc({
+            destination: atcRunMatch[1]!,
+            ...input,
+          });
+          const data = atcRunResponse.parse(
+            toRestAtcRun(result, atcDocumentationCapabilities, atcRunMatch[1]!),
+          );
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof InvalidJsonBodyError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'POST' && atcDocumentationReadMatch) {
+        if (!options.operations.readAtcFindingDocumentation) {
+          writeProblem(response, 404, 'Not found');
+          return;
+        }
+        try {
+          const input = atcDocumentationReadBody.parse(
+            await readJsonBody(request),
+          );
+          const maxBytes = input.maxBytes ?? MAX_ATC_DOCUMENTATION_BYTES;
+          const { documentationUri } = atcDocumentationCapabilities.resolve({
+            documentationCapability: input.documentationCapability,
+            destination: atcDocumentationReadMatch[1]!,
+          });
+          const result = await options.operations.readAtcFindingDocumentation({
+            destination: atcDocumentationReadMatch[1]!,
+            documentationUri,
+            maxBytes,
+          });
+          if (
+            typeof result.html !== 'string' ||
+            result.bytes !== Buffer.byteLength(result.html, 'utf8') ||
+            result.bytes > maxBytes
+          ) {
+            throw new Error(
+              'Bounded ATC documentation operation returned an invalid body',
+            );
+          }
+          const data = atcDocumentationReadResponse.parse(result);
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof InvalidJsonBodyError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          if (error instanceof RestAtcDocumentationCapabilityError) {
+            writeProblem(response, 404, 'Documentation unavailable');
+            return;
+          }
+          if (error instanceof AdtResponseTooLargeError) {
+            writeProblem(response, 413, 'Documentation too large');
             return;
           }
           throw error;
