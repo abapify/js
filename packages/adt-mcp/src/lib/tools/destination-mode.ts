@@ -46,6 +46,18 @@ function destinationSchema(raw: unknown): Record<string, unknown> {
   return { ...schema, ...forbiddenConnectionFields, destination };
 }
 
+/**
+ * `McpServer.tool` accepts only a raw shape and therefore creates a
+ * strip-unknown Zod object. ATC has a retired `objectUri` field that must be
+ * both absent from the public schema and rejected if supplied, so it is
+ * registered through the strict-schema API below.
+ */
+function strictAtcDestinationSchema(raw: unknown) {
+  const schema = destinationSchema(raw);
+  delete schema.objectUri;
+  return z.object(schema as z.ZodRawShape).strict();
+}
+
 type Handler = (...handlerArgs: unknown[]) => unknown;
 
 export interface DestinationModeOptions {
@@ -189,12 +201,33 @@ export function destinationModeServer(
           throw new Error('MCP tools must declare a string name');
         }
         assertMcpToolIsClassified(name);
+        const supportsStrictAtcSchema =
+          typeof (target as unknown as { registerTool?: unknown })
+            .registerTool === 'function';
+        let atcInputSchema:
+          | ReturnType<typeof strictAtcDestinationSchema>
+          | undefined;
         // Existing registrations consistently use
         // tool(name, description, inputSchema, handler).
         if (typeof args[1] === 'string' && args.length >= 4) {
-          args[2] = destinationSchema(args[2]);
+          if (name === 'atc_run') {
+            atcInputSchema = strictAtcDestinationSchema(args[2]);
+          } else {
+            args[2] = destinationSchema(args[2]);
+          }
         } else if (args.length >= 3) {
-          args[1] = destinationSchema(args[1]);
+          if (name === 'atc_run') {
+            atcInputSchema = strictAtcDestinationSchema(args[1]);
+          } else {
+            args[1] = destinationSchema(args[1]);
+          }
+        }
+        if (name === 'atc_run' && !supportsStrictAtcSchema) {
+          if (typeof args[1] === 'string' && args.length >= 4) {
+            args[2] = destinationSchema(args[2]);
+          } else if (args.length >= 3) {
+            args[1] = destinationSchema(args[1]);
+          }
         }
 
         const handlerIndex = args.length - 1;
@@ -226,7 +259,19 @@ export function destinationModeServer(
           }
           return await (handler as Handler)(...handlerArgs);
         };
-        const registeredTool = Reflect.apply(target.tool, target, args);
+        const registeredTool =
+          name === 'atc_run' && supportsStrictAtcSchema
+            ? target.registerTool(
+                name,
+                {
+                  ...(typeof args[1] === 'string'
+                    ? { description: args[1] }
+                    : {}),
+                  inputSchema: atcInputSchema!,
+                },
+                args[handlerIndex] as never,
+              )
+            : Reflect.apply(target.tool, target, args);
         if (!registeredTool) return registeredTool;
         const entry = toolListEntry(name, registeredTool);
         actionSchemaProjection(name, entry.inputSchema);

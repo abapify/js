@@ -272,3 +272,46 @@ test('destination mode exposes capability-bound immutable source selection witho
     await destinations.shutdown();
   }
 });
+
+test('destination mode hides and rejects the legacy raw ATC URI target', async () => {
+  const destinations = destinationRegistry(() => undefined);
+  const server = createMcpServer({
+    destinationRegistry: destinations,
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+  });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new Client({
+    name: 'atc-scope-schema-test',
+    version: '0.0.1',
+  });
+  await client.connect(clientTransport);
+
+  try {
+    const tool = (await client.listTools()).tools.find(
+      (candidate) => candidate.name === 'atc_run',
+    );
+    const properties = tool?.inputSchema.properties as
+      | Record<string, unknown>
+      | undefined;
+
+    assert.ok(tool);
+    assert.ok(properties?.scope);
+    assert.ok(!Object.hasOwn(properties ?? {}, 'objectUri'));
+
+    const result = await client.callTool({
+      name: 'atc_run',
+      arguments: {
+        destination: 'dev',
+        scope: { kind: 'package', packageName: 'ZPACKAGE' },
+        objectUri: '/sap/bc/adt/packages/ZPACKAGE',
+      },
+    });
+    assert.strictEqual(result.isError, true);
+  } finally {
+    await client.close();
+    await server.close();
+    await destinations.shutdown();
+  }
+});

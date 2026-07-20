@@ -988,6 +988,11 @@ export function matchRoute(
     return { status: 200, body: f.session, contentType: 'application/json' };
   }
 
+  // ATC worklist creation must precede a run in the production protocol.
+  if (m === 'POST' && pathname === '/sap/bc/adt/atc/worklists') {
+    return { status: 200, body: f.atcRun, contentType: 'application/json' };
+  }
+
   // ATC create run
   if (m === 'POST' && url.startsWith('/sap/bc/adt/atc/runs')) {
     return { status: 200, body: f.atcRun, contentType: 'application/json' };
