@@ -5,6 +5,7 @@ import {
   objectNamePathParameter,
   objectPageResponse,
   objectSearchQuery,
+  objectSourceHistoryResponse,
   objectTypePathParameter,
   packagePathParameter,
   packagePageResponse,
@@ -34,6 +35,9 @@ const packagePageResponseSchema = z.toJSONSchema(packagePageResponse);
 const packageSearchQuerySchema = z.toJSONSchema(packageSearchQuery);
 const objectPageResponseSchema = z.toJSONSchema(objectPageResponse);
 const objectMetadataResponseSchema = z.toJSONSchema(objectMetadataResponse);
+const objectSourceHistoryResponseSchema = z.toJSONSchema(
+  objectSourceHistoryResponse,
+);
 const objectSearchQuerySchema = z.toJSONSchema(objectSearchQuery);
 const objectTypePathParameterSchema = z.toJSONSchema(objectTypePathParameter);
 const objectNamePathParameterSchema = z.toJSONSchema(objectNamePathParameter);
@@ -312,6 +316,27 @@ export const openApiDocument = {
               'Canonical object metadata, facets and allowlisted relation capabilities',
             content: {
               'application/json': { schema: objectMetadataResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/objects/{type}/{name}/source-history': {
+      get: {
+        operationId: 'getObjectSourceHistory',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          { $ref: '#/components/parameters/objectType' },
+          { $ref: '#/components/parameters/objectName' },
+        ],
+        responses: {
+          '200': {
+            description: 'Metadata-only canonical object source history',
+            content: {
+              'application/json': {
+                schema: objectSourceHistoryResponseSchema,
+              },
             },
           },
           '400': { description: 'Invalid request' },

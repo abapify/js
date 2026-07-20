@@ -640,6 +640,69 @@ test('serves canonical object metadata without exposing a raw ADT URI or href', 
   }
 });
 
+test('serves metadata-only canonical object source history without ADT URIs', async () => {
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async getObjectSourceHistory(destination, objectType, objectName) {
+        calls.push({ destination, objectType, objectName });
+        return {
+          available: true,
+          versions: [
+            {
+              id: 'version-2',
+              ordinal: 0,
+              title: 'Latest change',
+              author: 'ALICE',
+              transports: ['DEVK900001'],
+            },
+          ],
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(
+      `${server.url}/v1/destinations/dev/objects/CLAS/ZCL_SAFE/source-history`,
+    );
+    assert.strictEqual(response.status, 200);
+    const body = await response.json();
+    assert.deepStrictEqual(body, {
+      available: true,
+      versions: [
+        {
+          id: 'version-2',
+          ordinal: 0,
+          title: 'Latest change',
+          author: 'ALICE',
+          transports: ['DEVK900001'],
+        },
+      ],
+    });
+    assert.deepStrictEqual(calls, [
+      { destination: 'dev', objectType: 'CLAS', objectName: 'ZCL_SAFE' },
+    ]);
+    assert.ok(!JSON.stringify(body).includes('uri'));
+    assert.ok(!JSON.stringify(body).includes('href'));
+
+    const invalid = await fetch(
+      `${server.url}/v1/destinations/dev/objects/CLAS/ZCL_SAFE/source-history?unexpected=true`,
+    );
+    assert.strictEqual(invalid.status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
 test('serves direct package objects as a bounded canonical page without ADT URIs', async () => {
   const calls: unknown[] = [];
   const server = await startAdtServer({

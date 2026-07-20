@@ -123,6 +123,9 @@ interface CanonicalObjectMetadata {
   }>;
 }
 
+type TrustedObjectMetadataCapability =
+  CanonicalObjectMetadata['capabilities'][number] & { href: string };
+
 interface TransportTaskDetail extends TransportSummary {
   parentTrkorr: string;
   objects: CanonicalObjectReference[];
@@ -337,24 +340,23 @@ function resolveSafeMetadataHref(
   }
 }
 
-function toObjectMetadataCapabilities(
+function trustedObjectMetadataCapabilities(
   objectUri: string,
   links: unknown,
-): CanonicalObjectMetadata['capabilities'] {
-  const capabilities = new Map<
-    string,
-    CanonicalObjectMetadata['capabilities'][number]
-  >();
+): TrustedObjectMetadataCapability[] {
+  const capabilities = new Map<string, TrustedObjectMetadataCapability>();
   for (const link of records(links)) {
     const relation = stringField(link, 'rel');
     const href = stringField(link, 'href');
     if (!relation || !href) continue;
     const capability = objectMetadataCapability(relation);
     // Validate the target before describing a relation as a trusted capability.
-    if (!capability || !resolveSafeMetadataHref(objectUri, href)) continue;
+    const resolvedHref = resolveSafeMetadataHref(objectUri, href);
+    if (!capability || !resolvedHref) continue;
     const mapped = {
       relation,
       capability,
+      href: resolvedHref,
       ...(stringField(link, 'title')
         ? { title: stringField(link, 'title') }
         : {}),
@@ -366,6 +368,15 @@ function toObjectMetadataCapabilities(
     capabilities.set(`${capability}\u0000${relation}`, mapped);
   }
   return [...capabilities.values()];
+}
+
+function toObjectMetadataCapabilities(
+  objectUri: string,
+  links: unknown,
+): CanonicalObjectMetadata['capabilities'] {
+  return trustedObjectMetadataCapabilities(objectUri, links).map(
+    ({ href: _href, ...capability }) => capability,
+  );
 }
 
 function toCanonicalObjectMetadata(
@@ -796,6 +807,41 @@ export function createHttpBrokerOperations(
             objectUri,
             response,
           );
+        },
+      );
+    },
+    async getObjectSourceHistory(destination, objectType, objectName) {
+      return await withClient(
+        destination,
+        'get_object_source_history',
+        async (client) => {
+          const objectUri = await resolveObjectUri(
+            client,
+            objectName,
+            adtSearchObjectType(objectType),
+          );
+          if (!objectUri)
+            throw new Error('Object source history is unavailable');
+          const response =
+            await client.adt.repository.informationsystem.objectProperties.values(
+              { uri: objectUri, facets: ['package', 'appl'] },
+            );
+          const genericObject = record(
+            record(response)?.objectProperties,
+          )?.object;
+          const versions = trustedObjectMetadataCapabilities(
+            objectUri,
+            genericObject && record(genericObject)?.link,
+          ).find((capability) => capability.capability === 'versions');
+          if (!versions) return { available: false, versions: [] };
+          const sourceVersions =
+            await client.services.sourceHistory.listVersions(versions.href);
+          return {
+            available: true,
+            versions: sourceVersions.map(
+              ({ sourceUri: _sourceUri, ...version }) => ({ ...version }),
+            ),
+          };
         },
       );
     },
