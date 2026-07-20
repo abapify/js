@@ -18,7 +18,10 @@ import {
 } from './page-cursors.js';
 import {
   objectPageResponse,
+  objectMetadataResponse,
+  objectNamePathParameter,
   objectSearchResult,
+  objectTypePathParameter,
   parseObjectSearchQuery,
   parsePageQuery,
   packagePageResponse,
@@ -83,6 +86,12 @@ export interface AdtServerOperations {
   listPackageObjects(
     destination: string,
     packageName: string,
+  ): Promise<unknown>;
+  /** Public canonical metadata projection; raw ADT URIs remain broker-local. */
+  getObjectMetadata?(
+    destination: string,
+    objectType: string,
+    objectName: string,
   ): Promise<unknown>;
   /** Public canonical detail; never contains SAP URI fields. */
   getTransportDetail?(destination: string, transport: string): Promise<unknown>;
@@ -298,6 +307,10 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/([^/]+)\/objects$/u.exec(
           path,
         );
+      const objectMetadataMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)$/u.exec(
+          path,
+        );
       const sourceManifestMatch =
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u.exec(
           path,
@@ -314,6 +327,7 @@ export async function startAdtServer(
         isDestinationList ||
         (request.method === 'GET' && match) ||
         (request.method === 'GET' && packageObjectsMatch) ||
+        (request.method === 'GET' && objectMetadataMatch) ||
         (request.method === 'GET' && transportDetailMatch) ||
         (request.method === 'POST' &&
           (sourceManifestMatch || sourceVersionReadMatch));
@@ -454,6 +468,42 @@ export async function startAdtServer(
           if (
             error instanceof z.ZodError ||
             error instanceof RestPageCursorError ||
+            error instanceof InvalidPathParameterError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'GET' && objectMetadataMatch) {
+        const [, destination, rawObjectType, rawObjectName] =
+          objectMetadataMatch;
+        try {
+          const objectType = objectTypePathParameter.parse(
+            decodePathParameter(rawObjectType!),
+          );
+          const objectName = objectNamePathParameter.parse(
+            decodePathParameter(rawObjectName!),
+          );
+          z.object({}).strict().parse(readQuery(request));
+          if (!options.operations.getObjectMetadata) {
+            writeProblem(response, 404, 'Not found');
+            return;
+          }
+          const data = objectMetadataResponse.parse(
+            await options.operations.getObjectMetadata(
+              destination!,
+              objectType,
+              objectName,
+            ),
+          );
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
             error instanceof InvalidPathParameterError
           ) {
             writeProblem(response, 400, 'Invalid request');

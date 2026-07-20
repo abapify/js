@@ -545,6 +545,101 @@ test('serves a bounded canonical object page with a query-bound cursor and no AD
   }
 });
 
+test('serves canonical object metadata without exposing a raw ADT URI or href', async () => {
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async getObjectMetadata(destination, objectType, objectName) {
+        calls.push({ destination, objectType, objectName });
+        return {
+          object: {
+            canonicalKey: 'CLAS:ZCL_SAFE',
+            objectType: 'CLAS',
+            objectName: 'ZCL_SAFE',
+            packageName: 'ZPKG',
+            description: 'Safe class',
+          },
+          metadata: {
+            adtObjectType: 'CLAS',
+            packageName: 'ZPKG',
+            description: 'Safe class',
+          },
+          facets: [
+            {
+              facet: 'package',
+              name: 'ZPKG',
+              displayName: 'Package',
+            },
+          ],
+          capabilities: [
+            {
+              relation: 'http://www.sap.com/adt/relations/versions',
+              capability: 'versions',
+              title: 'Version history',
+            },
+          ],
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(
+      `${server.url}/v1/destinations/dev/objects/CLAS/ZCL_SAFE`,
+    );
+    assert.strictEqual(response.status, 200);
+    const body = await response.json();
+    assert.deepStrictEqual(body, {
+      object: {
+        canonicalKey: 'CLAS:ZCL_SAFE',
+        objectType: 'CLAS',
+        objectName: 'ZCL_SAFE',
+        packageName: 'ZPKG',
+        description: 'Safe class',
+      },
+      metadata: {
+        adtObjectType: 'CLAS',
+        packageName: 'ZPKG',
+        description: 'Safe class',
+      },
+      facets: [
+        {
+          facet: 'package',
+          name: 'ZPKG',
+          displayName: 'Package',
+        },
+      ],
+      capabilities: [
+        {
+          relation: 'http://www.sap.com/adt/relations/versions',
+          capability: 'versions',
+          title: 'Version history',
+        },
+      ],
+    });
+    assert.deepStrictEqual(calls, [
+      { destination: 'dev', objectType: 'CLAS', objectName: 'ZCL_SAFE' },
+    ]);
+    assert.ok(!JSON.stringify(body).includes('uri'));
+    assert.ok(!JSON.stringify(body).includes('href'));
+
+    const invalid = await fetch(
+      `${server.url}/v1/destinations/dev/objects/CLAS/ZCL_SAFE?unexpected=true`,
+    );
+    assert.strictEqual(invalid.status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
 test('serves direct package objects as a bounded canonical page without ADT URIs', async () => {
   const calls: unknown[] = [];
   const server = await startAdtServer({

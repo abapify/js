@@ -630,6 +630,123 @@ test('maps direct package objects to canonical REST objects without foreign rows
   }
 });
 
+test('resolves canonical object metadata through the upstream resolver without leaking ADT links', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const propertyReads: unknown[] = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          leaseId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          destination: 'dev',
+          version: 1,
+          expiresAt: '2026-07-20T00:00:00.000Z',
+          connection: {
+            baseUrl: 'https://sap.example.test',
+            sapClient: null,
+            authMethod: 'basic',
+            authConfig: { username: 'service', password: 'secret' },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    createClient: async () =>
+      ({
+        adt: {
+          repository: {
+            informationsystem: {
+              objectProperties: {
+                async values(input: unknown) {
+                  propertyReads.push(input);
+                  return {
+                    objectProperties: {
+                      object: {
+                        type: 'CLAS',
+                        package: 'ZPKG',
+                        text: 'Safe class',
+                        uri: '/sap/bc/adt/oo/classes/zcl_safe',
+                        link: [
+                          {
+                            rel: 'http://www.sap.com/adt/relations/versions',
+                            href: 'versions',
+                            title: 'Version history',
+                          },
+                          {
+                            rel: 'http://www.sap.com/adt/relations/source',
+                            href: 'https://invalid.example/source',
+                          },
+                        ],
+                      },
+                      property: [
+                        {
+                          facet: 'package',
+                          name: 'ZPKG',
+                          displayName: 'Package',
+                          hasChildrenOfSameFacet: false,
+                        },
+                      ],
+                    },
+                  };
+                },
+              },
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.getObjectMetadata!(
+      'dev',
+      'CLAS',
+      'zcl_safe',
+    );
+    assert.deepStrictEqual(propertyReads, [
+      {
+        uri: '/sap/bc/adt/oo/classes/zcl_safe',
+        facets: ['package', 'appl'],
+      },
+    ]);
+    assert.deepStrictEqual(result, {
+      object: {
+        canonicalKey: 'CLAS:ZCL_SAFE',
+        objectType: 'CLAS',
+        objectName: 'ZCL_SAFE',
+        packageName: 'ZPKG',
+        description: 'Safe class',
+      },
+      metadata: {
+        adtObjectType: 'CLAS',
+        packageName: 'ZPKG',
+        description: 'Safe class',
+      },
+      facets: [
+        {
+          facet: 'package',
+          name: 'ZPKG',
+          displayName: 'Package',
+          hasChildrenOfSameFacet: false,
+        },
+      ],
+      capabilities: [
+        {
+          relation: 'http://www.sap.com/adt/relations/versions',
+          capability: 'versions',
+          title: 'Version history',
+        },
+      ],
+    });
+    assert.ok(!JSON.stringify(result).includes('uri'));
+    assert.ok(!JSON.stringify(result).includes('href'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('releases an opaque REST lease with redacted success and failure outcomes', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');
