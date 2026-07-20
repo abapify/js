@@ -48,13 +48,21 @@ function destinationSchema(raw: unknown): Record<string, unknown> {
 
 /**
  * `McpServer.tool` accepts only a raw shape and therefore creates a
- * strip-unknown Zod object. ATC has a retired `objectUri` field that must be
- * both absent from the public schema and rejected if supplied, so it is
- * registered through the strict-schema API below.
+ * strip-unknown Zod object. Canonical tools have retired raw URI fields that
+ * must be both absent from the public schema and rejected if supplied, so they
+ * are registered through the strict-schema API below.
  */
-function strictAtcDestinationSchema(raw: unknown) {
+const rawUriFieldsByTool: Readonly<Record<string, readonly string[]>> = {
+  atc_run: ['objectUri'],
+  find_references: ['objectUri'],
+  get_callers_of: ['objectUri'],
+  get_callees_of: ['objectUri'],
+  grep_objects: ['objectUris'],
+};
+
+function strictCanonicalDestinationSchema(name: string, raw: unknown) {
   const schema = destinationSchema(raw);
-  delete schema.objectUri;
+  for (const field of rawUriFieldsByTool[name] ?? []) delete schema[field];
   return z.object(schema as z.ZodRawShape).strict();
 }
 
@@ -201,28 +209,35 @@ export function destinationModeServer(
           throw new Error('MCP tools must declare a string name');
         }
         assertMcpToolIsClassified(name);
-        const supportsStrictAtcSchema =
+        const requiresStrictCanonicalSchema = Boolean(rawUriFieldsByTool[name]);
+        const supportsStrictCanonicalSchema =
           typeof (target as unknown as { registerTool?: unknown })
             .registerTool === 'function';
-        let atcInputSchema:
-          | ReturnType<typeof strictAtcDestinationSchema>
+        let strictCanonicalInputSchema:
+          | ReturnType<typeof strictCanonicalDestinationSchema>
           | undefined;
         // Existing registrations consistently use
         // tool(name, description, inputSchema, handler).
         if (typeof args[1] === 'string' && args.length >= 4) {
-          if (name === 'atc_run') {
-            atcInputSchema = strictAtcDestinationSchema(args[2]);
+          if (requiresStrictCanonicalSchema) {
+            strictCanonicalInputSchema = strictCanonicalDestinationSchema(
+              name,
+              args[2],
+            );
           } else {
             args[2] = destinationSchema(args[2]);
           }
         } else if (args.length >= 3) {
-          if (name === 'atc_run') {
-            atcInputSchema = strictAtcDestinationSchema(args[1]);
+          if (requiresStrictCanonicalSchema) {
+            strictCanonicalInputSchema = strictCanonicalDestinationSchema(
+              name,
+              args[1],
+            );
           } else {
             args[1] = destinationSchema(args[1]);
           }
         }
-        if (name === 'atc_run' && !supportsStrictAtcSchema) {
+        if (requiresStrictCanonicalSchema && !supportsStrictCanonicalSchema) {
           if (typeof args[1] === 'string' && args.length >= 4) {
             args[2] = destinationSchema(args[2]);
           } else if (args.length >= 3) {
@@ -260,14 +275,14 @@ export function destinationModeServer(
           return await (handler as Handler)(...handlerArgs);
         };
         const registeredTool =
-          name === 'atc_run' && supportsStrictAtcSchema
+          requiresStrictCanonicalSchema && supportsStrictCanonicalSchema
             ? target.registerTool(
                 name,
                 {
                   ...(typeof args[1] === 'string'
                     ? { description: args[1] }
                     : {}),
-                  inputSchema: atcInputSchema!,
+                  inputSchema: strictCanonicalInputSchema!,
                 },
                 args[handlerIndex] as never,
               )

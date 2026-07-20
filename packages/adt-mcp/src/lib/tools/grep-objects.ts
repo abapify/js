@@ -1,5 +1,5 @@
 /**
- * Tool: grep_objects – regex search within a list of ABAP object URIs
+ * Tool: grep_objects – regex search within a canonical list of ABAP objects
  *
  * Uses the ADT repository information system search endpoint with
  * userannotation=userwhere for source code content search.
@@ -20,16 +20,11 @@ export function registerGrepObjectsTool(
 ): void {
   server.tool(
     'grep_objects',
-    'Regex search for a pattern within ABAP object source code. Provide either a list of object URIs or name+type pairs to resolve them.',
+    'Regex search for a pattern within named ABAP object source code.',
     {
       ...sessionOrConnectionShape,
       pattern: z.string().describe('Search pattern (regex or literal string)'),
-      objectUris: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'List of ADT object URIs to search within (e.g. /sap/bc/adt/oo/classes/zcl_example)',
-        ),
+      objectUris: z.never().optional(),
       objects: z
         .array(
           z.object({
@@ -49,8 +44,8 @@ export function registerGrepObjectsTool(
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const maxResults = args.maxResults ?? 50;
 
-        // Resolve URIs from name/type pairs if provided (in parallel)
-        const uris: string[] = args.objectUris ? [...args.objectUris] : [];
+        // Resolve SAP-internal URIs from the canonical name/type pairs.
+        const uris: string[] = [];
         if (args.objects && args.objects.length > 0) {
           const resolved = await Promise.all(
             args.objects.map((obj) =>
@@ -68,7 +63,7 @@ export function registerGrepObjectsTool(
             content: [
               {
                 type: 'text' as const,
-                text: 'Specify at least one valid object URI or resolvable object name/type pair',
+                text: 'Specify at least one resolvable object name/type pair',
               },
             ],
           };
