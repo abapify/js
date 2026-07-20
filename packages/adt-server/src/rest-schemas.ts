@@ -5,6 +5,22 @@ export const MAX_ATC_DOCUMENTATION_BYTES = 1024 * 1024;
 export const MAX_PACKAGE_SEARCH_RESULTS = 5_000;
 export const MAX_OBJECT_SEARCH_RESULTS = 5_000;
 
+export const destinationSummaryResponse = z
+  .object({
+    data: z.array(
+      z
+        .object({
+          key: z.string().trim().min(1).max(63),
+          displayName: z.string().trim().min(1).max(256),
+          systemSids: z.array(z.string().trim().min(1).max(32)).max(128),
+          authConfigured: z.boolean(),
+          version: z.number().int().positive(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 export const transportSourceManifestBody = z
   .object({
     transports: z.array(z.string().trim().min(1)).min(1),
@@ -315,6 +331,20 @@ export const objectNamePathParameter = z
   .max(128)
   .regex(/^[A-Za-z0-9_/$-]+$/u);
 
+/** A package tree is intentionally rooted: ADT does not provide a bounded global forest. */
+export const packageTreeQuery = z
+  .object({
+    root: packagePathParameter,
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    cursor: z
+      .string()
+      .trim()
+      .min(1)
+      .max(4 * 1_024)
+      .optional(),
+  })
+  .strict();
+
 const objectMetadataFacet = z
   .object({
     facet: z.string().trim().min(1).max(256).optional(),
@@ -522,6 +552,14 @@ export function parseObjectSearchQuery(input: unknown) {
   const { limit, cursor, ...criteria } = objectSearchQuery.parse(input);
   return {
     criteria,
+    page: { limit: limit ?? 200, ...(cursor ? { cursor } : {}) },
+  };
+}
+
+export function parsePackageTreeQuery(input: unknown) {
+  const { root, limit, cursor } = packageTreeQuery.parse(input);
+  return {
+    rootPackage: root.toUpperCase(),
     page: { limit: limit ?? 200, ...(cursor ? { cursor } : {}) },
   };
 }

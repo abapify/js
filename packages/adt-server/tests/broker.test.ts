@@ -64,6 +64,35 @@ test('redeems a frozen source reference through the private ADT broker', async (
   }
 });
 
+test('preserves a sidecar-issued source capability for local redemption', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const contexts = createHttpDestinationContexts({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async () =>
+      new Response(JSON.stringify({ sourceCapability: 'src.v1.abc.def' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+  });
+  try {
+    await assert.doesNotReject(async () => {
+      assert.deepStrictEqual(
+        await contexts.resolveFrozenSource({
+          destination: 'trl-adt',
+          systemSid: 'TRL',
+          sourceRef: 'v1.opaque-reference',
+        }),
+        { sourceCapability: 'src.v1.abc.def' },
+      );
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('reads an immutable source through the bounded ADT primitive', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');
@@ -434,6 +463,173 @@ test('maps a bounded package quick search without exposing ADT URIs', async () =
     assert.deepStrictEqual(result, {
       data: [{ name: 'ZALPHA', parent: 'ZROOT', description: 'Alpha' }],
       truncated: true,
+    });
+    assert.ok(!JSON.stringify(result).includes('/sap/bc/adt/'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('maps one rooted ADT subpackage tree to canonical package nodes without ADT URIs', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const treeCalls: unknown[] = [];
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          leaseId: 'abababab-abab-4bab-8bab-abababababab',
+          destination: 'dev',
+          version: 1,
+          expiresAt: '2026-07-20T00:00:00.000Z',
+          connection: {
+            baseUrl: 'https://sap.example.test',
+            sapClient: null,
+            authMethod: 'basic',
+            authConfig: { username: 'service', password: 'secret' },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    createClient: async () =>
+      ({
+        adt: {
+          packages: {
+            async tree(params: unknown) {
+              treeCalls.push(params);
+              return {
+                packageTree: {
+                  treeNode: [
+                    {
+                      type: 'DEVC/K',
+                      name: 'ZROOT',
+                      description: 'Root package',
+                      uri: '/sap/bc/adt/packages/zroot',
+                    },
+                    {
+                      type: 'DEVC/K',
+                      name: 'ZCHILD',
+                      description: 'Child package',
+                      superPackageRef: {
+                        name: 'ZROOT',
+                        uri: '/sap/bc/adt/packages/zroot',
+                      },
+                      uri: '/sap/bc/adt/packages/zchild',
+                    },
+                  ],
+                },
+              };
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.getPackageTree!('dev', 'zroot');
+    assert.deepStrictEqual(treeCalls, [{ packagename: 'ZROOT', type: 'sub' }]);
+    assert.deepStrictEqual(result, {
+      data: [
+        { name: 'ZROOT', description: 'Root package' },
+        {
+          name: 'ZCHILD',
+          parent: 'ZROOT',
+          description: 'Child package',
+        },
+      ],
+      truncated: false,
+    });
+    assert.ok(!JSON.stringify(result).includes('/sap/bc/adt/'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('falls back to bounded package metadata traversal when the ADT tree capability is unavailable', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
+  const tokenFile = path.join(directory, 'broker-token');
+  await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
+  const getCalls: string[] = [];
+  const unsupportedTree = Object.assign(new Error('not acceptable'), {
+    name: 'AdtError',
+    status: 406,
+  });
+  const operations = createHttpBrokerOperations({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          leaseId: 'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd',
+          destination: 'dev',
+          version: 1,
+          expiresAt: '2026-07-20T00:00:00.000Z',
+          connection: {
+            baseUrl: 'https://sap.example.test',
+            sapClient: null,
+            authMethod: 'basic',
+            authConfig: { username: 'service', password: 'secret' },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    createClient: async () =>
+      ({
+        adt: {
+          packages: {
+            async tree() {
+              throw unsupportedTree;
+            },
+            async get(name: string) {
+              getCalls.push(name);
+              if (name === 'ZROOT') {
+                return {
+                  package: {
+                    name: 'ZROOT',
+                    description: 'Root package',
+                    subPackages: {
+                      packageRef: [
+                        {
+                          name: 'ZCHILD',
+                          description: 'Child package',
+                          uri: '/sap/bc/adt/packages/zchild',
+                        },
+                      ],
+                    },
+                  },
+                };
+              }
+              return {
+                package: {
+                  name: 'ZCHILD',
+                  superPackage: {
+                    name: 'ZROOT',
+                    uri: '/sap/bc/adt/packages/zroot',
+                  },
+                },
+              };
+            },
+          },
+        },
+      }) as never,
+  });
+
+  try {
+    const result = await operations.getPackageTree!('dev', 'zroot');
+    assert.deepStrictEqual(getCalls, ['ZROOT', 'ZCHILD']);
+    assert.deepStrictEqual(result, {
+      data: [
+        { name: 'ZROOT', description: 'Root package' },
+        {
+          name: 'ZCHILD',
+          parent: 'ZROOT',
+          description: 'Child package',
+        },
+      ],
+      truncated: false,
     });
     assert.ok(!JSON.stringify(result).includes('/sap/bc/adt/'));
   } finally {
