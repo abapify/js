@@ -5,6 +5,7 @@ import {
   atcDocumentationReadResponse,
   atcRunBody,
   atcRunResponse,
+  destinationSummaryResponse,
   objectMetadataResponse,
   objectNamePathParameter,
   objectPageResponse,
@@ -15,6 +16,7 @@ import {
   packagePathParameter,
   packagePageResponse,
   packageSearchQuery,
+  packageTreeQuery,
   sourceVersionReadBody,
   sourceVersionReadResponse,
   transportDetailResponse,
@@ -32,6 +34,9 @@ const atcDocumentationReadResponseSchema = z.toJSONSchema(
 );
 const atcRunBodySchema = z.toJSONSchema(atcRunBody);
 const atcRunResponseSchema = z.toJSONSchema(atcRunResponse);
+const destinationSummaryResponseSchema = z.toJSONSchema(
+  destinationSummaryResponse,
+);
 
 const transportSourceManifestSchema = z.toJSONSchema(
   transportSourceManifestBody,
@@ -45,6 +50,7 @@ const transportSourceManifestResponseSchema = z.toJSONSchema(
 );
 const packagePageResponseSchema = z.toJSONSchema(packagePageResponse);
 const packageSearchQuerySchema = z.toJSONSchema(packageSearchQuery);
+const packageTreeQuerySchema = z.toJSONSchema(packageTreeQuery);
 const objectPageResponseSchema = z.toJSONSchema(objectPageResponse);
 const objectMetadataResponseSchema = z.toJSONSchema(objectMetadataResponse);
 const objectSourceHistoryResponseSchema = z.toJSONSchema(
@@ -63,6 +69,10 @@ const transportPathParameterSchema = z.toJSONSchema(transportPathParameter);
 const transportQueryProperties =
   transportSearchQuerySchema.properties as Record<string, unknown>;
 const packageQueryProperties = packageSearchQuerySchema.properties as Record<
+  string,
+  unknown
+>;
+const packageTreeQueryProperties = packageTreeQuerySchema.properties as Record<
   string,
   unknown
 >;
@@ -111,7 +121,12 @@ export const openApiDocument = {
       get: {
         operationId: 'listDestinations',
         responses: {
-          '200': { description: 'Accessible safe destination summaries' },
+          '200': {
+            description: 'Accessible safe destination summaries',
+            content: {
+              'application/json': { schema: destinationSummaryResponseSchema },
+            },
+          },
         },
       },
     },
@@ -260,6 +275,46 @@ export const openApiDocument = {
         responses: {
           '200': {
             description: 'Bounded canonical package search page',
+            content: {
+              'application/json': { schema: packagePageResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/packages/tree': {
+      get: {
+        operationId: 'getPackageTree',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          {
+            name: 'root',
+            in: 'query',
+            required: true,
+            description:
+              'Named package root. The service never enumerates a global package forest.',
+            schema: packageTreeQueryProperties.root,
+          },
+          {
+            name: 'limit',
+            in: 'query',
+            required: false,
+            description: 'Page size, maximum 200',
+            schema: packageTreeQueryProperties.limit,
+          },
+          {
+            name: 'cursor',
+            in: 'query',
+            required: false,
+            description: 'Opaque root-bound page cursor',
+            schema: packageTreeQueryProperties.cursor,
+          },
+        ],
+        responses: {
+          '200': {
+            description:
+              'Bounded canonical package subtree rooted at the requested package',
             content: {
               'application/json': { schema: packagePageResponseSchema },
             },

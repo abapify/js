@@ -112,6 +112,30 @@ test('documents the bounded canonical package search page', () => {
   assert.ok(!JSON.stringify(packages).includes('uri'));
 });
 
+test('documents a rooted, bounded package-tree page without ADT URIs', () => {
+  const paths = openApiDocument.paths as Record<
+    string,
+    {
+      get?: {
+        operationId?: string;
+        parameters?: Array<{ name?: string } | { $ref: string }>;
+        responses?: Record<string, { content?: Record<string, unknown> }>;
+      };
+    }
+  >;
+  const tree = paths['/v1/destinations/{destination}/packages/tree']?.get;
+
+  assert.strictEqual(tree?.operationId, 'getPackageTree');
+  assert.deepStrictEqual(
+    tree?.parameters?.map((parameter) =>
+      '$ref' in parameter ? parameter.$ref : parameter.name,
+    ),
+    ['#/components/parameters/destination', 'root', 'limit', 'cursor'],
+  );
+  assert.ok(tree?.responses?.['200']?.content?.['application/json']);
+  assert.ok(!JSON.stringify(tree).includes('uri'));
+});
+
 test('documents the bounded canonical object search page without ADT URI fields', () => {
   const objects =
     openApiDocument.paths['/v1/destinations/{destination}/objects'].get;
