@@ -9,7 +9,7 @@ import {
 import { generateKeyPair, SignJWT } from 'jose';
 import { SourceVersionTooLargeError } from '@abapify/adt-client';
 import { createRestBearerAuthorizer } from '../src/rest-auth.js';
-import { startAdtServer } from '../src/server.js';
+import { resolveMcpFrozenSource, startAdtServer } from '../src/server.js';
 import { createRestSourceCapabilityService } from '../src/source-capabilities.js';
 import { createRestAtcDocumentationCapabilityService } from '../src/atc-documentation-capabilities.js';
 
@@ -27,6 +27,38 @@ const operations = {
     return [];
   },
 };
+
+test('redeems a sidecar-issued frozen source capability before an MCP context exists', async () => {
+  const sourceCapabilities = createRestSourceCapabilityService({
+    secret: 'frozen-source-test-secret',
+    now: () => 1_753_000_000_000,
+  });
+  const sourceCapability = sourceCapabilities.issue({
+    destination: 'dev',
+    sourceUri:
+      '/sap/bc/adt/oo/classes/zcl_scope/source/main/versions/1/content',
+  });
+  await assert.doesNotReject(async () => {
+    assert.deepStrictEqual(
+      await resolveMcpFrozenSource(
+        async () => ({ sourceCapability }),
+        sourceCapabilities,
+        { destination: 'dev', systemSid: 'DEV', sourceRef: 'v1.arm-reference' },
+      ),
+      {
+        sourceUri:
+          '/sap/bc/adt/oo/classes/zcl_scope/source/main/versions/1/content',
+      },
+    );
+  });
+  await assert.rejects(async () =>
+    resolveMcpFrozenSource(
+      async () => ({ sourceCapability }),
+      sourceCapabilities,
+      { destination: 'qas', systemSid: 'QAS', sourceRef: 'v1.arm-reference' },
+    ),
+  );
+});
 
 test('mounts signed MCP only at /mcp while preserving REST endpoints', async () => {
   const { privateKey, publicKey } = await generateKeyPair('ES256');
@@ -440,6 +472,75 @@ test('serves a bounded canonical package page with an opaque query-bound cursor'
       `${server.url}/v1/destinations/dev/packages?cursor=invalid`,
     );
     assert.strictEqual(invalid.status, 400);
+  } finally {
+    await server.close();
+  }
+});
+
+test('serves one rooted canonical package tree with a query-bound cursor', async () => {
+  const calls: unknown[] = [];
+  const server = await startAdtServer({
+    operations: {
+      ...operations,
+      async getPackageTree(destination, rootPackage) {
+        calls.push({ destination, rootPackage });
+        return {
+          data: [
+            { name: 'ZROOT', description: 'Root package' },
+            {
+              name: 'ZCHILD',
+              parent: 'ZROOT',
+              description: 'Child package',
+            },
+          ],
+          truncated: false,
+        };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const first = await fetch(
+      `${server.url}/v1/destinations/dev/packages/tree?root=zroot&limit=1`,
+    );
+    assert.strictEqual(first.status, 200);
+    const firstBody = (await first.json()) as {
+      data: unknown[];
+      nextCursor: string | null;
+      truncated: boolean;
+    };
+    assert.deepStrictEqual(firstBody.data, [
+      { name: 'ZROOT', description: 'Root package' },
+    ]);
+    assert.ok(firstBody.nextCursor);
+
+    const second = await fetch(
+      `${server.url}/v1/destinations/dev/packages/tree?root=zroot&limit=1&cursor=${encodeURIComponent(firstBody.nextCursor!)}`,
+    );
+    assert.strictEqual(second.status, 200);
+    assert.deepStrictEqual((await second.json()).data, [
+      {
+        name: 'ZCHILD',
+        parent: 'ZROOT',
+        description: 'Child package',
+      },
+    ]);
+    assert.deepStrictEqual(calls, [
+      { destination: 'dev', rootPackage: 'ZROOT' },
+      { destination: 'dev', rootPackage: 'ZROOT' },
+    ]);
+
+    const missingRoot = await fetch(
+      `${server.url}/v1/destinations/dev/packages/tree`,
+    );
+    assert.strictEqual(missingRoot.status, 400);
   } finally {
     await server.close();
   }

@@ -40,6 +40,18 @@ class PackagesScenario extends ContractScenario {
       response: { status: 200, schema: packagesV1 },
     },
     {
+      name: 'read a rooted subpackage tree',
+      contract: () =>
+        packagesContract.tree({ packagename: 'ZROOT', type: 'sub' }),
+      method: 'GET',
+      path: '/sap/bc/adt/packages/$tree',
+      headers: {
+        Accept: 'application/vnd.sap.adt.packages.v2+xml',
+      },
+      query: { packagename: 'ZROOT', type: 'sub' },
+      response: { status: 200, schema: packagesV1 },
+    },
+    {
       name: 'create package (POST)',
       contract: () => packagesContract.post({ corrNr: 'DEVK900001' }),
       method: 'POST',

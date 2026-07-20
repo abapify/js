@@ -15,6 +15,7 @@ import type {
 import { resolveObjectUri } from '@abapify/adt-mcp';
 import type { DestinationSummary, AdtServerOperations } from './server.js';
 import {
+  MAX_PACKAGE_SEARCH_RESULTS,
   MAX_SOURCE_BYTES,
   type AtcRunBody,
   type ObjectSearchCriteria,
@@ -685,6 +686,169 @@ function toPackageNodes(value: unknown): Array<{
   });
 }
 
+/**
+ * Normalise the ADT package-tree response. The typed upstream contract has a
+ * `packageTree.treeNode` shape, distinct from repository quick-search rows.
+ * Keep only package identity/parent/description; ADT links stay local.
+ */
+function toPackageTreeNodes(
+  value: unknown,
+  rootPackage: string,
+): Array<{ name: string; parent?: string; description?: string }> {
+  const tree = record(record(value)?.packageTree);
+  const nodes = records(tree?.treeNode);
+  const root = rootPackage.trim().toUpperCase();
+  const deduped = new Map<
+    string,
+    { name: string; parent?: string; description?: string }
+  >();
+
+  for (const node of nodes) {
+    const type = stringField(node, 'type')?.toUpperCase();
+    const name = stringField(node, 'name')?.toUpperCase();
+    // `treeNode` is a package contract, but retain the type guard so an
+    // unexpected mixed response cannot turn into a public object row.
+    if (!name || (type && !type.startsWith('DEVC'))) continue;
+    const superPackage = record(node.superPackageRef);
+    const parent = superPackage
+      ? stringField(superPackage, 'name')?.toUpperCase()
+      : undefined;
+    const description = stringField(node, 'description');
+    const candidate = {
+      name,
+      ...(name !== root && parent && parent !== name ? { parent } : {}),
+      ...(description ? { description } : {}),
+    };
+    const existing = deduped.get(name);
+    if (!existing) deduped.set(name, candidate);
+    else if (!existing.description && candidate.description)
+      existing.description = candidate.description;
+  }
+
+  // Some SAP releases return only descendants for `type=sub`; preserve the
+  // declared root as the stable tree anchor in either response shape.
+  if (!deduped.has(root)) deduped.set(root, { name: root });
+  return [...deduped.values()].sort((left, right) => {
+    if (left.name === root) return -1;
+    if (right.name === root) return 1;
+    return left.name.localeCompare(right.name);
+  });
+}
+
+/**
+ * A package GET is the portable fallback for SAP releases that do not expose
+ * the `$tree` capability. It contains the requested package plus direct
+ * `subPackages.packageRef` children; keep the requested root as the public
+ * tree anchor and never retain ADT links.
+ */
+function toPackageMetadataNodes(
+  value: unknown,
+  requestedPackage: string,
+): Array<{ name: string; parent?: string; description?: string }> {
+  const packageRecord = record(record(value)?.package);
+  const root =
+    stringField(packageRecord ?? {}, 'name')?.toUpperCase() ??
+    requestedPackage.trim().toUpperCase();
+  const rootDescription = stringField(packageRecord ?? {}, 'description');
+  const nodes: Array<{ name: string; parent?: string; description?: string }> =
+    [
+      {
+        name: root,
+        ...(rootDescription ? { description: rootDescription } : {}),
+      },
+    ];
+  const subPackages = record(packageRecord?.subPackages);
+  const seen = new Set<string>([root]);
+  for (const reference of records(subPackages?.packageRef)) {
+    const name = stringField(reference, 'name')?.toUpperCase();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    const description = stringField(reference, 'description');
+    nodes.push({
+      name,
+      parent: root,
+      ...(description ? { description } : {}),
+    });
+  }
+  return nodes;
+}
+
+function isUnsupportedPackageTree(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === 'AdtError' &&
+    'status' in error &&
+    ([404, 406] as const).includes(
+      (error as { status?: unknown }).status as 404 | 406,
+    )
+  );
+}
+
+async function getPackageTreeFromMetadata(
+  client: AdtClient,
+  rootPackage: string,
+): Promise<{
+  data: Array<{ name: string; parent?: string; description?: string }>;
+  truncated: boolean;
+}> {
+  const root = rootPackage.trim().toUpperCase();
+  const queued = new Set<string>([root]);
+  const visited = new Set<string>();
+  const queue = [root];
+  const packages = new Map<
+    string,
+    { name: string; parent?: string; description?: string }
+  >();
+  let truncated = false;
+
+  while (queue.length > 0) {
+    queue.sort((left, right) => left.localeCompare(right));
+    const name = queue.shift()!;
+    queued.delete(name);
+    if (visited.has(name)) continue;
+    visited.add(name);
+
+    const nodes = toPackageMetadataNodes(
+      await client.adt.packages.get(name),
+      name,
+    );
+    const [current, ...children] = nodes;
+    if (current) {
+      const existing = packages.get(current.name);
+      if (!existing) packages.set(current.name, current);
+      else if (!existing.description && current.description)
+        existing.description = current.description;
+    }
+    for (const child of children.sort((left, right) =>
+      left.name.localeCompare(right.name),
+    )) {
+      const existing = packages.get(child.name);
+      if (!existing && packages.size >= MAX_PACKAGE_SEARCH_RESULTS) {
+        truncated = true;
+        break;
+      }
+      if (!existing) packages.set(child.name, child);
+      else if (!existing.description && child.description)
+        existing.description = child.description;
+      if (!visited.has(child.name) && !queued.has(child.name)) {
+        queue.push(child.name);
+        queued.add(child.name);
+      }
+    }
+    if (truncated) break;
+  }
+
+  if (queue.length > 0) truncated = true;
+  return {
+    data: [...packages.values()].sort((left, right) => {
+      if (left.name === root) return -1;
+      if (right.name === root) return 1;
+      return left.name.localeCompare(right.name);
+    }),
+    truncated,
+  };
+}
+
 function toCanonicalRepositoryObjects(
   value: unknown,
   packageName?: string,
@@ -983,6 +1147,29 @@ export function createHttpBrokerOperations(
         },
       );
     },
+    async getPackageTree(destination, rootPackage) {
+      return await withClient(
+        destination,
+        'get_package_tree',
+        async (client) => {
+          const normalizedRoot = rootPackage.trim().toUpperCase();
+          try {
+            const response = await client.adt.packages.tree({
+              packagename: normalizedRoot,
+              type: 'sub',
+            });
+            const packages = toPackageTreeNodes(response, normalizedRoot);
+            return {
+              data: packages.slice(0, MAX_PACKAGE_SEARCH_RESULTS),
+              truncated: packages.length > MAX_PACKAGE_SEARCH_RESULTS,
+            };
+          } catch (error) {
+            if (!isUnsupportedPackageTree(error)) throw error;
+            return await getPackageTreeFromMetadata(client, normalizedRoot);
+          }
+        },
+      );
+    },
     async searchObjects(destination, criteria: ObjectSearchCriteria = {}) {
       return await withClient(destination, 'search_objects', async (client) => {
         const cap = criteria.maxResults ?? 5_000;
@@ -1272,7 +1459,7 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
     destination: string;
     systemSid: string;
     sourceRef: string;
-  }): Promise<{ sourceUri: string }>;
+  }): Promise<{ sourceUri: string } | { sourceCapability: string }>;
 } {
   const fetcher = options.fetch ?? globalThis.fetch;
   const readBrokerToken = async (): Promise<string> => {
@@ -1371,15 +1558,22 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
       );
       if (!response.ok)
         throw new Error('Frozen source reference is unavailable');
-      const body = (await response.json()) as { sourceUri?: unknown };
+      const body = (await response.json()) as {
+        sourceUri?: unknown;
+        sourceCapability?: unknown;
+      };
       if (
-        typeof body.sourceUri !== 'string' ||
-        !body.sourceUri.startsWith('/sap/bc/adt/') ||
-        /[\s\\\u0000-\u001f\u007f]/u.test(body.sourceUri)
-      ) {
-        throw new Error('Frozen source reference is unavailable');
-      }
-      return { sourceUri: body.sourceUri };
+        typeof body.sourceUri === 'string' &&
+        body.sourceUri.startsWith('/sap/bc/adt/') &&
+        !/[\s\\\u0000-\u001f\u007f]/u.test(body.sourceUri)
+      )
+        return { sourceUri: body.sourceUri };
+      if (
+        typeof body.sourceCapability === 'string' &&
+        /^src\.v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(body.sourceCapability)
+      )
+        return { sourceCapability: body.sourceCapability };
+      throw new Error('Frozen source reference is unavailable');
     },
   };
 }

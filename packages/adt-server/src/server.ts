@@ -8,7 +8,6 @@ import {
   createHttpMcpHandler,
   type DestinationContextRegistry,
   type McpInvocationVerifier,
-  type ToolContext,
 } from '@abapify/adt-mcp';
 import { openApiDocument, openApiYaml } from './openapi.js';
 import {
@@ -43,6 +42,7 @@ import {
   packagePageResponse,
   packagePathParameter,
   packageSearchResult,
+  parsePackageTreeQuery,
   parsePackageSearchQuery,
   sourceVersionReadBody,
   sourceVersionReadResponse,
@@ -97,6 +97,34 @@ export interface DestinationSummary {
   version: number;
 }
 
+export type FrozenSourceResolution =
+  | { sourceUri: string }
+  | { sourceCapability: string };
+
+export type ResolveFrozenSource = (input: {
+  destination: string;
+  systemSid: string;
+  sourceRef: string;
+}) => Promise<FrozenSourceResolution>;
+
+/**
+ * The ARM broker may return a direct adapter URI or a source capability
+ * previously issued by this same sidecar REST process. Redeem the latter
+ * before the MCP package can acquire a destination context or invoke SAP.
+ */
+export async function resolveMcpFrozenSource(
+  resolveFrozenSource: ResolveFrozenSource,
+  sourceCapabilities: ReturnType<typeof createRestSourceCapabilityService>,
+  input: Parameters<ResolveFrozenSource>[0],
+): Promise<{ sourceUri: string }> {
+  const resolved = await resolveFrozenSource(input);
+  if ('sourceUri' in resolved) return resolved;
+  return sourceCapabilities.resolve({
+    sourceCapability: resolved.sourceCapability,
+    destination: input.destination,
+  });
+}
+
 /** The runtime supplies this from ARM's private broker; it never exposes a connection lease. */
 export interface AdtServerOperations {
   listDestinations(): Promise<DestinationSummary[]>;
@@ -108,6 +136,8 @@ export interface AdtServerOperations {
     destination: string,
     criteria?: import('./rest-schemas.js').PackageSearchCriteria,
   ): Promise<unknown>;
+  /** Reads a bounded hierarchy below one named package; never a global forest. */
+  getPackageTree(destination: string, rootPackage: string): Promise<unknown>;
   searchObjects(
     destination: string,
     criteria?: import('./rest-schemas.js').ObjectSearchCriteria,
@@ -176,7 +206,7 @@ export interface AdtServerMcpOptions {
    * Private ARM broker resolver for the opaque, signed source capabilities
    * carried only in an AI Review invocation policy.
    */
-  resolveFrozenSource: NonNullable<ToolContext['resolveFrozenSource']>;
+  resolveFrozenSource: ResolveFrozenSource;
   allowedHosts?: string[];
 }
 
@@ -348,7 +378,12 @@ export async function startAdtServer(
                   destinationKeys: invocation.destinationKeys,
                 }
               : undefined,
-          resolveFrozenSource: options.mcp.resolveFrozenSource,
+          resolveFrozenSource: async (input) =>
+            await resolveMcpFrozenSource(
+              options.mcp!.resolveFrozenSource,
+              sourceCapabilities,
+              input,
+            ),
         },
       })
     : undefined;
@@ -390,6 +425,10 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/([^/]+)\/objects$/u.exec(
           path,
         );
+      const packageTreeMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/tree$/u.exec(
+          path,
+        );
       const objectMetadataMatch =
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)$/u.exec(
           path,
@@ -423,6 +462,7 @@ export async function startAdtServer(
       const isRestOperation =
         isDestinationList ||
         (request.method === 'GET' && match) ||
+        (request.method === 'GET' && packageTreeMatch) ||
         (request.method === 'GET' && packageObjectsMatch) ||
         (request.method === 'GET' && objectMetadataMatch) ||
         (request.method === 'GET' && objectSourceHistoryMatch) ||
@@ -570,6 +610,40 @@ export async function startAdtServer(
             error instanceof z.ZodError ||
             error instanceof RestPageCursorError ||
             error instanceof InvalidPathParameterError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'GET' && packageTreeMatch) {
+        const [, destination] = packageTreeMatch;
+        try {
+          const { rootPackage, page } = parsePackageTreeQuery(
+            readQuery(request),
+          );
+          const result = packageSearchResult.parse(
+            await options.operations.getPackageTree(destination!, rootPackage),
+          );
+          const data = packagePageResponse.parse(
+            pageCursors.paginate({
+              ...result,
+              ...page,
+              fingerprint: `package-tree:${destination}:${rootPackage}`,
+              // Preserve a tree's root as the first stable page item while
+              // keeping descendants deterministically name-ordered.
+              keyOf: (entry) =>
+                `${entry.name === rootPackage ? '0' : '1'}:${entry.name}`,
+            }),
+          );
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof RestPageCursorError
           ) {
             writeProblem(response, 400, 'Invalid request');
             return;
