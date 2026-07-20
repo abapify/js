@@ -1,11 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { createAdtClient, type AdtClient } from '@abapify/adt-client';
+import {
+  assertAdtUri,
+  createAdtClient,
+  type AdtClient,
+} from '@abapify/adt-client';
 import { ExactSourceHistoryService } from '@abapify/adt-cli';
 import type {
   DestinationContextFactory,
   DestinationLeaseProvider,
 } from '@abapify/adt-mcp';
+import { resolveObjectUri } from '@abapify/adt-mcp';
 import type { DestinationSummary, AdtServerOperations } from './server.js';
 import type {
   ObjectSearchCriteria,
@@ -84,6 +89,40 @@ interface CanonicalRepositoryObject extends CanonicalObjectReference {
   description?: string;
 }
 
+type ObjectMetadataCapability =
+  | 'source'
+  | 'versions'
+  | 'structure'
+  | 'text_elements'
+  | 'enhancement_implementations'
+  | 'enhancement_options'
+  | 'syntax';
+
+interface CanonicalObjectMetadata {
+  object: CanonicalRepositoryObject;
+  metadata: {
+    adtObjectType?: string;
+    description?: string;
+    packageName?: string;
+  };
+  facets: Array<{
+    facet?: string;
+    name?: string;
+    displayName?: string;
+    text?: string;
+    version?: string;
+    hasChildrenOfSameFacet?: boolean;
+  }>;
+  /** Relation metadata only: the resolved ADT target never leaves this broker. */
+  capabilities: Array<{
+    relation: string;
+    capability: ObjectMetadataCapability;
+    title?: string;
+    mediaType?: string;
+    etag?: string;
+  }>;
+}
+
 interface TransportTaskDetail extends TransportSummary {
   parentTrkorr: string;
   objects: CanonicalObjectReference[];
@@ -112,6 +151,11 @@ function records(value: unknown): UnknownRecord[] {
 function stringField(value: UnknownRecord, key: string): string | undefined {
   const field = value[key];
   return typeof field === 'string' && field.trim() ? field.trim() : undefined;
+}
+
+function booleanField(value: UnknownRecord, key: string): boolean | undefined {
+  const field = value[key];
+  return typeof field === 'boolean' ? field : undefined;
 }
 
 function normalizedObjectType(value: string): string | undefined {
@@ -227,6 +271,159 @@ function quickSearchReferences(response: unknown): UnknownRecord[] {
     root.objectReference ??
     record(root.mainObject)?.objectReference;
   return records(references);
+}
+
+const ADT_METADATA_ORIGIN = 'https://adt.invalid';
+const ADT_METADATA_PATH_PREFIX = '/sap/bc/adt/';
+const RAW_METADATA_TRAVERSAL = /(?:^|\/)\.\.(?:\/|$)/u;
+const ENCODED_METADATA_TRAVERSAL_OR_CONTROL =
+  /%(?:25)*(?:0[09ad]|20|2e|2f|5c)/iu;
+const METADATA_CONTROL_OR_SPACE = /[\s\u0000-\u001f\u007f\\]/u;
+
+function objectMetadataCapability(
+  relation: string,
+): ObjectMetadataCapability | undefined {
+  if (relation.endsWith('/source')) return 'source';
+  if (relation.endsWith('/versions')) return 'versions';
+  if (relation.endsWith('/objectstructure')) return 'structure';
+  if (relation.endsWith('/sources/textelements')) return 'text_elements';
+  if (relation.endsWith('/enhancementImplementations')) {
+    return 'enhancement_implementations';
+  }
+  if (
+    relation.endsWith('/enhancementOptions') ||
+    relation.endsWith('/enhancementOptionsOfMainObject')
+  ) {
+    return 'enhancement_options';
+  }
+  if (relation.endsWith('/abapsource/parser')) return 'syntax';
+  return undefined;
+}
+
+/** Resolve only SAP-advertised relative metadata links, retaining the URI locally. */
+function resolveSafeMetadataHref(
+  objectUri: string,
+  href: string,
+): string | undefined {
+  const rawHref = href.trim();
+  if (
+    rawHref !== href ||
+    !rawHref ||
+    rawHref.startsWith('//') ||
+    rawHref.includes('#') ||
+    METADATA_CONTROL_OR_SPACE.test(rawHref) ||
+    RAW_METADATA_TRAVERSAL.test(rawHref) ||
+    ENCODED_METADATA_TRAVERSAL_OR_CONTROL.test(rawHref)
+  ) {
+    return undefined;
+  }
+
+  const objectPath = objectUri.startsWith('/') ? objectUri : `/${objectUri}`;
+  const basePath = rawHref.startsWith('.')
+    ? objectPath
+    : `${objectPath.replace(/\/$/u, '')}/`;
+  try {
+    const resolved = new URL(rawHref, `${ADT_METADATA_ORIGIN}${basePath}`);
+    if (
+      resolved.origin !== ADT_METADATA_ORIGIN ||
+      !resolved.pathname.startsWith(ADT_METADATA_PATH_PREFIX) ||
+      resolved.pathname.includes('\\')
+    ) {
+      return undefined;
+    }
+    return assertAdtUri(`${resolved.pathname}${resolved.search}`);
+  } catch {
+    return undefined;
+  }
+}
+
+function toObjectMetadataCapabilities(
+  objectUri: string,
+  links: unknown,
+): CanonicalObjectMetadata['capabilities'] {
+  const capabilities = new Map<
+    string,
+    CanonicalObjectMetadata['capabilities'][number]
+  >();
+  for (const link of records(links)) {
+    const relation = stringField(link, 'rel');
+    const href = stringField(link, 'href');
+    if (!relation || !href) continue;
+    const capability = objectMetadataCapability(relation);
+    // Validate the target before describing a relation as a trusted capability.
+    if (!capability || !resolveSafeMetadataHref(objectUri, href)) continue;
+    const mapped = {
+      relation,
+      capability,
+      ...(stringField(link, 'title')
+        ? { title: stringField(link, 'title') }
+        : {}),
+      ...(stringField(link, 'type')
+        ? { mediaType: stringField(link, 'type') }
+        : {}),
+      ...(stringField(link, 'etag') ? { etag: stringField(link, 'etag') } : {}),
+    };
+    capabilities.set(`${capability}\u0000${relation}`, mapped);
+  }
+  return [...capabilities.values()];
+}
+
+function toCanonicalObjectMetadata(
+  objectType: string,
+  objectName: string,
+  objectUri: string,
+  response: unknown,
+): CanonicalObjectMetadata {
+  const properties = record(record(response)?.objectProperties) ?? {};
+  const genericObject = record(properties.object) ?? {};
+  const canonicalType = normalizedObjectType(objectType);
+  if (!canonicalType) throw new Error('Object type is unavailable');
+  const canonicalName = objectName.toUpperCase();
+  const packageName = stringField(genericObject, 'package');
+  const description = stringField(genericObject, 'text');
+
+  return {
+    object: {
+      canonicalKey: `${canonicalType}:${canonicalName}`,
+      objectType: canonicalType,
+      objectName: canonicalName,
+      ...(packageName ? { packageName } : {}),
+      ...(description ? { description } : {}),
+    },
+    metadata: {
+      ...(stringField(genericObject, 'type')
+        ? { adtObjectType: stringField(genericObject, 'type') }
+        : {}),
+      ...(description ? { description } : {}),
+      ...(packageName ? { packageName } : {}),
+    },
+    facets: records(properties.property).map((property) => ({
+      ...(stringField(property, 'facet')
+        ? { facet: stringField(property, 'facet') }
+        : {}),
+      ...(stringField(property, 'name')
+        ? { name: stringField(property, 'name') }
+        : {}),
+      ...(stringField(property, 'displayName')
+        ? { displayName: stringField(property, 'displayName') }
+        : {}),
+      ...(stringField(property, 'text')
+        ? { text: stringField(property, 'text') }
+        : {}),
+      ...(stringField(property, 'version')
+        ? { version: stringField(property, 'version') }
+        : {}),
+      ...(booleanField(property, 'hasChildrenOfSameFacet') === undefined
+        ? {}
+        : {
+            hasChildrenOfSameFacet: booleanField(
+              property,
+              'hasChildrenOfSameFacet',
+            ),
+          }),
+    })),
+    capabilities: toObjectMetadataCapabilities(objectUri, genericObject.link),
+  };
 }
 
 function adtPrefixQuery(query?: string): string {
@@ -575,6 +772,32 @@ export function createHttpBrokerOperations(
           truncated: quickSearchReferences(response).length >= cap,
         };
       });
+    },
+    async getObjectMetadata(destination, objectType, objectName) {
+      return await withClient(
+        destination,
+        'get_object_metadata',
+        async (client) => {
+          // Reuse the upstream typed-first resolver. It owns type-to-ADT URI
+          // knowledge; the resolved URI stays inside this broker.
+          const objectUri = await resolveObjectUri(
+            client,
+            objectName,
+            adtSearchObjectType(objectType),
+          );
+          if (!objectUri) throw new Error('Object metadata is unavailable');
+          const response =
+            await client.adt.repository.informationsystem.objectProperties.values(
+              { uri: objectUri, facets: ['package', 'appl'] },
+            );
+          return toCanonicalObjectMetadata(
+            objectType,
+            objectName,
+            objectUri,
+            response,
+          );
+        },
+      );
     },
     async listPackageObjects(destination, packageName) {
       return await withClient(
