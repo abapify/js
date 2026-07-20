@@ -359,6 +359,27 @@ export const objectMetadataResponse = z
   })
   .strict();
 
+const objectSourceHistoryVersion = z
+  .object({
+    id: z.string().trim().min(1).max(256),
+    ordinal: z.number().int().nonnegative(),
+    title: z.string().max(1_024).optional(),
+    contentType: z.string().trim().min(1).max(256).optional(),
+    etag: z.string().trim().min(1).max(1_024).optional(),
+    updatedAt: z.string().max(128).optional(),
+    author: z.string().max(256).optional(),
+    transports: z.array(z.string().trim().min(1).max(64)).max(1_024),
+  })
+  .strict();
+
+/** Metadata-only history: source-version locators never leave the broker. */
+export const objectSourceHistoryResponse = z
+  .object({
+    available: z.boolean(),
+    versions: z.array(objectSourceHistoryVersion).max(1_024),
+  })
+  .strict();
+
 export function parseTransportSearchQuery(input: unknown) {
   const query = transportSearchQuery.parse(input);
   return {

@@ -21,6 +21,7 @@ import {
   objectMetadataResponse,
   objectNamePathParameter,
   objectSearchResult,
+  objectSourceHistoryResponse,
   objectTypePathParameter,
   parseObjectSearchQuery,
   parsePageQuery,
@@ -89,6 +90,12 @@ export interface AdtServerOperations {
   ): Promise<unknown>;
   /** Public canonical metadata projection; raw ADT URIs remain broker-local. */
   getObjectMetadata?(
+    destination: string,
+    objectType: string,
+    objectName: string,
+  ): Promise<unknown>;
+  /** Public metadata-only history; immutable source locators remain local. */
+  getObjectSourceHistory?(
     destination: string,
     objectType: string,
     objectName: string,
@@ -311,6 +318,10 @@ export async function startAdtServer(
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)$/u.exec(
           path,
         );
+      const objectSourceHistoryMatch =
+        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source-history$/u.exec(
+          path,
+        );
       const sourceManifestMatch =
         /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u.exec(
           path,
@@ -328,6 +339,7 @@ export async function startAdtServer(
         (request.method === 'GET' && match) ||
         (request.method === 'GET' && packageObjectsMatch) ||
         (request.method === 'GET' && objectMetadataMatch) ||
+        (request.method === 'GET' && objectSourceHistoryMatch) ||
         (request.method === 'GET' && transportDetailMatch) ||
         (request.method === 'POST' &&
           (sourceManifestMatch || sourceVersionReadMatch));
@@ -494,6 +506,42 @@ export async function startAdtServer(
           }
           const data = objectMetadataResponse.parse(
             await options.operations.getObjectMetadata(
+              destination!,
+              objectType,
+              objectName,
+            ),
+          );
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(JSON.stringify(data));
+        } catch (error) {
+          if (
+            error instanceof z.ZodError ||
+            error instanceof InvalidPathParameterError
+          ) {
+            writeProblem(response, 400, 'Invalid request');
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+      if (request.method === 'GET' && objectSourceHistoryMatch) {
+        const [, destination, rawObjectType, rawObjectName] =
+          objectSourceHistoryMatch;
+        try {
+          const objectType = objectTypePathParameter.parse(
+            decodePathParameter(rawObjectType!),
+          );
+          const objectName = objectNamePathParameter.parse(
+            decodePathParameter(rawObjectName!),
+          );
+          z.object({}).strict().parse(readQuery(request));
+          if (!options.operations.getObjectSourceHistory) {
+            writeProblem(response, 404, 'Not found');
+            return;
+          }
+          const data = objectSourceHistoryResponse.parse(
+            await options.operations.getObjectSourceHistory(
               destination!,
               objectType,
               objectName,

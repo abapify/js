@@ -180,3 +180,25 @@ test('documents canonical object metadata without raw ADT links', () => {
   assert.ok(!JSON.stringify(metadata).includes('uri'));
   assert.ok(!JSON.stringify(metadata).includes('href'));
 });
+
+test('documents canonical object source history without source locators', () => {
+  const history =
+    openApiDocument.paths[
+      '/v1/destinations/{destination}/objects/{type}/{name}/source-history'
+    ].get;
+
+  assert.strictEqual(history.operationId, 'getObjectSourceHistory');
+  assert.deepStrictEqual(
+    history.parameters?.map((parameter) =>
+      '$ref' in parameter ? parameter.$ref : parameter.name,
+    ),
+    [
+      '#/components/parameters/destination',
+      '#/components/parameters/objectType',
+      '#/components/parameters/objectName',
+    ],
+  );
+  assert.ok(history.responses['200'].content?.['application/json'].schema);
+  assert.ok(!JSON.stringify(history).includes('uri'));
+  assert.ok(!JSON.stringify(history).includes('href'));
+});
