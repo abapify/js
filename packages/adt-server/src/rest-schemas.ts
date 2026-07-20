@@ -298,6 +298,67 @@ export const packagePathParameter = z
   .max(128)
   .regex(/^[^\u0000-\u001F\u007F]+$/u);
 
+/** Canonical ADT object types may carry a subtype suffix such as `PROG/P`. */
+export const objectTypePathParameter = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9_/-]+$/u);
+
+/** Namespaced ABAP objects use URL-encoded slashes in the path segment. */
+export const objectNamePathParameter = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9_/$-]+$/u);
+
+const objectMetadataFacet = z
+  .object({
+    facet: z.string().trim().min(1).max(256).optional(),
+    name: z.string().trim().min(1).max(256).optional(),
+    displayName: z.string().max(1_024).optional(),
+    text: z.string().max(1_024).optional(),
+    version: z.string().trim().min(1).max(256).optional(),
+    hasChildrenOfSameFacet: z.boolean().optional(),
+  })
+  .strict();
+
+const objectMetadataCapability = z
+  .object({
+    relation: z.string().trim().min(1).max(1_024),
+    capability: z.enum([
+      'source',
+      'versions',
+      'structure',
+      'text_elements',
+      'enhancement_implementations',
+      'enhancement_options',
+      'syntax',
+    ]),
+    title: z.string().max(1_024).optional(),
+    mediaType: z.string().trim().min(1).max(256).optional(),
+    etag: z.string().trim().min(1).max(1_024).optional(),
+  })
+  .strict();
+
+/** Safe metadata projection. Raw ADT links remain broker-local. */
+export const objectMetadataResponse = z
+  .object({
+    object: canonicalRepositoryObject,
+    metadata: z
+      .object({
+        adtObjectType: z.string().trim().min(1).max(64).optional(),
+        description: z.string().max(1_024).optional(),
+        packageName: z.string().trim().min(1).max(128).optional(),
+      })
+      .strict(),
+    facets: z.array(objectMetadataFacet).max(1_024),
+    capabilities: z.array(objectMetadataCapability).max(64),
+  })
+  .strict();
+
 export function parseTransportSearchQuery(input: unknown) {
   const query = transportSearchQuery.parse(input);
   return {

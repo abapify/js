@@ -1,8 +1,11 @@
 import YAML from 'yaml';
 import { z } from 'zod';
 import {
+  objectMetadataResponse,
+  objectNamePathParameter,
   objectPageResponse,
   objectSearchQuery,
+  objectTypePathParameter,
   packagePathParameter,
   packagePageResponse,
   packageSearchQuery,
@@ -30,7 +33,10 @@ const transportSourceManifestResponseSchema = z.toJSONSchema(
 const packagePageResponseSchema = z.toJSONSchema(packagePageResponse);
 const packageSearchQuerySchema = z.toJSONSchema(packageSearchQuery);
 const objectPageResponseSchema = z.toJSONSchema(objectPageResponse);
+const objectMetadataResponseSchema = z.toJSONSchema(objectMetadataResponse);
 const objectSearchQuerySchema = z.toJSONSchema(objectSearchQuery);
+const objectTypePathParameterSchema = z.toJSONSchema(objectTypePathParameter);
+const objectNamePathParameterSchema = z.toJSONSchema(objectNamePathParameter);
 const packagePathParameterSchema = z.toJSONSchema(packagePathParameter);
 const transportSearchQuerySchema = z.toJSONSchema(transportSearchQuery);
 const transportListResponseSchema = z.toJSONSchema(transportListResponse);
@@ -292,6 +298,26 @@ export const openApiDocument = {
         },
       },
     },
+    '/v1/destinations/{destination}/objects/{type}/{name}': {
+      get: {
+        operationId: 'getObjectMetadata',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          { $ref: '#/components/parameters/objectType' },
+          { $ref: '#/components/parameters/objectName' },
+        ],
+        responses: {
+          '200': {
+            description:
+              'Canonical object metadata, facets and allowlisted relation capabilities',
+            content: {
+              'application/json': { schema: objectMetadataResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
   },
   components: {
     parameters: {
@@ -312,6 +338,18 @@ export const openApiDocument = {
         in: 'path',
         required: true,
         schema: packagePathParameterSchema,
+      },
+      objectType: {
+        name: 'type',
+        in: 'path',
+        required: true,
+        schema: objectTypePathParameterSchema,
+      },
+      objectName: {
+        name: 'name',
+        in: 'path',
+        required: true,
+        schema: objectNamePathParameterSchema,
       },
     },
   },
