@@ -518,33 +518,46 @@ function isValidTokenAgent(
   return typeof agentId === 'string' && trustedAgentIds.has(agentId);
 }
 
+function parseInvocationActors(record: Record<string, unknown>):
+  | {
+      tokenId: string;
+      principal: string;
+      agentId: TrustedMcpInvocationClaims['agentId'];
+      correlationId: string;
+    }
+  | undefined {
+  const tokenId = requiredIdentifier(record.jti);
+  const principal = requiredIdentifier(record.principal);
+  const correlationId = requiredIdentifier(record.correlationId);
+  const agentId = record.agentId;
+  if (!tokenId || !principal || !correlationId || !isValidTokenAgent(agentId)) {
+    return undefined;
+  }
+  return Object.freeze({ tokenId, principal, agentId, correlationId });
+}
+
 function buildInvocationClaims(
   record: Record<string, unknown>,
 ): TrustedMcpInvocationClaims | undefined {
-  const tokenId = requiredIdentifier(record.jti);
-  const principal = requiredIdentifier(record.principal);
-  const agentId = record.agentId;
-  const correlationId = requiredIdentifier(record.correlationId);
+  const actors = parseInvocationActors(record);
+  if (!actors) return undefined;
+
   const classes = cloneTrustedClasses(record.classes);
   const destinationKeys = cloneDestinationKeys(record.destinationKeys);
   const constraint = cloneJsonRecord(record.constraint);
   const limits = cloneJsonRecord(record.limits);
-  if (!tokenId) return undefined;
-  if (!principal) return undefined;
-  if (!correlationId) return undefined;
-  if (!isValidTokenAgent(agentId)) return undefined;
   if (!classes) return undefined;
   if (!destinationKeys) return undefined;
   if (!constraint) return undefined;
   if (!limits) return undefined;
 
   return Object.freeze({
-    tokenId,
-    principal,
-    agentId,
+    tokenId: actors.tokenId,
+    principal: actors.principal,
+    agentId: actors.agentId,
     classes,
     destinationKeys,
-    correlationId,
+    correlationId: actors.correlationId,
     constraint,
     limits,
   });
