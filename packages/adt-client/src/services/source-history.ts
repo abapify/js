@@ -157,9 +157,9 @@ function isPlainTextContentLink(link: AtomLink): boolean {
  */
 function contentElementAsLink(entry: AtomEntry): AtomLink | undefined {
   const content = entry.content;
-  if (!content || typeof content !== 'object' || Array.isArray(content)) {
-    return undefined;
-  }
+  if (!content) return undefined;
+  if (typeof content !== 'object') return undefined;
+  if (Array.isArray(content)) return undefined;
   const src = asOptionalString((content as Record<string, unknown>).src);
   if (!src) return undefined;
   const type = asOptionalString((content as Record<string, unknown>).type);
@@ -230,13 +230,17 @@ function assertSourceVersionPayload(payload: unknown): { feed?: unknown } {
 }
 
 function assertSourceVersionFeed(feed: unknown): { entry?: unknown } {
-  if (!feed || typeof feed !== 'object' || Array.isArray(feed)) {
-    throw new SourceHistoryProtocolError(
-      'SOURCE_VERSION_FEED_INVALID',
-      'SAP ADT source-history feed has an invalid root.',
-    );
-  }
+  if (!feed) throw invalidFeedError();
+  if (typeof feed !== 'object') throw invalidFeedError();
+  if (Array.isArray(feed)) throw invalidFeedError();
   return feed as { entry?: unknown };
+}
+
+function invalidFeedError(): SourceHistoryProtocolError {
+  return new SourceHistoryProtocolError(
+    'SOURCE_VERSION_FEED_INVALID',
+    'SAP ADT source-history feed has an invalid root.',
+  );
 }
 
 function readSourceVersionEntries(feed: { entry?: unknown }): AtomEntry[] {
