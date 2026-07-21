@@ -350,7 +350,7 @@ export async function startAdtServer(
     createRestSourceCapabilityService({ allowEphemeralSecret: true });
   const atcDocumentationCapabilities =
     options.atcDocumentationCapabilities ??
-    createRestAtcDocumentationCapabilityService();
+    createRestAtcDocumentationCapabilityService({ allowEphemeralSecret: true });
   const pageCursors = options.pageCursors ?? createRestPageCursorService();
   const mcpHandler = options.mcp
     ? createHttpMcpHandler({
