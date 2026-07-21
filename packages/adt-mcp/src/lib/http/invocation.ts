@@ -277,6 +277,25 @@ function parseMaxSourceBytes(
   return maxSourceBytes;
 }
 
+function parseAiReviewIdentity(
+  constraint: Readonly<Record<string, McpInvocationJsonValue>>,
+):
+  | {
+      readonly reviewId: string;
+      readonly runId: string;
+      readonly systemSid: string;
+    }
+  | undefined {
+  const reviewId = requiredUuid(constraint.reviewId);
+  const runId = requiredUuid(constraint.runId);
+  const systemSid = requiredIdentifier(constraint.systemSid);
+  if (!reviewId) return undefined;
+  if (!runId) return undefined;
+  if (!systemSid) return undefined;
+  if (systemSid.length > 16) return undefined;
+  return Object.freeze({ reviewId, runId, systemSid });
+}
+
 export function parseAiReviewFrozenSourcePolicy(
   claims: TrustedMcpInvocationClaims,
 ): AiReviewFrozenSourcePolicy | undefined {
@@ -290,13 +309,8 @@ export function parseAiReviewFrozenSourcePolicy(
   }
   if (constraint.kind !== 'ai-review-frozen-v1') return undefined;
 
-  const reviewId = requiredUuid(constraint.reviewId);
-  const runId = requiredUuid(constraint.runId);
-  const systemSid = requiredIdentifier(constraint.systemSid);
-  if (!reviewId) return undefined;
-  if (!runId) return undefined;
-  if (!systemSid) return undefined;
-  if (systemSid.length > 16) return undefined;
+  const identity = parseAiReviewIdentity(constraint);
+  if (!identity) return undefined;
 
   const sources = parseAiReviewSources(constraint.frozenSources);
   if (!sources) return undefined;
@@ -305,9 +319,9 @@ export function parseAiReviewFrozenSourcePolicy(
   if (maxSourceBytes === undefined) return undefined;
 
   return Object.freeze({
-    reviewId,
-    runId,
-    systemSid,
+    reviewId: identity.reviewId,
+    runId: identity.runId,
+    systemSid: identity.systemSid,
     sources: Object.freeze(sources),
     maxSourceBytes,
   });
@@ -414,6 +428,16 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
+function cloneJsonScalar(value: unknown): McpInvocationJsonValue | undefined {
+  if (value === null) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  return undefined;
+}
+
 function cloneJsonArray(
   value: unknown[],
   depth: number,
@@ -445,12 +469,8 @@ function cloneJsonValue(
   depth = 0,
 ): McpInvocationJsonValue | undefined {
   if (depth > MAX_JSON_DEPTH) return undefined;
-  if (value === null) return null;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : undefined;
-  }
+  const scalar = cloneJsonScalar(value);
+  if (scalar !== undefined) return scalar;
   if (Array.isArray(value)) return cloneJsonArray(value, depth);
   if (isPlainObject(value)) return cloneJsonObject(value, depth);
   return undefined;
@@ -469,6 +489,16 @@ function isUnixTimestamp(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+function isValidTokenTimestamps(record: Record<string, unknown>): boolean {
+  if (!isUnixTimestamp(record.iat)) return false;
+  if (!isUnixTimestamp(record.nbf)) return false;
+  if (!isUnixTimestamp(record.exp)) return false;
+  if (record.nbf < record.iat) return false;
+  if (record.exp < record.nbf) return false;
+  if (record.exp - record.iat > MAX_TOKEN_LIFETIME_SECONDS) return false;
+  return true;
+}
+
 function isValidTokenHeader(
   record: Record<string, unknown>,
   expectedKeyId: string,
@@ -479,13 +509,7 @@ function isValidTokenHeader(
   if (record.kid !== expectedKeyId) return false;
   if (record.iss !== expectedIssuer) return false;
   if (record.aud !== expectedAudience) return false;
-  if (!isUnixTimestamp(record.iat)) return false;
-  if (!isUnixTimestamp(record.nbf)) return false;
-  if (!isUnixTimestamp(record.exp)) return false;
-  if (record.nbf < record.iat) return false;
-  if (record.exp < record.nbf) return false;
-  if (record.exp - record.iat > MAX_TOKEN_LIFETIME_SECONDS) return false;
-  return true;
+  return isValidTokenTimestamps(record);
 }
 
 function isValidTokenAgent(
@@ -494,19 +518,9 @@ function isValidTokenAgent(
   return typeof agentId === 'string' && trustedAgentIds.has(agentId);
 }
 
-function claimsFromPayload(
-  payload: JWTPayload,
-  expectedKeyId: string,
-  expectedIssuer: string,
-  expectedAudience: string,
+function buildInvocationClaims(
+  record: Record<string, unknown>,
 ): TrustedMcpInvocationClaims | undefined {
-  const record = payload as Record<string, unknown>;
-  if (
-    !isValidTokenHeader(record, expectedKeyId, expectedIssuer, expectedAudience)
-  ) {
-    return undefined;
-  }
-
   const tokenId = requiredIdentifier(record.jti);
   const principal = requiredIdentifier(record.principal);
   const agentId = record.agentId;
@@ -534,6 +548,21 @@ function claimsFromPayload(
     constraint,
     limits,
   });
+}
+
+function claimsFromPayload(
+  payload: JWTPayload,
+  expectedKeyId: string,
+  expectedIssuer: string,
+  expectedAudience: string,
+): TrustedMcpInvocationClaims | undefined {
+  const record = payload as Record<string, unknown>;
+  if (
+    !isValidTokenHeader(record, expectedKeyId, expectedIssuer, expectedAudience)
+  ) {
+    return undefined;
+  }
+  return buildInvocationClaims(record);
 }
 
 function currentDate(now: (() => Date | number) | undefined): Date {
