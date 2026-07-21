@@ -146,7 +146,10 @@ export function createRestSourceCapabilityService(
         throw new RestSourceCapabilityError();
       }
       const payload = unseal(input.sourceCapability);
-      if (!payload || payload.d !== input.destination || payload.e <= now()) {
+      if (
+        payload?.d !== input.destination ||
+        (payload?.e ?? Number.NEGATIVE_INFINITY) <= now()
+      ) {
         throw new RestSourceCapabilityError();
       }
       return { sourceUri: payload.u };

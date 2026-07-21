@@ -180,7 +180,7 @@ function transportFromLink(link: AtomLink): string | undefined {
   if (!href) return undefined;
 
   const path = href.split(/[?#]/, 1)[0];
-  const lastSegment = path?.split('/').filter(Boolean).at(-1);
+  const lastSegment = path?.split('/').findLast((segment) => segment !== '');
   if (!lastSegment) return undefined;
 
   try {

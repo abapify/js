@@ -154,8 +154,7 @@ function actionSchemaProjection(
     new Set(actionEnum).size !== actionEnum.length ||
     !actionEnum.every(
       (action) =>
-        typeof action === 'string' &&
-        Object.prototype.hasOwnProperty.call(actionClasses, action),
+        typeof action === 'string' && Object.hasOwn(actionClasses, action),
     )
   ) {
     throw new Error(
@@ -177,11 +176,11 @@ function normalizeToolArgs(args: unknown[]): {
   handler: unknown;
 } {
   if (args.length < 3) {
-    throw new Error('MCP tools must declare an input schema and handler');
+    throw new TypeError('MCP tools must declare an input schema and handler');
   }
   const name = args[0];
   if (typeof name !== 'string') {
-    throw new Error('MCP tools must declare a string name');
+    throw new TypeError('MCP tools must declare a string name');
   }
   let description: string | undefined;
   let inputSchema: unknown;
@@ -327,7 +326,7 @@ export function destinationModeServer(
           normalizeToolArgs(args);
         assertMcpToolIsClassified(name);
         if (typeof handler !== 'function') {
-          throw new Error(`MCP tool ${name} must declare a handler`);
+          throw new TypeError(`MCP tool ${name} must declare a handler`);
         }
         const { transformedInputSchema, strictInputSchema, useRegisterTool } =
           transformToolInput(name, inputSchema, target);

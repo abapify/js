@@ -302,9 +302,10 @@ function canonicalAtcFinding( //NOSONAR
           },
         }
       : {}),
-    ...(finding.checksum === undefined
-      ? {}
-      : { checksum: String(finding.checksum) }),
+    ...(typeof finding.checksum === 'string' ||
+    typeof finding.checksum === 'number'
+      ? { checksum: String(finding.checksum) }
+      : {}),
     ...(documentationUriForFinding(finding)
       ? { documentationUri: documentationUriForFinding(finding) }
       : {}),
@@ -1005,31 +1006,14 @@ function extractTransportHeaders(response: unknown): CtsRequestHeader[] {
   );
 }
 
-/** ARM-private broker client. It exposes only safe summaries to the public server layer. */
-export function createHttpBrokerOperations(
-  options: HttpBrokerOptions,
-): AdtServerOperations {
+function brokerLeaseHelpers(options: HttpBrokerOptions) {
   const fetcher = options.fetch ?? globalThis.fetch;
-  const createClient = options.createClient ?? clientFromConnection;
   const readBrokerToken = async (): Promise<string> => {
     const token = (await readFile(options.tokenFile, 'utf8')).trim();
     if (!token) throw new Error('ADT Server broker token file is empty');
     return token;
   };
-  const request = async (path: string): Promise<Response> => {
-    const token = await readBrokerToken();
-    const response = await fetcher(new URL(path, options.baseUrl), {
-      headers: { 'x-arm-adt-server-token': token },
-    });
-    if (!response.ok)
-      throw new Error(`ADT Server broker request failed (${response.status})`);
-    return response;
-  };
-  const withClient = async <T>(
-    destination: string,
-    operationName: string,
-    operation: (client: AdtClient) => Promise<T>,
-  ): Promise<T> => {
+  const acquireLease = async (destination: string): Promise<BrokerLease> => {
     const token = await readBrokerToken();
     const response = await fetcher(
       new URL(
@@ -1049,11 +1033,69 @@ export function createHttpBrokerOperations(
       throw new Error(`Destination lease unavailable (${response.status})`);
     const lease = await response.json();
     if (!isBrokerLease(lease)) throw new Error('Destination lease unavailable');
+    return lease;
+  };
+  const releaseLease = async (
+    lease: BrokerLease,
+    operationName: string,
+    outcome: 'succeeded' | 'failed',
+    durationMs: number,
+    errorCode?: string,
+  ): Promise<void> => {
+    const token = await readBrokerToken();
+    const response = await fetcher(
+      new URL(
+        '/internal/adt-server/destination-leases:release',
+        options.baseUrl,
+      ),
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-arm-adt-server-token': token,
+        },
+        body: JSON.stringify({
+          leaseId: lease.leaseId,
+          operation: operationName,
+          outcome,
+          durationMs: Math.min(durationMs, 5 * 60_000),
+          ...(errorCode ? { errorCode } : {}),
+        }),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`Destination lease release failed (${response.status})`);
+  };
+  return { fetcher, readBrokerToken, acquireLease, releaseLease };
+}
+
+/** ARM-private broker client. It exposes only safe summaries to the public server layer. */
+export function createHttpBrokerOperations(
+  options: HttpBrokerOptions,
+): AdtServerOperations {
+  const { fetcher, readBrokerToken, acquireLease, releaseLease } =
+    brokerLeaseHelpers(options);
+  const createClient = options.createClient ?? clientFromConnection;
+  const request = async (path: string): Promise<Response> => {
+    const token = await readBrokerToken();
+    const response = await fetcher(new URL(path, options.baseUrl), {
+      headers: { 'x-arm-adt-server-token': token },
+    });
+    if (!response.ok)
+      throw new Error(`ADT Server broker request failed (${response.status})`);
+    return response;
+  };
+  const withClient = async <T>(
+    destination: string,
+    operationName: string,
+    operation: (client: AdtClient) => Promise<T>,
+  ): Promise<T> => {
+    const lease = await acquireLease(destination);
     const startedAt = Date.now();
     let clientCreated = false;
     let outcome: 'succeeded' | 'failed' = 'failed';
     let result: T | undefined;
-    let operationError: unknown | undefined;
+    let operationError: unknown;
     try {
       const client = await createClient(lease.connection);
       clientCreated = true;
@@ -1062,36 +1104,22 @@ export function createHttpBrokerOperations(
     } catch (error) {
       operationError = error;
     } finally {
-      const release = await fetcher(
-        new URL(
-          '/internal/adt-server/destination-leases:release',
-          options.baseUrl,
-        ),
-        {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            'x-arm-adt-server-token': token,
-          },
-          body: JSON.stringify({
-            leaseId: lease.leaseId,
-            operation: operationName,
-            outcome,
-            durationMs: Math.min(Date.now() - startedAt, 5 * 60_000),
-            ...(outcome === 'failed'
-              ? {
-                  errorCode: clientCreated
-                    ? 'operation_failed'
-                    : 'client_creation_failed',
-                }
-              : {}),
-          }),
-        },
-      );
-      if (!release.ok && operationError === undefined) {
-        operationError = new Error(
-          `Destination lease release failed (${release.status})`,
+      const errorCode =
+        outcome === 'failed'
+          ? clientCreated
+            ? 'operation_failed'
+            : 'client_creation_failed'
+          : undefined;
+      try {
+        await releaseLease(
+          lease,
+          operationName,
+          outcome,
+          Date.now() - startedAt,
+          errorCode,
         );
+      } catch (releaseError) {
+        if (operationError === undefined) operationError = releaseError;
       }
     }
     if (operationError !== undefined) throw operationError;
@@ -1473,8 +1501,7 @@ async function clientFromConnection(
 }
 
 /** Creates the opaque lease/provider pair consumed by shared MCP mode. */
-// prettier-ignore
-export function createHttpDestinationContexts(options: HttpBrokerOptions): { //NOSONAR - lease/provider construction mirrors broker request setup by design
+export function createHttpDestinationContexts(options: HttpBrokerOptions): {
   leaseProvider: DestinationLeaseProvider;
   contextFactory: DestinationContextFactory;
   resolveFrozenSource(input: {
@@ -1483,62 +1510,12 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): { //N
     sourceRef: string;
   }): Promise<{ sourceUri: string } | { sourceCapability: string }>;
 } {
-  const fetcher = options.fetch ?? globalThis.fetch;
-  const readBrokerToken = async (): Promise<string> => {
-    const token = (await readFile(options.tokenFile, 'utf8')).trim();
-    if (!token) throw new Error('ADT Server broker token file is empty');
-    return token;
-  };
-  const acquire = async (destination: string): Promise<BrokerLease> => {
-    const token = await readBrokerToken();
-    const response = await fetcher(
-      new URL(
-        '/internal/adt-server/destination-leases:acquire',
-        options.baseUrl,
-      ),
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-arm-adt-server-token': token,
-        },
-        body: JSON.stringify({ destination, correlationId: randomUUID() }),
-      },
-    );
-    if (!response.ok)
-      throw new Error(`Destination lease unavailable (${response.status})`);
-    const lease = await response.json();
-    if (!isBrokerLease(lease)) throw new Error('Destination lease unavailable');
-    return lease;
-  };
-  const release = async (lease: BrokerLease): Promise<void> => {
-    const token = await readBrokerToken();
-    const response = await fetcher(
-      new URL(
-        '/internal/adt-server/destination-leases:release',
-        options.baseUrl,
-      ),
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-arm-adt-server-token': token,
-        },
-        body: JSON.stringify({
-          leaseId: lease.leaseId,
-          operation: 'mcp_destination_context',
-          outcome: 'succeeded',
-          durationMs: 0,
-        }),
-      },
-    );
-    if (!response.ok)
-      throw new Error(`Destination lease release failed (${response.status})`);
-  };
+  const { fetcher, readBrokerToken, acquireLease, releaseLease } =
+    brokerLeaseHelpers(options);
   return {
     leaseProvider: {
       async acquire({ destination }) {
-        const lease = await acquire(destination);
+        const lease = await acquireLease(destination);
         let releasePromise: Promise<void> | undefined;
         return {
           destination: lease.destination,
@@ -1546,7 +1523,12 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): { //N
           expiresAt: Date.parse(lease.expiresAt),
           material: lease.connection,
           release: async () => {
-            releasePromise ??= release(lease);
+            releasePromise ??= releaseLease(
+              lease,
+              'mcp_destination_context',
+              'succeeded',
+              0,
+            );
             await releasePromise;
           },
         };
