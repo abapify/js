@@ -188,6 +188,47 @@ Get details for a transport request or task.
 | `-t, --type <type>`        | `K` (Workbench, default) or `W` (Customizing) |
 | `--target <target>`        | Target system (default: `LOCAL`)              |
 
+### Exact source history
+
+Source-history commands follow immutable links returned by SAP ADT. Listing
+versions and building a manifest return metadata and provenance only; ABAP
+source is downloaded only by the explicit `source version get` command.
+
+```bash
+# List every source component and its immutable version metadata
+adt source versions ZCL_MY_CLASS --type CLAS --json
+
+# Restrict the listing to one exact component id
+adt source versions ZCL_MY_CLASS --type CLAS \
+  --component implementations --json
+
+# Read one immutable version to stdout or a file
+adt source version get --uri /sap/bc/adt/.../versions/2 --output -
+adt source version get --uri /sap/bc/adt/.../versions/2 --output before.abap
+
+# Build one metadata-only manifest for an ordered transport set
+adt cts tr source-manifest DEVK900001,DEVK900002 --json
+adt cts tr source-manifest DEVK900001 \
+  --also-transport DEVK900002,DEVK900003 --json
+```
+
+Each manifest component has an explicit state:
+
+| State         | Meaning                                                     |
+| ------------- | ----------------------------------------------------------- |
+| `added`       | Exact in-scope head exists and has no older base            |
+| `modified`    | Exact base and head were selected                           |
+| `deleted`     | CTS marks deletion and an exact recoverable base exists     |
+| `unchanged`   | No source change is represented                             |
+| `ambiguous`   | Provenance or ordering cannot prove an isolated exact delta |
+| `unsupported` | SAP metadata exposes no usable versioned source component   |
+| `failed`      | SAP rejected metadata/history retrieval for the component   |
+
+`ambiguous` and `unsupported` are explicit non-exact results and leave the
+command successful. If any entry is `failed`, the complete manifest is still
+printed and the command exits non-zero. Structured output and diagnostics never
+contain credentials or source bodies.
+
 ## Configuration
 
 Create `adt.config.ts` in your project root for TypeScript configuration with full type checking:

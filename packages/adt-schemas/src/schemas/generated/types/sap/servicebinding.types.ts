@@ -7,120 +7,120 @@
 
 export type ServicebindingSchema = {
     serviceBinding: {
-        containerRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        containerRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
-        link?: {
+        link?: undefined | {
             href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
+            rel?: string | undefined;
+            type?: string | undefined;
+            hreflang?: string | undefined;
+            title?: string | undefined;
+            length?: number | undefined;
+            etag?: string | undefined;
+            _text?: string | undefined;
         }[];
-        adtTemplate?: {
-            adtProperty?: {
-                $value?: string;
-                key?: string;
+        adtTemplate?: undefined | {
+            adtProperty?: undefined | {
+                $value?: string | undefined;
+                key?: string | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         };
-        packageRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        packageRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
         serviceDefinition: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
         services: {
             content: {
                 serviceDefinition: {
-                    extension?: unknown;
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
+                    extension?: undefined | unknown;
+                    uri?: string | undefined;
+                    parentUri?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    packageName?: string | undefined;
+                    description?: string | undefined;
                 };
-                bindingTypeData?: {
-                    content?: {
-                        $value?: string;
-                        type?: string;
-                        encoding?: string;
+                bindingTypeData?: undefined | {
+                    content?: undefined | {
+                        $value?: string | undefined;
+                        type?: string | undefined;
+                        encoding?: string | undefined;
                     };
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
                 };
-                version?: string;
-                minorVersion?: number;
-                patchVersion?: number;
-                buildVersion?: string;
-                releaseState?: string;
+                version?: string | undefined;
+                minorVersion?: number | undefined;
+                patchVersion?: number | undefined;
+                buildVersion?: string | undefined;
+                releaseState?: string | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         }[];
         binding: {
             implementation: {
-                extension?: unknown;
-                uri?: string;
-                parentUri?: string;
-                type?: string;
-                name?: string;
-                packageName?: string;
-                description?: string;
+                extension?: undefined | unknown;
+                uri?: string | undefined;
+                parentUri?: string | undefined;
+                type?: string | undefined;
+                name?: string | undefined;
+                packageName?: string | undefined;
+                description?: string | undefined;
             };
-            type?: string;
-            version?: string;
-            category?: string;
-            calculatedType?: string;
+            type?: string | undefined;
+            version?: string | undefined;
+            category?: string | undefined;
+            calculatedType?: string | undefined;
         };
         name: string;
         type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        masterSystem?: string;
-        masterLanguage?: string;
-        responsible?: string;
-        abapLanguageVersion?: string;
-        contract?: string;
-        releaseSupported?: boolean;
-        published?: boolean;
-        repair?: boolean;
-        bindingCreated?: boolean;
-        allowedAction?: string;
+        changedBy?: string | undefined;
+        changedAt?: string | undefined;
+        createdAt?: string | undefined;
+        createdBy?: string | undefined;
+        version?: undefined | "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+        description?: string | undefined;
+        descriptionTextLimit?: number | undefined;
+        language?: string | undefined;
+        masterSystem?: string | undefined;
+        masterLanguage?: string | undefined;
+        responsible?: string | undefined;
+        abapLanguageVersion?: string | undefined;
+        contract?: string | undefined;
+        releaseSupported?: boolean | undefined;
+        published?: boolean | undefined;
+        repair?: boolean | undefined;
+        bindingCreated?: boolean | undefined;
+        allowedAction?: string | undefined;
     };
 };

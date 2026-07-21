@@ -20,11 +20,30 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { createMcpServer } from '../server.js';
 import { createSessionRegistry } from '../session/registry.js';
 import type { SessionRegistry } from '../session/registry.js';
+import type {
+  DestinationContextRegistry,
+  RequestIdentity,
+} from '../session/destination-registry.js';
+import {
+  isMcpDestinationKey,
+  isMcpOperationClass,
+  type McpFrozenSourceAccess,
+  type McpRequestAccess,
+} from '../tools/scope-catalogue.js';
 import {
   loadMultiSystemConfig,
   type MultiSystemConfig,
 } from './multi-system.js';
-import { createAuthMiddleware, type AuthMode } from './auth.js';
+import { createAuthMiddleware, type AuthMode, type UserHint } from './auth.js';
+import {
+  isMcpInvocationDispatchPolicySupported,
+  parseAiReviewFrozenSourcePolicy,
+  parseFrozenSource,
+} from './invocation.js';
+import type {
+  McpInvocationVerifier,
+  TrustedMcpInvocationClaims,
+} from './invocation.js';
 import type { OAuthOptions } from './oauth.js';
 import { createCorsHandler } from './cors.js';
 
@@ -44,7 +63,8 @@ export interface HttpServerOptions {
   /**
    * Authentication mode for incoming requests. Defaults to `'none'` when
    * no token / forwarded-auth flag is configured. Misconfiguration (e.g.
-   * `bearer` without a token) throws synchronously from `startHttpServer`.
+   * `bearer` without a token) throws synchronously when the handler is
+   * created, including through `startHttpServer`.
    */
   authMode?: AuthMode;
   /** Bearer token (required when `authMode === 'bearer'`). */
@@ -62,6 +82,12 @@ export interface HttpServerOptions {
    */
   oauth?: OAuthOptions;
   /**
+   * ADT-issued invocation verifier (required when `authMode ===
+   * 'invocation'`). Its trusted claims are the only source for identity and
+   * scope in destination-aware sidecar mode.
+   */
+  invocationVerifier?: McpInvocationVerifier;
+  /**
    * Internal test hook — called with each successful OAuth `userHint`.
    * Not part of the public API.
    * @internal
@@ -76,6 +102,25 @@ export interface HttpServerOptions {
   multiSystem?: MultiSystemConfig;
   /** Override the session registry (mainly for tests). */
   registry?: SessionRegistry;
+  /**
+   * Enables destination-aware shared-server mode. Access and identity are
+   * derived only from the authenticated request's trusted `UserHint` at MCP
+   * session initialization, then captured for the life of that session.
+   */
+  destinationServer?: {
+    destinationRegistry: DestinationContextRegistry;
+    requestIdentity: (input: {
+      userHint?: UserHint;
+      invocation?: TrustedMcpInvocationClaims;
+    }) => RequestIdentity;
+    requestAccess: (input: {
+      userHint?: UserHint;
+      invocation?: TrustedMcpInvocationClaims;
+    }) => McpRequestAccess | undefined;
+    resolveFrozenSource?: NonNullable<
+      import('../types.js').ToolContext['resolveFrozenSource']
+    >;
+  };
   /** Inject a logger that writes to stderr by default. */
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
 }
@@ -88,10 +133,135 @@ export interface RunningHttpServer {
   close(): Promise<void>;
 }
 
+/**
+ * A reusable Streamable HTTP MCP request handler.
+ *
+ * The embedding application owns its Node listener and delegates only the
+ * requests routed to MCP to `handle`. Calling `close` releases MCP sessions
+ * and transports, but deliberately never closes that listener.
+ */
+export interface HttpMcpHandler {
+  readonly registry: SessionRegistry;
+  handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void>;
+  close(): Promise<void>;
+}
+
 type Middleware = (
   req: http.IncomingMessage,
   res: http.ServerResponse,
 ) => Promise<boolean> | boolean;
+
+/**
+ * Captures trusted access at initialization so a provider cannot change a
+ * session's authorization by mutating the object it returned later.
+ */
+function snapshotRequestAccess(
+  access: McpRequestAccess | undefined,
+): McpRequestAccess | undefined {
+  if (!access) return undefined;
+
+  const classes = access.classes;
+  const destinationKeys = access.destinationKeys;
+  if (!Array.isArray(classes) || !Array.isArray(destinationKeys)) {
+    return undefined;
+  }
+
+  if (
+    !classes.every(isMcpOperationClass) ||
+    !destinationKeys.every(isMcpDestinationKey)
+  ) {
+    return undefined;
+  }
+
+  const frozenSource = snapshotFrozenSourceAccess(access.frozenSource);
+  if (access.frozenSource && !frozenSource) return undefined;
+
+  return Object.freeze({
+    classes: Object.freeze([...classes]),
+    destinationKeys: Object.freeze([...destinationKeys]),
+    ...(frozenSource ? { frozenSource } : {}),
+  });
+}
+
+function snapshotFrozenSourceAccess(
+  access: McpFrozenSourceAccess | undefined,
+): McpFrozenSourceAccess | undefined {
+  if (!access) return undefined;
+  if (
+    typeof access.systemSid !== 'string' ||
+    access.systemSid.length === 0 ||
+    access.systemSid.length > 16 ||
+    !Number.isSafeInteger(access.maxSourceBytes) ||
+    access.maxSourceBytes < 1 ||
+    access.maxSourceBytes > 2 * 1024 * 1024 ||
+    !Array.isArray(access.sources) ||
+    access.sources.length === 0 ||
+    access.sources.length > 500
+  ) {
+    return undefined;
+  }
+  const sourceKeys = new Set<string>();
+  const sourceRefs = new Set<string>();
+  const sources: {
+    canonicalKey: string;
+    componentId: string;
+    sourceRef: string;
+  }[] = [];
+  for (const source of access.sources) {
+    const parsed = parseFrozenSource(source, sourceKeys, sourceRefs);
+    if (!parsed) return undefined;
+    sources.push(parsed);
+  }
+  return Object.freeze({
+    systemSid: access.systemSid,
+    sources: Object.freeze(sources),
+    maxSourceBytes: access.maxSourceBytes,
+  });
+}
+
+/** A deterministic, non-secret value used only for session affinity checks. */
+function sessionIdentityBinding(
+  identity: RequestIdentity,
+  invocationTokenId?: string,
+): string {
+  if (!identity.principal || typeof identity.principal !== 'string') {
+    throw new Error('Trusted request identity is missing a principal');
+  }
+  if (identity.agentId !== undefined && typeof identity.agentId !== 'string') {
+    throw new Error('Trusted request identity has an invalid agent id');
+  }
+  return JSON.stringify([
+    identity.principal,
+    identity.agentId ?? null,
+    invocationTokenId ?? null,
+  ]);
+}
+
+function invocationRequestIdentity(
+  invocation: TrustedMcpInvocationClaims | undefined,
+): RequestIdentity {
+  if (!invocation) {
+    throw new Error('Trusted MCP invocation identity is missing');
+  }
+  return {
+    principal: invocation.principal,
+    agentId: invocation.agentId,
+  };
+}
+
+function invocationRequestAccess(
+  invocation: TrustedMcpInvocationClaims | undefined,
+): McpRequestAccess | undefined {
+  if (!invocation || !isMcpInvocationDispatchPolicySupported(invocation)) {
+    return undefined;
+  }
+  const frozenSource = parseAiReviewFrozenSourcePolicy(invocation);
+  return snapshotRequestAccess({
+    classes: invocation.classes,
+    destinationKeys: invocation.destinationKeys,
+    ...(frozenSource ? { frozenSource } : {}),
+  });
+}
 
 function defaultLog(level: 'info' | 'warn' | 'error', msg: string): void {
   // Write to stderr to avoid polluting any stdout-based transport on the
@@ -205,15 +375,11 @@ function writeJsonError(
 }
 
 /**
- * Starts the HTTP transport and returns a handle that can be used to
- * close it (and all active sessions) gracefully.
+ * Creates a reusable MCP HTTP handler without binding a Node listener.
  */
-export async function startHttpServer(
+export function createHttpMcpHandler(
   options: HttpServerOptions = {},
-): Promise<RunningHttpServer> {
-  const port =
-    options.port ??
-    (process.env.MCP_PORT ? Number(process.env.MCP_PORT) : 3000);
+): HttpMcpHandler {
   const host = options.host ?? process.env.MCP_HOST ?? '127.0.0.1';
   const log = options.log ?? defaultLog;
 
@@ -221,11 +387,27 @@ export async function startHttpServer(
     options.registry ??
     createSessionRegistry({ ttlMs: options.ttlMs ?? 30 * 60 * 1000 });
   const multiSystem = options.multiSystem ?? loadMultiSystemConfig();
+  const destinationServer = options.destinationServer;
 
   // One transport per MCP session, plus the paired McpServer that owns it.
   // The SDK expects `server.connect(transport)` to be called once per pair.
   const transports = new Map<string, StreamableHTTPServerTransport>();
   const servers = new Map<string, McpServer>();
+  const sessionIdentityBindings = new Map<string, string>();
+
+  async function releaseSessionResources(sessionId: string): Promise<void> {
+    const server = servers.get(sessionId);
+    transports.delete(sessionId);
+    sessionIdentityBindings.delete(sessionId);
+    servers.delete(sessionId);
+    await registry.delete(sessionId);
+    await destinationServer?.destinationRegistry.releaseAll(sessionId);
+    try {
+      await server?.close();
+    } catch {
+      // ignore
+    }
+  }
 
   const hostAllow = normaliseHostAllowlist(host, options.allowedHosts);
   const hostValidator = makeHostValidator(hostAllow);
@@ -242,17 +424,57 @@ export async function startHttpServer(
       'startHttpServer: authMode=oauth requires `oauth` options (issuer at minimum)',
     );
   }
+  if (authMode === 'invocation' && !options.invocationVerifier) {
+    throw new Error(
+      'createHttpMcpHandler: authMode=invocation requires an invocation verifier',
+    );
+  }
+  if (authMode === 'invocation' && !destinationServer) {
+    throw new Error(
+      'createHttpMcpHandler: authMode=invocation requires destinationServer scope enforcement',
+    );
+  }
   const authMw = createAuthMiddleware({
     mode: authMode,
     token: options.authToken,
     oauth: options.oauth,
+    invocationVerifier: options.invocationVerifier,
     onUserHint: options.onOAuthUserHint,
   });
   const cors = createCorsHandler({ allowedOrigins: options.allowedOrigins });
 
+  const sessionMatchesAuthenticatedIdentity = (
+    sessionId: string,
+    userHint: UserHint | undefined,
+    invocation: TrustedMcpInvocationClaims | undefined,
+    res: http.ServerResponse,
+  ): boolean => {
+    if (!destinationServer) return true;
+    const expected = sessionIdentityBindings.get(sessionId);
+    if (!expected) {
+      writeJsonError(res, 403, 'mcp_session_identity_mismatch');
+      return false;
+    }
+    try {
+      const identity =
+        authMode === 'invocation'
+          ? invocationRequestIdentity(invocation)
+          : destinationServer.requestIdentity({ userHint, invocation });
+      const actual = sessionIdentityBinding(identity, invocation?.tokenId);
+      if (actual === expected) return true;
+    } catch {
+      // Treat a failed or malformed trusted identity derivation exactly like
+      // a mismatch. Never fall back to a client field or session contents.
+    }
+    writeJsonError(res, 403, 'mcp_session_identity_mismatch');
+    return false;
+  };
+
   const handleMcp = async (
     req: http.IncomingMessage,
     res: http.ServerResponse,
+    userHint: UserHint | undefined,
+    invocation: TrustedMcpInvocationClaims | undefined,
   ): Promise<void> => {
     const sessionHeader = req.headers['mcp-session-id'];
     const sessionId = Array.isArray(sessionHeader)
@@ -277,6 +499,16 @@ export async function startHttpServer(
       }
 
       if (sessionId && transports.has(sessionId)) {
+        if (
+          !sessionMatchesAuthenticatedIdentity(
+            sessionId,
+            userHint,
+            invocation,
+            res,
+          )
+        ) {
+          return;
+        }
         // Refresh the session's last-used timestamp so the TTL sweep
         // doesn't evict an actively-used session between tool calls.
         registry.touch(sessionId);
@@ -286,44 +518,81 @@ export async function startHttpServer(
       }
 
       if (!sessionId && isInitializeRequest(body)) {
+        let initializedSessionBinding: string | undefined;
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (id) => {
             transports.set(id, transport);
+            if (initializedSessionBinding) {
+              sessionIdentityBindings.set(id, initializedSessionBinding);
+            }
             log('info', `session initialized: ${id}`);
           },
           onsessionclosed: async (id) => {
             log('info', `session closed by client: ${id}`);
-            transports.delete(id);
-            await registry.delete(id);
-            const s = servers.get(id);
-            servers.delete(id);
-            try {
-              await s?.close();
-            } catch {
-              // ignore
-            }
+            await releaseSessionResources(id);
           },
         });
 
         transport.onclose = () => {
           const id = transport.sessionId;
           if (!id) return;
-          transports.delete(id);
-          const s = servers.get(id);
-          servers.delete(id);
-          // Fire-and-forget — registry.delete swallows errors internally.
-          void registry.delete(id);
-          try {
-            void s?.close();
-          } catch {
-            // ignore
-          }
+          void releaseSessionResources(id);
         };
+
+        let sessionIdentity: RequestIdentity | undefined;
+        let sessionAccess: McpRequestAccess | undefined;
+        if (destinationServer) {
+          let identityDerivationFailed = false;
+          try {
+            sessionIdentity =
+              authMode === 'invocation'
+                ? invocationRequestIdentity(invocation)
+                : destinationServer.requestIdentity({ userHint, invocation });
+            initializedSessionBinding = sessionIdentityBinding(
+              sessionIdentity,
+              invocation?.tokenId,
+            );
+          } catch {
+            // A failed identity derivation must not turn into caller-selected
+            // identity material. The fallback is audit-safe and fail-closed
+            // once the lease provider applies its ordinary authorization.
+            sessionIdentity = { principal: 'unknown' };
+            identityDerivationFailed = true;
+          }
+          if (!identityDerivationFailed) {
+            try {
+              sessionAccess =
+                authMode === 'invocation'
+                  ? invocationRequestAccess(invocation)
+                  : snapshotRequestAccess(
+                      destinationServer.requestAccess({ userHint, invocation }),
+                    );
+            } catch {
+              // Missing or failed trusted access derivation is intentionally
+              // indistinguishable from no access at dispatch time.
+              sessionAccess = undefined;
+            }
+          }
+        }
 
         const mcp = createMcpServer({
           registry,
           resolveSystem: (id) => multiSystem.resolve(id),
+          ...(destinationServer
+            ? {
+                destinationRegistry: destinationServer.destinationRegistry,
+                requestIdentity: () =>
+                  sessionIdentity ?? { principal: 'unknown' },
+                requestAccess: () => sessionAccess,
+                ...(destinationServer.resolveFrozenSource
+                  ? {
+                      resolveFrozenSource:
+                        destinationServer.resolveFrozenSource,
+                    }
+                  : {}),
+              }
+            : {}),
         });
         await mcp.connect(transport);
         // Store under the generated session id as soon as it exists.
@@ -355,6 +624,16 @@ export async function startHttpServer(
         writeJsonError(res, 400, 'Missing or unknown Mcp-Session-Id header');
         return;
       }
+      if (
+        !sessionMatchesAuthenticatedIdentity(
+          sessionId,
+          userHint,
+          invocation,
+          res,
+        )
+      ) {
+        return;
+      }
       registry.touch(sessionId);
       const transport = transports.get(sessionId)!;
       await transport.handleRequest(req, res);
@@ -365,7 +644,10 @@ export async function startHttpServer(
     res.end();
   };
 
-  const server = http.createServer(async (req, res) => {
+  const handle = async (
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> => {
     try {
       // Pipeline order (security-critical):
       //   1. CORS — handles preflight short-circuit.
@@ -392,13 +674,9 @@ export async function startHttpServer(
 
       const authResult = await authMw(req, res);
       if (!authResult.allowed) return;
-      // userHint available for future per-request context propagation
-      // (Wave 3/4). Currently unused but intentionally preserved.
-      void authResult.userHint;
-
       // Accept /mcp and /mcp/ — ignore query string.
       if (pathOnly === '/mcp' || pathOnly === '/mcp/') {
-        await handleMcp(req, res);
+        await handleMcp(req, res, authResult.userHint, authResult.invocation);
         return;
       }
 
@@ -411,19 +689,7 @@ export async function startHttpServer(
       );
       writeJsonError(res, 500, 'Internal server error');
     }
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    const onError = (err: Error) => reject(err);
-    server.once('error', onError);
-    server.listen(port, host, () => {
-      server.removeListener('error', onError);
-      resolve();
-    });
-  });
-
-  const boundPort = (server.address() as { port: number } | null)?.port ?? port;
-  log('info', `listening on http://${host}:${boundPort}/mcp`);
+  };
 
   let closed = false;
   const close = async (): Promise<void> => {
@@ -434,6 +700,15 @@ export async function startHttpServer(
     // Close each outstanding transport + server pair.
     const pairs = Array.from(transports.entries());
     transports.clear();
+    for (const [sessionId] of pairs) sessionIdentityBindings.delete(sessionId);
+    if (destinationServer) {
+      await Promise.allSettled(
+        pairs.map(
+          async ([sessionId]) =>
+            await destinationServer.destinationRegistry.releaseAll(sessionId),
+        ),
+      );
+    }
     await Promise.allSettled(
       pairs.map(async ([, t]) => {
         try {
@@ -454,6 +729,58 @@ export async function startHttpServer(
         }
       }),
     );
+  };
+
+  return {
+    registry,
+    handle,
+    close,
+  };
+}
+
+/**
+ * Starts the HTTP transport and returns a handle that can be used to close
+ * both the listener and all active MCP sessions gracefully.
+ *
+ * This is a backwards-compatible listener adapter around
+ * `createHttpMcpHandler` for standalone deployments.
+ */
+export async function startHttpServer(
+  options: HttpServerOptions = {},
+): Promise<RunningHttpServer> {
+  const port =
+    options.port ??
+    (process.env.MCP_PORT ? Number(process.env.MCP_PORT) : 3000);
+  const host = options.host ?? process.env.MCP_HOST ?? '127.0.0.1';
+  const log = options.log ?? defaultLog;
+  const handler = createHttpMcpHandler(options);
+  const server = http.createServer((req, res) => {
+    void handler.handle(req, res);
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const onError = (err: Error) => reject(err);
+    server.once('error', onError);
+    server.listen(port, host, () => {
+      server.removeListener('error', onError);
+      resolve();
+    });
+  });
+
+  const boundPort = (server.address() as { port: number } | null)?.port ?? port;
+  log('info', `listening on http://${host}:${boundPort}/mcp`);
+
+  let closed = false;
+  const close = async (): Promise<void> => {
+    if (closed) return;
+    closed = true;
+    await handler.close();
+    // `server.close()` stops accepting new requests but can otherwise wait
+    // indefinitely for a keep-alive socket which never created an MCP
+    // transport (for example, a rejected bearer credential). Handler-owned
+    // MCP transports have already been closed above, so force remaining HTTP
+    // sockets closed before awaiting the listener callback.
+    server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   };
 
@@ -461,7 +788,7 @@ export async function startHttpServer(
     url: `http://${host}:${boundPort}/mcp`,
     port: boundPort,
     host,
-    registry,
+    registry: handler.registry,
     close,
   };
 }

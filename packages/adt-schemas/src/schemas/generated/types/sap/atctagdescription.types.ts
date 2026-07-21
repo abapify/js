@@ -7,12 +7,12 @@
 
 export type AtctagdescriptionSchema = {
     descriptionTags: {
-        tagWithDescription?: {
+        tagWithDescription?: undefined | {
             name: string;
             descriptions: {
-                description?: {
-                    value?: string;
-                    description?: string;
+                description?: undefined | {
+                    value?: string | undefined;
+                    description?: string | undefined;
                 }[];
             };
         }[];

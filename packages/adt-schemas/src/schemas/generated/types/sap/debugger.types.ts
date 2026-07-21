@@ -7,7 +7,7 @@
 
 export type DebuggerSchema = {
     memorySizes: {
-        abap?: {
+        abap?: undefined | {
             staticVariables: number;
             stackUsed: number;
             stackAllocated: number;

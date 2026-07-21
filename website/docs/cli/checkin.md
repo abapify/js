@@ -22,17 +22,17 @@ computes the plan without touching SAP.
 
 ## Options
 
-| Flag                                | Description                                                              |
-| ----------------------------------- | ------------------------------------------------------------------------ |
-| `--format <format>`                 | Format plugin id (default: `abapgit`; try `gcts` for AFF layout).        |
-| `-p, --package <package>`           | Target root SAP package for the checkin.                                 |
-| `-t, --transport <transport>`       | Transport request to use for lock/save operations.                       |
-| `--types <types>`                   | Filter by object types (comma-separated, e.g. `CLAS,INTF`).              |
-| `--dry-run`                         | Validate & plan only — no writes to SAP (default: `false`).              |
-| `--no-activate`                     | Skip activation after save (objects remain inactive).                    |
-| `--unlock`                          | Force-unlock objects already locked by the current user before applying. |
-| `--abap-language-version <version>` | ABAP language version for new objects (e.g. `'5'` for Cloud).            |
-| `--json`                            | Emit the `CheckinResult` as JSON (machine-readable) (default: `false`).  |
+| Flag                                | Description                                                             |
+| ----------------------------------- | ----------------------------------------------------------------------- |
+| `--format <format>`                 | Format plugin id (default: `abapgit`; try `gcts` for AFF layout).       |
+| `-p, --package <package>`           | Target root SAP package for the checkin.                                |
+| `-t, --transport <transport>`       | Transport request to use for lock/save operations.                      |
+| `--types <types>`                   | Filter by object types (comma-separated, e.g. `CLAS,INTF`).             |
+| `--dry-run`                         | Validate & plan only — no writes to SAP (default: `false`).             |
+| `--no-activate`                     | Skip activation after save (objects remain inactive).                   |
+| `--unlock`                          | Release objects only when this CLI persisted their lock handles.        |
+| `--abap-language-version <version>` | ABAP language version for new objects (e.g. `'5'` for Cloud).           |
+| `--json`                            | Emit the `CheckinResult` as JSON (machine-readable) (default: `false`). |
 
 ## Examples
 
@@ -47,7 +47,7 @@ adt checkin ./repo -p ZMYPKG -t DEVK900001
 adt checkin ./repo --format gcts -p ZMYPKG -t DEVK900001 \
     --types CLAS,INTF,DDLS --json
 
-# Force-unlock stale locks and skip activation
+# Release any persisted lock handles and skip activation
 adt checkin ./repo -p ZMYPKG -t DEVK900001 --unlock --no-activate
 ```
 

@@ -7,96 +7,96 @@
 
 export type LogSchema = {
     logKeys: {
-        link?: {
+        link?: undefined | {
             href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
+            rel?: string | undefined;
+            type?: string | undefined;
+            hreflang?: string | undefined;
+            title?: string | undefined;
+            length?: number | undefined;
+            etag?: string | undefined;
+            _text?: string | undefined;
         }[];
-        progVersion?: {
-            key?: {
-                link?: {
+        progVersion?: undefined | {
+            key?: undefined | {
+                link?: undefined | {
                     href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
+                    rel?: string | undefined;
+                    type?: string | undefined;
+                    hreflang?: string | undefined;
+                    title?: string | undefined;
+                    length?: number | undefined;
+                    etag?: string | undefined;
+                    _text?: string | undefined;
                 }[];
-                value?: string;
-                calls?: number;
-                lastCall?: string;
+                value?: string | undefined;
+                calls?: number | undefined;
+                lastCall?: string | undefined;
             }[];
-            generatedAt?: string;
+            generatedAt?: string | undefined;
         }[];
-        base?: string;
+        base?: string | undefined;
     };
 } | {
     logEntry: {
         fieldList: {
-            field?: {
+            field?: undefined | {
                 value: {
-                    link?: {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    e?: {
-                        t?: boolean;
-                        v?: string;
-                        y?: string;
+                    e?: undefined | {
+                        t?: boolean | undefined;
+                        v?: string | undefined;
+                        y?: string | undefined;
                     };
-                    s?: {
+                    s?: undefined | {
                         c: unknown[];
-                        t?: boolean;
+                        t?: boolean | undefined;
                     };
-                    t?: {
-                        c?: unknown[];
-                        t?: boolean;
+                    t?: undefined | {
+                        c?: undefined | unknown[];
+                        t?: boolean | undefined;
                     };
                 };
-                name?: string;
+                name?: string | undefined;
             }[];
         };
-        link?: {
+        link?: undefined | {
             href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
+            rel?: string | undefined;
+            type?: string | undefined;
+            hreflang?: string | undefined;
+            title?: string | undefined;
+            length?: number | undefined;
+            etag?: string | undefined;
+            _text?: string | undefined;
         }[];
     };
 } | {
     collectionSummary: {
-        success?: {
+        success?: undefined | {
             server: {
-                name?: string;
+                name?: string | undefined;
             };
         };
-        unreached?: {
+        unreached?: undefined | {
             server: {
-                name?: string;
+                name?: string | undefined;
             };
         };
-        failed?: {
-            server?: string;
-            returnCode?: number;
-            errorMessage?: string;
+        failed?: undefined | {
+            server?: string | undefined;
+            returnCode?: number | undefined;
+            errorMessage?: string | undefined;
         }[];
-        collectedLogs?: number;
+        collectedLogs?: number | undefined;
     };
 };

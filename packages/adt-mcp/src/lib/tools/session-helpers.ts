@@ -19,6 +19,7 @@ import type { AdtClient } from '@abapify/adt-client';
 import type { ConnectionParams, ToolContext } from '../types';
 
 export interface LegacyConnectionArgs {
+  destination?: string;
   baseUrl?: string;
   client?: string;
   username?: string;
@@ -34,6 +35,8 @@ export interface ResolvedClient {
   isSessionScoped: boolean;
   /** Logical SAP system id, when known. */
   systemId?: string;
+  /** Public shared-service routing key, when one was used. */
+  destination?: string;
 }
 
 /**
@@ -47,12 +50,56 @@ export interface ResolvedClient {
  * Throws when none apply; callers should wrap with the standard
  * `{ isError: true, content: [...] }` response.
  */
+export async function resolveDestinationClient(
+  ctx: ToolContext,
+  args: LegacyConnectionArgs,
+  extra: { sessionId?: string },
+): Promise<{
+  client: AdtClient;
+  mcpSessionId: string;
+  destination: string;
+  alreadyConnected: boolean;
+}> {
+  const mcpSessionId = extra.sessionId;
+  if (!mcpSessionId || !ctx.destinationRegistry) {
+    throw new Error(
+      'A destination requires HTTP shared-service mode with an MCP session.',
+    );
+  }
+  const existing = ctx.destinationRegistry.get(mcpSessionId, args.destination);
+  const destination = await ctx.destinationRegistry.getOrCreate(
+    mcpSessionId,
+    args.destination,
+    ctx.requestIdentity?.(extra) ?? { principal: 'unknown' },
+  );
+  return {
+    client: destination.client,
+    mcpSessionId,
+    destination: args.destination,
+    alreadyConnected: existing !== undefined,
+  };
+}
+
 export async function resolveClient(
   ctx: ToolContext,
   args: LegacyConnectionArgs,
   extra: { sessionId?: string },
 ): Promise<ResolvedClient> {
   const mcpSessionId = extra.sessionId;
+
+  // Shared-service mode always resolves a client from the exact
+  // (MCP-session, destination) context. This branch intentionally precedes
+  // every legacy connection mechanism so a shared server can never fall back
+  // to caller-supplied endpoint or credential material.
+  if (args.destination !== undefined) {
+    const destination = await resolveDestinationClient(ctx, args, extra);
+    return {
+      client: destination.client,
+      mcpSessionId: destination.mcpSessionId,
+      isSessionScoped: true,
+      destination: destination.destination,
+    };
+  }
 
   // 1. Session-scoped (HTTP, after sap_connect)
   if (mcpSessionId && ctx.registry) {

@@ -988,6 +988,11 @@ export function matchRoute(
     return { status: 200, body: f.session, contentType: 'application/json' };
   }
 
+  // ATC worklist creation must precede a run in the production protocol.
+  if (m === 'POST' && pathname === '/sap/bc/adt/atc/worklists') {
+    return { status: 200, body: f.atcRun, contentType: 'application/json' };
+  }
+
   // ATC create run
   if (m === 'POST' && url.startsWith('/sap/bc/adt/atc/runs')) {
     return { status: 200, body: f.atcRun, contentType: 'application/json' };
@@ -1023,6 +1028,13 @@ export function matchRoute(
   // Lock — POST ?_action=LOCK
   if (m === 'POST' && url.includes('_action=LOCK')) {
     const objectUri = extractObjectUri(url);
+    if (locks.get(objectUri)) {
+      return {
+        status: 409,
+        body: `Object ${objectUri} is already locked in request MOCKK900001`,
+        contentType: 'text/plain',
+      };
+    }
     const entry = locks.lock(objectUri);
     // Replace the handle placeholder in the fixture XML with the real handle
     const body = f.lockResponse.replace(

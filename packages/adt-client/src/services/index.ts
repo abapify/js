@@ -25,3 +25,16 @@ export {
   type UserInfo,
   type CurrentUserInfo,
 } from './users';
+
+export {
+  SourceHistoryService,
+  SourceHistoryProtocolError,
+  SourceVersionTooLargeError,
+  assertAdtUri,
+  createSourceHistoryService,
+  normalizeSourceVersionFeed,
+  type BoundedSourceReader,
+  type SourceHistoryProtocolErrorCode,
+  type SourceVersionRef,
+  type SourceVersionReference,
+} from './source-history';

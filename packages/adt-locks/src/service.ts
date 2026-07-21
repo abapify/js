@@ -47,6 +47,23 @@ export interface UnlockOptions {
 }
 
 /**
+ * SAP does not expose an ADT operation that returns the handle of an
+ * existing CTS/editor lock. A caller can only unlock a handle it persisted
+ * when it acquired that lock.
+ */
+export class AdtLockHandleUnavailableError extends Error {
+  readonly code = 'ADT_LOCK_HANDLE_UNAVAILABLE' as const;
+  override readonly name = 'AdtLockHandleUnavailableError';
+
+  constructor(readonly objectUri: string) {
+    super(
+      `No persisted lock handle is available for ${objectUri}. ` +
+        'SAP cannot force-unlock this object by URI; wait for the server lock to expire or ask the SAP administrator to clear it.',
+    );
+  }
+}
+
+/**
  * Parse SAP lock response XML to extract lock handle and correlation info.
  *
  * Response format:
@@ -81,12 +98,11 @@ export interface LockService {
   /** Release a lock on an ADT object (lock handle required) */
   unlock(objectUri: string, options: UnlockOptions): Promise<void>;
   /**
-   * Force-unlock: acquire a lock to recover the handle, then immediately unlock.
-   * Works when the object is locked by the current user but the handle was lost
-   * (e.g., crashed session). If the object is locked by another user, the lock
-   * call will fail with 403/409.
+   * Unlock an object using the handle persisted when this client previously
+   * acquired the lock. The historical name is retained for compatibility;
+   * SAP has no server-side force-unlock operation and this never issues LOCK.
    */
-  forceUnlock(objectUri: string, options?: LockOptions): Promise<void>;
+  forceUnlock(objectUri: string): Promise<void>;
   /** List all persisted lock entries (from store) */
   list(): LockEntry[];
   /** Try to UNLOCK every persisted entry, removing successful ones from store */
@@ -160,10 +176,16 @@ export function createLockService(
       store?.deregister(objectUri);
     },
 
-    async forceUnlock(objectUri, options) {
-      // Lock to recover/acquire the handle, then immediately unlock
-      const handle = await this.lock(objectUri, options);
-      await this.unlock(objectUri, { lockHandle: handle.handle });
+    async forceUnlock(objectUri) {
+      // A second LOCK cannot recover a lost handle: real SAP systems such as
+      // TRL reject it with an "already locked in request" conflict. Re-locking
+      // also risks creating a new CTS lock on systems that permit it. Only a
+      // handle registered by a previous successful LOCK is safe to use.
+      const entry = store?.list()?.find((item) => item.objectUri === objectUri);
+      if (!entry) {
+        throw new AdtLockHandleUnavailableError(objectUri);
+      }
+      await this.unlock(objectUri, { lockHandle: entry.lockHandle });
     },
 
     list() {

@@ -7,48 +7,58 @@
 
 export type AtomFeedSchema = {
     feed: {
-        author?: {
-            name?: string;
+        author?: undefined | {
+            name?: string | undefined;
         };
-        title?: string;
-        updated?: string;
-        id?: string;
-        entry?: {
-            id?: string;
-            title?: string;
-            link?: {
+        title?: string | undefined;
+        updated?: string | undefined;
+        id?: string | undefined;
+        entry?: undefined | {
+            id?: string | undefined;
+            title?: string | undefined;
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
-            updated?: string;
-            author?: {
-                name?: string;
+            updated?: string | undefined;
+            author?: undefined | {
+                name?: string | undefined;
+            };
+            content?: undefined | {
+                type?: string | undefined;
+                src?: string | undefined;
+                _text?: string | undefined;
             };
         }[];
     };
 } | {
     entry: {
-        id?: string;
-        title?: string;
-        link?: {
+        id?: string | undefined;
+        title?: string | undefined;
+        link?: undefined | {
             href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
+            rel?: string | undefined;
+            type?: string | undefined;
+            hreflang?: string | undefined;
+            title?: string | undefined;
+            length?: number | undefined;
+            etag?: string | undefined;
+            _text?: string | undefined;
         }[];
-        updated?: string;
-        author?: {
-            name?: string;
+        updated?: string | undefined;
+        author?: undefined | {
+            name?: string | undefined;
+        };
+        content?: undefined | {
+            type?: string | undefined;
+            src?: string | undefined;
+            _text?: string | undefined;
         };
     };
 } | {
@@ -57,27 +67,33 @@ export type AtomFeedSchema = {
     updated: string;
 } | {
     author: {
-        name?: string;
+        name?: string | undefined;
     };
 } | {
     name: string;
 } | {
+    content: {
+        type?: string | undefined;
+        src?: string | undefined;
+        _text?: string | undefined;
+    };
+} | {
     title: string;
 } | {
     category: {
-        term?: string;
-        scheme?: string;
-        label?: string;
+        term?: string | undefined;
+        scheme?: string | undefined;
+        label?: string | undefined;
     };
 } | {
     link: {
         href: string;
-        rel?: string;
-        type?: string;
-        hreflang?: string;
-        title?: string;
-        length?: number;
-        etag?: string;
-        _text?: string;
+        rel?: string | undefined;
+        type?: string | undefined;
+        hreflang?: string | undefined;
+        title?: string | undefined;
+        length?: number | undefined;
+        etag?: string | undefined;
+        _text?: string | undefined;
     };
 };

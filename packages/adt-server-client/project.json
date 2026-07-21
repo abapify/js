@@ -1,0 +1,8 @@
+{
+  "name": "adt-server-client",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/adt-server-client/src",
+  "projectType": "library",
+  "release": { "version": { "manifestRootsToUpdate": ["{projectRoot}"] } },
+  "tags": ["scope:adt", "type:client"]
+}

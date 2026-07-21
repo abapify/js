@@ -4,6 +4,7 @@
  * Uses crud() helper — full CRUD with v2 content type.
  */
 
+import { expect, it } from 'vitest';
 import { packagesV1 } from '../../src/schemas';
 import { fixtures } from '@abapify/adt-fixtures';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
@@ -40,6 +41,18 @@ class PackagesScenario extends ContractScenario {
       response: { status: 200, schema: packagesV1 },
     },
     {
+      name: 'read a rooted subpackage tree',
+      contract: () =>
+        packagesContract.tree({ packagename: 'ZROOT', type: 'sub' }),
+      method: 'GET',
+      path: '/sap/bc/adt/packages/$tree',
+      headers: {
+        Accept: 'application/vnd.sap.adt.packages.v2+xml',
+      },
+      query: { packagename: 'ZROOT', type: 'sub' },
+      response: { status: 200, schema: packagesV1 },
+    },
+    {
       name: 'create package (POST)',
       contract: () => packagesContract.post({ corrNr: 'DEVK900001' }),
       method: 'POST',
@@ -65,4 +78,7 @@ class PackagesScenario extends ContractScenario {
 }
 
 // Run scenario
+it('loads packages scenario', () => {
+  expect(typeof runScenario).toBe('function');
+});
 runScenario(new PackagesScenario());

@@ -1,0 +1,23 @@
+{
+  "name": "@abapify/adt-server-client",
+  "version": "0.4.1",
+  "description": "Generated client for @abapify/adt-server OpenAPI",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "check:generated": "tsx scripts/generate.ts --check"
+  }
+}

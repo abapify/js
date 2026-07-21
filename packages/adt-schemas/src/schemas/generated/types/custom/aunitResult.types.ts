@@ -7,89 +7,89 @@
 
 export type AunitResultSchema = {
     runResult: {
-        program?: {
-            testClasses?: {
-                testClass?: {
-                    testMethods?: {
-                        testMethod?: {
-                            alerts?: {
-                                alert?: {
-                                    title?: string;
-                                    details?: {
-                                        detail?: {
-                                            text?: string;
+        program?: undefined | {
+            testClasses?: undefined | {
+                testClass?: undefined | {
+                    testMethods?: undefined | {
+                        testMethod?: undefined | {
+                            alerts?: undefined | {
+                                alert?: undefined | {
+                                    title?: string | undefined;
+                                    details?: undefined | {
+                                        detail?: undefined | {
+                                            text?: string | undefined;
                                         }[];
                                     };
-                                    stack?: {
-                                        stackEntry?: {
-                                            uri?: string;
-                                            type?: string;
-                                            name?: string;
-                                            description?: string;
+                                    stack?: undefined | {
+                                        stackEntry?: undefined | {
+                                            uri?: string | undefined;
+                                            type?: string | undefined;
+                                            name?: string | undefined;
+                                            description?: string | undefined;
                                         }[];
                                     };
-                                    kind?: string;
-                                    severity?: string;
+                                    kind?: string | undefined;
+                                    severity?: string | undefined;
                                 }[];
                             };
-                            uri?: string;
-                            name?: string;
-                            executionTime?: string;
-                            uriType?: string;
-                            unit?: string;
+                            uri?: string | undefined;
+                            name?: string | undefined;
+                            executionTime?: string | undefined;
+                            uriType?: string | undefined;
+                            unit?: string | undefined;
                         }[];
                     };
-                    alerts?: {
-                        alert?: {
-                            title?: string;
-                            details?: {
-                                detail?: {
-                                    text?: string;
+                    alerts?: undefined | {
+                        alert?: undefined | {
+                            title?: string | undefined;
+                            details?: undefined | {
+                                detail?: undefined | {
+                                    text?: string | undefined;
                                 }[];
                             };
-                            stack?: {
-                                stackEntry?: {
-                                    uri?: string;
-                                    type?: string;
-                                    name?: string;
-                                    description?: string;
+                            stack?: undefined | {
+                                stackEntry?: undefined | {
+                                    uri?: string | undefined;
+                                    type?: string | undefined;
+                                    name?: string | undefined;
+                                    description?: string | undefined;
                                 }[];
                             };
-                            kind?: string;
-                            severity?: string;
+                            kind?: string | undefined;
+                            severity?: string | undefined;
                         }[];
                     };
-                    uri?: string;
-                    name?: string;
-                    uriType?: string;
-                    durationCategory?: string;
-                    riskLevel?: string;
+                    uri?: string | undefined;
+                    name?: string | undefined;
+                    uriType?: string | undefined;
+                    durationCategory?: string | undefined;
+                    riskLevel?: string | undefined;
                 }[];
             };
-            alerts?: {
-                alert?: {
-                    title?: string;
-                    details?: {
-                        detail?: {
-                            text?: string;
+            alerts?: undefined | {
+                alert?: undefined | {
+                    title?: string | undefined;
+                    details?: undefined | {
+                        detail?: undefined | {
+                            text?: string | undefined;
                         }[];
                     };
-                    stack?: {
-                        stackEntry?: {
-                            uri?: string;
-                            type?: string;
-                            name?: string;
-                            description?: string;
+                    stack?: undefined | {
+                        stackEntry?: undefined | {
+                            uri?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            description?: string | undefined;
                         }[];
                     };
-                    kind?: string;
-                    severity?: string;
+                    kind?: string | undefined;
+                    severity?: string | undefined;
                 }[];
             };
-            uri?: string;
-            type?: string;
-            name?: string;
-            uriType?: string;
+            uri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            uriType?: string | undefined;
         }[];
     };
 };

@@ -7,250 +7,250 @@
 
 export type TransportmanagmentSingleSchema = {
     root: {
-        containerRef?: {
-            extension?: unknown;
-            uri?: string;
-            parentUri?: string;
-            type?: string;
-            name?: string;
-            packageName?: string;
-            description?: string;
+        containerRef?: undefined | {
+            extension?: undefined | unknown;
+            uri?: string | undefined;
+            parentUri?: string | undefined;
+            type?: string | undefined;
+            name?: string | undefined;
+            packageName?: string | undefined;
+            description?: string | undefined;
         };
-        link?: {
+        link?: undefined | {
             href: string;
-            rel?: string;
-            type?: string;
-            hreflang?: string;
-            title?: string;
-            length?: number;
-            etag?: string;
-            _text?: string;
+            rel?: string | undefined;
+            type?: string | undefined;
+            hreflang?: string | undefined;
+            title?: string | undefined;
+            length?: number | undefined;
+            etag?: string | undefined;
+            _text?: string | undefined;
         }[];
-        adtTemplate?: {
-            adtProperty?: {
-                $value?: string;
-                key?: string;
+        adtTemplate?: undefined | {
+            adtProperty?: undefined | {
+                $value?: string | undefined;
+                key?: string | undefined;
             }[];
-            name?: string;
+            name?: string | undefined;
         };
-        request?: {
-            long_desc?: string;
-            link?: {
+        request?: undefined | {
+            long_desc?: string | undefined;
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
-            attributes?: {
-                attribute?: string;
-                description?: string;
-                value?: string;
-                position?: string;
+            attributes?: undefined | {
+                attribute?: string | undefined;
+                description?: string | undefined;
+                value?: string | undefined;
+                position?: string | undefined;
             }[];
-            abap_object?: {
-                link?: {
+            abap_object?: undefined | {
+                link?: undefined | {
                     href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
+                    rel?: string | undefined;
+                    type?: string | undefined;
+                    hreflang?: string | undefined;
+                    title?: string | undefined;
+                    length?: number | undefined;
+                    etag?: string | undefined;
+                    _text?: string | undefined;
                 }[];
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-                lock_status?: string;
-                position?: string;
-                img_activity?: string;
-                obj_func?: string;
+                pgmid?: string | undefined;
+                type?: string | undefined;
+                name?: string | undefined;
+                wbtype?: string | undefined;
+                uri?: string | undefined;
+                dummy_uri?: string | undefined;
+                obj_info?: string | undefined;
+                obj_desc?: string | undefined;
+                lock_status?: string | undefined;
+                position?: string | undefined;
+                img_activity?: string | undefined;
+                obj_func?: string | undefined;
             }[];
-            all_objects?: {
-                abap_object?: {
-                    link?: {
+            all_objects?: undefined | {
+                abap_object?: undefined | {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
-                    uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                    lock_status?: string;
-                    position?: string;
-                    img_activity?: string;
-                    obj_func?: string;
+                    pgmid?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    wbtype?: string | undefined;
+                    uri?: string | undefined;
+                    dummy_uri?: string | undefined;
+                    obj_info?: string | undefined;
+                    obj_desc?: string | undefined;
+                    lock_status?: string | undefined;
+                    position?: string | undefined;
+                    img_activity?: string | undefined;
+                    obj_func?: string | undefined;
                 }[];
             };
-            task?: {
-                long_desc?: string;
-                link?: {
+            task?: undefined | {
+                long_desc?: string | undefined;
+                link?: undefined | {
                     href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
+                    rel?: string | undefined;
+                    type?: string | undefined;
+                    hreflang?: string | undefined;
+                    title?: string | undefined;
+                    length?: number | undefined;
+                    etag?: string | undefined;
+                    _text?: string | undefined;
                 }[];
-                abap_object?: {
-                    link?: {
+                abap_object?: undefined | {
+                    link?: undefined | {
                         href: string;
-                        rel?: string;
-                        type?: string;
-                        hreflang?: string;
-                        title?: string;
-                        length?: number;
-                        etag?: string;
-                        _text?: string;
+                        rel?: string | undefined;
+                        type?: string | undefined;
+                        hreflang?: string | undefined;
+                        title?: string | undefined;
+                        length?: number | undefined;
+                        etag?: string | undefined;
+                        _text?: string | undefined;
                     }[];
-                    pgmid?: string;
-                    type?: string;
-                    name?: string;
-                    wbtype?: string;
-                    uri?: string;
-                    dummy_uri?: string;
-                    obj_info?: string;
-                    obj_desc?: string;
-                    lock_status?: string;
-                    position?: string;
-                    img_activity?: string;
-                    obj_func?: string;
+                    pgmid?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    wbtype?: string | undefined;
+                    uri?: string | undefined;
+                    dummy_uri?: string | undefined;
+                    obj_info?: string | undefined;
+                    obj_desc?: string | undefined;
+                    lock_status?: string | undefined;
+                    position?: string | undefined;
+                    img_activity?: string | undefined;
+                    obj_func?: string | undefined;
                 }[];
-                number?: string;
-                owner?: string;
-                desc?: string;
-                status?: string;
-                uri?: string;
-                type?: string;
-                status_text?: string;
-                target?: string;
-                target_desc?: string;
-                source_client?: string;
-                parent?: string;
-                cts_project?: string;
-                cts_project_desc?: string;
-                lastchanged_timestamp?: string;
-                docu?: string;
+                number?: string | undefined;
+                owner?: string | undefined;
+                desc?: string | undefined;
+                status?: string | undefined;
+                uri?: string | undefined;
+                type?: string | undefined;
+                status_text?: string | undefined;
+                target?: string | undefined;
+                target_desc?: string | undefined;
+                source_client?: string | undefined;
+                parent?: string | undefined;
+                cts_project?: string | undefined;
+                cts_project_desc?: string | undefined;
+                lastchanged_timestamp?: string | undefined;
+                docu?: string | undefined;
             }[];
-            review?: {
-                repository_id?: string;
-                repository_url?: string;
-                repository_branch?: string;
-                pull_request_url?: string;
+            review?: undefined | {
+                repository_id?: string | undefined;
+                repository_url?: string | undefined;
+                repository_branch?: string | undefined;
+                pull_request_url?: string | undefined;
             };
-            dynamic_attributes?: {
-                dynamic_attribute?: {
-                    properties?: {
-                        property?: {
-                            key?: string;
-                            value?: string;
+            dynamic_attributes?: undefined | {
+                dynamic_attribute?: undefined | {
+                    properties?: undefined | {
+                        property?: undefined | {
+                            key?: string | undefined;
+                            value?: string | undefined;
                         }[];
                     };
-                    attribute?: string;
-                    value?: string;
-                    description?: string;
-                    domain_name?: string;
+                    attribute?: string | undefined;
+                    value?: string | undefined;
+                    description?: string | undefined;
+                    domain_name?: string | undefined;
                 }[];
             };
-            number?: string;
-            owner?: string;
-            desc?: string;
-            status?: string;
-            uri?: string;
-            type?: string;
-            status_text?: string;
-            target?: string;
-            target_desc?: string;
-            source_client?: string;
-            parent?: string;
-            cts_project?: string;
-            cts_project_desc?: string;
-            lastchanged_timestamp?: string;
-            docu?: string;
+            number?: string | undefined;
+            owner?: string | undefined;
+            desc?: string | undefined;
+            status?: string | undefined;
+            uri?: string | undefined;
+            type?: string | undefined;
+            status_text?: string | undefined;
+            target?: string | undefined;
+            target_desc?: string | undefined;
+            source_client?: string | undefined;
+            parent?: string | undefined;
+            cts_project?: string | undefined;
+            cts_project_desc?: string | undefined;
+            lastchanged_timestamp?: string | undefined;
+            docu?: string | undefined;
         };
-        task?: {
-            long_desc?: string;
-            link?: {
+        task?: undefined | {
+            long_desc?: string | undefined;
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
-            abap_object?: {
-                link?: {
+            abap_object?: undefined | {
+                link?: undefined | {
                     href: string;
-                    rel?: string;
-                    type?: string;
-                    hreflang?: string;
-                    title?: string;
-                    length?: number;
-                    etag?: string;
-                    _text?: string;
+                    rel?: string | undefined;
+                    type?: string | undefined;
+                    hreflang?: string | undefined;
+                    title?: string | undefined;
+                    length?: number | undefined;
+                    etag?: string | undefined;
+                    _text?: string | undefined;
                 }[];
-                pgmid?: string;
-                type?: string;
-                name?: string;
-                wbtype?: string;
-                uri?: string;
-                dummy_uri?: string;
-                obj_info?: string;
-                obj_desc?: string;
-                lock_status?: string;
-                position?: string;
-                img_activity?: string;
-                obj_func?: string;
+                pgmid?: string | undefined;
+                type?: string | undefined;
+                name?: string | undefined;
+                wbtype?: string | undefined;
+                uri?: string | undefined;
+                dummy_uri?: string | undefined;
+                obj_info?: string | undefined;
+                obj_desc?: string | undefined;
+                lock_status?: string | undefined;
+                position?: string | undefined;
+                img_activity?: string | undefined;
+                obj_func?: string | undefined;
             }[];
-            number?: string;
-            owner?: string;
-            desc?: string;
-            status?: string;
-            uri?: string;
-            type?: string;
-            status_text?: string;
-            target?: string;
-            target_desc?: string;
-            source_client?: string;
-            parent?: string;
-            cts_project?: string;
-            cts_project_desc?: string;
-            lastchanged_timestamp?: string;
-            docu?: string;
+            number?: string | undefined;
+            owner?: string | undefined;
+            desc?: string | undefined;
+            status?: string | undefined;
+            uri?: string | undefined;
+            type?: string | undefined;
+            status_text?: string | undefined;
+            target?: string | undefined;
+            target_desc?: string | undefined;
+            source_client?: string | undefined;
+            parent?: string | undefined;
+            cts_project?: string | undefined;
+            cts_project_desc?: string | undefined;
+            lastchanged_timestamp?: string | undefined;
+            docu?: string | undefined;
         }[];
         name: string;
         type: string;
-        changedBy?: string;
-        changedAt?: string;
-        createdAt?: string;
-        createdBy?: string;
-        version?: "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
-        description?: string;
-        descriptionTextLimit?: number;
-        language?: string;
-        object_type?: string;
+        changedBy?: string | undefined;
+        changedAt?: string | undefined;
+        createdAt?: string | undefined;
+        createdBy?: string | undefined;
+        version?: undefined | "" | "active" | "inactive" | "workingArea" | "new" | "partlyActive" | "activeWithInactiveVersion";
+        description?: string | undefined;
+        descriptionTextLimit?: number | undefined;
+        language?: string | undefined;
+        object_type?: string | undefined;
     };
 };
