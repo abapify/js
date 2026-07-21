@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { request as httpsRequest } from 'node:https';
 import {
   AdtResponseTooLargeError,
   assertAdtUri,
@@ -1485,6 +1486,41 @@ function validateUaaUrl(
   return url;
 }
 
+function postFormForJson<T>(
+  url: URL,
+  headers: Record<string, string>,
+  body: string,
+): Promise<{
+  ok: boolean;
+  status: number;
+  statusText: string;
+  json(): Promise<T>;
+}> {
+  return new Promise((resolve, reject) => {
+    const req = httpsRequest(url, { method: 'POST', headers }, (response) => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => chunks.push(chunk));
+      response.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        resolve({
+          ok:
+            response.statusCode !== undefined &&
+            response.statusCode >= 200 &&
+            response.statusCode < 300,
+          status: response.statusCode ?? 0,
+          statusText: response.statusMessage ?? '',
+          async json() {
+            return JSON.parse(text) as T;
+          },
+        });
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 async function clientFromConnection(
   connection: BrokerConnection,
   allowedUaaHosts?: string[],
@@ -1514,22 +1550,20 @@ async function clientFromConnection(
   const credentials = Buffer.from(
     `${serviceKey.uaa.clientid}:${serviceKey.uaa.clientsecret}`,
   ).toString('base64');
-  // The UAA URL is validated above (https, no credentials/query/fragment,
-  // optional explicit allow-list). This is a broker-supplied token endpoint.
-  // nosemgrep: validated UAA origin, optional explicit allow-list
-  const tokenResponse = await fetch(`${uaaUrl.origin}/oauth/token`, {
-    method: 'POST',
-    headers: {
+  const tokenUrl = new URL('/oauth/token', uaaUrl);
+  const tokenResponse = await postFormForJson<{
+    access_token?: string;
+    token_type?: string;
+  }>(
+    tokenUrl,
+    {
       authorization: `Basic ${credentials}`,
       'content-type': 'application/x-www-form-urlencoded',
     },
-    body: 'grant_type=client_credentials',
-  });
+    'grant_type=client_credentials',
+  );
   if (!tokenResponse.ok) throw new Error('BTP token acquisition failed');
-  const token = (await tokenResponse.json()) as {
-    access_token?: string;
-    token_type?: string;
-  };
+  const token = await tokenResponse.json();
   if (!token.access_token)
     throw new Error('BTP token response did not contain access_token');
   return createAdtClient({
