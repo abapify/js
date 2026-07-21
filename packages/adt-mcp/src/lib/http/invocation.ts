@@ -175,7 +175,7 @@ function requiredSourceReference(value: unknown): string | undefined {
     value.length === 0 ||
     value.length > MAX_SOURCE_REFERENCE_LENGTH ||
     // eslint-disable-next-line no-control-regex
-    /[\s\u0000-\u001f\u007f]/u.test(value)
+    /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(value)
   ) {
     return undefined;
   }
@@ -316,7 +316,7 @@ function requiredComponentIdentifier(value: unknown): string | undefined {
     value.length === 0 ||
     value.length > MAX_COMPONENT_IDENTIFIER_LENGTH ||
     // eslint-disable-next-line no-control-regex
-    /[\s\u0000-\u001f\u007f]/u.test(value)
+    /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(value)
   ) {
     return undefined;
   }

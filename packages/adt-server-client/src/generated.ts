@@ -491,7 +491,7 @@ export function createAdtServerClient(options: AdtServerClientOptions) {
     input?: object,
   ): Promise<T> => {
     const path = definition.path.replace(
-      /\{([^}]+)\}/gu,
+      /\{([A-Za-z_$][A-Za-z0-9_$]*)\}/gu,
       (_match, name: string) => {
         const value = inputValue(input, name);
         if (value === undefined || value === null) {

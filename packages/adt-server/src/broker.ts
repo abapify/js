@@ -313,9 +313,9 @@ function canonicalAtcFinding( //NOSONAR
 
 function toCanonicalAtcFindings(response: unknown): CanonicalAtcFinding[] {
   const worklist = record(response)?.worklist;
-  const objects = records(
-    record(worklist)?.objects && record(worklist)?.objects,
-  ).flatMap((objects) => records(objects.object));
+  const objects = records(record(worklist)?.objects).flatMap((objects) =>
+    records(objects.object),
+  );
   return objects.flatMap((object) =>
     records(record(object.findings)?.finding).map((finding) =>
       canonicalAtcFinding(object, finding),
@@ -501,7 +501,7 @@ const RAW_METADATA_TRAVERSAL = /(?:^|\/)\.\.(?:\/|$)/u;
 const ENCODED_METADATA_TRAVERSAL_OR_CONTROL =
   /%(?:25)*(?:0[09ad]|20|2e|2f|5c)/iu;
 // eslint-disable-next-line no-control-regex
-const METADATA_CONTROL_OR_SPACE = /[\s\u0000-\u001f\u007f\\]/u;
+const METADATA_CONTROL_OR_SPACE = /[\s\u0000-\u0008\u000e-\u001f\u007f\\]/u;
 
 function objectMetadataCapability(
   relation: string,
@@ -668,7 +668,8 @@ function isAdtNotFound(error: unknown): boolean {
 
 function adtPrefixQuery(query?: string): string {
   const trimmed = query?.trim();
-  return !trimmed ? '*' : /[*?]/u.test(trimmed) ? trimmed : `${trimmed}*`;
+  if (!trimmed) return '*';
+  return /[*?]/u.test(trimmed) ? trimmed : `${trimmed}*`;
 }
 
 function toPackageNodes(value: unknown): Array<{
@@ -827,7 +828,7 @@ async function getPackageTreeFromMetadata( // NOSONAR - SAP package-tree travers
       else if (!existing.description && current.description)
         existing.description = current.description;
     }
-    for (const child of children.sort((left, right) =>
+    for (const child of children.toSorted((left, right) =>
       left.name.localeCompare(right.name),
     )) {
       const existing = packages.get(child.name);
@@ -1472,7 +1473,7 @@ async function clientFromConnection(
 }
 
 /** Creates the opaque lease/provider pair consumed by shared MCP mode. */
-export function createHttpDestinationContexts(options: HttpBrokerOptions): {
+export function createHttpDestinationContexts(options: HttpBrokerOptions): { //NOSONAR - lease/provider construction mirrors broker request setup by design
   leaseProvider: DestinationLeaseProvider;
   contextFactory: DestinationContextFactory;
   resolveFrozenSource(input: {
@@ -1586,7 +1587,7 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
         typeof body.sourceUri === 'string' &&
         body.sourceUri.startsWith('/sap/bc/adt/') &&
         // eslint-disable-next-line no-control-regex
-        !/[\s\\\u0000-\u001f\u007f]/u.test(body.sourceUri)
+        !/[\s\\\u0000-\u0008\u000e-\u001f\u007f]/u.test(body.sourceUri)
       )
         return { sourceUri: body.sourceUri };
       if (
