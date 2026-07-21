@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import {
   createDestinationContextRegistry,
   createMcpInvocationVerifier,

@@ -493,6 +493,7 @@ const ADT_METADATA_PATH_PREFIX = '/sap/bc/adt/';
 const RAW_METADATA_TRAVERSAL = /(?:^|\/)\.\.(?:\/|$)/u;
 const ENCODED_METADATA_TRAVERSAL_OR_CONTROL =
   /%(?:25)*(?:0[09ad]|20|2e|2f|5c)/iu;
+// eslint-disable-next-line no-control-regex
 const METADATA_CONTROL_OR_SPACE = /[\s\u0000-\u001f\u007f\\]/u;
 
 function objectMetadataCapability(
@@ -1039,12 +1040,15 @@ export function createHttpBrokerOperations(
     const startedAt = Date.now();
     let clientCreated = false;
     let outcome: 'succeeded' | 'failed' = 'failed';
+    let result: T | undefined;
+    let operationError: unknown | undefined;
     try {
       const client = await createClient(lease.connection);
       clientCreated = true;
-      const result = await operation(client);
+      result = await operation(client);
       outcome = 'succeeded';
-      return result;
+    } catch (error) {
+      operationError = error;
     } finally {
       const release = await fetcher(
         new URL(
@@ -1072,9 +1076,14 @@ export function createHttpBrokerOperations(
           }),
         },
       );
-      if (!release.ok)
-        throw new Error(`Destination lease release failed (${release.status})`);
+      if (!release.ok && operationError === undefined) {
+        operationError = new Error(
+          `Destination lease release failed (${release.status})`,
+        );
+      }
     }
+    if (operationError !== undefined) throw operationError;
+    return result!;
   };
   return {
     async listDestinations(): Promise<DestinationSummary[]> {
@@ -1565,6 +1574,7 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
       if (
         typeof body.sourceUri === 'string' &&
         body.sourceUri.startsWith('/sap/bc/adt/') &&
+        // eslint-disable-next-line no-control-regex
         !/[\s\\\u0000-\u001f\u007f]/u.test(body.sourceUri)
       )
         return { sourceUri: body.sourceUri };

@@ -25,6 +25,7 @@ function isSafeAdtSourceUri(value: string): boolean {
   return (
     value.startsWith(ADT_PATH_PREFIX) &&
     value === value.trim() &&
+    // eslint-disable-next-line no-control-regex
     !/[\\\s\u0000-\u001f\u007f]/u.test(value)
   );
 }
