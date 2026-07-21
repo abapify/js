@@ -101,6 +101,7 @@ export function createRestSourceCapabilityService(
         'aes-256-gcm',
         key,
         initializationVector,
+        { authTagLength: 16 },
       );
       decipher.setAuthTag(encrypted.subarray(-16));
       const plaintext = Buffer.concat([
