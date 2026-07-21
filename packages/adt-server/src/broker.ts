@@ -1516,7 +1516,7 @@ async function clientFromConnection(
   ).toString('base64');
   // The UAA URL is validated above (https, no credentials/query/fragment,
   // optional explicit allow-list). This is a broker-supplied token endpoint.
-  // eslint-disable-next-line
+  // nosemgrep: validated UAA origin, optional explicit allow-list
   const tokenResponse = await fetch(`${uaaUrl.origin}/oauth/token`, {
     method: 'POST',
     headers: {
