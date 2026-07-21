@@ -225,7 +225,9 @@ export function destinationModeServer(
         //   tool(name, description, inputSchema, handler)
         //   tool(name, inputSchema, handler)
         if (args.length < 3) {
-          throw new Error(`MCP tool ${name} must declare an input schema and handler`);
+          throw new Error(
+            `MCP tool ${name} must declare an input schema and handler`,
+          );
         }
         let description: string | undefined;
         let inputSchema: unknown;
