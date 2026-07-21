@@ -346,7 +346,8 @@ export async function startAdtServer(
 ): Promise<RunningAdtServer> {
   const host = options.host ?? '127.0.0.1';
   const sourceCapabilities =
-    options.sourceCapabilities ?? createRestSourceCapabilityService();
+    options.sourceCapabilities ??
+    createRestSourceCapabilityService({ allowEphemeralSecret: true });
   const atcDocumentationCapabilities =
     options.atcDocumentationCapabilities ??
     createRestAtcDocumentationCapabilityService();
