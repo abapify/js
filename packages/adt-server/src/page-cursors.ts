@@ -22,7 +22,9 @@ export interface RestPageCursorServiceOptions {
 }
 
 function compare(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 /**

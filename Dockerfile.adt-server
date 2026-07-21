@@ -19,7 +19,7 @@ COPY packages/ ./packages/
 COPY tools/ ./tools/
 COPY samples/ ./samples/
 COPY website/package.json ./website/package.json
-RUN bun --use-system-ca install --frozen-lockfile
+RUN bun --use-system-ca install --frozen-lockfile --ignore-scripts
 ENV NX_DAEMON=false NX_TUI=false
 # The sidecar's emitted ESM keeps workspace packages external. Build its
 # verified runtime closure in dependency order; `dist/` is excluded from the

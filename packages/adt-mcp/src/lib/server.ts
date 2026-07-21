@@ -49,7 +49,7 @@ export interface McpServerOptions {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
   /** Private ARM broker resolver for signed frozen-source capabilities. */
-  resolveFrozenSource?: ToolContext['resolveFrozenSource'];
+  resolveFrozenSource: ToolContext['resolveFrozenSource'];
 }
 
 /**

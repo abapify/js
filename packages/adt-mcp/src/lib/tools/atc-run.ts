@@ -71,10 +71,14 @@ function stringField(value: UnknownRecord, key: string): string | undefined {
 }
 
 function priority(value: unknown): number {
-  const parsed =
-    typeof value === 'number'
-      ? value
-      : Number.parseInt(typeof value === 'string' ? value : '', 10);
+  let parsed: number;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string') {
+    parsed = Number.parseInt(value, 10);
+  } else {
+    parsed = Number.NaN;
+  }
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 3;
 }
 
