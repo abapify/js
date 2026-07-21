@@ -5,6 +5,16 @@ import {
   randomBytes,
 } from 'node:crypto';
 
+export function assertSecret(value: string | undefined, name: string): string {
+  const secret = value?.trim();
+  if (!secret) {
+    throw new Error(
+      `${name} secret is required and must be a stable, deployment-shared value.`,
+    );
+  }
+  return secret;
+}
+
 type SealedCapabilityPayload = {
   v: 1;
   d: string;
@@ -52,12 +62,7 @@ export function createRestSealedCapabilityService(
 export function createSealedCapabilityService(
   options: SealedCapabilityServiceOptions,
 ) {
-  const secret = options.secret.trim();
-  if (!secret) {
-    throw new Error(
-      'Capability secret is required and must be a stable, deployment-shared value.',
-    );
-  }
+  const secret = assertSecret(options.secret, options.namespace);
   const now = options.now ?? Date.now;
   const ttlMs = options.ttlMs ?? options.maxTtlMs;
   if (!Number.isSafeInteger(ttlMs) || ttlMs < 1 || ttlMs > options.maxTtlMs) {
