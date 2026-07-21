@@ -105,35 +105,47 @@ export interface McpInvocationVerifier {
  * destination key plus the selected System marker. AI Review stays fail
  * closed until the frozen-object/capability policy is implemented at dispatch.
  */
+function isSystemAssistantPolicySupported(
+  claims: TrustedMcpInvocationClaims,
+): boolean {
+  if (Object.keys(claims.limits).length !== 0) return false;
+  const constraintKeys = Object.keys(claims.constraint);
+  return (
+    constraintKeys.length === 1 &&
+    constraintKeys[0] === 'systemSid' &&
+    requiredIdentifier(claims.constraint.systemSid) !== undefined
+  );
+}
+
+function hasServerReadClasses(claims: TrustedMcpInvocationClaims): boolean {
+  return (
+    claims.classes.length === 2 &&
+    claims.classes.includes('server') &&
+    claims.classes.includes('read')
+  );
+}
+
 export function isMcpInvocationDispatchPolicySupported(
   claims: TrustedMcpInvocationClaims,
 ): boolean {
   if (claims.agentId === 'system-assistant') {
-    if (Object.keys(claims.limits).length !== 0) return false;
-    const constraintKeys = Object.keys(claims.constraint);
-    return (
-      constraintKeys.length === 1 &&
-      constraintKeys[0] === 'systemSid' &&
-      requiredIdentifier(claims.constraint.systemSid) !== undefined
-    );
+    return isSystemAssistantPolicySupported(claims);
   }
   if (claims.agentId === 'autonomous-review-agent') {
     return (
-      claims.classes.length === 2 &&
-      claims.classes.includes('server') &&
-      claims.classes.includes('read') &&
+      hasServerReadClasses(claims) &&
       claims.destinationKeys.length === 1 &&
       parseAutonomousReviewAgentPolicy(claims) !== undefined
     );
   }
-  if (claims.agentId !== 'ai-review') return false;
-  return (
-    claims.classes.length === 2 &&
-    claims.classes.includes('server') &&
-    claims.classes.includes('read') &&
-    claims.destinationKeys.length === 1 &&
-    parseAiReviewFrozenSourcePolicy(claims) !== undefined
-  );
+  if (claims.agentId === 'ai-review') {
+    return (
+      hasServerReadClasses(claims) &&
+      claims.destinationKeys.length === 1 &&
+      parseAiReviewFrozenSourcePolicy(claims) !== undefined
+    );
+  }
+  return false;
 }
 
 /**
@@ -150,13 +162,9 @@ export function parseAutonomousReviewAgentPolicy(
   const constraintKeys = Object.keys(claims.constraint).sort((a, b) =>
     a.localeCompare(b),
   );
-  if (
-    constraintKeys.length !== 2 ||
-    constraintKeys[0] !== 'executionId' ||
-    constraintKeys[1] !== 'systemSid'
-  ) {
-    return undefined;
-  }
+  if (constraintKeys.length !== 2) return undefined;
+  if (constraintKeys[0] !== 'executionId') return undefined;
+  if (constraintKeys[1] !== 'systemSid') return undefined;
   const executionId = requiredUuid(claims.constraint.executionId);
   const systemSid = requiredSystemSid(claims.constraint.systemSid);
   if (!executionId || !systemSid) return undefined;
@@ -170,16 +178,7 @@ function requiredUuid(value: unknown): string | undefined {
 }
 
 function requiredSourceReference(value: unknown): string | undefined {
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > MAX_SOURCE_REFERENCE_LENGTH ||
-    // eslint-disable-next-line no-control-regex
-    /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(value)
-  ) {
-    return undefined;
-  }
-  return value;
+  return requiredString(value, { maxLength: MAX_SOURCE_REFERENCE_LENGTH });
 }
 
 export function parseFrozenSource(
@@ -197,14 +196,9 @@ export function parseFrozenSource(
   const canonicalKey = source.canonicalKey;
   const componentId = requiredComponentIdentifier(source.componentId);
   const sourceRef = requiredSourceReference(source.sourceRef);
-  if (
-    typeof canonicalKey !== 'string' ||
-    !canonicalKeyPattern.test(canonicalKey) ||
-    !componentId ||
-    !sourceRef
-  ) {
-    return undefined;
-  }
+  if (typeof canonicalKey !== 'string') return undefined;
+  if (!canonicalKeyPattern.test(canonicalKey)) return undefined;
+  if (!componentId || !sourceRef) return undefined;
   const key = `${canonicalKey}\u0000${componentId}`;
   if (sourceKeys.has(key) || sourceRefs.has(sourceRef)) return undefined;
   sourceKeys.add(key);
@@ -217,42 +211,33 @@ export function parseFrozenSource(
  * is deliberately exact: accepting a valid JWS with one ignored narrowing
  * field would widen the Review beyond its frozen materialisation.
  */
-export function parseAiReviewFrozenSourcePolicy(
-  claims: TrustedMcpInvocationClaims,
-): AiReviewFrozenSourcePolicy | undefined {
-  if (claims.agentId !== 'ai-review') return undefined;
-  const constraint = claims.constraint;
-  const constraintKeys = Object.keys(constraint).sort((a, b) =>
-    a.localeCompare(b),
-  );
-  const expectedConstraintKeys = [
-    'frozenSources',
-    'kind',
-    'reviewId',
-    'runId',
-    'systemSid',
-  ];
-  if (
-    constraintKeys.length !== expectedConstraintKeys.length ||
-    constraintKeys.some(
-      (key, index) => key !== expectedConstraintKeys[index],
-    ) ||
-    constraint.kind !== 'ai-review-frozen-v1'
-  ) {
-    return undefined;
-  }
-  const reviewId = requiredUuid(constraint.reviewId);
-  const runId = requiredUuid(constraint.runId);
-  const systemSid = requiredIdentifier(constraint.systemSid);
-  if (!reviewId || !runId || !systemSid || systemSid.length > 16)
-    return undefined;
+const expectedAiReviewConstraintKeys = [
+  'frozenSources',
+  'kind',
+  'reviewId',
+  'runId',
+  'systemSid',
+];
 
-  const rawSources = constraint.frozenSources;
-  if (
-    !Array.isArray(rawSources) ||
-    rawSources.length === 0 ||
-    rawSources.length > MAX_FROZEN_SOURCES
-  ) {
+function isSortedKeysEqual(
+  keys: readonly string[],
+  expected: readonly string[],
+): boolean {
+  return (
+    keys.length === expected.length &&
+    keys.every((key, index) => key === expected[index])
+  );
+}
+
+function parseAiReviewSources(rawSources: unknown):
+  | {
+      readonly canonicalKey: string;
+      readonly componentId: string;
+      readonly sourceRef: string;
+    }[]
+  | undefined {
+  if (!Array.isArray(rawSources)) return undefined;
+  if (rawSources.length === 0 || rawSources.length > MAX_FROZEN_SOURCES) {
     return undefined;
   }
   const sourceKeys = new Set<string>();
@@ -267,31 +252,58 @@ export function parseAiReviewFrozenSourcePolicy(
     const rawSourceKeys = Object.keys(rawSource).sort((a, b) =>
       a.localeCompare(b),
     );
-    if (
-      rawSourceKeys.length !== 3 ||
-      rawSourceKeys[0] !== 'canonicalKey' ||
-      rawSourceKeys[1] !== 'componentId' ||
-      rawSourceKeys[2] !== 'sourceRef'
-    ) {
-      return undefined;
-    }
+    if (rawSourceKeys.length !== 3) return undefined;
+    if (rawSourceKeys[0] !== 'canonicalKey') return undefined;
+    if (rawSourceKeys[1] !== 'componentId') return undefined;
+    if (rawSourceKeys[2] !== 'sourceRef') return undefined;
     const parsed = parseFrozenSource(rawSource, sourceKeys, sourceRefs);
     if (!parsed) return undefined;
     sources.push(parsed);
   }
+  return sources;
+}
 
-  const limitKeys = Object.keys(claims.limits);
-  const maxSourceBytes = claims.limits.maxSourceBytes;
-  if (
-    limitKeys.length !== 1 ||
-    limitKeys[0] !== 'maxSourceBytes' ||
-    typeof maxSourceBytes !== 'number' ||
-    !Number.isSafeInteger(maxSourceBytes) ||
-    maxSourceBytes < 1 ||
-    maxSourceBytes > MAX_FROZEN_SOURCE_BYTES
-  ) {
+function parseMaxSourceBytes(
+  limits: Readonly<Record<string, McpInvocationJsonValue>>,
+): number | undefined {
+  const limitKeys = Object.keys(limits);
+  if (limitKeys.length !== 1) return undefined;
+  if (limitKeys[0] !== 'maxSourceBytes') return undefined;
+  const maxSourceBytes = limits.maxSourceBytes;
+  if (typeof maxSourceBytes !== 'number') return undefined;
+  if (!Number.isSafeInteger(maxSourceBytes)) return undefined;
+  if (maxSourceBytes < 1) return undefined;
+  if (maxSourceBytes > MAX_FROZEN_SOURCE_BYTES) return undefined;
+  return maxSourceBytes;
+}
+
+export function parseAiReviewFrozenSourcePolicy(
+  claims: TrustedMcpInvocationClaims,
+): AiReviewFrozenSourcePolicy | undefined {
+  if (claims.agentId !== 'ai-review') return undefined;
+  const constraint = claims.constraint;
+  const constraintKeys = Object.keys(constraint).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  if (!isSortedKeysEqual(constraintKeys, expectedAiReviewConstraintKeys)) {
     return undefined;
   }
+  if (constraint.kind !== 'ai-review-frozen-v1') return undefined;
+
+  const reviewId = requiredUuid(constraint.reviewId);
+  const runId = requiredUuid(constraint.runId);
+  const systemSid = requiredIdentifier(constraint.systemSid);
+  if (!reviewId) return undefined;
+  if (!runId) return undefined;
+  if (!systemSid) return undefined;
+  if (systemSid.length > 16) return undefined;
+
+  const sources = parseAiReviewSources(constraint.frozenSources);
+  if (!sources) return undefined;
+
+  const maxSourceBytes = parseMaxSourceBytes(claims.limits);
+  if (maxSourceBytes === undefined) return undefined;
+
   return Object.freeze({
     reviewId,
     runId,
@@ -301,16 +313,33 @@ export function parseAiReviewFrozenSourcePolicy(
   });
 }
 
-function requiredIdentifier(value: unknown): string | undefined {
+function requiredString(
+  value: unknown,
+  options: {
+    readonly maxLength: number;
+    readonly trim?: boolean;
+    readonly allowControlChars?: boolean;
+  },
+): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  if (value.length === 0 || value.length > options.maxLength) return undefined;
+  if (options.trim && value.trim().length === 0) return undefined;
   if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > MAX_IDENTIFIER_LENGTH ||
-    value.trim().length === 0
+    !options.allowControlChars &&
+    // eslint-disable-next-line no-control-regex
+    /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(value)
   ) {
     return undefined;
   }
   return value;
+}
+
+function requiredIdentifier(value: unknown): string | undefined {
+  return requiredString(value, {
+    maxLength: MAX_IDENTIFIER_LENGTH,
+    trim: true,
+    allowControlChars: true,
+  });
 }
 
 function requiredSystemSid(value: unknown): string | undefined {
@@ -323,16 +352,7 @@ function requiredSystemSid(value: unknown): string | undefined {
 }
 
 function requiredComponentIdentifier(value: unknown): string | undefined {
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > MAX_COMPONENT_IDENTIFIER_LENGTH ||
-    // eslint-disable-next-line no-control-regex
-    /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(value)
-  ) {
-    return undefined;
-  }
-  return value;
+  return requiredString(value, { maxLength: MAX_COMPONENT_IDENTIFIER_LENGTH });
 }
 
 function requiredConfigurationIdentifier(value: unknown, name: string): string {
@@ -387,39 +407,30 @@ function cloneDestinationKeys(value: unknown): readonly string[] | undefined {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
-  }
+  if (value === null) return false;
+  if (typeof value !== 'object') return false;
+  if (Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
-function cloneJsonValue(
-  value: unknown,
-  depth = 0,
-): McpInvocationJsonValue | undefined {
-  if (depth > MAX_JSON_DEPTH) return undefined;
-  if (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'boolean'
-  ) {
-    return value;
+function cloneJsonArray(
+  value: unknown[],
+  depth: number,
+): McpInvocationJsonValue[] | undefined {
+  const cloned: McpInvocationJsonValue[] = [];
+  for (const item of value) {
+    const clonedItem = cloneJsonValue(item, depth + 1);
+    if (clonedItem === undefined) return undefined;
+    cloned.push(clonedItem);
   }
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : undefined;
-  }
-  if (Array.isArray(value)) {
-    const cloned: McpInvocationJsonValue[] = [];
-    for (const item of value) {
-      const clonedItem = cloneJsonValue(item, depth + 1);
-      if (clonedItem === undefined) return undefined;
-      cloned.push(clonedItem);
-    }
-    return Object.freeze(cloned);
-  }
-  if (!isPlainObject(value)) return undefined;
+  return Object.freeze(cloned);
+}
 
+function cloneJsonObject(
+  value: Record<string, unknown>,
+  depth: number,
+): Readonly<Record<string, McpInvocationJsonValue>> | undefined {
   const cloned = Object.create(null) as Record<string, McpInvocationJsonValue>;
   for (const [key, item] of Object.entries(value)) {
     const clonedItem = cloneJsonValue(item, depth + 1);
@@ -429,7 +440,23 @@ function cloneJsonValue(
   return Object.freeze(cloned);
 }
 
-function cloneJsonObject(
+function cloneJsonValue(
+  value: unknown,
+  depth = 0,
+): McpInvocationJsonValue | undefined {
+  if (depth > MAX_JSON_DEPTH) return undefined;
+  if (value === null) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (Array.isArray(value)) return cloneJsonArray(value, depth);
+  if (isPlainObject(value)) return cloneJsonObject(value, depth);
+  return undefined;
+}
+
+function cloneJsonRecord(
   value: unknown,
 ): Readonly<Record<string, McpInvocationJsonValue>> | undefined {
   const cloned = cloneJsonValue(value);
@@ -442,6 +469,31 @@ function isUnixTimestamp(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+function isValidTokenHeader(
+  record: Record<string, unknown>,
+  expectedKeyId: string,
+  expectedIssuer: string,
+  expectedAudience: string,
+): boolean {
+  if (record.v !== INVOCATION_VERSION) return false;
+  if (record.kid !== expectedKeyId) return false;
+  if (record.iss !== expectedIssuer) return false;
+  if (record.aud !== expectedAudience) return false;
+  if (!isUnixTimestamp(record.iat)) return false;
+  if (!isUnixTimestamp(record.nbf)) return false;
+  if (!isUnixTimestamp(record.exp)) return false;
+  if (record.nbf < record.iat) return false;
+  if (record.exp < record.nbf) return false;
+  if (record.exp - record.iat > MAX_TOKEN_LIFETIME_SECONDS) return false;
+  return true;
+}
+
+function isValidTokenAgent(
+  agentId: unknown,
+): agentId is TrustedMcpInvocationClaims['agentId'] {
+  return typeof agentId === 'string' && trustedAgentIds.has(agentId);
+}
+
 function claimsFromPayload(
   payload: JWTPayload,
   expectedKeyId: string,
@@ -450,16 +502,7 @@ function claimsFromPayload(
 ): TrustedMcpInvocationClaims | undefined {
   const record = payload as Record<string, unknown>;
   if (
-    record.v !== INVOCATION_VERSION ||
-    record.kid !== expectedKeyId ||
-    record.iss !== expectedIssuer ||
-    record.aud !== expectedAudience ||
-    !isUnixTimestamp(record.iat) ||
-    !isUnixTimestamp(record.nbf) ||
-    !isUnixTimestamp(record.exp) ||
-    record.nbf < record.iat ||
-    record.exp < record.nbf ||
-    record.exp - record.iat > MAX_TOKEN_LIFETIME_SECONDS
+    !isValidTokenHeader(record, expectedKeyId, expectedIssuer, expectedAudience)
   ) {
     return undefined;
   }
@@ -470,26 +513,21 @@ function claimsFromPayload(
   const correlationId = requiredIdentifier(record.correlationId);
   const classes = cloneTrustedClasses(record.classes);
   const destinationKeys = cloneDestinationKeys(record.destinationKeys);
-  const constraint = cloneJsonObject(record.constraint);
-  const limits = cloneJsonObject(record.limits);
-  if (
-    !tokenId ||
-    !principal ||
-    !correlationId ||
-    typeof agentId !== 'string' ||
-    !trustedAgentIds.has(agentId) ||
-    !classes ||
-    !destinationKeys ||
-    !constraint ||
-    !limits
-  ) {
-    return undefined;
-  }
+  const constraint = cloneJsonRecord(record.constraint);
+  const limits = cloneJsonRecord(record.limits);
+  if (!tokenId) return undefined;
+  if (!principal) return undefined;
+  if (!correlationId) return undefined;
+  if (!isValidTokenAgent(agentId)) return undefined;
+  if (!classes) return undefined;
+  if (!destinationKeys) return undefined;
+  if (!constraint) return undefined;
+  if (!limits) return undefined;
 
   return Object.freeze({
     tokenId,
     principal,
-    agentId: agentId as TrustedMcpInvocationClaims['agentId'],
+    agentId,
     classes,
     destinationKeys,
     correlationId,
