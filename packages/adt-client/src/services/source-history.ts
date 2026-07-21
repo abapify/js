@@ -88,46 +88,50 @@ function asArray<T>(value: T | T[] | undefined): T[] {
  * adapter. This deliberately rejects absolute and protocol-relative URLs so a
  * source-history link cannot redirect credentials to another origin.
  */
+function isUnsafeAdtUri(uri: string): boolean {
+  if (uri !== uri.trim()) return true;
+  if (!uri.startsWith(ADT_PATH_PREFIX)) return true;
+  if (uri.startsWith('//')) return true;
+  if (uri.includes('#')) return true;
+  if (uri.includes('\\')) return true;
+  return TRAVERSAL_SEGMENT.test(uri);
+}
+
 export function assertAdtUri(uri: string): string {
-  if (
-    uri !== uri.trim() ||
-    !uri.startsWith(ADT_PATH_PREFIX) ||
-    uri.startsWith('//') ||
-    uri.includes('#') ||
-    uri.includes('\\') ||
-    TRAVERSAL_SEGMENT.test(uri)
-  ) {
+  if (isUnsafeAdtUri(uri)) {
     throw new SourceHistoryProtocolError(
       'SOURCE_HISTORY_URI_UNSAFE',
       'Source-history URI must be a server-relative SAP ADT path.',
     );
   }
-
   return uri;
 }
 
-function resolveAdtUri(href: string, versionsUri: string): string {
-  if (href.startsWith('/')) return assertAdtUri(href);
+function isUnsafeRelativeHref(href: string): boolean {
+  if (href.startsWith('//')) return true;
+  if (href.includes('\\')) return true;
+  if (href.includes(':')) return true;
+  return TRAVERSAL_SEGMENT.test(href);
+}
 
-  if (
-    href.startsWith('//') ||
-    href.includes('\\') ||
-    href.includes(':') ||
-    TRAVERSAL_SEGMENT.test(href)
-  ) {
-    throw new SourceHistoryProtocolError(
-      'SOURCE_HISTORY_URI_UNSAFE',
-      'Source-history link must stay within the SAP ADT origin.',
-    );
-  }
-
+function resolveRelativeAdtUri(href: string, versionsUri: string): string {
   const validatedBase = assertAdtUri(versionsUri);
   const collectionBase = validatedBase.endsWith('/')
     ? validatedBase
     : `${validatedBase}/`;
   const resolved = new URL(href, `https://adt.invalid${collectionBase}`);
-
   return assertAdtUri(`${resolved.pathname}${resolved.search}${resolved.hash}`);
+}
+
+function resolveAdtUri(href: string, versionsUri: string): string {
+  if (href.startsWith('/')) return assertAdtUri(href);
+  if (isUnsafeRelativeHref(href)) {
+    throw new SourceHistoryProtocolError(
+      'SOURCE_HISTORY_URI_UNSAFE',
+      'Source-history link must stay within the SAP ADT origin.',
+    );
+  }
+  return resolveRelativeAdtUri(href, versionsUri);
 }
 
 function normalizeLinks(value: unknown): AtomLink[] {
@@ -156,41 +160,44 @@ function contentElementAsLink(entry: AtomEntry): AtomLink | undefined {
   if (!content || typeof content !== 'object' || Array.isArray(content)) {
     return undefined;
   }
-
   const src = asOptionalString((content as Record<string, unknown>).src);
+  if (!src) return undefined;
   const type = asOptionalString((content as Record<string, unknown>).type);
-  if (!src || !type?.toLowerCase().startsWith('text/plain')) {
-    return undefined;
-  }
-
+  if (!type) return undefined;
+  if (!type.toLowerCase().startsWith('text/plain')) return undefined;
   return { href: src, type };
 }
 
-function transportFromLink(link: AtomLink): string | undefined {
-  const rel = asOptionalString(link.rel)?.toLowerCase();
-  if (!rel?.endsWith('/transport') && !rel?.endsWith('/transport/request')) {
-    return undefined;
-  }
+function isTransportRel(rel: string): boolean {
+  return rel.endsWith('/transport') || rel.endsWith('/transport/request');
+}
 
+function transportFromTitle(link: AtomLink): string | undefined {
   const title = asOptionalString(link.title)?.toUpperCase();
-  if (title && TRANSPORT_NUMBER.test(title)) return title;
+  if (!title) return undefined;
+  if (TRANSPORT_NUMBER.test(title)) return title;
+  return undefined;
+}
 
+function transportFromHref(link: AtomLink): string | undefined {
   const href = asOptionalString(link.href);
   if (!href) return undefined;
-
   const path = href.split(/[?#]/, 1)[0];
-  const lastSegment = path
-    ?.split('/')
-    .filter((segment) => segment !== '')
-    .pop();
+  const segments = path?.split('/').filter((segment) => segment !== '');
+  const lastSegment = segments?.pop();
   if (!lastSegment) return undefined;
-
   try {
     const candidate = decodeURIComponent(lastSegment).toUpperCase();
     return TRANSPORT_NUMBER.test(candidate) ? candidate : undefined;
   } catch {
     return undefined;
   }
+}
+
+function transportFromLink(link: AtomLink): string | undefined {
+  const rel = asOptionalString(link.rel)?.toLowerCase();
+  if (!rel || !isTransportRel(rel)) return undefined;
+  return transportFromTitle(link) ?? transportFromHref(link);
 }
 
 function authorName(value: unknown): string | undefined {
@@ -206,83 +213,112 @@ function authorName(value: unknown): string | undefined {
  * The result contains references and provenance only; source bodies are fetched
  * separately and are never retained by this function.
  */
-export function normalizeSourceVersionFeed(
-  payload: unknown,
-  versionsUri: string,
-): SourceVersionRef[] {
-  assertAdtUri(versionsUri);
-
-  if (!payload || typeof payload !== 'object' || !('feed' in payload)) {
+function assertSourceVersionPayload(payload: unknown): { feed?: unknown } {
+  if (!payload || typeof payload !== 'object') {
     throw new SourceHistoryProtocolError(
       'SOURCE_VERSION_FEED_INVALID',
       'SAP ADT source-history response is not an Atom feed.',
     );
   }
+  if (!('feed' in payload)) {
+    throw new SourceHistoryProtocolError(
+      'SOURCE_VERSION_FEED_INVALID',
+      'SAP ADT source-history response is not an Atom feed.',
+    );
+  }
+  return payload as { feed?: unknown };
+}
 
-  const feed = (payload as { feed?: unknown }).feed;
+function assertSourceVersionFeed(feed: unknown): { entry?: unknown } {
   if (!feed || typeof feed !== 'object' || Array.isArray(feed)) {
     throw new SourceHistoryProtocolError(
       'SOURCE_VERSION_FEED_INVALID',
       'SAP ADT source-history feed has an invalid root.',
     );
   }
+  return feed as { entry?: unknown };
+}
 
-  const rawEntries = (feed as { entry?: unknown }).entry;
-  if (rawEntries === undefined) return [];
-
-  const entries = asArray(rawEntries as AtomEntry | AtomEntry[]);
+function readSourceVersionEntries(feed: { entry?: unknown }): AtomEntry[] {
+  if (feed.entry === undefined) return [];
+  const entries = asArray(feed.entry as AtomEntry | AtomEntry[]);
   if (entries.some((entry) => !entry || typeof entry !== 'object')) {
     throw new SourceHistoryProtocolError(
       'SOURCE_VERSION_FEED_INVALID',
       'SAP ADT source-history feed contains an invalid entry.',
     );
   }
+  return entries;
+}
 
-  return entries.map((entry, ordinal) => {
-    const id = asOptionalString(entry.id);
-    if (!id) {
-      throw new SourceHistoryProtocolError(
-        'SOURCE_VERSION_ID_MISSING',
-        `Source-history entry ${ordinal} has no stable version id.`,
-        ordinal,
-      );
-    }
-
-    const links = normalizeLinks(entry.link);
-    const contentLink =
-      links.find(isContentLink) ??
-      links.find(isPlainTextContentLink) ??
-      contentElementAsLink(entry);
-    const href = contentLink && asOptionalString(contentLink.href);
-
-    if (!contentLink || !href) {
-      throw new SourceHistoryProtocolError(
-        'SOURCE_VERSION_CONTENT_LINK_MISSING',
-        `Source-history entry ${ordinal} has no immutable content link.`,
-        ordinal,
-      );
-    }
-
-    const transports = [
-      ...new Set(
-        links
-          .map(transportFromLink)
-          .filter((transport): transport is string => Boolean(transport)),
-      ),
-    ];
-
-    return {
-      id,
+function extractContentLink(
+  entry: AtomEntry,
+  ordinal: number,
+): AtomLink & { href: string } {
+  const links = normalizeLinks(entry.link);
+  const contentLink =
+    links.find(isContentLink) ??
+    links.find(isPlainTextContentLink) ??
+    contentElementAsLink(entry);
+  const href = contentLink && asOptionalString(contentLink.href);
+  if (!contentLink || !href) {
+    throw new SourceHistoryProtocolError(
+      'SOURCE_VERSION_CONTENT_LINK_MISSING',
+      `Source-history entry ${ordinal} has no immutable content link.`,
       ordinal,
-      title: asOptionalString(entry.title),
-      sourceUri: resolveAdtUri(href, versionsUri),
-      contentType: asOptionalString(contentLink.type),
-      etag: asOptionalString(contentLink.etag),
-      updatedAt: asOptionalString(entry.updated),
-      author: authorName(entry.author),
-      transports,
-    };
-  });
+    );
+  }
+  return { ...contentLink, href };
+}
+
+function extractEntryTransports(links: AtomLink[]): string[] {
+  return [
+    ...new Set(
+      links
+        .map(transportFromLink)
+        .filter((transport): transport is string => Boolean(transport)),
+    ),
+  ];
+}
+
+function sourceVersionRefFromEntry(
+  entry: AtomEntry,
+  ordinal: number,
+  versionsUri: string,
+): SourceVersionRef {
+  const id = asOptionalString(entry.id);
+  if (!id) {
+    throw new SourceHistoryProtocolError(
+      'SOURCE_VERSION_ID_MISSING',
+      `Source-history entry ${ordinal} has no stable version id.`,
+      ordinal,
+    );
+  }
+  const contentLink = extractContentLink(entry, ordinal);
+  return {
+    id,
+    ordinal,
+    title: asOptionalString(entry.title),
+    sourceUri: resolveAdtUri(contentLink.href, versionsUri),
+    contentType: asOptionalString(contentLink.type),
+    etag: asOptionalString(contentLink.etag),
+    updatedAt: asOptionalString(entry.updated),
+    author: authorName(entry.author),
+    transports: extractEntryTransports(normalizeLinks(entry.link)),
+  };
+}
+
+export function normalizeSourceVersionFeed(
+  payload: unknown,
+  versionsUri: string,
+): SourceVersionRef[] {
+  assertAdtUri(versionsUri);
+  const wrapper = assertSourceVersionPayload(payload);
+  const feed = assertSourceVersionFeed(wrapper.feed);
+  const entries = readSourceVersionEntries(feed);
+  return entries.map((entry, ordinal) =>
+    sourceVersionRefFromEntry(entry, ordinal, versionsUri),
+  );
 }
 
 export class SourceHistoryService {
