@@ -122,6 +122,25 @@ export function createDestinationContextRegistry(
     };
   };
 
+  const buildContextClose = ({
+    runExclusive,
+    created,
+    lease,
+  }: {
+    runExclusive: DestinationContext['runExclusive'];
+    created: Awaited<ReturnType<DestinationContextFactory['create']>>;
+    lease: DestinationLease;
+  }): (() => Promise<void>) =>
+    closeOnce(async () => {
+      await runExclusive(async () => {
+        try {
+          await created.close();
+        } finally {
+          await lease.release();
+        }
+      });
+    });
+
   const registry: DestinationContextRegistry = {
     get(mcpSessionId, destination) {
       return contexts.get(contextKey(mcpSessionId, destination));
@@ -179,15 +198,7 @@ export function createDestinationContextRegistry(
           createdAt: timestamp,
           lastUsedAt: timestamp,
           runExclusive,
-          close: closeOnce(async () => {
-            await runExclusive(async () => {
-              try {
-                await created.close();
-              } finally {
-                await lease.release();
-              }
-            });
-          }),
+          close: buildContextClose({ runExclusive, created, lease }),
         };
         if (stopped) {
           await context.close().catch(() => undefined);
