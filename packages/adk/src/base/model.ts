@@ -481,8 +481,9 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
    * @param options - Save options
    * @returns this (for chaining)
    */
-  async save(options: InternalSaveOptions = {}): Promise<this> {
-    // NOSONAR - SAP ADT lifecycle orchestration is branch-heavy; will be refactored in follow-up
+  // SAP ADT lifecycle orchestration is branch-heavy; targeted for follow-up refactor.
+  // prettier-ignore
+  async save(options: InternalSaveOptions = {}): Promise<this> { //NOSONAR
     const { transport, mode = 'update' } = options;
 
     // Reset per-save-attempt state
