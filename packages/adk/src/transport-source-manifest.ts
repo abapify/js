@@ -169,6 +169,15 @@ function compareText(left: string, right: string): number {
   return 0;
 }
 
+function isUnsafeRelativeHref(href: string): boolean {
+  return (
+    href.startsWith('//') ||
+    href.includes('\\') ||
+    href.includes(':') ||
+    RELATIVE_URI_TRAVERSAL.test(href)
+  );
+}
+
 function resolveAdtRelativeUri(
   href: string,
   objectUri: string,
@@ -176,14 +185,7 @@ function resolveAdtRelativeUri(
   try {
     const safeObjectUri = assertAdtUri(objectUri);
     if (href.startsWith('/')) return assertAdtUri(href);
-    if (
-      href.startsWith('//') ||
-      href.includes('\\') ||
-      href.includes(':') ||
-      RELATIVE_URI_TRAVERSAL.test(href)
-    ) {
-      return undefined;
-    }
+    if (isUnsafeRelativeHref(href)) return undefined;
 
     const directoryBase = safeObjectUri.endsWith('/')
       ? safeObjectUri
@@ -220,7 +222,16 @@ function discoverComponent(
     ? resolveAdtRelativeUri(versionsHref, objectUri)
     : undefined;
 
-  if (!sourceUri || (versionsHref && !versionsUri)) {
+  if (!sourceUri) {
+    return {
+      id,
+      diagnostic: {
+        code: 'SOURCE_COMPONENT_URI_UNSAFE',
+        message: 'The source component exposes an unsafe ADT URI.',
+      },
+    };
+  }
+  if (versionsHref && !versionsUri) {
     return {
       id,
       diagnostic: {
@@ -305,6 +316,54 @@ interface ObjectSourceDiscovery {
   components: DiscoveredComponent[];
 }
 
+function ensureObjectLoadable(
+  modelRecord: Record<string, unknown> | undefined,
+  object: ObjectSourceHistoryIdentity,
+): () => unknown {
+  const load = modelRecord?.['load'];
+  if (typeof load !== 'function') {
+    throw new ObjectSourceHistoryError(
+      'OBJECT_TYPE_UNSUPPORTED',
+      'The repository object type has no loadable ADK model.',
+      object,
+    );
+  }
+  return load as () => unknown;
+}
+
+async function loadObjectModel(
+  model: unknown,
+  load: () => unknown,
+  object: ObjectSourceHistoryIdentity,
+): Promise<void> {
+  try {
+    await load.call(model);
+  } catch {
+    throw new ObjectSourceHistoryError(
+      'OBJECT_METADATA_LOAD_FAILED',
+      'SAP ADT rejected repository object metadata retrieval.',
+      object,
+    );
+  }
+}
+
+function ensureObjectMetadata(
+  model: unknown,
+  object: ObjectSourceHistoryIdentity,
+): { metadata: Record<string, unknown>; objectUri: string } {
+  const modelRecord = asRecord(model);
+  const metadata = loadedMetadata(model);
+  const objectUri = nonEmptyString(modelRecord?.['objectUri']);
+  if (!metadata || !objectUri || !resolveAdtRelativeUri('', objectUri)) {
+    throw new ObjectSourceHistoryError(
+      'OBJECT_METADATA_UNAVAILABLE',
+      'The loaded object has no usable ADT metadata identity.',
+      object,
+    );
+  }
+  return { metadata, objectUri };
+}
+
 async function discoverObjectSourceHistory(
   objectName: string,
   objectType: string,
@@ -315,36 +374,10 @@ async function discoverObjectSourceHistory(
     ? normalizeSourceHistoryIdentity(objectName, objectType)
     : { name: objectName, type: objectType };
   const model = createAdkFactory(ctx).get(object.name, object.type);
-  const modelRecord = asRecord(model);
-  const load = modelRecord?.['load'];
+  const load = ensureObjectLoadable(asRecord(model), object);
+  await loadObjectModel(model, load, object);
 
-  if (typeof load !== 'function') {
-    throw new ObjectSourceHistoryError(
-      'OBJECT_TYPE_UNSUPPORTED',
-      'The repository object type has no loadable ADK model.',
-      object,
-    );
-  }
-
-  try {
-    await load.call(model);
-  } catch {
-    throw new ObjectSourceHistoryError(
-      'OBJECT_METADATA_LOAD_FAILED',
-      'SAP ADT rejected repository object metadata retrieval.',
-      object,
-    );
-  }
-
-  const metadata = loadedMetadata(model);
-  const objectUri = nonEmptyString(modelRecord?.['objectUri']);
-  if (!metadata || !objectUri || !resolveAdtRelativeUri('', objectUri)) {
-    throw new ObjectSourceHistoryError(
-      'OBJECT_METADATA_UNAVAILABLE',
-      'The loaded object has no usable ADT metadata identity.',
-      object,
-    );
-  }
+  const { metadata, objectUri } = ensureObjectMetadata(model, object);
 
   const packageName = packageNameFrom(metadata);
   const normalizedObject = {
