@@ -1,0 +1,69 @@
+{
+  "usage": "Persist this file as .codescene/code-health-rules.json to tailor CodeScene rules to different code categories in this repository.",
+  "rule_sets": [
+    {
+      "matching_content_path": "**/*.test.ts",
+      "matching_content_path_doc": "Test files use repetitive setup and assertions; down-weight style-oriented rules that are not meaningful for tests while keeping security-relevant rules.",
+      "rules": [
+        { "name": "Large Method", "weight": 0.0 },
+        { "name": "Code Duplication", "weight": 0.0 },
+        { "name": "Lines of Code in a Single File", "weight": 0.0 },
+        { "name": "Number of Functions in a Single Module", "weight": 0.0 },
+        { "name": "Overall Function Size", "weight": 0.0 },
+        { "name": "Bumpy Road Ahead", "weight": 0.0 },
+        { "name": "Deep, Nested Complexity", "weight": 0.0 },
+        { "name": "Complex Conditional", "weight": 0.0 },
+        { "name": "Primitive Obsession", "weight": 0.0 },
+        { "name": "String Heavy Function Arguments", "weight": 0.0 }
+      ],
+      "thresholds": [
+        { "name": "file_lines_of_code_for_warning", "value": 10000 },
+        { "name": "function_cyclomatic_complexity_warning", "value": 50 },
+        { "name": "function_lines_of_code_warning", "value": 1000 },
+        { "name": "file_mean_cyclomatic_complexity_warning", "value": 20 }
+      ]
+    },
+    {
+      "matching_content_path": "**/*.generated.ts",
+      "matching_content_path_doc": "Generated code is produced by tools and not maintained by hand; down-weight maintainability rules that do not apply.",
+      "rules": [
+        { "name": "Complex Method", "weight": 0.0 },
+        { "name": "Large Method", "weight": 0.0 },
+        { "name": "Code Duplication", "weight": 0.0 },
+        { "name": "Lines of Code in a Single File", "weight": 0.0 },
+        { "name": "Overall Code Complexity", "weight": 0.0 },
+        { "name": "Complex Conditional", "weight": 0.0 },
+        { "name": "Bumpy Road Ahead", "weight": 0.0 },
+        { "name": "Deep, Nested Complexity", "weight": 0.0 },
+        { "name": "Overall Function Size", "weight": 0.0 }
+      ]
+    },
+    {
+      "matching_content_path": "**/scripts/*.ts",
+      "matching_content_path_doc": "Local build and generation scripts may contain longer procedural code; raise thresholds while still flagging egregious complexity.",
+      "rules": [
+        { "name": "Large Method", "weight": 0.0 },
+        { "name": "Code Duplication", "weight": 0.0 }
+      ],
+      "thresholds": [
+        { "name": "function_cyclomatic_complexity_warning", "value": 25 },
+        { "name": "function_lines_of_code_warning", "value": 200 },
+        { "name": "file_mean_cyclomatic_complexity_warning", "value": 10 }
+      ]
+    },
+    {
+      "matching_content_path": "**/mock-server/**",
+      "matching_content_path_doc": "Mock server route wiring is generated fixture code; down-weight maintainability noise.",
+      "rules": [
+        { "name": "Complex Method", "weight": 0.0 },
+        { "name": "Large Method", "weight": 0.0 },
+        { "name": "Code Duplication", "weight": 0.0 },
+        { "name": "Lines of Code in a Single File", "weight": 0.0 },
+        { "name": "Overall Code Complexity", "weight": 0.0 },
+        { "name": "Complex Conditional", "weight": 0.0 },
+        { "name": "Bumpy Road Ahead", "weight": 0.0 },
+        { "name": "Deep, Nested Complexity", "weight": 0.0 }
+      ]
+    }
+  ]
+}
