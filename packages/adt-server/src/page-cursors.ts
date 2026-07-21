@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const MAX_CURSOR_LENGTH = 4 * 1_024;
 
@@ -16,8 +16,8 @@ export class RestPageCursorError extends Error {
 }
 
 export interface RestPageCursorServiceOptions {
-  /** Production replicas can share a mounted secret; tests may inject one. */
-  secret?: string;
+  /** Production replicas must share a mounted secret; tests may inject one. */
+  secret: string;
   now?: () => number;
 }
 
@@ -32,10 +32,12 @@ function compare(left: string, right: string): number {
  * snapshots. Cursors contain no ADT URI, credentials, source or SAP body.
  */
 export function createRestPageCursorService(
-  options: RestPageCursorServiceOptions = {},
+  options: RestPageCursorServiceOptions,
 ) {
-  const secret =
-    options.secret?.trim() || randomBytes(32).toString('base64url');
+  const secret = options.secret.trim();
+  if (!secret) {
+    throw new Error('Page cursor secret is required and must be stable.');
+  }
   const now = options.now ?? Date.now;
   const sign = (encoded: string) =>
     createHmac('sha256', secret).update(encoded).digest('base64url');

@@ -14,12 +14,7 @@ type SealedCapabilityPayload = {
 
 export interface SealedCapabilityServiceOptions {
   /** A production deployment shares this secret across all replicas. */
-  secret?: string;
-  /**
-   * Allow an ephemeral per-process secret. This breaks validation across
-   * replicas/restarts and must only be used in single-instance tests/development.
-   */
-  allowEphemeralSecret?: boolean;
+  secret: string;
   now?: () => number;
   ttlMs?: number;
   maxTtlMs: number;
@@ -30,18 +25,37 @@ export interface SealedCapabilityServiceOptions {
   createError: () => Error;
 }
 
+export const REST_CAPABILITY_DEFAULT_TTL_MS = 5 * 60_000;
+export const REST_CAPABILITY_DEFAULT_MAX_LENGTH = 8 * 1_024;
+
+export interface RestSealedCapabilityServiceOptions extends Omit<
+  SealedCapabilityServiceOptions,
+  'maxTtlMs' | 'maxCapabilityLength' | 'version'
+> {
+  maxTtlMs?: number;
+  maxCapabilityLength?: number;
+  version?: string;
+}
+
+export function createRestSealedCapabilityService(
+  options: RestSealedCapabilityServiceOptions,
+) {
+  return createSealedCapabilityService({
+    ...options,
+    maxTtlMs: options.maxTtlMs ?? REST_CAPABILITY_DEFAULT_TTL_MS,
+    maxCapabilityLength:
+      options.maxCapabilityLength ?? REST_CAPABILITY_DEFAULT_MAX_LENGTH,
+    version: options.version ?? 'v1',
+  });
+}
+
 export function createSealedCapabilityService(
   options: SealedCapabilityServiceOptions,
 ) {
-  const explicitSecret = options.secret?.trim();
-  const secret =
-    explicitSecret ??
-    (options.allowEphemeralSecret
-      ? randomBytes(32).toString('base64url')
-      : undefined);
+  const secret = options.secret.trim();
   if (!secret) {
     throw new Error(
-      'Capability secret is required. Set `secret` for production, or `allowEphemeralSecret` for single-instance tests.',
+      'Capability secret is required and must be a stable, deployment-shared value.',
     );
   }
   const now = options.now ?? Date.now;
@@ -129,7 +143,11 @@ export function createSealedCapabilityService(
         cipher.final(),
         cipher.getAuthTag(),
       ]);
-      return `${options.namespace}.${options.version}.${initializationVector.toString('base64url')}.${ciphertext.toString('base64url')}`;
+      const capability = `${options.namespace}.${options.version}.${initializationVector.toString('base64url')}.${ciphertext.toString('base64url')}`;
+      if (capability.length > options.maxCapabilityLength) {
+        throw options.createError();
+      }
+      return capability;
     },
     resolve(capability: string, destination: string): string {
       if (

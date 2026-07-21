@@ -1,8 +1,6 @@
-import { createSealedCapabilityService } from './sealed-capability.js';
+import { createRestSealedCapabilityService } from './sealed-capability.js';
 
 const ADT_PATH_PREFIX = '/sap/bc/adt/';
-const MAX_CAPABILITY_LENGTH = 8 * 1_024;
-const MAX_TTL_MS = 5 * 60_000;
 
 export class RestSourceCapabilityError extends Error {
   constructor() {
@@ -13,12 +11,7 @@ export class RestSourceCapabilityError extends Error {
 
 export interface RestSourceCapabilityServiceOptions {
   /** A production deployment shares this secret across all sidecar replicas. */
-  secret?: string;
-  /**
-   * Allow an ephemeral per-process secret. This breaks validation across
-   * replicas/restarts and must only be used in single-instance tests/development.
-   */
-  allowEphemeralSecret?: boolean;
+  secret: string;
   now?: () => number;
   ttlMs?: number;
 }
@@ -37,14 +30,13 @@ function isSafeAdtSourceUri(value: string): boolean {
  * is never a client-controlled input and is not readable from the capability.
  */
 export function createRestSourceCapabilityService(
-  options: RestSourceCapabilityServiceOptions = {},
+  options: RestSourceCapabilityServiceOptions,
 ) {
-  const service = createSealedCapabilityService({
-    ...options,
-    maxTtlMs: MAX_TTL_MS,
-    maxCapabilityLength: MAX_CAPABILITY_LENGTH,
+  const service = createRestSealedCapabilityService({
+    secret: options.secret,
+    now: options.now,
+    ttlMs: options.ttlMs,
     namespace: 'src',
-    version: 'v1',
     validateUri: isSafeAdtSourceUri,
     createError: () => new RestSourceCapabilityError(),
   });
