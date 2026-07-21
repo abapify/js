@@ -1,3 +1,4 @@
+import { assertSecret } from './sealed-capability.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const MAX_CURSOR_LENGTH = 4 * 1_024;
@@ -34,10 +35,7 @@ function compare(left: string, right: string): number {
 export function createRestPageCursorService(
   options: RestPageCursorServiceOptions,
 ) {
-  const secret = options.secret.trim();
-  if (!secret) {
-    throw new Error('Page cursor secret is required and must be stable.');
-  }
+  const secret = assertSecret(options.secret, 'Page cursor');
   const now = options.now ?? Date.now;
   const sign = (encoded: string) =>
     createHmac('sha256', secret).update(encoded).digest('base64url');

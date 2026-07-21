@@ -18,6 +18,7 @@ import {
   RestSourceCapabilityError,
   createRestSourceCapabilityService,
 } from './source-capabilities.js';
+import { assertSecret } from './sealed-capability.js';
 import {
   RestPageCursorError,
   createRestPageCursorService,
@@ -247,15 +248,6 @@ export interface RunningAdtServer {
 class InvalidJsonBodyError extends Error {}
 class InvalidPathParameterError extends Error {}
 
-function requiredCapabilitySecret(
-  value: string | undefined,
-  optionName: string,
-): string {
-  const trimmed = value?.trim();
-  if (trimmed) return trimmed;
-  throw new Error(`${optionName} is required.`);
-}
-
 async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -360,30 +352,35 @@ export async function startAdtServer(
   options: AdtServerOptions,
 ): Promise<RunningAdtServer> {
   const host = options.host ?? '127.0.0.1';
+  const restEnabled = !!options.restAuthorizer;
+  const mcpEnabled = !!options.mcp;
   const sourceCapabilities =
     options.sourceCapabilities ??
-    createRestSourceCapabilityService({
-      secret: requiredCapabilitySecret(
-        options.sourceCapabilitiesSecret,
-        'sourceCapabilities or sourceCapabilitiesSecret',
-      ),
-    });
+    (mcpEnabled || restEnabled
+      ? createRestSourceCapabilityService({
+          secret: assertSecret(
+            options.sourceCapabilitiesSecret,
+            'sourceCapabilitiesSecret',
+          ),
+        })
+      : undefined);
   const atcDocumentationCapabilities =
     options.atcDocumentationCapabilities ??
-    createRestAtcDocumentationCapabilityService({
-      secret: requiredCapabilitySecret(
-        options.atcDocumentationCapabilitiesSecret,
-        'atcDocumentationCapabilities or atcDocumentationCapabilitiesSecret',
-      ),
-    });
+    (restEnabled
+      ? createRestAtcDocumentationCapabilityService({
+          secret: assertSecret(
+            options.atcDocumentationCapabilitiesSecret,
+            'atcDocumentationCapabilitiesSecret',
+          ),
+        })
+      : undefined);
   const pageCursors =
     options.pageCursors ??
-    createRestPageCursorService({
-      secret: requiredCapabilitySecret(
-        options.pageCursorSecret,
-        'pageCursors or pageCursorSecret',
-      ),
-    });
+    (restEnabled
+      ? createRestPageCursorService({
+          secret: assertSecret(options.pageCursorSecret, 'pageCursorSecret'),
+        })
+      : undefined);
   const mcpHandler = options.mcp
     ? createHttpMcpHandler({
         host,
@@ -414,7 +411,7 @@ export async function startAdtServer(
           resolveFrozenSource: async (input) =>
             await resolveMcpFrozenSource(
               options.mcp!.resolveFrozenSource,
-              sourceCapabilities,
+              sourceCapabilities!,
               input,
             ),
         },
@@ -548,7 +545,7 @@ export async function startAdtServer(
               await options.operations.searchPackages(destination!, criteria),
             );
             const data = packagePageResponse.parse(
-              pageCursors.paginate({
+              pageCursors!.paginate({
                 ...result,
                 ...page,
                 fingerprint: `packages:${destination}:${criteria.q ?? '*'}:${criteria.maxResults ?? 5_000}`,
@@ -578,7 +575,7 @@ export async function startAdtServer(
               await options.operations.searchObjects(destination!, criteria),
             );
             const data = objectPageResponse.parse(
-              pageCursors.paginate({
+              pageCursors!.paginate({
                 ...result,
                 ...page,
                 fingerprint: `objects:${destination}:${criteria.query ?? '*'}:${criteria.packageName ?? ''}:${criteria.objectType ?? ''}:${criteria.maxResults ?? 5_000}`,
@@ -631,7 +628,7 @@ export async function startAdtServer(
             ),
           );
           const data = objectPageResponse.parse(
-            pageCursors.paginate({
+            pageCursors!.paginate({
               ...result,
               ...page,
               fingerprint: `package-objects:${destination}:${packageName.toUpperCase()}:5000`,
@@ -663,7 +660,7 @@ export async function startAdtServer(
             await options.operations.getPackageTree(destination!, rootPackage),
           );
           const data = packagePageResponse.parse(
-            pageCursors.paginate({
+            pageCursors!.paginate({
               ...result,
               ...page,
               fingerprint: `package-tree:${destination}:${rootPackage}`,
@@ -821,7 +818,7 @@ export async function startAdtServer(
             ...input,
           });
           const data = atcRunResponse.parse(
-            toRestAtcRun(result, atcDocumentationCapabilities, atcRunMatch[1]!),
+            toRestAtcRun(result, atcDocumentationCapabilities!, atcRunMatch[1]!),
           );
           response.writeHead(200, { 'content-type': 'application/json' });
           response.end(JSON.stringify(data));
@@ -847,7 +844,7 @@ export async function startAdtServer(
             await readJsonBody(request),
           );
           const maxBytes = input.maxBytes ?? MAX_ATC_DOCUMENTATION_BYTES;
-          const { documentationUri } = atcDocumentationCapabilities.resolve({
+          const { documentationUri } = atcDocumentationCapabilities!.resolve({
             documentationCapability: input.documentationCapability,
             destination: atcDocumentationReadMatch[1]!,
           });
@@ -956,7 +953,7 @@ export async function startAdtServer(
         const data = transportSourceManifestResponse.parse(
           toRestTransportSourceManifest(
             manifest,
-            sourceCapabilities,
+            sourceCapabilities!,
             sourceManifestMatch[1]!,
           ),
         );
@@ -983,7 +980,7 @@ export async function startAdtServer(
           throw error;
         }
         try {
-          const source = sourceCapabilities.resolve({
+          const source = sourceCapabilities!.resolve({
             sourceCapability: input.sourceCapability,
             destination: sourceVersionReadMatch[1]!,
           });
