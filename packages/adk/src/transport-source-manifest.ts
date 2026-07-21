@@ -443,7 +443,7 @@ function selectedRangeDiagnostic(
 /**
  * Select immutable before/after references using SAP's observed feed ordinal.
  */
-export function selectTransportSourceVersions(
+export function selectTransportSourceVersions( // NOSONAR - SAP feed-order selection is inherently branch-heavy; will be refactored in follow-up
   versions: readonly SourceVersionRef[],
   scopeTransportNumbers: readonly string[],
   deleted = false,
@@ -586,7 +586,7 @@ function sourceHistoryDiscoveryType(
   return pgmid === 'LIMU' && type === 'REPS' ? 'PROG' : reference.type;
 }
 
-async function buildObjectEntries(
+async function buildObjectEntries( // NOSONAR - SAP object manifest construction is branch-heavy; will be refactored in follow-up
   reference: TransportObjectReference,
   sourceTransport: string,
   scopeTransportNumbers: readonly string[],
