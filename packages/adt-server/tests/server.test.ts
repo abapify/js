@@ -29,6 +29,17 @@ const operations = {
   },
 };
 
+async function startTestAdtServer(
+  options: Parameters<typeof startAdtServer>[0],
+) {
+  return startAdtServer({
+    sourceCapabilitiesSecret: 'test',
+    atcDocumentationCapabilitiesSecret: 'test',
+    pageCursorSecret: 'test',
+    ...options,
+  });
+}
+
 test('redeems a sidecar-issued frozen source capability before an MCP context exists', async () => {
   const sourceCapabilities = createRestSourceCapabilityService({
     secret: 'frozen-source-test-secret',
@@ -108,7 +119,7 @@ test('mounts signed MCP only at /mcp while preserving REST endpoints', async () 
     .setExpirationTime(now + 60)
     .setJti('mount-test-jti')
     .sign(privateKey);
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations,
     host: '127.0.0.1',
     port: 0,
@@ -153,7 +164,7 @@ test('mounts signed MCP only at /mcp while preserving REST endpoints', async () 
 });
 
 test('keeps MCP unavailable when no guarded handler is configured', async () => {
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations,
     host: '127.0.0.1',
     port: 0,
@@ -169,7 +180,7 @@ test('keeps MCP unavailable when no guarded handler is configured', async () => 
 
 test('keeps broker-backed REST routes disabled until S2S authentication is configured', async () => {
   let destinationReads = 0;
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async listDestinations() {
@@ -192,7 +203,7 @@ test('keeps broker-backed REST routes disabled until S2S authentication is confi
 
 test('rejects unauthenticated REST calls before a broker-backed operation', async () => {
   let destinationReads = 0;
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async listDestinations() {
@@ -221,7 +232,7 @@ test('rejects unauthenticated REST calls before a broker-backed operation', asyn
 test('allows a trusted S2S REST request to reach the broker-backed operation', async () => {
   let destinationReads = 0;
   let authorizationHeaders: string | undefined;
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async listDestinations() {
@@ -252,7 +263,7 @@ test('allows a trusted S2S REST request to reach the broker-backed operation', a
 
 test('accepts only the separately mounted REST bearer token', async () => {
   let destinationReads = 0;
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async listDestinations() {
@@ -285,7 +296,7 @@ test('accepts only the separately mounted REST bearer token', async () => {
 
 test('forwards validated transport search criteria only after REST authentication', async () => {
   let captured: unknown;
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async listTransports(destination, criteria) {
@@ -361,7 +372,7 @@ test('serves canonical transport detail and aggregated objects without SAP URI f
       },
     ],
   };
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async getTransportDetail(destination, transport) {
@@ -415,7 +426,7 @@ test('serves canonical transport detail and aggregated objects without SAP URI f
 
 test('serves a bounded canonical package page with an opaque query-bound cursor', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async searchPackages(destination, criteria) {
@@ -480,7 +491,7 @@ test('serves a bounded canonical package page with an opaque query-bound cursor'
 
 test('serves one rooted canonical package tree with a query-bound cursor', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async getPackageTree(destination, rootPackage) {
@@ -549,7 +560,7 @@ test('serves one rooted canonical package tree with a query-bound cursor', async
 
 test('serves a bounded canonical object page with a query-bound cursor and no ADT URI', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async searchObjects(destination, criteria) {
@@ -650,7 +661,7 @@ test('serves a bounded canonical object page with a query-bound cursor and no AD
 
 test('serves canonical object metadata without exposing a raw ADT URI or href', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async getObjectMetadata(destination, objectType, objectName) {
@@ -745,7 +756,7 @@ test('serves canonical object metadata without exposing a raw ADT URI or href', 
 
 test('serves metadata-only canonical object source history without ADT URIs', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async getObjectSourceHistory(destination, objectType, objectName) {
@@ -808,7 +819,7 @@ test('serves metadata-only canonical object source history without ADT URIs', as
 
 test('reads bounded canonical object source without accepting a SAP URI', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async readObjectSource(input) {
@@ -869,7 +880,7 @@ test('reads bounded canonical object source without accepting a SAP URI', async 
 });
 
 test('rejects an oversized canonical object source without a partial body', async () => {
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async readObjectSource() {
@@ -905,7 +916,7 @@ test('rejects an oversized canonical object source without a partial body', asyn
 
 test('runs ATC only from a canonical scope and returns an opaque documentation capability', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async runAtc(input: unknown) {
@@ -988,7 +999,7 @@ test('reads ATC documentation only through a destination-scoped opaque capabilit
     secret: 'test-documentation-capability-secret',
   });
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async readAtcFindingDocumentation(input: unknown) {
@@ -1045,7 +1056,7 @@ test('reads ATC documentation only through a destination-scoped opaque capabilit
 
 test('serves direct package objects as a bounded canonical page without ADT URIs', async () => {
   const calls: unknown[] = [];
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async listPackageObjects(destination, packageName) {
@@ -1132,7 +1143,7 @@ test('REST source reads redeem an opaque destination-bound manifest capability',
   const sourceUri =
     '/sap/bc/adt/programs/programs/zsafe/source/main/versions/1';
   let immutableReads = 0;
-  const server = await startAdtServer({
+  const server = await startTestAdtServer({
     operations: {
       ...operations,
       async buildTransportSourceManifest(destination, input) {

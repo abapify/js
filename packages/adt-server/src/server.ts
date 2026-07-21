@@ -247,6 +247,15 @@ export interface RunningAdtServer {
 class InvalidJsonBodyError extends Error {}
 class InvalidPathParameterError extends Error {}
 
+function requiredCapabilitySecret(
+  value: string | undefined,
+  optionName: string,
+): string {
+  const trimmed = value?.trim();
+  if (trimmed) return trimmed;
+  throw new Error(`${optionName} is required.`);
+}
+
 async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -354,17 +363,26 @@ export async function startAdtServer(
   const sourceCapabilities =
     options.sourceCapabilities ??
     createRestSourceCapabilityService({
-      secret: options.sourceCapabilitiesSecret ?? 'test',
+      secret: requiredCapabilitySecret(
+        options.sourceCapabilitiesSecret,
+        'sourceCapabilities or sourceCapabilitiesSecret',
+      ),
     });
   const atcDocumentationCapabilities =
     options.atcDocumentationCapabilities ??
     createRestAtcDocumentationCapabilityService({
-      secret: options.atcDocumentationCapabilitiesSecret ?? 'test',
+      secret: requiredCapabilitySecret(
+        options.atcDocumentationCapabilitiesSecret,
+        'atcDocumentationCapabilities or atcDocumentationCapabilitiesSecret',
+      ),
     });
   const pageCursors =
     options.pageCursors ??
     createRestPageCursorService({
-      secret: options.pageCursorSecret ?? 'test',
+      secret: requiredCapabilitySecret(
+        options.pageCursorSecret,
+        'pageCursors or pageCursorSecret',
+      ),
     });
   const mcpHandler = options.mcp
     ? createHttpMcpHandler({
