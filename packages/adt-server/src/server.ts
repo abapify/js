@@ -226,11 +226,17 @@ export interface AdtServerOptions {
   restAuthorizer?: RestServiceAuthorizer;
   /** Production REST uses a deployment-shared secret; tests may use a local one. */
   sourceCapabilities?: ReturnType<typeof createRestSourceCapabilityService>;
+  /** Override the default test secret used to create source capabilities. */
+  sourceCapabilitiesSecret?: string;
   /** Shares REST state with source capabilities across sidecar replicas. */
   atcDocumentationCapabilities?: ReturnType<
     typeof createRestAtcDocumentationCapabilityService
   >;
+  /** Override the default test secret used to create ATC documentation capabilities. */
+  atcDocumentationCapabilitiesSecret?: string;
   pageCursors?: ReturnType<typeof createRestPageCursorService>;
+  /** Override the default test secret used to create page cursors. */
+  pageCursorSecret?: string;
 }
 
 export interface RunningAdtServer {
@@ -347,11 +353,19 @@ export async function startAdtServer(
   const host = options.host ?? '127.0.0.1';
   const sourceCapabilities =
     options.sourceCapabilities ??
-    createRestSourceCapabilityService({ allowEphemeralSecret: true });
+    createRestSourceCapabilityService({
+      secret: options.sourceCapabilitiesSecret ?? 'test',
+    });
   const atcDocumentationCapabilities =
     options.atcDocumentationCapabilities ??
-    createRestAtcDocumentationCapabilityService({ allowEphemeralSecret: true });
-  const pageCursors = options.pageCursors ?? createRestPageCursorService();
+    createRestAtcDocumentationCapabilityService({
+      secret: options.atcDocumentationCapabilitiesSecret ?? 'test',
+    });
+  const pageCursors =
+    options.pageCursors ??
+    createRestPageCursorService({
+      secret: options.pageCursorSecret ?? 'test',
+    });
   const mcpHandler = options.mcp
     ? createHttpMcpHandler({
         host,
