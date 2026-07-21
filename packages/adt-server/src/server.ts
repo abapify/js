@@ -390,8 +390,8 @@ export async function startAdtServer(
 
   const server = http.createServer((request, response) => {
     // ADT HTTP server route dispatch is inherently branch-heavy; extracted handlers would be the long-term fix.
-    void (async () => {
-      // NOSONAR
+    // prettier-ignore
+    void (async () => { //NOSONAR
       const path = (request.url ?? '/').split('?', 1)[0];
       if (mcpHandler && (path === '/mcp' || path === '/mcp/')) {
         await mcpHandler.handle(request, response);

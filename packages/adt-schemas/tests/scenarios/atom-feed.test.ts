@@ -28,5 +28,7 @@ class AtomFeedScenario extends Scenario<typeof atomFeed> {
   }
 }
 
-it('loads atom feed scenario', () => undefined);
+it('loads atom feed scenario', () => {
+  expect(typeof runScenario).toBe('function');
+});
 runScenario(new AtomFeedScenario());

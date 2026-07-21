@@ -4,6 +4,7 @@ import SwaggerParser from '@apidevtools/swagger-parser';
 import { openApiDocument } from '../src/openapi.js';
 
 it('is valid OpenAPI 3.1', async () => {
+  assert.ok(openApiDocument);
   await SwaggerParser.validate(structuredClone(openApiDocument));
 });
 

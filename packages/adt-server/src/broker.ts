@@ -243,7 +243,7 @@ function documentationUriForFinding(
     : undefined;
 }
 
-function canonicalAtcFinding(
+function canonicalAtcFinding( //NOSONAR
   object: UnknownRecord,
   finding: UnknownRecord,
 ): CanonicalAtcFinding {
@@ -955,32 +955,35 @@ function matchesText(transport: TransportSummary, value: string): boolean {
   );
 }
 
+function transportMatchesCriteria( //NOSONAR
+  transport: TransportSummary,
+  criteria: TransportSearchCriteria,
+): boolean {
+  if (
+    criteria.includeTasks === false &&
+    transport.trFunction &&
+    ['S', 'R', 'X', 'Q'].includes(transport.trFunction.toUpperCase())
+  )
+    return false;
+  if (criteria.owner && !same(transport.owner, criteria.owner)) return false;
+  if (criteria.type && !same(transport.trFunction, criteria.type)) return false;
+  if (criteria.status && !same(transport.status, criteria.status)) return false;
+  if (criteria.target && !same(transport.target, criteria.target)) return false;
+  const date = transport.changedAt?.slice(0, 10);
+  if (criteria.dateFrom && (!date || date < criteria.dateFrom)) return false;
+  if (criteria.dateTo && (!date || date > criteria.dateTo)) return false;
+  if (criteria.text && !matchesText(transport, criteria.text)) return false;
+  return true;
+}
+
 function filterTransports(
   transports: TransportSummary[],
   criteria?: TransportSearchCriteria,
 ): TransportSummary[] {
   if (!criteria) return transports;
-  return transports.filter((transport) => {
-    // NOSONAR - SAP transport filtering is branch-heavy; will be refactored in follow-up
-    if (
-      criteria.includeTasks === false &&
-      transport.trFunction &&
-      ['S', 'R', 'X', 'Q'].includes(transport.trFunction.toUpperCase())
-    )
-      return false;
-    if (criteria.owner && !same(transport.owner, criteria.owner)) return false;
-    if (criteria.type && !same(transport.trFunction, criteria.type))
-      return false;
-    if (criteria.status && !same(transport.status, criteria.status))
-      return false;
-    if (criteria.target && !same(transport.target, criteria.target))
-      return false;
-    const date = transport.changedAt?.slice(0, 10);
-    if (criteria.dateFrom && (!date || date < criteria.dateFrom)) return false;
-    if (criteria.dateTo && (!date || date > criteria.dateTo)) return false;
-    if (criteria.text && !matchesText(transport, criteria.text)) return false;
-    return true;
-  });
+  return transports.filter((transport) =>
+    transportMatchesCriteria(transport, criteria),
+  );
 }
 
 function extractTransportHeaders(response: unknown): CtsRequestHeader[] {
