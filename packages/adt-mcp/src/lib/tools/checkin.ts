@@ -49,7 +49,9 @@ export function registerCheckinTool(server: McpServer, ctx: ToolContext): void {
       unlock: z
         .boolean()
         .optional()
-        .describe('Force-unlock stale locks owned by current user'),
+        .describe(
+          'Release objects only when this CLI previously persisted their lock handles',
+        ),
       abapLanguageVersion: z
         .string()
         .optional()

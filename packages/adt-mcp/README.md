@@ -500,9 +500,9 @@ Run ABAP Test Cockpit checks on an object or package and return the resulting fi
 
 **Parameters:**
 
-| Parameter   | Type   | Description                                                 |
-| ----------- | ------ | ----------------------------------------------------------- |
-| `objectUri` | string | ADT URI of the target, e.g. `/sap/bc/adt/packages/ZPACKAGE` |
+| Parameter | Type   | Description                                                                                                                                             |
+| --------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scope`   | object | ATC scope: `{ kind: 'package', packageName }`, `{ kind: 'transport_request', trkorr }`, or `{ kind: 'objects', objects: [{ objectType, objectName }] }` |
 
 **Returns:**
 
@@ -536,7 +536,7 @@ Run ABAP Test Cockpit checks on an object or package and return the resulting fi
 
 ```
 1. check_syntax objectName=ZCL_FOO objectType=CLAS
-2. atc_run      objectUri=/sap/bc/adt/oo/classes/zcl_foo
+2. atc_run      scope={"kind":"objects","objects":[{"objectType":"CLAS","objectName":"ZCL_FOO"}]}
 3. run_unit_tests objectName=ZCL_FOO objectType=CLAS
 ```
 

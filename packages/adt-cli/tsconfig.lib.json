@@ -46,6 +46,9 @@
       "path": "../adt-rfc/tsconfig.lib.json"
     },
     {
+      "path": "../adt-proxy"
+    },
+    {
       "path": "../adt-plugin-gcts-cli/tsconfig.lib.json"
     },
     {
@@ -56,6 +59,9 @@
     },
     {
       "path": "../adt-plugin/tsconfig.lib.json"
+    },
+    {
+      "path": "../adt-lint/tsconfig.lib.json"
     },
     {
       "path": "../adt-locks/tsconfig.lib.json"

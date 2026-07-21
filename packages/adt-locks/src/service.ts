@@ -181,7 +181,7 @@ export function createLockService(
       // D01 reject it with an "already locked in request" conflict. Re-locking
       // also risks creating a new CTS lock on systems that permit it. Only a
       // handle registered by a previous successful LOCK is safe to use.
-      const entry = store?.list().find((item) => item.objectUri === objectUri);
+      const entry = store?.list()?.find((item) => item.objectUri === objectUri);
       if (!entry) {
         throw new AdtLockHandleUnavailableError(objectUri);
       }

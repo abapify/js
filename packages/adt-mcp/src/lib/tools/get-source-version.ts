@@ -54,6 +54,11 @@ export function registerGetSourceVersionTool(
         const destination = (args as { destination?: string }).destination;
         let sourceReference: { sourceUri: string } | undefined;
         if (args.uri) {
+          if (destination !== undefined) {
+            throw new Error(
+              'Raw source URIs are not allowed in destination mode; use sourceCapability.',
+            );
+          }
           sourceReference = { sourceUri: args.uri };
         } else if (args.sourceCapability) {
           sourceReference = ctx.sourceCapabilities?.resolve({
