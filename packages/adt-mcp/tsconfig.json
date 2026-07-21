@@ -37,6 +37,9 @@
       "path": "../adt-locks"
     },
     {
+      "path": "../adt-lint"
+    },
+    {
       "path": "../adt-fixtures"
     },
     {
@@ -44,6 +47,9 @@
     },
     {
       "path": "../adt-client"
+    },
+    {
+      "path": "../adt-config"
     },
     {
       "path": "../adt-cli"

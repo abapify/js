@@ -579,7 +579,7 @@ export class ImportService {
     }
 
     // Track results
-    const results = { success: 0, skipped: 0, failed: 0 };
+    const results = { success: 0, skipped: 0, failed: 0, deleted: 0 };
     const objectsByType: Record<string, number> = {};
     const total = objectsToImport.length;
     let processed = 0;
@@ -796,7 +796,7 @@ export class ImportService {
       configFormatOptions,
     };
 
-    const results = { success: 0, skipped: 0, failed: 0 };
+    const results = { success: 0, skipped: 0, failed: 0, deleted: 0 };
     const objectsByType: Record<string, number> = {};
 
     const result = await plugin.instance.format.import(

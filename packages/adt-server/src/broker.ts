@@ -29,6 +29,12 @@ export interface HttpBrokerOptions {
   fetch?: typeof globalThis.fetch;
   /** Test seam; production derives the client from broker credentials. */
   createClient?: (connection: BrokerConnection) => Promise<AdtClient>;
+  /**
+   * Optional allow-list of UAA hosts (exact hostnames, no scheme/port) for
+   * BTP service-key OAuth token endpoints. When provided, `uaa.url` must match
+   * one of the listed hosts.
+   */
+  allowedUaaHosts?: string[];
 }
 interface BrokerConnection {
   baseUrl: string;
@@ -1075,7 +1081,10 @@ export function createHttpBrokerOperations(
 ): AdtServerOperations {
   const { fetcher, readBrokerToken, acquireLease, releaseLease } =
     brokerLeaseHelpers(options);
-  const createClient = options.createClient ?? clientFromConnection;
+  const createClient =
+    options.createClient ??
+    ((connection: BrokerConnection) =>
+      clientFromConnection(connection, options.allowedUaaHosts));
   const request = async (path: string): Promise<Response> => {
     const token = await readBrokerToken();
     const response = await fetcher(new URL(path, options.baseUrl), {
@@ -1118,8 +1127,10 @@ export function createHttpBrokerOperations(
           Date.now() - startedAt,
           errorCode,
         );
-      } catch (releaseError) {
-        if (operationError === undefined) operationError = releaseError;
+      } catch {
+        // Lease release is best-effort: the broker operation already
+        // completed, and returning its result must not be masked by a
+        // telemetry/release failure.
       }
     }
     if (operationError !== undefined) throw operationError;
@@ -1448,8 +1459,35 @@ export function createHttpBrokerOperations(
   };
 }
 
+function validateUaaUrl(
+  uaaUrl: string,
+  allowedUaaHosts: string[] | undefined,
+): URL {
+  let url: URL;
+  try {
+    url = new URL(uaaUrl);
+  } catch {
+    throw new Error('BTP service key uaa.url is not a valid URL');
+  }
+  if (url.protocol !== 'https:') {
+    throw new Error('BTP service key uaa.url must use https:');
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(
+      'BTP service key uaa.url must not contain credentials, query, or fragment',
+    );
+  }
+  if (allowedUaaHosts && !allowedUaaHosts.includes(url.hostname)) {
+    throw new Error(
+      `BTP service key uaa.url host ${url.hostname} is not allow-listed`,
+    );
+  }
+  return url;
+}
+
 async function clientFromConnection(
   connection: BrokerConnection,
+  allowedUaaHosts?: string[],
 ): Promise<AdtClient> {
   if (connection.authMethod === 'basic') {
     const username = connection.authConfig.username;
@@ -1472,20 +1510,18 @@ async function clientFromConnection(
     !serviceKey.uaa.clientsecret
   )
     throw new Error('Broker returned incomplete BTP service key');
+  const uaaUrl = validateUaaUrl(serviceKey.uaa.url, allowedUaaHosts);
   const credentials = Buffer.from(
     `${serviceKey.uaa.clientid}:${serviceKey.uaa.clientsecret}`,
   ).toString('base64');
-  const tokenResponse = await fetch(
-    `${serviceKey.uaa.url.replace(/\/$/, '')}/oauth/token`,
-    {
-      method: 'POST',
-      headers: {
-        authorization: `Basic ${credentials}`,
-        'content-type': 'application/x-www-form-urlencoded',
-      },
-      body: 'grant_type=client_credentials',
+  const tokenResponse = await fetch(`${uaaUrl.origin}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      authorization: `Basic ${credentials}`,
+      'content-type': 'application/x-www-form-urlencoded',
     },
-  );
+    body: 'grant_type=client_credentials',
+  });
   if (!tokenResponse.ok) throw new Error('BTP token acquisition failed');
   const token = (await tokenResponse.json()) as {
     access_token?: string;

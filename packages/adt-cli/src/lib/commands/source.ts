@@ -10,6 +10,7 @@
 
 import { Command } from 'commander';
 import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
 import { normalizeSearchResults } from '../utils/lock-helpers';
 import {
@@ -64,6 +65,28 @@ function safeErrorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
     : 'Unknown source-history error.';
+}
+
+function resolveSafeOutputPath(filePath: string): string {
+  if (filePath === '-') return filePath;
+  const normalized = path.normalize(filePath);
+  if (path.isAbsolute(normalized)) {
+    if (normalized.split(path.sep).includes('..')) {
+      throw new Error(
+        'Output path contains an illegal parent-directory reference.',
+      );
+    }
+    return normalized;
+  }
+  const cwd = process.cwd();
+  const resolved = path.resolve(normalized);
+  const prefix = path.join(cwd, path.sep);
+  if (!resolved.startsWith(prefix) && resolved !== cwd) {
+    throw new Error(
+      'Output path must be inside the current working directory.',
+    );
+  }
+  return resolved;
 }
 
 function formatObjectVersions(result: ListObjectVersionsResult): string[] {
@@ -289,7 +312,10 @@ export function createSourceVersionCommand(
         if (options.output === '-') {
           dependencies.writeStdout(source);
         } else {
-          await dependencies.writeFile(options.output, source);
+          await dependencies.writeFile(
+            resolveSafeOutputPath(options.output),
+            source,
+          );
         }
       } catch (error) {
         dependencies.writeError(
