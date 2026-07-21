@@ -481,7 +481,7 @@ export async function startAdtServer(
           return;
         }
 
-        let authorized = false;
+        let authorized: boolean;
         try {
           authorized = await options.restAuthorizer.authorize(request);
         } catch {

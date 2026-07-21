@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { openApiDocument } from '../../adt-server/src/openapi.js';
 import { createAdtServerClient } from '../src/index.js';
 import { renderOpenApiClient } from '../scripts/generate.js';

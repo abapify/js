@@ -36,6 +36,7 @@ export function registerGetFrozenSourceTool(
         .string()
         .min(1)
         .max(512)
+        // eslint-disable-next-line no-control-regex
         .regex(/^[^\s\u0000-\u001f\u007f]+$/u)
         .describe('Immutable source component from the accepted Review scope'),
     },
@@ -67,6 +68,7 @@ export function registerGetFrozenSourceTool(
         if (
           typeof resolved?.sourceUri !== 'string' ||
           !resolved.sourceUri.startsWith('/sap/bc/adt/') ||
+          // eslint-disable-next-line no-control-regex
           /[\s\\\u0000-\u001f\u007f]/u.test(resolved.sourceUri)
         ) {
           return denied();
