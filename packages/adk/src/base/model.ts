@@ -793,16 +793,18 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
    * created the skeleton successfully.
    */
   private isPostCreateLockConflict(e: unknown): boolean {
-    const message =
-      typeof e === 'string'
-        ? e
-        : e instanceof Error
-          ? e.message
-          : typeof e === 'object' &&
-              e !== null &&
-              typeof (e as { message?: unknown }).message === 'string'
-            ? (e as { message: string }).message
-            : '';
+    let message = '';
+    if (typeof e === 'string') {
+      message = e;
+    } else if (e instanceof Error) {
+      message = e.message;
+    } else if (
+      typeof e === 'object' &&
+      e !== null &&
+      typeof (e as { message?: unknown }).message === 'string'
+    ) {
+      message = (e as { message: string }).message;
+    }
     const normalized = message.toLowerCase();
     return (
       normalized.includes('already locked in request') ||

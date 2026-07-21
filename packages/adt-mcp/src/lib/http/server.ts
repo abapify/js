@@ -221,12 +221,12 @@ function snapshotFrozenSourceAccess(
       source.componentId.length === 0 ||
       source.componentId.length > 512 ||
       // eslint-disable-next-line no-control-regex
-      /[\s\u0000-\u001f\u007f]/u.test(source.componentId) ||
+      /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(source.componentId) ||
       typeof source.sourceRef !== 'string' ||
       source.sourceRef.length === 0 ||
       source.sourceRef.length > 8 * 1024 ||
       // eslint-disable-next-line no-control-regex
-      /[\s\u0000-\u001f\u007f]/u.test(source.sourceRef) ||
+      /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(source.sourceRef) ||
       !sourceKey ||
       sourceKeys.has(sourceKey) ||
       sourceRefs.has(source.sourceRef)

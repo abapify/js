@@ -20,8 +20,6 @@ export interface GetVersionSourceInput {
   uri: string;
 }
 
-export type GetVersionSourceResult = string;
-
 export interface BuildTransportManifestInput {
   transports: string[];
   selector?: TransportObjectSelector;
@@ -160,9 +158,7 @@ export class ExactSourceHistoryService {
     }
   }
 
-  async getVersionSource(
-    input: GetVersionSourceInput,
-  ): Promise<GetVersionSourceResult> {
+  async getVersionSource(input: GetVersionSourceInput): Promise<string> {
     try {
       return await this.client.services.sourceHistory.readVersionSource(
         input.uri,
