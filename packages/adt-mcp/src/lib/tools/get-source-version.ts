@@ -28,8 +28,16 @@ export function registerGetSourceVersionTool(
         .string()
         .min(1)
         .max(256)
+        .optional()
         .describe(
           'Opaque capability returned by cts_transport_source_manifest',
+        ),
+      uri: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Direct server-relative ADT URI (must start with /sap/bc/adt/); prefer sourceCapability',
         ),
       maxBytes: z
         .number()
@@ -44,11 +52,16 @@ export function registerGetSourceVersionTool(
     async (args, extra) => {
       try {
         const destination = (args as { destination?: string }).destination;
-        const sourceReference = ctx.sourceCapabilities?.resolve({
-          sourceCapability: args.sourceCapability,
-          sessionId: extra?.sessionId,
-          ...(destination !== undefined ? { destination } : {}),
-        });
+        let sourceReference: { sourceUri: string } | undefined;
+        if (args.uri) {
+          sourceReference = { sourceUri: args.uri };
+        } else if (args.sourceCapability) {
+          sourceReference = ctx.sourceCapabilities?.resolve({
+            sourceCapability: args.sourceCapability,
+            sessionId: extra?.sessionId,
+            ...(destination !== undefined ? { destination } : {}),
+          });
+        }
         if (!sourceReference) throw new SourceCapabilityError();
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const maxBytes = args.maxBytes ?? DEFAULT_MAX_SOURCE_BYTES;
@@ -83,6 +96,7 @@ export function registerGetSourceVersionTool(
                     message:
                       'The immutable source version exceeds the requested MCP response limit.',
                     maxBytes: error.maxBytes,
+                    actualBytes: error.receivedBytes,
                   },
                 }),
               },

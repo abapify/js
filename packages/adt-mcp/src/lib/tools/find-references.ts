@@ -160,6 +160,7 @@ export function registerFindReferencesTool(
               text: JSON.stringify(
                 {
                   objectName: args.objectName,
+                  objectUri,
                   ...parsed,
                 },
                 null,
