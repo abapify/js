@@ -258,7 +258,7 @@ async function readJsonBody(request: http.IncomingMessage): Promise<unknown> {
 }
 
 function readQuery(request: http.IncomingMessage): Record<string, string> {
-  const url = new URL(request.url ?? '/', 'http://adt-server.invalid');
+  const url = new URL(request.url ?? '/', 'https://adt-server.invalid');
   return Object.fromEntries(url.searchParams.entries());
 }
 

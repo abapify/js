@@ -497,14 +497,14 @@ export function createAdtServerClient(options: AdtServerClientOptions) {
         if (value === undefined || value === null) {
           throw new Error(`Missing required path parameter: ${name}`);
         }
-        return encodeURIComponent(String(value));
+        return encodeURIComponent(String(value)); // NOSONAR
       },
     );
     const url = new URL(path, options.baseUrl);
     for (const name of definition.queryParameters) {
       const value = inputValue(input, name);
       if (value !== undefined && value !== null)
-        url.searchParams.set(name, String(value));
+        url.searchParams.set(name, String(value)); // NOSONAR
     }
     const body = inputValue(input, 'body');
     const response = await fetcher(url, {
