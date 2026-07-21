@@ -803,12 +803,138 @@ async function handleSourceVersionRead(
   }
 }
 
+const defaultRoutes: Route[] = [
+  { pattern: /^\/mcp\/?$/u, requiresRest: false, handler: handleMcp },
+  {
+    method: 'GET',
+    pattern: /^\/healthz$/u,
+    requiresRest: false,
+    handler: handleHealth,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/readyz$/u,
+    requiresRest: false,
+    handler: handleReady,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/openapi\.json$/u,
+    requiresRest: false,
+    handler: handleOpenApiJson,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/openapi\.yaml$/u,
+    requiresRest: false,
+    handler: handleOpenApiYaml,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/destinations$/u,
+    requiresRest: true,
+    handler: handleListDestinations,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transports$/u,
+    requiresRest: true,
+    handler: handleTransportList,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages$/u,
+    requiresRest: true,
+    handler: handlePackageSearch,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects$/u,
+    requiresRest: true,
+    handler: handleObjectSearch,
+  },
+  {
+    method: 'GET',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/([^/]+)\/objects$/u,
+    requiresRest: true,
+    handler: handlePackageObjects,
+  },
+  {
+    method: 'GET',
+    pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/tree$/u,
+    requiresRest: true,
+    handler: handlePackageTree,
+  },
+  {
+    method: 'GET',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)$/u,
+    requiresRest: true,
+    handler: handleObjectMetadata,
+  },
+  {
+    method: 'GET',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source-history$/u,
+    requiresRest: true,
+    handler: handleObjectSourceHistory,
+  },
+  {
+    method: 'POST',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source:read$/u,
+    requiresRest: true,
+    handler: handleObjectSourceRead,
+  },
+  {
+    method: 'POST',
+    pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/atc-runs$/u,
+    requiresRest: true,
+    handler: handleAtcRun,
+  },
+  {
+    method: 'POST',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/atc-finding-documentation:read$/u,
+    requiresRest: true,
+    handler: handleAtcDocumentationRead,
+  },
+  {
+    method: 'GET',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transports\/([^/]+)$/u,
+    requiresRest: true,
+    handler: handleTransportDetail,
+  },
+  {
+    method: 'GET',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transports\/([^/]+)\/objects$/u,
+    requiresRest: true,
+    handler: handleTransportObjects,
+  },
+  {
+    method: 'POST',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u,
+    requiresRest: true,
+    handler: handleTransportSourceManifest,
+  },
+  {
+    method: 'POST',
+    pattern:
+      /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/source-versions:read$/u,
+    requiresRest: true,
+    handler: handleSourceVersionRead,
+  },
+];
+
 function findRoute(
-  routes: Route[],
   method: string | undefined,
   path: string,
 ): { route: Route; match: RegExpExecArray } | undefined {
-  for (const route of routes) {
+  for (const route of defaultRoutes) {
     if (route.method && method !== route.method) continue;
     const match = route.pattern.exec(path);
     if (match) return { route, match };
@@ -821,9 +947,8 @@ async function dispatchRoute(
   request: http.IncomingMessage,
   response: http.ServerResponse,
   path: string,
-  routes: Route[],
 ): Promise<void> {
-  const found = findRoute(routes, request.method, path);
+  const found = findRoute(request.method, path);
   if (!found) {
     writeNotFound(response);
     return;
@@ -851,136 +976,9 @@ function handleServerError(
 export function createRequestHandler(
   ctx: RequestHandlerContext,
 ): (request: http.IncomingMessage, response: http.ServerResponse) => void {
-  const routes: Route[] = [
-    { pattern: /^\/mcp\/?$/u, requiresRest: false, handler: handleMcp },
-    {
-      method: 'GET',
-      pattern: /^\/healthz$/u,
-      requiresRest: false,
-      handler: handleHealth,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/readyz$/u,
-      requiresRest: false,
-      handler: handleReady,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/openapi\.json$/u,
-      requiresRest: false,
-      handler: handleOpenApiJson,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/openapi\.yaml$/u,
-      requiresRest: false,
-      handler: handleOpenApiYaml,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/v1\/destinations$/u,
-      requiresRest: true,
-      handler: handleListDestinations,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transports$/u,
-      requiresRest: true,
-      handler: handleTransportList,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages$/u,
-      requiresRest: true,
-      handler: handlePackageSearch,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects$/u,
-      requiresRest: true,
-      handler: handleObjectSearch,
-    },
-    {
-      method: 'GET',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/([^/]+)\/objects$/u,
-      requiresRest: true,
-      handler: handlePackageObjects,
-    },
-    {
-      method: 'GET',
-      pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/packages\/tree$/u,
-      requiresRest: true,
-      handler: handlePackageTree,
-    },
-    {
-      method: 'GET',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)$/u,
-      requiresRest: true,
-      handler: handleObjectMetadata,
-    },
-    {
-      method: 'GET',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source-history$/u,
-      requiresRest: true,
-      handler: handleObjectSourceHistory,
-    },
-    {
-      method: 'POST',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source:read$/u,
-      requiresRest: true,
-      handler: handleObjectSourceRead,
-    },
-    {
-      method: 'POST',
-      pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/atc-runs$/u,
-      requiresRest: true,
-      handler: handleAtcRun,
-    },
-    {
-      method: 'POST',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/atc-finding-documentation:read$/u,
-      requiresRest: true,
-      handler: handleAtcDocumentationRead,
-    },
-    {
-      method: 'GET',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transports\/([^/]+)$/u,
-      requiresRest: true,
-      handler: handleTransportDetail,
-    },
-    {
-      method: 'GET',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transports\/([^/]+)\/objects$/u,
-      requiresRest: true,
-      handler: handleTransportObjects,
-    },
-    {
-      method: 'POST',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/transport-source-manifests$/u,
-      requiresRest: true,
-      handler: handleTransportSourceManifest,
-    },
-    {
-      method: 'POST',
-      pattern:
-        /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/source-versions:read$/u,
-      requiresRest: true,
-      handler: handleSourceVersionRead,
-    },
-  ];
-
   return (request, response) => {
     const path = (request.url ?? '/').split('?', 1)[0];
-    void dispatchRoute(ctx, request, response, path, routes).catch((error) =>
+    void dispatchRoute(ctx, request, response, path).catch((error) =>
       handleServerError(response, error),
     );
   };
