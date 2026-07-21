@@ -1473,6 +1473,7 @@ async function clientFromConnection(
 }
 
 /** Creates the opaque lease/provider pair consumed by shared MCP mode. */
+// prettier-ignore
 export function createHttpDestinationContexts(options: HttpBrokerOptions): { //NOSONAR - lease/provider construction mirrors broker request setup by design
   leaseProvider: DestinationLeaseProvider;
   contextFactory: DestinationContextFactory;
