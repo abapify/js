@@ -14,6 +14,7 @@ import { getAdtClientV2 } from '../utils/adt-client-v2';
 import { normalizeSearchResults } from '../utils/lock-helpers';
 import {
   ExactSourceHistoryService,
+  toMetadataOnlySourceVersionListing,
   type ListObjectVersionsResult,
 } from '../services/source-history';
 import { createLockService } from '@abapify/adt-locks';
@@ -90,9 +91,7 @@ function formatObjectVersions(result: ListObjectVersionsResult): string[] {
         version.transports.length > 0
           ? version.transports.join(', ')
           : 'no transport provenance';
-      lines.push(
-        `    #${version.ordinal} ${version.id} [${transports}] ${version.sourceUri}`,
-      );
+      lines.push(`    #${version.ordinal} ${version.id} [${transports}]`);
     }
   }
 
@@ -247,7 +246,13 @@ export function createSourceVersionsCommand(
           });
 
           if (options.json) {
-            dependencies.writeLine(JSON.stringify(result, null, 2));
+            dependencies.writeLine(
+              JSON.stringify(
+                toMetadataOnlySourceVersionListing(result),
+                null,
+                2,
+              ),
+            );
           } else {
             for (const line of formatObjectVersions(result)) {
               dependencies.writeLine(line);

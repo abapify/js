@@ -2,7 +2,10 @@ import { Command } from 'commander';
 import type { TransportSourceManifest } from '@abapify/adk';
 import { getAdtClientV2 } from '../../../utils/adt-client-v2';
 import { parseTransportNumbers } from '../../../utils/command-helpers';
-import { ExactSourceHistoryService } from '../../../services/source-history';
+import {
+  ExactSourceHistoryService,
+  toMetadataOnlyTransportSourceManifest,
+} from '../../../services/source-history';
 
 type AdtClient = Awaited<ReturnType<typeof getAdtClientV2>>;
 type SourceManifestServicePort = Pick<
@@ -108,7 +111,13 @@ export function createCtsSourceManifestCommand(
           const manifest = await service.buildTransportManifest({ transports });
 
           if (options.json) {
-            dependencies.writeLine(JSON.stringify(manifest, null, 2));
+            dependencies.writeLine(
+              JSON.stringify(
+                toMetadataOnlyTransportSourceManifest(manifest),
+                null,
+                2,
+              ),
+            );
           } else {
             for (const line of formatManifest(manifest)) {
               dependencies.writeLine(line);
