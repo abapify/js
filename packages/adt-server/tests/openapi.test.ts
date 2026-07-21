@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { it } from 'node:test';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { openApiDocument } from '../src/openapi.js';
 
-test('is valid OpenAPI 3.1', async () => {
+it('is valid OpenAPI 3.1', async () => {
   await SwaggerParser.validate(structuredClone(openApiDocument));
 });
 
-test('documents the capability-bound immutable source REST pair without SAP URI fields', () => {
+it('documents the capability-bound immutable source REST pair without SAP URI fields', () => {
   const paths = openApiDocument.paths as Record<
     string,
     {
@@ -42,7 +42,7 @@ test('documents the capability-bound immutable source REST pair without SAP URI 
   assert.ok(!JSON.stringify(openApiDocument).includes('sourceUri'));
 });
 
-test('documents the normalized, filterable system-wide transport search contract', () => {
+it('documents the normalized, filterable system-wide transport search contract', () => {
   const transportPath =
     openApiDocument.paths['/v1/destinations/{destination}/transports'].get;
 
@@ -69,7 +69,7 @@ test('documents the normalized, filterable system-wide transport search contract
   assert.ok(!JSON.stringify(transportPath).includes('sourceUri'));
 });
 
-test('documents canonical transport detail and object reads without SAP URI fields', () => {
+it('documents canonical transport detail and object reads without SAP URI fields', () => {
   const paths = openApiDocument.paths as Record<
     string,
     { get?: { operationId?: string; responses?: Record<string, unknown> } }
@@ -98,7 +98,7 @@ test('documents canonical transport detail and object reads without SAP URI fiel
   assert.ok(!JSON.stringify(openApiDocument).includes('sourceUri'));
 });
 
-test('documents the bounded canonical package search page', () => {
+it('documents the bounded canonical package search page', () => {
   const packages =
     openApiDocument.paths['/v1/destinations/{destination}/packages'].get;
 
@@ -112,7 +112,7 @@ test('documents the bounded canonical package search page', () => {
   assert.ok(!JSON.stringify(packages).includes('uri'));
 });
 
-test('documents a rooted, bounded package-tree page without ADT URIs', () => {
+it('documents a rooted, bounded package-tree page without ADT URIs', () => {
   const paths = openApiDocument.paths as Record<
     string,
     {
@@ -136,7 +136,7 @@ test('documents a rooted, bounded package-tree page without ADT URIs', () => {
   assert.ok(!JSON.stringify(tree).includes('uri'));
 });
 
-test('documents the bounded canonical object search page without ADT URI fields', () => {
+it('documents the bounded canonical object search page without ADT URI fields', () => {
   const objects =
     openApiDocument.paths['/v1/destinations/{destination}/objects'].get;
 
@@ -159,7 +159,7 @@ test('documents the bounded canonical object search page without ADT URI fields'
   assert.ok(!JSON.stringify(objects).includes('uri'));
 });
 
-test('documents bounded direct package objects without ADT URI fields', () => {
+it('documents bounded direct package objects without ADT URI fields', () => {
   const packageObjects =
     openApiDocument.paths[
       '/v1/destinations/{destination}/packages/{package}/objects'
@@ -183,7 +183,7 @@ test('documents bounded direct package objects without ADT URI fields', () => {
   assert.ok(!JSON.stringify(packageObjects).includes('uri'));
 });
 
-test('documents canonical object metadata without raw ADT links', () => {
+it('documents canonical object metadata without raw ADT links', () => {
   const metadata =
     openApiDocument.paths[
       '/v1/destinations/{destination}/objects/{type}/{name}'
@@ -205,7 +205,7 @@ test('documents canonical object metadata without raw ADT links', () => {
   assert.ok(!JSON.stringify(metadata).includes('href'));
 });
 
-test('documents canonical object source history without source locators', () => {
+it('documents canonical object source history without source locators', () => {
   const history =
     openApiDocument.paths[
       '/v1/destinations/{destination}/objects/{type}/{name}/source-history'
@@ -227,7 +227,7 @@ test('documents canonical object source history without source locators', () => 
   assert.ok(!JSON.stringify(history).includes('href'));
 });
 
-test('documents bounded canonical object source reads without SAP URI input', () => {
+it('documents bounded canonical object source reads without SAP URI input', () => {
   const source =
     openApiDocument.paths[
       '/v1/destinations/{destination}/objects/{type}/{name}/source:read'
@@ -250,7 +250,7 @@ test('documents bounded canonical object source reads without SAP URI input', ()
   assert.ok(!JSON.stringify(source).includes('href'));
 });
 
-test('documents canonical ATC runs and opaque bounded documentation reads', () => {
+it('documents canonical ATC runs and opaque bounded documentation reads', () => {
   const run =
     openApiDocument.paths['/v1/destinations/{destination}/atc-runs'].post;
   const documentation =

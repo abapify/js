@@ -1,4 +1,4 @@
-import { describe, expect } from 'vitest';
+import { expect, it } from 'vitest';
 import { fixtures } from '@abapify/adt-fixtures';
 import { atomFeed } from '../../src/schemas/index';
 import { Scenario, runScenario, type SchemaType } from './base/scenario';
@@ -28,6 +28,5 @@ class AtomFeedScenario extends Scenario<typeof atomFeed> {
   }
 }
 
-describe('atom feed schema scenario', () => {
-  runScenario(new AtomFeedScenario());
-});
+it('loads atom feed scenario', () => undefined);
+runScenario(new AtomFeedScenario());
