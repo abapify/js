@@ -38,6 +38,21 @@ export interface SealedCapabilityServiceOptions {
 export const REST_CAPABILITY_DEFAULT_TTL_MS = 5 * 60_000;
 export const REST_CAPABILITY_DEFAULT_MAX_LENGTH = 8 * 1_024;
 
+function throwInvalidTtl(maxTtlMs: number): never {
+  throw new Error(`Capability TTL must be between 1ms and ${maxTtlMs}ms.`);
+}
+
+function isValidCapability(
+  payload: SealedCapabilityPayload | undefined,
+  destination: string,
+  now: number,
+): boolean {
+  if (!payload) return false;
+  if (payload.d !== destination) return false;
+  if (payload.e <= now) return false;
+  return true;
+}
+
 export interface RestSealedCapabilityServiceOptions extends Omit<
   SealedCapabilityServiceOptions,
   'maxTtlMs' | 'maxCapabilityLength' | 'version'
@@ -65,11 +80,8 @@ export function createSealedCapabilityService(
   const secret = assertSecret(options.secret, options.namespace);
   const now = options.now ?? Date.now;
   const ttlMs = options.ttlMs ?? options.maxTtlMs;
-  if (!Number.isSafeInteger(ttlMs) || ttlMs < 1 || ttlMs > options.maxTtlMs) {
-    throw new Error(
-      `Capability TTL must be between 1ms and ${options.maxTtlMs}ms.`,
-    );
-  }
+  if (!Number.isSafeInteger(ttlMs)) throwInvalidTtl(options.maxTtlMs);
+  if (ttlMs < 1 || ttlMs > options.maxTtlMs) throwInvalidTtl(options.maxTtlMs);
   const key = createHash('sha256').update(secret).digest();
 
   function isSealedCapabilityPayload(
@@ -183,14 +195,10 @@ export function createSealedCapabilityService(
       return capability;
     },
     resolve(capability: string, destination: string): string {
-      if (typeof capability !== 'string') throw options.createError();
-      if (capability.length > options.maxCapabilityLength) {
+      const payload = unseal(capability);
+      if (!isValidCapability(payload, destination, now())) {
         throw options.createError();
       }
-      const payload = unseal(capability);
-      if (!payload) throw options.createError();
-      if (payload.d !== destination) throw options.createError();
-      if (payload.e <= now()) throw options.createError();
       return payload.u;
     },
   };
