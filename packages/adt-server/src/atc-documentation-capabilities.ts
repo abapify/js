@@ -151,7 +151,10 @@ export function createRestAtcDocumentationCapabilityService(
         throw new RestAtcDocumentationCapabilityError();
       }
       const payload = unseal(input.documentationCapability);
-      if (!payload || payload.d !== input.destination || payload.e <= now()) {
+      if (
+        payload?.d !== input.destination ||
+        (payload?.e ?? Number.NEGATIVE_INFINITY) <= now()
+      ) {
         throw new RestAtcDocumentationCapabilityError();
       }
       return { documentationUri: payload.u };

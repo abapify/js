@@ -123,7 +123,7 @@ export function createRestPageCursorService(
             ? encode({
                 v: 1,
                 fingerprint: input.fingerprint,
-                afterKey: input.keyOf(data[data.length - 1]!),
+                afterKey: input.keyOf(data.at(-1)!),
               })
             : null,
         truncated: input.truncated,

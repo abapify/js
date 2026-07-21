@@ -23,8 +23,7 @@ function configuredValue(
   env: RuntimeEnvironment,
   name: string,
 ): string | undefined {
-  const value = env[name]?.trim();
-  return value ? value : undefined;
+  return env[name]?.trim() || undefined;
 }
 
 function invocationConfiguration(env: RuntimeEnvironment):
