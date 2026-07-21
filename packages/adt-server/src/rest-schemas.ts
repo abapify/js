@@ -313,6 +313,7 @@ export const packagePathParameter = z
   .trim()
   .min(1)
   .max(128)
+  // eslint-disable-next-line no-control-regex
   .regex(/^[^\u0000-\u001F\u007F]+$/u);
 
 /** Canonical ADT object types may carry a subtype suffix such as `PROG/P`. */

@@ -147,7 +147,9 @@ export function parseAutonomousReviewAgentPolicy(
 ): { readonly executionId: string; readonly systemSid: string } | undefined {
   if (claims.agentId !== 'autonomous-review-agent') return undefined;
   if (Object.keys(claims.limits).length !== 0) return undefined;
-  const constraintKeys = Object.keys(claims.constraint).sort();
+  const constraintKeys = Object.keys(claims.constraint).sort((a, b) =>
+    a.localeCompare(b),
+  );
   if (
     constraintKeys.length !== 2 ||
     constraintKeys[0] !== 'executionId' ||
@@ -172,6 +174,7 @@ function requiredSourceReference(value: unknown): string | undefined {
     typeof value !== 'string' ||
     value.length === 0 ||
     value.length > MAX_SOURCE_REFERENCE_LENGTH ||
+    // eslint-disable-next-line no-control-regex
     /[\s\u0000-\u001f\u007f]/u.test(value)
   ) {
     return undefined;
@@ -189,7 +192,9 @@ export function parseAiReviewFrozenSourcePolicy(
 ): AiReviewFrozenSourcePolicy | undefined {
   if (claims.agentId !== 'ai-review') return undefined;
   const constraint = claims.constraint;
-  const constraintKeys = Object.keys(constraint).sort();
+  const constraintKeys = Object.keys(constraint).sort((a, b) =>
+    a.localeCompare(b),
+  );
   const expectedConstraintKeys = [
     'frozenSources',
     'kind',
@@ -229,7 +234,9 @@ export function parseAiReviewFrozenSourcePolicy(
   }[] = [];
   for (const rawSource of rawSources) {
     if (!isPlainObject(rawSource)) return undefined;
-    const rawSourceKeys = Object.keys(rawSource).sort();
+    const rawSourceKeys = Object.keys(rawSource).sort((a, b) =>
+      a.localeCompare(b),
+    );
     if (
       rawSourceKeys.length !== 3 ||
       rawSourceKeys[0] !== 'canonicalKey' ||
@@ -308,6 +315,7 @@ function requiredComponentIdentifier(value: unknown): string | undefined {
     typeof value !== 'string' ||
     value.length === 0 ||
     value.length > MAX_COMPONENT_IDENTIFIER_LENGTH ||
+    // eslint-disable-next-line no-control-regex
     /[\s\u0000-\u001f\u007f]/u.test(value)
   ) {
     return undefined;

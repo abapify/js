@@ -338,6 +338,7 @@ test('HTTP destination mode lists no operational tools without an authorised des
 test('HTTP destination mode fails closed when trusted access is absent', async () => {
   let leases = 0;
   let contexts = 0;
+  // eslint-disable-next-line prefer-const
   let access:
     | { classes: Array<'read'>; destinationKeys: Array<string> }
     | undefined;
