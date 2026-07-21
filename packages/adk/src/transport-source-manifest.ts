@@ -353,8 +353,22 @@ function ensureObjectMetadata(
 ): { metadata: Record<string, unknown>; objectUri: string } {
   const modelRecord = asRecord(model);
   const metadata = loadedMetadata(model);
+  if (!metadata) {
+    throw new ObjectSourceHistoryError(
+      'OBJECT_METADATA_UNAVAILABLE',
+      'The loaded object has no usable ADT metadata identity.',
+      object,
+    );
+  }
   const objectUri = nonEmptyString(modelRecord?.['objectUri']);
-  if (!metadata || !objectUri || !resolveAdtRelativeUri('', objectUri)) {
+  if (!objectUri) {
+    throw new ObjectSourceHistoryError(
+      'OBJECT_METADATA_UNAVAILABLE',
+      'The loaded object has no usable ADT metadata identity.',
+      object,
+    );
+  }
+  if (!resolveAdtRelativeUri('', objectUri)) {
     throw new ObjectSourceHistoryError(
       'OBJECT_METADATA_UNAVAILABLE',
       'The loaded object has no usable ADT metadata identity.',
