@@ -176,75 +176,96 @@ export interface RunningAdtServer {
   close(): Promise<void>;
 }
 
+function createServerSourceCapabilities(options: AdtServerOptions) {
+  const mcpEnabled = !!options.mcp;
+  const restEnabled = !!options.restAuthorizer;
+  if (options.sourceCapabilities) return options.sourceCapabilities;
+  if (!mcpEnabled && !restEnabled) return undefined;
+  return createRestSourceCapabilityService({
+    secret: assertSecret(
+      options.sourceCapabilitiesSecret,
+      'sourceCapabilitiesSecret',
+    ),
+  });
+}
+
+function createServerAtcDocumentationCapabilities(options: AdtServerOptions) {
+  if (options.atcDocumentationCapabilities)
+    return options.atcDocumentationCapabilities;
+  if (!options.restAuthorizer) return undefined;
+  return createRestAtcDocumentationCapabilityService({
+    secret: assertSecret(
+      options.atcDocumentationCapabilitiesSecret,
+      'atcDocumentationCapabilitiesSecret',
+    ),
+  });
+}
+
+function createServerPageCursors(options: AdtServerOptions) {
+  if (options.pageCursors) return options.pageCursors;
+  if (!options.restAuthorizer) return undefined;
+  return createRestPageCursorService({
+    secret: assertSecret(options.pageCursorSecret, 'pageCursorSecret'),
+  });
+}
+
+function createServerMcpHandler(
+  options: AdtServerOptions,
+  host: string,
+  sourceCapabilities:
+    | ReturnType<typeof createRestSourceCapabilityService>
+    | undefined,
+) {
+  if (!options.mcp) return undefined;
+  const mcpOptions = options.mcp;
+  return createHttpMcpHandler({
+    host,
+    allowedHosts: mcpOptions.allowedHosts,
+    authMode: 'invocation',
+    invocationVerifier: mcpOptions.invocationVerifier,
+    destinationServer: {
+      destinationRegistry: mcpOptions.destinationRegistry,
+      requestIdentity: ({ invocation }) => {
+        if (!invocation) {
+          throw new Error('ADT Server MCP invocation is missing');
+        }
+        return {
+          principal: invocation.principal,
+          agentId: invocation.agentId,
+        };
+      },
+      requestAccess: ({ invocation }) =>
+        invocation
+          ? {
+              classes: invocation.classes,
+              destinationKeys: invocation.destinationKeys,
+            }
+          : undefined,
+      resolveFrozenSource: async (input) => {
+        if (!sourceCapabilities) {
+          throw new Error(
+            'Source capabilities are required for frozen source resolution',
+          );
+        }
+        return resolveMcpFrozenSource(
+          mcpOptions.resolveFrozenSource,
+          sourceCapabilities,
+          input,
+        );
+      },
+    },
+  });
+}
+
 export async function startAdtServer(
   options: AdtServerOptions,
 ): Promise<RunningAdtServer> {
   const host = options.host ?? '127.0.0.1';
-  const restEnabled = !!options.restAuthorizer;
-  const mcpEnabled = !!options.mcp;
-  const sourceCapabilities =
-    options.sourceCapabilities ??
-    (mcpEnabled || restEnabled
-      ? createRestSourceCapabilityService({
-          secret: assertSecret(
-            options.sourceCapabilitiesSecret,
-            'sourceCapabilitiesSecret',
-          ),
-        })
-      : undefined);
+  const sourceCapabilities = createServerSourceCapabilities(options);
   const atcDocumentationCapabilities =
-    options.atcDocumentationCapabilities ??
-    (restEnabled
-      ? createRestAtcDocumentationCapabilityService({
-          secret: assertSecret(
-            options.atcDocumentationCapabilitiesSecret,
-            'atcDocumentationCapabilitiesSecret',
-          ),
-        })
-      : undefined);
-  const pageCursors =
-    options.pageCursors ??
-    (restEnabled
-      ? createRestPageCursorService({
-          secret: assertSecret(options.pageCursorSecret, 'pageCursorSecret'),
-        })
-      : undefined);
-  const mcpHandler = options.mcp
-    ? createHttpMcpHandler({
-        host,
-        allowedHosts: options.mcp.allowedHosts,
-        authMode: 'invocation',
-        invocationVerifier: options.mcp.invocationVerifier,
-        destinationServer: {
-          destinationRegistry: options.mcp.destinationRegistry,
-          // adt-mcp derives identity and access directly from the verified
-          // invocation in this mode. These callbacks only satisfy its shared
-          // destination-server interface and cannot become another authority.
-          requestIdentity: ({ invocation }) => {
-            if (!invocation) {
-              throw new Error('ADT Server MCP invocation is missing');
-            }
-            return {
-              principal: invocation.principal,
-              agentId: invocation.agentId,
-            };
-          },
-          requestAccess: ({ invocation }) =>
-            invocation
-              ? {
-                  classes: invocation.classes,
-                  destinationKeys: invocation.destinationKeys,
-                }
-              : undefined,
-          resolveFrozenSource: async (input) =>
-            await resolveMcpFrozenSource(
-              options.mcp!.resolveFrozenSource,
-              sourceCapabilities!,
-              input,
-            ),
-        },
-      })
-    : undefined;
+    createServerAtcDocumentationCapabilities(options);
+  const pageCursors = createServerPageCursors(options);
+  const mcpHandler = createServerMcpHandler(options, host, sourceCapabilities);
 
   const server = http.createServer(
     createRequestHandler({

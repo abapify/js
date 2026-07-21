@@ -47,43 +47,54 @@ export function createRestPageCursorService(
   };
   const decodeCursorParts = (
     cursor: string,
-  ): { encoded: string; signature: string } => {
-    if (typeof cursor !== 'string') throw new RestPageCursorError();
-    if (cursor.length > MAX_CURSOR_LENGTH) throw new RestPageCursorError();
-    const [encoded, signature, extra] = cursor.split('.');
-    if (!encoded) throw new RestPageCursorError();
-    if (!signature) throw new RestPageCursorError();
-    if (extra !== undefined) throw new RestPageCursorError();
+  ): { encoded: string; signature: string } | undefined => {
+    if (typeof cursor !== 'string') return undefined;
+    if (cursor.length > MAX_CURSOR_LENGTH) return undefined;
+    const [encoded, signature, ...extra] = cursor.split('.');
+    if (!encoded) return undefined;
+    if (!signature) return undefined;
+    if (extra.length > 0) return undefined;
     return { encoded, signature };
   };
 
-  const verifyCursorSignature = (encoded: string, signature: string): void => {
+  const isCursorSignatureValid = (
+    encoded: string,
+    signature: string,
+  ): boolean => {
     const expected = Buffer.from(sign(encoded));
     const actual = Buffer.from(signature);
-    if (expected.length !== actual.length) throw new RestPageCursorError();
-    if (!timingSafeEqual(expected, actual)) throw new RestPageCursorError();
+    if (expected.length !== actual.length) return false;
+    return timingSafeEqual(expected, actual);
   };
 
-  const parseCursorPayload = (encoded: string, fingerprint: string): string => {
+  const parseCursorPayload = (
+    encoded: string,
+    fingerprint: string,
+  ): string | undefined => {
     let payload: Partial<CursorPayload>;
     try {
       payload = JSON.parse(
         Buffer.from(encoded, 'base64url').toString('utf8'),
       ) as Partial<CursorPayload>;
     } catch {
-      throw new RestPageCursorError();
+      return undefined;
     }
-    if (payload.v !== 1) throw new RestPageCursorError();
-    if (payload.fingerprint !== fingerprint) throw new RestPageCursorError();
-    if (typeof payload.afterKey !== 'string') throw new RestPageCursorError();
-    if (payload.afterKey.length === 0) throw new RestPageCursorError();
+    if (payload.v !== 1) return undefined;
+    if (payload.fingerprint !== fingerprint) return undefined;
+    if (typeof payload.afterKey !== 'string') return undefined;
+    if (payload.afterKey.length === 0) return undefined;
     return payload.afterKey;
   };
 
   const decode = (cursor: string, fingerprint: string): string => {
-    const { encoded, signature } = decodeCursorParts(cursor);
-    verifyCursorSignature(encoded, signature);
-    return parseCursorPayload(encoded, fingerprint);
+    const parts = decodeCursorParts(cursor);
+    if (!parts) throw new RestPageCursorError();
+    if (!isCursorSignatureValid(parts.encoded, parts.signature)) {
+      throw new RestPageCursorError();
+    }
+    const afterKey = parseCursorPayload(parts.encoded, fingerprint);
+    if (!afterKey) throw new RestPageCursorError();
+    return afterKey;
   };
 
   return {
