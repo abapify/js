@@ -1514,6 +1514,9 @@ async function clientFromConnection(
   const credentials = Buffer.from(
     `${serviceKey.uaa.clientid}:${serviceKey.uaa.clientsecret}`,
   ).toString('base64');
+  // The UAA URL is validated above (https, no credentials/query/fragment,
+  // optional explicit allow-list). This is a broker-supplied token endpoint.
+  // eslint-disable-next-line
   const tokenResponse = await fetch(`${uaaUrl.origin}/oauth/token`, {
     method: 'POST',
     headers: {
