@@ -15,7 +15,12 @@ import {
   type AdtClientType,
   type HttpRequestOptions,
 } from '@abapify/adt-contracts';
-import { createTransportService, type TransportService } from './services';
+import {
+  createSourceHistoryService,
+  createTransportService,
+  type SourceHistoryService,
+  type TransportService,
+} from './services';
 
 /**
  * Fetch options for generic HTTP requests
@@ -24,6 +29,11 @@ export interface FetchOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   headers?: Record<string, string>;
   body?: string;
+}
+
+/** Options for a bounded authenticated GET that returns plain text. */
+export interface BoundedTextFetchOptions {
+  headers?: Record<string, string>;
 }
 
 /**
@@ -62,6 +72,7 @@ export type { AdtClientType } from '@abapify/adt-contracts';
  */
 interface AdtServices {
   transports: TransportService;
+  sourceHistory: SourceHistoryService;
 }
 
 // Return type explicitly defined to avoid TS7056 "exceeds maximum length" error
@@ -69,6 +80,11 @@ interface AdtClientReturn {
   adt: AdtClientType;
   services: AdtServices;
   fetch: (url: string, options?: FetchOptions) => Promise<unknown>;
+  readTextBounded: (
+    url: string,
+    maxBytes: number,
+    options?: BoundedTextFetchOptions,
+  ) => Promise<string>;
   /** Clear cached ETag for a specific URL, or all ETags if no URL given */
   clearETag: (url?: string) => void;
 }
@@ -99,9 +115,29 @@ export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
     return adapter.request<unknown>(requestOptions);
   };
 
+  const readTextBounded = async (
+    url: string,
+    maxBytes: number,
+    options?: BoundedTextFetchOptions,
+  ): Promise<string> =>
+    adapter.readTextBounded(
+      {
+        url,
+        headers: options?.headers,
+      },
+      maxBytes,
+    );
+
   // Create services layer
   const services: AdtServices = {
     transports: createTransportService(adtClient),
+    sourceHistory: createSourceHistoryService(
+      adtClient,
+      (sourceUri, maxBytes) =>
+        readTextBounded(sourceUri, maxBytes, {
+          headers: { Accept: 'text/plain' },
+        }),
+    ),
   };
 
   return {
@@ -126,6 +162,11 @@ export function createAdtClient(config: AdtAdapterConfig): AdtClientReturn {
      * @returns Raw response
      */
     fetch: fetchFn,
+
+    /**
+     * Read an authenticated plain-text endpoint while enforcing a byte limit.
+     */
+    readTextBounded,
 
     /**
      * Clear cached ETag for a specific URL, or all ETags if no URL given.

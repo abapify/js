@@ -23,6 +23,7 @@ import type { ConnectionParams } from '../src/lib/types';
 let mockAdt: MockAdtServer;
 let mockPort: number;
 let client: Client;
+let boundedSourceReadCalls = 0;
 
 /**
  * Helper – call a tool and return the first text content block parsed as JSON.
@@ -65,13 +66,22 @@ describe('adt-mcp integration tests', () => {
 
     // 2. Create MCP server with a client factory that points at mock
     const server = createMcpServer({
-      clientFactory: (params: ConnectionParams): AdtClient =>
-        createAdtClient({
+      clientFactory: (params: ConnectionParams): AdtClient => {
+        const adtClient = createAdtClient({
           baseUrl: params.baseUrl,
           username: params.username ?? '',
           password: params.password ?? '',
           client: params.client,
-        }),
+        });
+        const readTextBounded = adtClient.readTextBounded;
+        return {
+          ...adtClient,
+          readTextBounded: async (...args) => {
+            boundedSourceReadCalls += 1;
+            return readTextBounded(...args);
+          },
+        };
+      },
     });
 
     // 3. Wire up in-memory transport
@@ -246,14 +256,36 @@ describe('adt-mcp integration tests', () => {
   // ── atc_run ────────────────────────────────────────────────────
 
   describe('atc_run tool', () => {
-    it('runs ATC and returns worklist', async () => {
-      const { json } = await callTool('atc_run', {
+    it('runs a canonical package scope and returns URI-free findings', async () => {
+      const { json, raw } = await callTool('atc_run', {
+        ...connArgs(),
+        scope: { kind: 'package', packageName: 'ZPACKAGE' },
+        variant: 'TEST_VARIANT',
+      });
+      assert.notStrictEqual((raw as { isError?: boolean }).isError, true);
+      const data = json as {
+        checkVariant: string;
+        findings: Array<Record<string, unknown>>;
+      };
+      assert.ok(data.checkVariant, 'should identify the ATC variant');
+      assert.ok(Array.isArray(data.findings), 'should return findings');
+      assert.doesNotMatch(
+        JSON.stringify(data),
+        /(?:objectUri|worklist|\/sap\/bc\/adt)/iu,
+        'the model-facing response must not contain raw ADT routing data',
+      );
+    });
+
+    it('rejects a raw ADT URI as an ATC target', async () => {
+      const { raw } = await callTool('atc_run', {
         ...connArgs(),
         objectUri: '/sap/bc/adt/packages/ZPACKAGE',
       });
-      const data = json as { status: string; worklist?: unknown };
-      assert.strictEqual(data.status, 'completed');
-      assert.ok(data.worklist, 'should contain worklist');
+      assert.strictEqual(
+        (raw as { isError?: boolean }).isError,
+        true,
+        'the public contract must not admit model-supplied ADT URIs',
+      );
     });
   });
 
@@ -282,6 +314,29 @@ describe('adt-mcp integration tests', () => {
       const data = json as { source: string };
       assert.ok(data.source, 'should have source property');
       assert.ok(data.source.length > 0, 'should return source');
+    });
+
+    it('rejects a source body above the requested byte limit without returning it', async () => {
+      boundedSourceReadCalls = 0;
+      const { json, raw } = await callTool('get_source', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        maxBytes: 1,
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+      assert.deepStrictEqual(json, {
+        error: {
+          code: 'SOURCE_TOO_LARGE',
+          message: 'The source exceeds the requested MCP response limit.',
+          maxBytes: 1,
+        },
+      });
+      assert.strictEqual(
+        boundedSourceReadCalls,
+        1,
+        'must enforce the byte cap while reading the HTTP response',
+      );
     });
   });
 
@@ -474,6 +529,15 @@ describe('adt-mcp integration tests', () => {
       });
       assert.strictEqual(raw.isError, true);
     });
+
+    it('rejects raw ADT object URIs', async () => {
+      const { raw } = await callTool('grep_objects', {
+        ...connArgs(),
+        pattern: 'METHOD',
+        objectUris: ['/sap/bc/adt/oo/classes/zcl_example'],
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+    });
   });
 
   // ── grep_packages ──────────────────────────────────────────────
@@ -566,6 +630,16 @@ describe('adt-mcp integration tests', () => {
       const data = json as { objectName: string };
       assert.strictEqual(data.objectName, 'ZCL_EXAMPLE');
     });
+
+    it('rejects a raw ADT URI as the reference target', async () => {
+      const { raw } = await callTool('find_references', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        objectUri: '/sap/bc/adt/oo/classes/zcl_example',
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+    });
   });
 
   // ── get_callers_of ─────────────────────────────────────────────
@@ -581,6 +655,16 @@ describe('adt-mcp integration tests', () => {
       assert.strictEqual(data.objectName, 'ZCL_EXAMPLE');
       assert.ok(data.callers !== undefined);
     });
+
+    it('rejects a raw ADT URI as the hierarchy target', async () => {
+      const { raw } = await callTool('get_callers_of', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        objectUri: '/sap/bc/adt/oo/classes/zcl_example',
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
+    });
   });
 
   // ── get_callees_of ─────────────────────────────────────────────
@@ -595,6 +679,16 @@ describe('adt-mcp integration tests', () => {
       const data = json as { objectName: string; callees: unknown };
       assert.strictEqual(data.objectName, 'ZCL_EXAMPLE');
       assert.ok(data.callees !== undefined);
+    });
+
+    it('rejects a raw ADT URI as the hierarchy target', async () => {
+      const { raw } = await callTool('get_callees_of', {
+        ...connArgs(),
+        objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
+        objectUri: '/sap/bc/adt/oo/classes/zcl_example',
+      });
+      assert.strictEqual((raw as { isError?: boolean }).isError, true);
     });
   });
 

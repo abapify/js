@@ -7,15 +7,15 @@
 
 export type TransportmanagmentCreateSchema = {
     root: {
-        request?: {
-            task?: {
-                owner?: string;
+        request?: undefined | {
+            task?: undefined | {
+                owner?: string | undefined;
             }[];
-            desc?: string;
-            type?: string;
-            target?: string;
-            cts_project?: string;
+            desc?: string | undefined;
+            type?: string | undefined;
+            target?: string | undefined;
+            cts_project?: string | undefined;
         };
-        useraction?: string;
+        useraction?: string | undefined;
     };
 };

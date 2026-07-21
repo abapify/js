@@ -39,6 +39,43 @@ export interface SaveOptions {
   inactive?: boolean;
   /** Save mode: 'update' (default), 'create', or 'upsert' */
   mode?: SaveMode;
+  /**
+   * Retry only the immediate post-create LOCK when a backend keeps its
+   * generated CTS/editor lock briefly after accepting the skeleton POST.
+   */
+  postCreateLockRetry?: {
+    /** Total LOCK attempts, including the first one. */
+    attempts: number;
+    /** Delay between conflicting LOCK attempts in milliseconds. */
+    delayMs: number;
+  };
+}
+
+type InternalSaveOptions = SaveOptions & { postCreate?: boolean };
+
+/**
+ * SAP accepted the skeleton POST, but rejected the immediate follow-up lock.
+ *
+ * The object therefore exists in SAP, while the source or metadata supplied
+ * to the original save call has not yet been persisted. Callers must retry
+ * the same object with `mode: 'update'` after the CTS/editor lock is cleared;
+ * repeating `mode: 'create'` risks an "already exists" response.
+ */
+export class AdkPostCreateLockError extends Error {
+  readonly code = 'ADT_POST_CREATE_LOCKED' as const;
+  override readonly name = 'AdkPostCreateLockError';
+
+  constructor(
+    readonly objectUri: string,
+    readonly transport: string | undefined,
+    cause: unknown,
+  ) {
+    super(
+      `SAP created ${objectUri}, but its post-create CTS lock is still active. ` +
+        "Retry the pending change with mode: 'update' after the lock clears; do not create the object again.",
+      { cause },
+    );
+  }
 }
 
 /**
@@ -444,7 +481,9 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
    * @param options - Save options
    * @returns this (for chaining)
    */
-  async save(options: SaveOptions = {}): Promise<this> {
+  // SAP ADT lifecycle orchestration is branch-heavy; targeted for follow-up refactor.
+  // prettier-ignore
+  async save(options: InternalSaveOptions = {}): Promise<this> { //NOSONAR
     const { transport, mode = 'update' } = options;
 
     // Reset per-save-attempt state
@@ -463,9 +502,28 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
       const alreadyExists = await this.checkObjectExists();
       if (!alreadyExists) {
         await this.saveViaContract('create', { transport });
+        try {
+          // Object now exists — update with full data + sources.
+          return await this.save({
+            ...options,
+            mode: 'update',
+            postCreate: true,
+          });
+        } catch (error) {
+          if (this.isPostCreateLockConflict(error)) {
+            throw new AdkPostCreateLockError(this.objectUri, transport, error);
+          }
+          throw error;
+        }
       }
-      // Object now exists — update with full data + sources
-      return this.save({ ...options, mode: 'update' });
+      // The object existed before this call — normal update errors are not
+      // post-create recovery cases unless the caller explicitly supplied the
+      // bounded post-create retry policy to resume a prior skeleton POST.
+      return this.save({
+        ...options,
+        mode: 'update',
+        postCreate: options.postCreateLockRetry !== undefined,
+      });
     }
 
     // Check if object has pending sources (from abapGit deserialization)
@@ -508,7 +566,11 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     const wasLocked = this.isLocked;
     if (!wasLocked) {
       try {
-        await this.lock(transport);
+        if (options.postCreate) {
+          await this.lockAfterCreate(transport, options.postCreateLockRetry);
+        } else {
+          await this.lock(transport);
+        }
       } catch (e) {
         // For upsert, fallback to create if object doesn't exist (404)
         // or endpoint doesn't support the operation (405 - common for DDIC types).
@@ -528,10 +590,11 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     }
 
     try {
-      // Use transport from lock response if not explicitly provided
-      // The lock response contains CORRNR which is the transport assigned to this object
+      // SAP can resolve a development task to its parent request during LOCK.
+      // Subsequent PUTs must use that authoritative CORRNR rather than the
+      // caller's task number (BHF rejects the task even with a valid handle).
       const effectiveTransport =
-        transport ?? this._lockHandle?.correlationNumber;
+        this._lockHandle?.correlationNumber || transport;
 
       // Refresh cached ETags after locking.
       // SAP changes the object's internal version when a lock is acquired,
@@ -721,6 +784,73 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
       return e.message.includes('404') || e.message.includes('Not Found');
     }
     return false;
+  }
+
+  /**
+   * Some CTS backends can retain the lock created by a successful object POST
+   * long enough for the immediate follow-up LOCK to fail. This is distinct
+   * from an arbitrary edit conflict because this save invocation already
+   * created the skeleton successfully.
+   */
+  private isPostCreateLockConflict(e: unknown): boolean {
+    let message = '';
+    if (typeof e === 'string') {
+      message = e;
+    } else if (e instanceof Error) {
+      message = e.message;
+    } else if (
+      typeof e === 'object' &&
+      e !== null &&
+      typeof (e as { message?: unknown }).message === 'string'
+    ) {
+      message = (e as { message: string }).message;
+    }
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('already locked in request') ||
+      normalized.includes('currently editing') ||
+      normalized.includes('is being edited')
+    );
+  }
+
+  /**
+   * Some backends retain the lock implicitly created by a successful POST for
+   * a short time. Retry only this known follow-up LOCK; no arbitrary update or
+   * source write is repeated, and each successful lock still uses the normal
+   * handle-backed save/unlock lifecycle.
+   */
+  private async lockAfterCreate(
+    transport: string | undefined,
+    retry: SaveOptions['postCreateLockRetry'],
+  ): Promise<LockHandle> {
+    const attempts = retry?.attempts ?? 1;
+    const delayMs = retry?.delayMs ?? 0;
+    if (!Number.isInteger(attempts) || attempts < 1) {
+      throw new RangeError(
+        'postCreateLockRetry.attempts must be a positive integer.',
+      );
+    }
+    if (!Number.isFinite(delayMs) || delayMs < 0) {
+      throw new RangeError(
+        'postCreateLockRetry.delayMs must be a non-negative number.',
+      );
+    }
+
+    let lastConflict: unknown;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        return await this.lock(transport);
+      } catch (error) {
+        if (!this.isPostCreateLockConflict(error) || attempt === attempts) {
+          throw error;
+        }
+        lastConflict = error;
+        if (delayMs > 0) {
+          await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+        }
+      }
+    }
+    throw lastConflict;
   }
 
   /**

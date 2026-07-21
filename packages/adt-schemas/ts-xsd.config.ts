@@ -84,6 +84,7 @@ const targetSchemas = [
   'custom/aunitRun',
   'custom/aunitResult',
   'custom/atomFeed',
+  'custom/objectProperties',
   'custom/transportUseraction',
   'custom/ddlSource',
   'custom/dclSource',

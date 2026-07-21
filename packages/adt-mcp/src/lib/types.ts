@@ -5,6 +5,12 @@
 import type { AdtClient } from '@abapify/adt-client';
 import type { SapSessionContext } from './session/types.js';
 import type { SessionRegistry } from './session/registry.js';
+import type {
+  DestinationContextRegistry,
+  RequestIdentity,
+} from './session/destination-registry.js';
+import type { McpRequestAccess } from './tools/scope-catalogue.js';
+import type { createSourceCapabilityRegistry } from './source-capabilities.js';
 
 /**
  * Connection parameters that every tool receives.
@@ -38,4 +44,24 @@ export interface ToolContext {
   getSession?: (mcpSessionId: string) => SapSessionContext | undefined;
   registry?: SessionRegistry;
   resolveSystem?: (systemId: string) => ConnectionParams | undefined;
+  /**
+   * Shared-service mode. Contexts are keyed by both MCP session and the
+   * public destination key; no connection material reaches a tool handler.
+   */
+  destinationRegistry?: DestinationContextRegistry;
+  requestIdentity?: (extra: { sessionId?: string }) => RequestIdentity;
+  requestAccess?: (extra: {
+    sessionId?: string;
+  }) => McpRequestAccess | undefined;
+  /**
+   * Redeems an opaque ARM source capability after destination-mode policy has
+   * selected it. The resolver may return only a trusted server-relative URI.
+   */
+  resolveFrozenSource?: (input: {
+    destination: string;
+    systemSid: string;
+    sourceRef: string;
+  }) => Promise<{ sourceUri: string }>;
+  /** Opaque, short-lived source capabilities issued by this MCP server. */
+  sourceCapabilities?: ReturnType<typeof createSourceCapabilityRegistry>;
 }

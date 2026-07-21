@@ -1,0 +1,11 @@
+{
+  "usage": "Persist this file inside your repositories as .codescene/custom-quality-gates.json.",
+  "rule_sets": [
+    {
+      "quality_gates": "bare_minimum",
+      "quality_gates_doc": "Use the Bare Minimum profile as a pragmatic starting point for this PR while the larger refactoring of historical complexity is scheduled.",
+      "matching_content_path": "**/*.ts",
+      "matching_content_path_doc": "Apply to all TypeScript source files."
+    }
+  ]
+}

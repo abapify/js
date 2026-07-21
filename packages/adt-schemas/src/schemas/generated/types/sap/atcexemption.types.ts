@@ -7,41 +7,41 @@
 
 export type AtcexemptionSchema = {
     exemptionProposal: {
-        finding?: string;
+        finding?: string | undefined;
         package: string;
-        subObject?: string;
-        subObjectType?: string;
+        subObject?: string | undefined;
+        subObjectType?: string | undefined;
         subObjectTypeDescr: string;
         objectTypeDescr: string;
         restriction: {
             thisFinding: {
-                $value?: boolean;
+                $value?: boolean | undefined;
                 enabled: boolean;
             };
             rangeOfFindings: {
                 restrictByObject: {
-                    $value?: string;
-                    subobject?: boolean;
-                    object?: boolean;
-                    package?: boolean;
+                    $value?: string | undefined;
+                    subobject?: boolean | undefined;
+                    object?: boolean | undefined;
+                    package?: boolean | undefined;
                 };
                 restrictByCheck: {
-                    $value?: string;
-                    message?: boolean;
-                    check?: boolean;
+                    $value?: string | undefined;
+                    message?: boolean | undefined;
+                    check?: boolean | undefined;
                 };
-                restrictByValidity?: {
-                    $value?: string;
-                    unrestricted?: boolean;
-                    date?: boolean;
-                    component_release?: boolean;
-                    support_package?: boolean;
+                restrictByValidity?: undefined | {
+                    $value?: string | undefined;
+                    unrestricted?: boolean | undefined;
+                    date?: boolean | undefined;
+                    component_release?: boolean | undefined;
+                    support_package?: boolean | undefined;
                 };
                 enabled: boolean;
             };
         };
         approver: string;
-        apprIsArea?: string;
+        apprIsArea?: string | undefined;
         reason: string;
         validity: string;
         release: string;
@@ -51,59 +51,59 @@ export type AtcexemptionSchema = {
         notify: string;
         checkClass: string;
         validUntil: string;
-        supportPackage?: string;
-        reasons?: {
-            reason?: {
-                id?: string;
-                justificationMandatory?: boolean;
-                title?: string;
+        supportPackage?: string | undefined;
+        reasons?: undefined | {
+            reason?: undefined | {
+                id?: string | undefined;
+                justificationMandatory?: boolean | undefined;
+                title?: string | undefined;
             }[];
         };
-        validities?: {
-            validity?: {
-                id?: string;
-                value?: string;
+        validities?: undefined | {
+            validity?: undefined | {
+                id?: string | undefined;
+                value?: string | undefined;
             }[];
         };
     };
 } | {
     exemptionApply: {
         exemptionProposal: {
-            finding?: string;
+            finding?: string | undefined;
             package: string;
-            subObject?: string;
-            subObjectType?: string;
+            subObject?: string | undefined;
+            subObjectType?: string | undefined;
             subObjectTypeDescr: string;
             objectTypeDescr: string;
             restriction: {
                 thisFinding: {
-                    $value?: boolean;
+                    $value?: boolean | undefined;
                     enabled: boolean;
                 };
                 rangeOfFindings: {
                     restrictByObject: {
-                        $value?: string;
-                        subobject?: boolean;
-                        object?: boolean;
-                        package?: boolean;
+                        $value?: string | undefined;
+                        subobject?: boolean | undefined;
+                        object?: boolean | undefined;
+                        package?: boolean | undefined;
                     };
                     restrictByCheck: {
-                        $value?: string;
-                        message?: boolean;
-                        check?: boolean;
+                        $value?: string | undefined;
+                        message?: boolean | undefined;
+                        check?: boolean | undefined;
                     };
-                    restrictByValidity?: {
-                        $value?: string;
-                        unrestricted?: boolean;
-                        date?: boolean;
-                        component_release?: boolean;
-                        support_package?: boolean;
+                    restrictByValidity?: undefined | {
+                        $value?: string | undefined;
+                        unrestricted?: boolean | undefined;
+                        date?: boolean | undefined;
+                        component_release?: boolean | undefined;
+                        support_package?: boolean | undefined;
                     };
                     enabled: boolean;
                 };
             };
             approver: string;
-            apprIsArea?: string;
+            apprIsArea?: string | undefined;
             reason: string;
             validity: string;
             release: string;
@@ -113,18 +113,18 @@ export type AtcexemptionSchema = {
             notify: string;
             checkClass: string;
             validUntil: string;
-            supportPackage?: string;
-            reasons?: {
-                reason?: {
-                    id?: string;
-                    justificationMandatory?: boolean;
-                    title?: string;
+            supportPackage?: string | undefined;
+            reasons?: undefined | {
+                reason?: undefined | {
+                    id?: string | undefined;
+                    justificationMandatory?: boolean | undefined;
+                    title?: string | undefined;
                 }[];
             };
-            validities?: {
-                validity?: {
-                    id?: string;
-                    value?: string;
+            validities?: undefined | {
+                validity?: undefined | {
+                    id?: string | undefined;
+                    value?: string | undefined;
                 }[];
             };
         };

@@ -7,8 +7,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createAdtClient, type AdtClient } from '@abapify/adt-client';
 import { registerTools } from './tools/index';
+import { createSourceCapabilityRegistry } from './source-capabilities.js';
 import type { ConnectionParams, ToolContext } from './types';
 import type { SessionRegistry } from './session/registry.js';
+import type {
+  DestinationContextRegistry,
+  RequestIdentity,
+} from './session/destination-registry.js';
+import {
+  destinationModeServer,
+  installDestinationModeToolListProjection,
+} from './tools/destination-mode.js';
+import type { McpRequestAccess } from './tools/scope-catalogue.js';
 
 export interface McpServerOptions {
   /** Override the client factory – useful for injecting a mock client in tests. */
@@ -26,6 +36,20 @@ export interface McpServerOptions {
    * multi-system configuration loaded.
    */
   resolveSystem?: (systemId: string) => ConnectionParams | undefined;
+  /** Enables destination-only schemas and per-destination shared contexts. */
+  destinationRegistry?: DestinationContextRegistry;
+  /** Derives an audit-safe principal from the authenticated transport. */
+  requestIdentity?: (extra: { sessionId?: string }) => RequestIdentity;
+  /**
+   * Resolves explicit operation classes from trusted transport identity.
+   * Only ADT Server destination mode consumes this hook; stdio keeps its
+   * existing interactive behaviour.
+   */
+  requestAccess?: (extra: {
+    sessionId?: string;
+  }) => McpRequestAccess | undefined;
+  /** Private ARM broker resolver for signed frozen-source capabilities. */
+  resolveFrozenSource: ToolContext['resolveFrozenSource'];
 }
 
 /**
@@ -47,9 +71,11 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
   );
 
   const registry = options?.registry;
+  const sourceCapabilities = createSourceCapabilityRegistry();
 
   const ctx: ToolContext = {
     getClient: options?.clientFactory ?? defaultClientFactory,
+    sourceCapabilities,
     ...(registry
       ? {
           registry,
@@ -57,9 +83,30 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
         }
       : {}),
     ...(options?.resolveSystem ? { resolveSystem: options.resolveSystem } : {}),
+    ...(options?.destinationRegistry
+      ? {
+          destinationRegistry: options.destinationRegistry,
+          requestIdentity: options.requestIdentity,
+          requestAccess: options.requestAccess,
+          ...(options.resolveFrozenSource
+            ? { resolveFrozenSource: options.resolveFrozenSource }
+            : {}),
+        }
+      : {}),
   };
 
-  registerTools(server, ctx);
+  const destinationMode = options?.destinationRegistry;
+  registerTools(
+    destinationMode
+      ? destinationModeServer(server, { requestAccess: options.requestAccess })
+      : server,
+    ctx,
+  );
+  if (destinationMode) {
+    installDestinationModeToolListProjection(server, {
+      requestAccess: options?.requestAccess,
+    });
+  }
 
   return server;
 }

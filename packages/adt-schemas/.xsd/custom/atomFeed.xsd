@@ -31,10 +31,22 @@
   <!-- Atom name element (used inside author) -->
   <xsd:element name="name" type="xsd:string"/>
 
+  <!--
+    Source-version feeds use Atom content/@src for the immutable ABAP source
+    reference. It is deliberately modelled here rather than guessed from a
+    version id or a transport link.
+  -->
+  <xsd:element name="content" type="atom:contentType"/>
+
   <xsd:complexType name="authorType">
     <xsd:sequence>
       <xsd:element ref="atom:name" minOccurs="0"/>
     </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="contentType" mixed="true">
+    <xsd:attribute name="type" type="xsd:string" use="optional"/>
+    <xsd:attribute name="src" type="xsd:string" use="optional"/>
   </xsd:complexType>
 
   <xsd:complexType name="entryType">
@@ -44,6 +56,7 @@
       <xsd:element ref="atom:link" minOccurs="0" maxOccurs="unbounded"/>
       <xsd:element ref="atom:updated" minOccurs="0"/>
       <xsd:element ref="atom:author" minOccurs="0"/>
+      <xsd:element ref="atom:content" minOccurs="0"/>
     </xsd:sequence>
   </xsd:complexType>
 

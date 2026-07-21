@@ -7,6 +7,7 @@
 
 import adtcore from './adtcore';
 import abapsource from './abapsource';
+import atom from './atom';
 
 export default {
   $xmlns: {
@@ -14,11 +15,13 @@ export default {
     xsd: 'http://www.w3.org/2001/XMLSchema',
     adtcore: 'http://www.sap.com/adt/core',
     abapsource: 'http://www.sap.com/adt/abapsource',
+    atom: 'http://www.w3.org/2005/Atom',
     program: 'http://www.sap.com/adt/programs/programs',
   },
   $imports: [
     adtcore,
     abapsource,
+    atom,
   ],
   targetNamespace: 'http://www.sap.com/adt/programs/programs',
   attributeFormDefault: 'qualified',
@@ -37,6 +40,11 @@ export default {
           base: 'abapsource:AbapSourceMainObject',
           sequence: {
             element: [
+              {
+                ref: 'atom:link',
+                minOccurs: '0',
+                maxOccurs: 'unbounded',
+              },
               {
                 name: 'logicalDatabase',
                 type: 'program:LogicalDatabase',

@@ -7,24 +7,24 @@
 
 export type ExceptionSchema = {
     exception: {
-        namespace?: {
-            id?: string;
+        namespace?: undefined | {
+            id?: string | undefined;
         };
-        type?: {
-            id?: string;
+        type?: undefined | {
+            id?: string | undefined;
         };
-        message?: {
-            $value?: string;
-            lang?: string;
+        message?: undefined | {
+            $value?: string | undefined;
+            lang?: string | undefined;
         };
-        localizedMessage?: {
-            $value?: string;
-            lang?: string;
+        localizedMessage?: undefined | {
+            $value?: string | undefined;
+            lang?: string | undefined;
         };
-        properties?: {
-            entry?: {
-                $value?: string;
-                key?: string;
+        properties?: undefined | {
+            entry?: undefined | {
+                $value?: string | undefined;
+                key?: string | undefined;
             }[];
         };
     };

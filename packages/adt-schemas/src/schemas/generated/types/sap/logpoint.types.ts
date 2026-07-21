@@ -7,153 +7,153 @@
 
 export type LogpointSchema = {
     logpoint: {
-        location?: {
-            includePosition?: {
-                extension?: unknown;
-                uri?: string;
-                parentUri?: string;
-                type?: string;
-                name?: string;
-                packageName?: string;
-                description?: string;
+        location?: undefined | {
+            includePosition?: undefined | {
+                extension?: undefined | unknown;
+                uri?: string | undefined;
+                parentUri?: string | undefined;
+                type?: string | undefined;
+                name?: string | undefined;
+                packageName?: string | undefined;
+                description?: string | undefined;
             };
-            mainProgram?: {
-                extension?: unknown;
-                uri?: string;
-                parentUri?: string;
-                type?: string;
-                name?: string;
-                packageName?: string;
-                description?: string;
+            mainProgram?: undefined | {
+                extension?: undefined | unknown;
+                uri?: string | undefined;
+                parentUri?: string | undefined;
+                type?: string | undefined;
+                name?: string | undefined;
+                packageName?: string | undefined;
+                description?: string | undefined;
             };
         };
-        definition?: {
-            description?: string;
-            subKey?: string;
-            fields?: string;
-            condition?: string;
-            rollareaCounter?: number;
-            usageType?: string;
-            createdBy?: string;
-            changedBy?: string;
-            changedAt?: string;
-            expiresAt?: string;
-            activityType?: string;
-            retentionTimeInDays?: number;
+        definition?: undefined | {
+            description?: string | undefined;
+            subKey?: string | undefined;
+            fields?: string | undefined;
+            condition?: string | undefined;
+            rollareaCounter?: number | undefined;
+            usageType?: string | undefined;
+            createdBy?: string | undefined;
+            changedBy?: string | undefined;
+            changedAt?: string | undefined;
+            expiresAt?: string | undefined;
+            activityType?: string | undefined;
+            retentionTimeInDays?: number | undefined;
         };
-        activation?: {
-            users?: {
-                user?: {
-                    name?: string;
+        activation?: undefined | {
+            users?: undefined | {
+                user?: undefined | {
+                    name?: string | undefined;
                 }[];
             };
-            servers?: {
-                server?: {
-                    name?: string;
+            servers?: undefined | {
+                server?: undefined | {
+                    name?: string | undefined;
                 }[];
             };
-            state?: string;
-            activatedBy?: string;
-            activeSince?: string;
-            activeUntil?: string;
-            inactivatedBy?: string;
-            inactiveSince?: string;
+            state?: string | undefined;
+            activatedBy?: string | undefined;
+            activeSince?: string | undefined;
+            activeUntil?: string | undefined;
+            inactivatedBy?: string | undefined;
+            inactiveSince?: string | undefined;
         };
     };
 } | {
     logpointList: {
         logpoint: {
-            summary?: {
+            summary?: undefined | {
                 shortInfo: string;
                 executions: number;
             };
-            definition?: {
-                description?: string;
-                subKey?: string;
-                fields?: string;
-                condition?: string;
-                rollareaCounter?: number;
-                usageType?: string;
-                createdBy?: string;
-                changedBy?: string;
-                changedAt?: string;
-                expiresAt?: string;
-                activityType?: string;
-                retentionTimeInDays?: number;
+            definition?: undefined | {
+                description?: string | undefined;
+                subKey?: string | undefined;
+                fields?: string | undefined;
+                condition?: string | undefined;
+                rollareaCounter?: number | undefined;
+                usageType?: string | undefined;
+                createdBy?: string | undefined;
+                changedBy?: string | undefined;
+                changedAt?: string | undefined;
+                expiresAt?: string | undefined;
+                activityType?: string | undefined;
+                retentionTimeInDays?: number | undefined;
             };
-            activation?: {
-                users?: {
-                    user?: {
-                        name?: string;
+            activation?: undefined | {
+                users?: undefined | {
+                    user?: undefined | {
+                        name?: string | undefined;
                     }[];
                 };
-                servers?: {
-                    server?: {
-                        name?: string;
+                servers?: undefined | {
+                    server?: undefined | {
+                        name?: string | undefined;
                     }[];
                 };
-                state?: string;
-                activatedBy?: string;
-                activeSince?: string;
-                activeUntil?: string;
-                inactivatedBy?: string;
-                inactiveSince?: string;
+                state?: string | undefined;
+                activatedBy?: string | undefined;
+                activeSince?: string | undefined;
+                activeUntil?: string | undefined;
+                inactivatedBy?: string | undefined;
+                inactiveSince?: string | undefined;
             };
-            link?: {
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             }[];
-            location?: {
-                includePosition?: {
-                    extension?: unknown;
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
+            location?: undefined | {
+                includePosition?: undefined | {
+                    extension?: undefined | unknown;
+                    uri?: string | undefined;
+                    parentUri?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    packageName?: string | undefined;
+                    description?: string | undefined;
                 };
-                mainProgram?: {
-                    extension?: unknown;
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
+                mainProgram?: undefined | {
+                    extension?: undefined | unknown;
+                    uri?: string | undefined;
+                    parentUri?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    packageName?: string | undefined;
+                    description?: string | undefined;
                 };
             };
         };
     };
 } | {
     locationCheck: {
-        location?: {
-            includePosition?: {
-                extension?: unknown;
-                uri?: string;
-                parentUri?: string;
-                type?: string;
-                name?: string;
-                packageName?: string;
-                description?: string;
+        location?: undefined | {
+            includePosition?: undefined | {
+                extension?: undefined | unknown;
+                uri?: string | undefined;
+                parentUri?: string | undefined;
+                type?: string | undefined;
+                name?: string | undefined;
+                packageName?: string | undefined;
+                description?: string | undefined;
             };
-            mainProgram?: {
-                extension?: unknown;
-                uri?: string;
-                parentUri?: string;
-                type?: string;
-                name?: string;
-                packageName?: string;
-                description?: string;
+            mainProgram?: undefined | {
+                extension?: undefined | unknown;
+                uri?: string | undefined;
+                parentUri?: string | undefined;
+                type?: string | undefined;
+                name?: string | undefined;
+                packageName?: string | undefined;
+                description?: string | undefined;
             };
         };
-        message?: string;
-        possible?: boolean;
+        message?: string | undefined;
+        possible?: boolean | undefined;
     };
 };
