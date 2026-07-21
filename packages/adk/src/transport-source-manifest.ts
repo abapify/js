@@ -13,7 +13,6 @@ export type TransportSourceChangeKind =
   | 'added'
   | 'modified'
   | 'deleted'
-  | 'unchanged'
   | 'ambiguous'
   | 'unsupported'
   | 'failed';
@@ -508,11 +507,11 @@ export function selectTransportSourceVersions( // NOSONAR - SAP feed-order selec
       oldestInScope.index,
       scope,
     );
-    if (base && rangeDiagnostic) {
+    if (rangeDiagnostic) {
       return {
         changeKind: 'ambiguous',
         exact: false,
-        base,
+        ...(base ? { base } : {}),
         diagnostic: rangeDiagnostic,
       };
     }

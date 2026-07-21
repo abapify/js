@@ -50,6 +50,36 @@ export interface ResolvedClient {
  * Throws when none apply; callers should wrap with the standard
  * `{ isError: true, content: [...] }` response.
  */
+export async function resolveDestinationClient(
+  ctx: ToolContext,
+  args: LegacyConnectionArgs,
+  extra: { sessionId?: string },
+): Promise<{
+  client: AdtClient;
+  mcpSessionId: string;
+  destination: string;
+  alreadyConnected: boolean;
+}> {
+  const mcpSessionId = extra.sessionId;
+  if (!mcpSessionId || !ctx.destinationRegistry) {
+    throw new Error(
+      'A destination requires HTTP shared-service mode with an MCP session.',
+    );
+  }
+  const existing = ctx.destinationRegistry.get(mcpSessionId, args.destination);
+  const destination = await ctx.destinationRegistry.getOrCreate(
+    mcpSessionId,
+    args.destination,
+    ctx.requestIdentity?.(extra) ?? { principal: 'unknown' },
+  );
+  return {
+    client: destination.client,
+    mcpSessionId,
+    destination: args.destination,
+    alreadyConnected: existing !== undefined,
+  };
+}
+
 export async function resolveClient(
   ctx: ToolContext,
   args: LegacyConnectionArgs,
@@ -62,21 +92,12 @@ export async function resolveClient(
   // every legacy connection mechanism so a shared server can never fall back
   // to caller-supplied endpoint or credential material.
   if (args.destination !== undefined) {
-    if (!mcpSessionId || !ctx.destinationRegistry) {
-      throw new Error(
-        'A destination requires HTTP shared-service mode with an MCP session.',
-      );
-    }
-    const destination = await ctx.destinationRegistry.getOrCreate(
-      mcpSessionId,
-      args.destination,
-      ctx.requestIdentity?.(extra) ?? { principal: 'unknown' },
-    );
+    const destination = await resolveDestinationClient(ctx, args, extra);
     return {
       client: destination.client,
-      mcpSessionId,
+      mcpSessionId: destination.mcpSessionId,
       isSessionScoped: true,
-      destination: args.destination,
+      destination: destination.destination,
     };
   }
 

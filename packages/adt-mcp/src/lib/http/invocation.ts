@@ -20,7 +20,7 @@ const MAX_FROZEN_SOURCE_BYTES = 2 * 1024 * 1024;
 const destinationKeyPattern = /^[a-z][a-z0-9-]{1,62}$/u;
 const canonicalKeyPattern = /^[A-Z0-9_]+:.+$/u;
 const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 const trustedAgentIds = new Set([
   'ai-review',
@@ -182,6 +182,36 @@ function requiredSourceReference(value: unknown): string | undefined {
   return value;
 }
 
+export function parseFrozenSource(
+  source: unknown,
+  sourceKeys: Set<string>,
+  sourceRefs: Set<string>,
+):
+  | {
+      readonly canonicalKey: string;
+      readonly componentId: string;
+      readonly sourceRef: string;
+    }
+  | undefined {
+  if (!isPlainObject(source)) return undefined;
+  const canonicalKey = source.canonicalKey;
+  const componentId = requiredComponentIdentifier(source.componentId);
+  const sourceRef = requiredSourceReference(source.sourceRef);
+  if (
+    typeof canonicalKey !== 'string' ||
+    !canonicalKeyPattern.test(canonicalKey) ||
+    !componentId ||
+    !sourceRef
+  ) {
+    return undefined;
+  }
+  const key = `${canonicalKey}\u0000${componentId}`;
+  if (sourceKeys.has(key) || sourceRefs.has(sourceRef)) return undefined;
+  sourceKeys.add(key);
+  sourceRefs.add(sourceRef);
+  return Object.freeze({ canonicalKey, componentId, sourceRef });
+}
+
 /**
  * Parse the only AI Review policy currently safe to dispatch. Every property
  * is deliberately exact: accepting a valid JWS with one ignored narrowing
@@ -245,27 +275,9 @@ export function parseAiReviewFrozenSourcePolicy(
     ) {
       return undefined;
     }
-    const canonicalKey = rawSource.canonicalKey;
-    const componentId = requiredComponentIdentifier(rawSource.componentId);
-    const sourceRef = requiredSourceReference(rawSource.sourceRef);
-    const sourceKey =
-      typeof canonicalKey === 'string' && componentId
-        ? `${canonicalKey}\u0000${componentId}`
-        : undefined;
-    if (
-      typeof canonicalKey !== 'string' ||
-      !canonicalKeyPattern.test(canonicalKey) ||
-      !componentId ||
-      !sourceRef ||
-      !sourceKey ||
-      sourceKeys.has(sourceKey) ||
-      sourceRefs.has(sourceRef)
-    ) {
-      return undefined;
-    }
-    sourceKeys.add(sourceKey);
-    sourceRefs.add(sourceRef);
-    sources.push(Object.freeze({ canonicalKey, componentId, sourceRef }));
+    const parsed = parseFrozenSource(rawSource, sourceKeys, sourceRefs);
+    if (!parsed) return undefined;
+    sources.push(parsed);
   }
 
   const limitKeys = Object.keys(claims.limits);

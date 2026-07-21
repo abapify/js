@@ -27,6 +27,7 @@ import {
 import { ChangesetService } from '@abapify/adt-cli';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
+import { resolveDestinationClient } from './session-helpers';
 
 interface SapConnectArgs {
   destination?: string;
@@ -66,26 +67,11 @@ export function registerSapConnectTool(
       // connect is merely an explicit prewarm of one destination context;
       // all other tools may resolve the same context lazily.
       if (sharedArgs.destination !== undefined) {
-        if (!mcpSessionId || !ctx.destinationRegistry) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text' as const,
-                text: 'sap_connect requires HTTP shared-service mode.',
-              },
-            ],
-          };
-        }
         try {
-          const existing = ctx.destinationRegistry.get(
-            mcpSessionId,
-            sharedArgs.destination,
-          );
-          const context = await ctx.destinationRegistry.getOrCreate(
-            mcpSessionId,
-            sharedArgs.destination,
-            ctx.requestIdentity?.(extra ?? {}) ?? { principal: 'unknown' },
+          const destination = await resolveDestinationClient(
+            ctx,
+            sharedArgs,
+            extra ?? {},
           );
           return {
             content: [
@@ -94,9 +80,9 @@ export function registerSapConnectTool(
                 text: JSON.stringify(
                   {
                     ok: true,
-                    alreadyConnected: existing !== undefined,
-                    destination: context.destination,
-                    mcpSessionId,
+                    alreadyConnected: destination.alreadyConnected,
+                    destination: destination.destination,
+                    mcpSessionId: destination.mcpSessionId,
                   },
                   null,
                   2,
@@ -110,7 +96,7 @@ export function registerSapConnectTool(
             content: [
               {
                 type: 'text' as const,
-                text: `sap_connect failed to acquire destination: ${
+                text: `sap_connect requires HTTP shared-service mode: ${
                   error instanceof Error ? error.message : String(error)
                 }`,
               },

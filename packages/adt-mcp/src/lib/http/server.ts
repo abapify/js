@@ -38,6 +38,7 @@ import { createAuthMiddleware, type AuthMode, type UserHint } from './auth.js';
 import {
   isMcpInvocationDispatchPolicySupported,
   parseAiReviewFrozenSourcePolicy,
+  parseFrozenSource,
 } from './invocation.js';
 import type {
   McpInvocationVerifier,
@@ -207,41 +208,9 @@ function snapshotFrozenSourceAccess(
     sourceRef: string;
   }[] = [];
   for (const source of access.sources) {
-    const sourceKey =
-      source &&
-      typeof source.canonicalKey === 'string' &&
-      typeof source.componentId === 'string'
-        ? `${source.canonicalKey}\u0000${source.componentId}`
-        : undefined;
-    if (
-      !source ||
-      typeof source.canonicalKey !== 'string' ||
-      !/^[A-Z0-9_]+:.+$/u.test(source.canonicalKey) ||
-      typeof source.componentId !== 'string' ||
-      source.componentId.length === 0 ||
-      source.componentId.length > 512 ||
-      // eslint-disable-next-line no-control-regex
-      /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(source.componentId) ||
-      typeof source.sourceRef !== 'string' ||
-      source.sourceRef.length === 0 ||
-      source.sourceRef.length > 8 * 1024 ||
-      // eslint-disable-next-line no-control-regex
-      /[\s\u0000-\u0008\u000e-\u001f\u007f]/u.test(source.sourceRef) ||
-      !sourceKey ||
-      sourceKeys.has(sourceKey) ||
-      sourceRefs.has(source.sourceRef)
-    ) {
-      return undefined;
-    }
-    sourceKeys.add(sourceKey);
-    sourceRefs.add(source.sourceRef);
-    sources.push(
-      Object.freeze({
-        canonicalKey: source.canonicalKey,
-        componentId: source.componentId,
-        sourceRef: source.sourceRef,
-      }),
-    );
+    const parsed = parseFrozenSource(source, sourceKeys, sourceRefs);
+    if (!parsed) return undefined;
+    sources.push(parsed);
   }
   return Object.freeze({
     systemSid: access.systemSid,
@@ -426,6 +395,20 @@ export function createHttpMcpHandler(
   const servers = new Map<string, McpServer>();
   const sessionIdentityBindings = new Map<string, string>();
 
+  async function releaseSessionResources(sessionId: string): Promise<void> {
+    const server = servers.get(sessionId);
+    transports.delete(sessionId);
+    sessionIdentityBindings.delete(sessionId);
+    servers.delete(sessionId);
+    await registry.delete(sessionId);
+    await destinationServer?.destinationRegistry.releaseAll(sessionId);
+    try {
+      await server?.close();
+    } catch {
+      // ignore
+    }
+  }
+
   const hostAllow = normaliseHostAllowlist(host, options.allowedHosts);
   const hostValidator = makeHostValidator(hostAllow);
 
@@ -547,35 +530,14 @@ export function createHttpMcpHandler(
           },
           onsessionclosed: async (id) => {
             log('info', `session closed by client: ${id}`);
-            transports.delete(id);
-            sessionIdentityBindings.delete(id);
-            await registry.delete(id);
-            await destinationServer?.destinationRegistry.releaseAll(id);
-            const s = servers.get(id);
-            servers.delete(id);
-            try {
-              await s?.close();
-            } catch {
-              // ignore
-            }
+            await releaseSessionResources(id);
           },
         });
 
         transport.onclose = () => {
           const id = transport.sessionId;
           if (!id) return;
-          transports.delete(id);
-          sessionIdentityBindings.delete(id);
-          const s = servers.get(id);
-          servers.delete(id);
-          // Fire-and-forget — registry.delete swallows errors internally.
-          void registry.delete(id);
-          void destinationServer?.destinationRegistry.releaseAll(id);
-          try {
-            void s?.close();
-          } catch {
-            // ignore
-          }
+          void releaseSessionResources(id);
         };
 
         let sessionIdentity: RequestIdentity | undefined;

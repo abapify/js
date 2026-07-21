@@ -138,13 +138,12 @@ function normalizeLinks(value: unknown): AtomLink[] {
 
 function isContentLink(link: AtomLink): boolean {
   const rel = asOptionalString(link.rel)?.toLowerCase();
-  const contentType = asOptionalString(link.type)?.toLowerCase();
+  return Boolean(rel?.endsWith('/content') || rel === 'content');
+}
 
-  return Boolean(
-    rel?.endsWith('/content') ||
-    rel === 'content' ||
-    contentType?.startsWith('text/plain'),
-  );
+function isPlainTextContentLink(link: AtomLink): boolean {
+  const contentType = asOptionalString(link.type)?.toLowerCase();
+  return Boolean(contentType?.startsWith('text/plain'));
 }
 
 /**
@@ -180,7 +179,10 @@ function transportFromLink(link: AtomLink): string | undefined {
   if (!href) return undefined;
 
   const path = href.split(/[?#]/, 1)[0];
-  const lastSegment = path?.split('/').findLast((segment) => segment !== '');
+  const lastSegment = path
+    ?.split('/')
+    .filter((segment) => segment !== '')
+    .pop();
   if (!lastSegment) return undefined;
 
   try {
@@ -248,7 +250,9 @@ export function normalizeSourceVersionFeed(
 
     const links = normalizeLinks(entry.link);
     const contentLink =
-      links.find(isContentLink) ?? contentElementAsLink(entry);
+      links.find(isContentLink) ??
+      links.find(isPlainTextContentLink) ??
+      contentElementAsLink(entry);
     const href = contentLink && asOptionalString(contentLink.href);
 
     if (!contentLink || !href) {

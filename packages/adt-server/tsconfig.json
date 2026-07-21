@@ -8,5 +8,15 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
-  "references": [{ "path": "../adt-mcp" }]
+  "references": [
+    {
+      "path": "../adt-client"
+    },
+    {
+      "path": "../adt-mcp"
+    },
+    {
+      "path": "../adt-cli"
+    }
+  ]
 }
