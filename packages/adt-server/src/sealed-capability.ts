@@ -72,45 +72,62 @@ export function createSealedCapabilityService(
   }
   const key = createHash('sha256').update(secret).digest();
 
+  function isSealedCapabilityPayload(
+    parsed: Record<string, unknown>,
+  ): parsed is Record<string, unknown> & SealedCapabilityPayload {
+    if (parsed.v !== 1) return false;
+    if (typeof parsed.d !== 'string') return false;
+    if (typeof parsed.u !== 'string') return false;
+    if (!Number.isSafeInteger(parsed.e)) return false;
+    return parsed.d.length > 0 && options.validateUri(parsed.u);
+  }
+
   function parsePayload(value: string): SealedCapabilityPayload | undefined {
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(value);
-      if (
-        !parsed ||
-        typeof parsed !== 'object' ||
-        (parsed as Record<string, unknown>).v !== 1 ||
-        typeof (parsed as Record<string, unknown>).d !== 'string' ||
-        typeof (parsed as Record<string, unknown>).u !== 'string' ||
-        !Number.isSafeInteger((parsed as Record<string, unknown>).e)
-      ) {
-        return undefined;
-      }
-      const payload = parsed as SealedCapabilityPayload;
-      return payload.d && options.validateUri(payload.u) ? payload : undefined;
+      parsed = JSON.parse(value);
     } catch {
       return undefined;
     }
+    if (!parsed || typeof parsed !== 'object') return undefined;
+    const record = parsed as Record<string, unknown>;
+    if (!isSealedCapabilityPayload(record)) return undefined;
+    return record;
   }
 
-  function unseal(capability: string): SealedCapabilityPayload | undefined {
+  function isBase64UrlSafe(value: string): boolean {
+    return /^[A-Za-z0-9_-]+$/u.test(value);
+  }
+
+  function parseCapabilityParts(capability: string):
+    | {
+        namespace: string;
+        version: string;
+        encodedIv: string;
+        encodedCiphertext: string;
+      }
+    | undefined {
     const [namespace, version, encodedIv, encodedCiphertext, extra] =
       capability.split('.');
-    if (
-      namespace !== options.namespace ||
-      version !== options.version ||
-      !encodedIv ||
-      !encodedCiphertext ||
-      extra !== undefined ||
-      !/^[A-Za-z0-9_-]+$/u.test(encodedIv) ||
-      !/^[A-Za-z0-9_-]+$/u.test(encodedCiphertext)
-    ) {
-      return undefined;
-    }
+    if (namespace !== options.namespace) return undefined;
+    if (version !== options.version) return undefined;
+    if (!encodedIv) return undefined;
+    if (!encodedCiphertext) return undefined;
+    if (extra !== undefined) return undefined;
+    if (!isBase64UrlSafe(encodedIv)) return undefined;
+    if (!isBase64UrlSafe(encodedCiphertext)) return undefined;
+    return { namespace, version, encodedIv, encodedCiphertext };
+  }
+
+  function decryptCiphertext(
+    encodedIv: string,
+    encodedCiphertext: string,
+  ): string | undefined {
     try {
       const initializationVector = Buffer.from(encodedIv, 'base64url');
       const encrypted = Buffer.from(encodedCiphertext, 'base64url');
-      if (initializationVector.length !== 12 || encrypted.length <= 16)
-        return undefined;
+      if (initializationVector.length !== 12) return undefined;
+      if (encrypted.length <= 16) return undefined;
       const decipher = createDecipheriv(
         'aes-256-gcm',
         key,
@@ -122,10 +139,21 @@ export function createSealedCapabilityService(
         decipher.update(encrypted.subarray(0, -16)),
         decipher.final(),
       ]);
-      return parsePayload(plaintext.toString('utf8'));
+      return plaintext.toString('utf8');
     } catch {
       return undefined;
     }
+  }
+
+  function unseal(capability: string): SealedCapabilityPayload | undefined {
+    const parts = parseCapabilityParts(capability);
+    if (!parts) return undefined;
+    const plaintext = decryptCiphertext(
+      parts.encodedIv,
+      parts.encodedCiphertext,
+    );
+    if (!plaintext) return undefined;
+    return parsePayload(plaintext);
   }
 
   return {
@@ -155,19 +183,14 @@ export function createSealedCapabilityService(
       return capability;
     },
     resolve(capability: string, destination: string): string {
-      if (
-        typeof capability !== 'string' ||
-        capability.length > options.maxCapabilityLength
-      ) {
+      if (typeof capability !== 'string') throw options.createError();
+      if (capability.length > options.maxCapabilityLength) {
         throw options.createError();
       }
       const payload = unseal(capability);
-      if (
-        payload?.d !== destination ||
-        (payload?.e ?? Number.NEGATIVE_INFINITY) <= now()
-      ) {
-        throw options.createError();
-      }
+      if (!payload) throw options.createError();
+      if (payload.d !== destination) throw options.createError();
+      if (payload.e <= now()) throw options.createError();
       return payload.u;
     },
   };
