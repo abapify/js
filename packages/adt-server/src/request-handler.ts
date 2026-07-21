@@ -147,11 +147,13 @@ function validateObjectSource(
   result: { source: string; bytes: number },
   maxBytes: number,
 ): void {
-  if (
-    typeof result.source !== 'string' ||
-    result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
-    result.bytes > maxBytes
-  ) {
+  if (typeof result.source !== 'string') {
+    throw new Error('Bounded object source operation returned an invalid body');
+  }
+  if (result.bytes !== Buffer.byteLength(result.source, 'utf8')) {
+    throw new Error('Bounded object source operation returned an invalid body');
+  }
+  if (result.bytes > maxBytes) {
     throw new Error('Bounded object source operation returned an invalid body');
   }
 }
@@ -160,11 +162,13 @@ function validateSourceVersionResult(
   result: { source: string; bytes: number },
   maxBytes: number,
 ): void {
-  if (
-    typeof result.source !== 'string' ||
-    result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
-    result.bytes > maxBytes
-  ) {
+  if (typeof result.source !== 'string') {
+    throw new Error('Bounded source operation returned an invalid body');
+  }
+  if (result.bytes !== Buffer.byteLength(result.source, 'utf8')) {
+    throw new Error('Bounded source operation returned an invalid body');
+  }
+  if (result.bytes > maxBytes) {
     throw new Error('Bounded source operation returned an invalid body');
   }
 }
@@ -173,52 +177,81 @@ function validateAtcDocumentationResult(
   result: { html: string; bytes: number },
   maxBytes: number,
 ): void {
-  if (
-    typeof result.html !== 'string' ||
-    result.bytes !== Buffer.byteLength(result.html, 'utf8') ||
-    result.bytes > maxBytes
-  ) {
+  if (typeof result.html !== 'string') {
+    throw new Error(
+      'Bounded ATC documentation operation returned an invalid body',
+    );
+  }
+  if (result.bytes !== Buffer.byteLength(result.html, 'utf8')) {
+    throw new Error(
+      'Bounded ATC documentation operation returned an invalid body',
+    );
+  }
+  if (result.bytes > maxBytes) {
     throw new Error(
       'Bounded ATC documentation operation returned an invalid body',
     );
   }
 }
 
+type ErrorRule = {
+  test(error: unknown): boolean;
+  status: number;
+  title: string;
+};
+
+const knownErrorRules: ErrorRule[] = [
+  {
+    test: (e) => e instanceof z.ZodError,
+    status: 400,
+    title: 'Invalid request',
+  },
+  {
+    test: (e) => e instanceof InvalidJsonBodyError,
+    status: 400,
+    title: 'Invalid request',
+  },
+  {
+    test: (e) => e instanceof InvalidPathParameterError,
+    status: 400,
+    title: 'Invalid request',
+  },
+  {
+    test: (e) => e instanceof RestPageCursorError,
+    status: 400,
+    title: 'Invalid request',
+  },
+  {
+    test: (e) => e instanceof RestAtcDocumentationCapabilityError,
+    status: 404,
+    title: 'Documentation unavailable',
+  },
+  {
+    test: (e) => e instanceof AdtResponseTooLargeError,
+    status: 413,
+    title: 'Documentation too large',
+  },
+  {
+    test: (e) => e instanceof RestSourceCapabilityError,
+    status: 404,
+    title: 'Source unavailable',
+  },
+  {
+    test: (e) => e instanceof SourceVersionTooLargeError,
+    status: 413,
+    title: 'Source too large',
+  },
+];
+
 function handleKnownError(
   response: http.ServerResponse,
   error: unknown,
 ): boolean {
-  if (error instanceof z.ZodError) {
-    writeProblem(response, 400, 'Invalid request');
-    return true;
-  }
-  if (error instanceof InvalidJsonBodyError) {
-    writeProblem(response, 400, 'Invalid request');
-    return true;
-  }
-  if (error instanceof InvalidPathParameterError) {
-    writeProblem(response, 400, 'Invalid request');
-    return true;
-  }
-  if (error instanceof RestPageCursorError) {
-    writeProblem(response, 400, 'Invalid request');
-    return true;
-  }
-  if (error instanceof RestAtcDocumentationCapabilityError) {
-    writeProblem(response, 404, 'Documentation unavailable');
-    return true;
-  }
-  if (error instanceof AdtResponseTooLargeError) {
-    writeProblem(response, 413, 'Documentation too large');
-    return true;
-  }
-  if (error instanceof RestSourceCapabilityError) {
-    writeProblem(response, 404, 'Source unavailable');
-    return true;
-  }
-  if (error instanceof SourceVersionTooLargeError) {
-    writeProblem(response, 413, 'Source too large');
-    return true;
+  for (const rule of knownErrorRules) {
+    if (rule.test(error)) {
+      writeProblem(response, rule.status, rule.title);
+      return true;
+    }
   }
   return false;
 }
@@ -770,6 +803,51 @@ async function handleSourceVersionRead(
   }
 }
 
+function findRoute(
+  routes: Route[],
+  method: string | undefined,
+  path: string,
+): { route: Route; match: RegExpExecArray } | undefined {
+  for (const route of routes) {
+    if (route.method && method !== route.method) continue;
+    const match = route.pattern.exec(path);
+    if (match) return { route, match };
+  }
+  return undefined;
+}
+
+async function dispatchRoute(
+  ctx: RequestHandlerContext,
+  request: http.IncomingMessage,
+  response: http.ServerResponse,
+  path: string,
+  routes: Route[],
+): Promise<void> {
+  const found = findRoute(routes, request.method, path);
+  if (!found) {
+    writeNotFound(response);
+    return;
+  }
+  const { route, match } = found;
+  if (
+    route.requiresRest &&
+    !(await ensureRestAuthorized(ctx, request, response))
+  )
+    return;
+  await route.handler(ctx, request, response, match);
+}
+
+function handleServerError(
+  response: http.ServerResponse,
+  _error: unknown,
+): void {
+  if (response.headersSent) {
+    response.end();
+    return;
+  }
+  writeProblem(response, 500, 'Internal server error');
+}
+
 export function createRequestHandler(
   ctx: RequestHandlerContext,
 ): (request: http.IncomingMessage, response: http.ServerResponse) => void {
@@ -901,27 +979,9 @@ export function createRequestHandler(
   ];
 
   return (request, response) => {
-    void (async () => {
-      const path = (request.url ?? '/').split('?', 1)[0];
-      for (const route of routes) {
-        if (route.method && request.method !== route.method) continue;
-        const match = route.pattern.exec(path);
-        if (!match) continue;
-        if (
-          route.requiresRest &&
-          !(await ensureRestAuthorized(ctx, request, response))
-        )
-          return;
-        await route.handler(ctx, request, response, match);
-        return;
-      }
-      writeNotFound(response);
-    })().catch(() => {
-      if (response.headersSent) {
-        response.end();
-        return;
-      }
-      writeProblem(response, 500, 'Internal server error');
-    });
+    const path = (request.url ?? '/').split('?', 1)[0];
+    void dispatchRoute(ctx, request, response, path, routes).catch((error) =>
+      handleServerError(response, error),
+    );
   };
 }
