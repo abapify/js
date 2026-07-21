@@ -27,6 +27,11 @@ export class RestSourceCapabilityError extends Error {
 export interface RestSourceCapabilityServiceOptions {
   /** A production deployment shares this secret across all sidecar replicas. */
   secret?: string;
+  /**
+   * Allow an ephemeral per-process secret. This breaks validation across
+   * replicas/restarts and must only be used in single-instance tests/development.
+   */
+  allowEphemeralSecret?: boolean;
   now?: () => number;
   ttlMs?: number;
 }
@@ -67,8 +72,17 @@ function parsePayload(value: string): SourceCapabilityPayload | undefined {
 export function createRestSourceCapabilityService(
   options: RestSourceCapabilityServiceOptions = {},
 ) {
+  const explicitSecret = options.secret?.trim();
   const secret =
-    options.secret?.trim() || randomBytes(32).toString('base64url');
+    explicitSecret ??
+    (options.allowEphemeralSecret
+      ? randomBytes(32).toString('base64url')
+      : undefined);
+  if (!secret) {
+    throw new Error(
+      'Source capability secret is required. Set `secret` for production, or `allowEphemeralSecret` for single-instance tests.',
+    );
+  }
   const now = options.now ?? Date.now;
   const ttlMs = options.ttlMs ?? MAX_TTL_MS;
   if (!Number.isSafeInteger(ttlMs) || ttlMs < 1 || ttlMs > MAX_TTL_MS) {
