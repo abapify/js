@@ -10,27 +10,27 @@ export type ConfigurationsSchema = {
         configuration: {
             properties: {
                 property: {
-                    $value?: string;
-                    key?: string;
-                    isMandatory?: boolean;
+                    $value?: string | undefined;
+                    key?: string | undefined;
+                    isMandatory?: boolean | undefined;
                 }[];
             };
-            link?: {
+            link?: undefined | {
                 href: string;
-                rel?: string;
-                type?: string;
-                hreflang?: string;
-                title?: string;
-                length?: number;
-                etag?: string;
-                _text?: string;
+                rel?: string | undefined;
+                type?: string | undefined;
+                hreflang?: string | undefined;
+                title?: string | undefined;
+                length?: number | undefined;
+                etag?: string | undefined;
+                _text?: string | undefined;
             };
-            client?: string;
-            configName?: string;
-            createdBy?: string;
-            createdAt?: string;
-            changedBy?: string;
-            changedAt?: string;
+            client?: string | undefined;
+            configName?: string | undefined;
+            createdBy?: string | undefined;
+            createdAt?: string | undefined;
+            changedBy?: string | undefined;
+            changedAt?: string | undefined;
         }[];
     };
 };

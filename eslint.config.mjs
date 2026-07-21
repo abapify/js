@@ -74,6 +74,9 @@ export default [
       // Config files are build-time only, not runtime dependencies
       '**/*.config.ts',
       '**/*.config.mts',
+      // Docusaurus-generated files are build artifacts, not hand-written source
+      'website/.docusaurus/**',
+      'website/build/**',
     ],
   },
   {

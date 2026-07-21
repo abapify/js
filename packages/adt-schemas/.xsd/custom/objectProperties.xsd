@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Repository Information System object-property result.
+
+  GET /sap/bc/adt/repository/informationsystem/objectproperties/values
+  Accept: application/vnd.sap.adt.repository.objproperties.result.v1+xml
+
+  The result is intentionally generic: SAP controls the available facets and
+  properties per object type and release.  Object and property Atom links are
+  preserved so consumers can expose supported read-only capabilities without
+  inventing endpoint paths.
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:objprops="http://www.sap.com/adt/repository/informationsystem/objectproperties"
+    targetNamespace="http://www.sap.com/adt/repository/informationsystem/objectproperties"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+  <xsd:import namespace="http://www.w3.org/2005/Atom" schemaLocation="../sap/atom.xsd"/>
+
+  <xsd:element name="objectProperties" type="objprops:objectPropertiesType"/>
+
+  <xsd:complexType name="objectPropertiesType">
+    <xsd:sequence>
+      <xsd:element name="object" type="objprops:objectType" minOccurs="0" maxOccurs="1"/>
+      <xsd:element name="property" type="objprops:propertyType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="objectType">
+    <xsd:sequence>
+      <xsd:element ref="atom:link" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="name" type="xsd:string" use="optional"/>
+    <xsd:attribute name="type" type="xsd:string" use="optional"/>
+    <xsd:attribute name="package" type="xsd:string" use="optional"/>
+    <xsd:attribute name="uri" type="xsd:string" use="optional"/>
+    <xsd:attribute name="vituri" type="xsd:string" use="optional"/>
+    <xsd:attribute name="text" type="xsd:string" use="optional"/>
+    <xsd:attribute name="expandable" type="xsd:boolean" use="optional"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="propertyType">
+    <xsd:sequence>
+      <xsd:element ref="atom:link" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="facet" type="xsd:string" use="optional"/>
+    <xsd:attribute name="name" type="xsd:string" use="optional"/>
+    <xsd:attribute name="displayName" type="xsd:string" use="optional"/>
+    <xsd:attribute name="text" type="xsd:string" use="optional"/>
+    <xsd:attribute name="hasChildrenOfSameFacet" type="xsd:boolean" use="optional"/>
+    <xsd:attribute name="version" type="xsd:string" use="optional"/>
+  </xsd:complexType>
+</xsd:schema>

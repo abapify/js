@@ -119,6 +119,15 @@
     },
     {
       "path": "./packages/adt-lint"
+    },
+    {
+      "path": "./packages/adt-server-client"
+    },
+    {
+      "path": "./packages/adt-server"
+    },
+    {
+      "path": "./packages/adt-proxy"
     }
   ]
 }

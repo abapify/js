@@ -7,7 +7,7 @@
 
 export type AtcresultSchema = {
     resultList: {
-        result?: {
+        result?: undefined | {
             displayId: string;
             title: string;
             checkVariant: string;
@@ -21,82 +21,82 @@ export type AtcresultSchema = {
                 numFailure: number;
             };
             objects: {
-                object?: {
-                    extension?: unknown;
+                object?: undefined | {
+                    extension?: undefined | unknown;
                     findings: {
-                        finding?: {
-                            extension?: unknown;
+                        finding?: undefined | {
+                            extension?: undefined | unknown;
                             quickfixes: {
-                                manual?: boolean;
-                                automatic?: boolean;
-                                pseudo?: boolean;
-                                ai_enabled?: boolean;
-                                aiBasedQF?: boolean;
+                                manual?: boolean | undefined;
+                                automatic?: boolean | undefined;
+                                pseudo?: boolean | undefined;
+                                ai_enabled?: boolean | undefined;
+                                aiBasedQF?: boolean | undefined;
                             };
-                            tags?: {
-                                tag?: {
-                                    name?: string;
-                                    value?: string;
+                            tags?: undefined | {
+                                tag?: undefined | {
+                                    name?: string | undefined;
+                                    value?: string | undefined;
                                 }[];
                             };
-                            uri?: string;
-                            parentUri?: string;
-                            type?: string;
-                            name?: string;
-                            packageName?: string;
-                            description?: string;
-                            location?: string;
-                            effectOnTransports?: string;
-                            priority?: string;
-                            checkTitle?: string;
-                            checkId?: string;
-                            messageTitle?: string;
-                            messageId?: string;
-                            exemptionKind?: string;
-                            exemptionApproval?: string;
-                            noExemption?: string;
-                            quickfixInfo?: string;
-                            contactPerson?: string;
-                            lastChangedBy?: string;
-                            processor?: string;
-                            checksum?: number;
-                            remarkText?: string;
-                            remarkLink?: string;
+                            uri?: string | undefined;
+                            parentUri?: string | undefined;
+                            type?: string | undefined;
+                            name?: string | undefined;
+                            packageName?: string | undefined;
+                            description?: string | undefined;
+                            location?: string | undefined;
+                            effectOnTransports?: string | undefined;
+                            priority?: string | undefined;
+                            checkTitle?: string | undefined;
+                            checkId?: string | undefined;
+                            messageTitle?: string | undefined;
+                            messageId?: string | undefined;
+                            exemptionKind?: string | undefined;
+                            exemptionApproval?: string | undefined;
+                            noExemption?: string | undefined;
+                            quickfixInfo?: string | undefined;
+                            contactPerson?: string | undefined;
+                            lastChangedBy?: string | undefined;
+                            processor?: string | undefined;
+                            checksum?: number | undefined;
+                            remarkText?: string | undefined;
+                            remarkLink?: string | undefined;
                         }[];
                     };
-                    uri?: string;
-                    parentUri?: string;
-                    type?: string;
-                    name?: string;
-                    packageName?: string;
-                    description?: string;
-                    author?: string;
-                    objectTypeId?: string;
+                    uri?: string | undefined;
+                    parentUri?: string | undefined;
+                    type?: string | undefined;
+                    name?: string | undefined;
+                    packageName?: string | undefined;
+                    description?: string | undefined;
+                    author?: string | undefined;
+                    objectTypeId?: string | undefined;
                 }[];
             };
             descriptionTags: {
-                tagWithDescription?: {
+                tagWithDescription?: undefined | {
                     name: string;
                     descriptions: {
-                        description?: {
-                            value?: string;
-                            description?: string;
+                        description?: undefined | {
+                            value?: string | undefined;
+                            description?: string | undefined;
                         }[];
                     };
                 }[];
             };
-            scaAttributes?: {
-                scaAttribute?: {
-                    attributeName?: string;
-                    refAttributeName?: string;
-                    label?: boolean;
-                    labelS?: string;
-                    labelM?: string;
-                    labelL?: string;
+            scaAttributes?: undefined | {
+                scaAttribute?: undefined | {
+                    attributeName?: string | undefined;
+                    refAttributeName?: string | undefined;
+                    label?: boolean | undefined;
+                    labelS?: string | undefined;
+                    labelM?: string | undefined;
+                    labelL?: string | undefined;
                 }[];
             };
             infos: {
-                info?: {
+                info?: undefined | {
                     type: string;
                     description: string;
                 }[];
@@ -105,20 +105,20 @@ export type AtcresultSchema = {
     };
 } | {
     queryChoice: {
-        activeResultQuery?: {
+        activeResultQuery?: undefined | {
             includeAggregates: boolean;
             includeFindings: boolean;
             contactPerson: string;
             queryEnabled: boolean;
         };
-        specificResultQuery?: {
+        specificResultQuery?: undefined | {
             includeAggregates: boolean;
             includeFindings: boolean;
             contactPerson: string;
             queryEnabled: boolean;
             displayId: string;
         };
-        userResultQuery?: {
+        userResultQuery?: undefined | {
             includeAggregates: boolean;
             includeFindings: boolean;
             contactPerson: string;

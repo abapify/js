@@ -180,6 +180,34 @@ describe('CLI + MCP parity (misc)', () => {
     expect(unlockRes.json.status).toBe('unlocked');
   });
 
+  it('rejects a second lock for the same object until the original handle unlocks it', async () => {
+    const first = await callMcpTool<{
+      status: string;
+      lockHandle: string;
+    }>(harness, 'lock_object', {
+      objectName: 'ZCL_LOCK_CONFLICT',
+      objectType: 'CLAS',
+    });
+    expect(first.isError).toBe(false);
+
+    const second = await callMcpTool(harness, 'lock_object', {
+      objectName: 'ZCL_LOCK_CONFLICT',
+      objectType: 'CLAS',
+    });
+    expect(second.isError).toBe(true);
+
+    const unlock = await callMcpTool<{ status: string }>(
+      harness,
+      'unlock_object',
+      {
+        objectName: 'ZCL_LOCK_CONFLICT',
+        objectType: 'CLAS',
+        lockHandle: first.json.lockHandle,
+      },
+    );
+    expect(unlock.isError).toBe(false);
+  });
+
   // ── Lock / Unlock sequence (CLI) ────────────────────────────────────────
 
   it('lock then unlock object — CLI', async () => {
@@ -192,16 +220,18 @@ describe('CLI + MCP parity (misc)', () => {
     ]);
     expect(lockRes.exitCode, lockRes.stderr || lockRes.stdout).toBe(0);
 
-    // CLI unlock reads the persisted handle from ~/.adt/locks.json.
-    // In the in-process harness the lock store's persistence is best-effort,
-    // so fall back to --force which re-locks to recover the handle from the
-    // mock backend and immediately unlocks (same-user lock semantics).
+    // The harness injects an in-memory ADK context, so pass the handle emitted
+    // by `lock` explicitly. Production uses FileLockStore for the same value;
+    // a second LOCK must never be used to guess a lost handle.
+    const handle = /🔑 Handle: ([^\s]+)/.exec(lockRes.stdout)?.[1];
+    expect(handle).toBeTruthy();
     const unlockRes = await runCliCommand(harness, [
       'unlock',
       'ZCL_CLI_EXAMPLE',
       '--type',
       'CLAS',
-      '--force',
+      '--lock-handle',
+      handle!,
     ]);
     expect(unlockRes.exitCode, unlockRes.stderr || unlockRes.stdout).toBe(0);
   });

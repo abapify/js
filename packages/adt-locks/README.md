@@ -52,6 +52,21 @@ const acquired = await session.acquireAll();
 await session.releaseAll();
 ```
 
+## Recovery after a crash
+
+SAP ADT requires the exact `lockHandle` returned by `LOCK` for `UNLOCK`.
+`FileLockStore` persists that handle so a later process can release it:
+
+```ts
+await locks.forceUnlock('/sap/bc/adt/oo/classes/zcl_test');
+```
+
+Despite its historical name, `forceUnlock()` is **not** a server-side force
+operation: it sends only `UNLOCK` with a persisted handle and never attempts a
+second `LOCK`. If the handle was never persisted (for example, a server-side
+CTS lock created by an interrupted object `POST`), SAP cannot disclose it by
+URI. The caller must wait for expiry or ask the SAP administrator to clear it.
+
 ## Role in the monorepo
 
 - Single source of truth for ADT locks. `@abapify/adk` (save flow),

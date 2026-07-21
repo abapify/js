@@ -22,6 +22,7 @@ import { registerCtsDeleteTransportTool } from './cts-delete-transport';
 import { registerCtsSearchTransportsTool } from './cts-search-transports';
 import { registerAtcRunTool } from './atc-run';
 import { registerGetSourceTool } from './get-source';
+import { registerGetFrozenSourceTool } from './get-frozen-source';
 import { registerUpdateSourceTool } from './update-source';
 import { registerLintAbapTool } from './lint-abap';
 import { registerActivateObjectTool } from './activate-object';
@@ -116,6 +117,11 @@ import { registerListFlpCatalogsTool } from './list-flp-catalogs';
 import { registerListFlpGroupsTool } from './list-flp-groups';
 import { registerListFlpTilesTool } from './list-flp-tiles';
 import { registerGetFlpTileTool } from './get-flp-tile';
+// Exact source history — metadata listing, explicit immutable source read,
+// and component-granular CTS manifests.
+import { registerListSourceVersionsTool } from './list-source-versions';
+import { registerGetSourceVersionTool } from './get-source-version';
+import { registerCtsTransportSourceManifestTool } from './cts-transport-source-manifest';
 
 export function registerTools(server: McpServer, ctx: ToolContext): void {
   // Session lifecycle tools (HTTP transport only)
@@ -138,6 +144,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerCtsDeleteTransportTool(server, ctx);
   registerCtsSearchTransportsTool(server, ctx);
   registerAtcRunTool(server, ctx);
+  registerGetFrozenSourceTool(server, ctx);
   registerGetSourceTool(server, ctx);
   registerUpdateSourceTool(server, ctx);
   registerLintAbapTool(server, ctx);
@@ -229,4 +236,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerListFlpGroupsTool(server, ctx);
   registerListFlpTilesTool(server, ctx);
   registerGetFlpTileTool(server, ctx);
+  // Exact source history
+  registerListSourceVersionsTool(server, ctx);
+  registerGetSourceVersionTool(server, ctx);
+  registerCtsTransportSourceManifestTool(server, ctx);
 }

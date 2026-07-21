@@ -6,12 +6,12 @@
  * Lock handle resolution order:
  * 1. Explicit --lock-handle flag
  * 2. Persisted lock store (~/.adt/locks.json)
- * 3. (with --force) Re-lock to recover handle, then unlock
+ * 3. (with --force) Attempt recovery from that same persisted store
  * 4. Fail with helpful message
  *
- * --force mode: acquires a lock (which returns the existing handle
- * for same-user locks) then immediately unlocks with that handle.
- * Only works for objects locked by the current user.
+ * SAP does not expose an endpoint that returns the handle of an existing
+ * lock. `--force` never issues a new LOCK; it only releases a handle that
+ * was previously persisted by this CLI.
  */
 
 import { Command } from 'commander';
@@ -76,7 +76,8 @@ async function unlockUri(
     return unlockWithHandle(locks, uri, label, handle);
   }
 
-  // Case 2: No handle + --force — lock to recover handle, then unlock
+  // Case 2: No handle + --force — recover only a persisted handle. SAP never
+  // returns a lost handle from a second LOCK request.
   if (options.force) {
     return forceUnlockUri(locks, uri, label);
   }
@@ -85,7 +86,7 @@ async function unlockUri(
   throw new Error(
     `No lock handle available for ${label}.\n` +
       `   💡 Options:\n` +
-      `      --force              Re-lock to recover handle, then unlock\n` +
+      `      --force              Try recovery from the persisted lock store\n` +
       `      --lock-handle <h>    Provide handle explicitly\n` +
       `      adt locks            Show persisted lock handles`,
   );
@@ -111,16 +112,16 @@ async function unlockWithHandle(
   }
 }
 
-/** Force-unlock: acquire lock to recover handle, then release. */
+/** Recover an unlock only when a prior CLI process persisted its handle. */
 async function forceUnlockUri(
   locks: LockService,
   uri: string,
   label: string,
 ): Promise<boolean> {
   try {
-    console.log(`   🔄 Force-unlock: acquiring lock to recover handle...`);
+    console.log(`   🔄 Recovering a persisted lock handle...`);
     await locks.forceUnlock(uri);
-    console.log(`✅ ${label} force-unlocked`);
+    console.log(`✅ ${label} unlocked from persisted handle`);
     return true;
   } catch (err: unknown) {
     if (isNotLockedError(err)) {
@@ -150,7 +151,7 @@ export const unlockCommand = new Command('unlock')
   .option('--uri <uri>', 'Direct object URI (skips search)')
   .option(
     '--force',
-    'Re-lock to recover handle, then unlock (same-user locks only)',
+    'Recover only a lock handle persisted by this CLI (never sends LOCK)',
   )
   .action(
     async (

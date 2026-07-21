@@ -1,0 +1,33 @@
+{
+  "name": "@abapify/adt-server",
+  "version": "0.4.1",
+  "description": "Destination-aware ADT sidecar for MCP and safe REST access",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./bin/adt-server": "./dist/bin/adt-server.mjs",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "adt-server": "./dist/bin/adt-server.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@abapify/adt-cli": "0.4.1",
+    "@abapify/adt-mcp": "0.4.1",
+    "@abapify/adt-client": "0.4.1",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0"
+  }
+}

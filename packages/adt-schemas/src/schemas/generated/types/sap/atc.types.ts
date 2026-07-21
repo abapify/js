@@ -8,34 +8,34 @@
 export type AtcSchema = {
     customizing: {
         properties: {
-            property?: {
-                name?: string;
-                value?: string;
+            property?: undefined | {
+                name?: string | undefined;
+                value?: string | undefined;
             }[];
         };
         exemption: {
             reasons: {
-                reason?: {
-                    id?: string;
-                    justificationMandatory?: boolean;
-                    title?: string;
+                reason?: undefined | {
+                    id?: string | undefined;
+                    justificationMandatory?: boolean | undefined;
+                    title?: string | undefined;
                 }[];
             };
             validities: {
-                validity?: {
-                    id?: string;
-                    value?: string;
+                validity?: undefined | {
+                    id?: string | undefined;
+                    value?: string | undefined;
                 }[];
             };
         };
-        scaAttributes?: {
-            scaAttribute?: {
-                attributeName?: string;
-                refAttributeName?: string;
-                label?: boolean;
-                labelS?: string;
-                labelM?: string;
-                labelL?: string;
+        scaAttributes?: undefined | {
+            scaAttribute?: undefined | {
+                attributeName?: string | undefined;
+                refAttributeName?: string | undefined;
+                label?: boolean | undefined;
+                labelS?: string | undefined;
+                labelM?: string | undefined;
+                labelL?: string | undefined;
             }[];
         };
     };

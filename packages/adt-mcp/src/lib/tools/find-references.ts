@@ -30,14 +30,11 @@ import {
 } from '@abapify/adt-contracts';
 
 interface Reference {
-  uri?: string;
-  parentUri?: string;
   isResult?: string;
   usageInformation?: string;
   name?: string;
   type?: string;
   responsible?: string;
-  packageUri?: string;
   packageName?: string;
 }
 
@@ -76,8 +73,6 @@ function parseReferences(
     const el = refs.item(i);
     if (!el) continue;
     const ref: Reference = {
-      uri: el.getAttribute('uri') || undefined,
-      parentUri: el.getAttribute('parentUri') || undefined,
       isResult: el.getAttribute('isResult') || undefined,
       usageInformation: el.getAttribute('usageInformation') || undefined,
     };
@@ -91,7 +86,6 @@ function parseReferences(
     const pkgRef = el.getElementsByTagNameNS(NS_CORE, 'packageRef').item(0);
     if (pkgRef) {
       ref.packageName = pkgRef.getAttributeNS(NS_CORE, 'name') || undefined;
-      ref.packageUri = pkgRef.getAttributeNS(NS_CORE, 'uri') || undefined;
     }
     results.push(ref);
   }
@@ -115,12 +109,7 @@ export function registerFindReferencesTool(
         .string()
         .optional()
         .describe('Object type (e.g. CLAS, PROG, DTEL, TABL)'),
-      objectUri: z
-        .string()
-        .optional()
-        .describe(
-          'Direct ADT URI of the object (skips name resolution if provided)',
-        ),
+      objectUri: z.never().optional(),
       maxResults: z
         .number()
         .optional()
@@ -131,24 +120,21 @@ export function registerFindReferencesTool(
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const maxResults = args.maxResults ?? 100;
 
-        let objectUri = args.objectUri;
+        const objectUri = await resolveObjectUri(
+          client,
+          args.objectName,
+          args.objectType,
+        );
         if (!objectUri) {
-          objectUri = await resolveObjectUri(
-            client,
-            args.objectName,
-            args.objectType,
-          );
-          if (!objectUri) {
-            return {
-              isError: true,
-              content: [
-                {
-                  type: 'text' as const,
-                  text: `Object '${args.objectName}' not found`,
-                },
-              ],
-            };
-          }
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: `Object '${args.objectName}' not found`,
+              },
+            ],
+          };
         }
 
         // Step 1: fetch the default scope

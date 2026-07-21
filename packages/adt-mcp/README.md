@@ -218,6 +218,42 @@ or, when not found:
 
 ### Source Code
 
+#### `list_source_versions`
+
+List immutable ADT source-version metadata and transport provenance for every
+source component of one object. The result is metadata-only; it never embeds
+ABAP source.
+
+| Parameter    | Type    | Description                                  |
+| ------------ | ------- | -------------------------------------------- |
+| `objectName` | string  | ABAP object name                             |
+| `objectType` | string  | Object type (`PROG`, `CLAS`, `INTF`, …)      |
+| `component`  | string? | Exact component id such as `implementations` |
+
+#### `get_source_version`
+
+Explicitly read one immutable source URI returned by
+`list_source_versions` or `cts_transport_source_manifest`. Output is bounded
+by `maxBytes` (1 MiB default, 4 MiB hard cap) and fails rather than truncating.
+
+| Parameter  | Type    | Description                                     |
+| ---------- | ------- | ----------------------------------------------- |
+| `uri`      | string  | Server-relative immutable `/sap/bc/adt/...` URI |
+| `maxBytes` | number? | Positive UTF-8 response limit                   |
+
+#### `cts_transport_source_manifest`
+
+Build a metadata-only, component-granular exactness manifest for an ordered
+non-empty transport list. Every leaf reports its change kind, exactness,
+concrete request/task provenance, immutable base/head references when known,
+and a typed diagnostic when exact isolation cannot be proven.
+
+| Parameter     | Type     | Description                                     |
+| ------------- | -------- | ----------------------------------------------- |
+| `transports`  | string[] | Ordered request/task identifiers                |
+| `selector`    | object?  | Optional `objFunc`, `pgmid`, and `type` filters |
+| `concurrency` | number?  | Bounded metadata/feed concurrency (max 32)      |
+
 #### `get_source`
 
 Fetch the raw ABAP source code for a program, class, interface, or function group.
@@ -464,9 +500,9 @@ Run ABAP Test Cockpit checks on an object or package and return the resulting fi
 
 **Parameters:**
 
-| Parameter   | Type   | Description                                                 |
-| ----------- | ------ | ----------------------------------------------------------- |
-| `objectUri` | string | ADT URI of the target, e.g. `/sap/bc/adt/packages/ZPACKAGE` |
+| Parameter | Type   | Description                                                                                                                                             |
+| --------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scope`   | object | ATC scope: `{ kind: 'package', packageName }`, `{ kind: 'transport_request', trkorr }`, or `{ kind: 'objects', objects: [{ objectType, objectName }] }` |
 
 **Returns:**
 
@@ -500,7 +536,7 @@ Run ABAP Test Cockpit checks on an object or package and return the resulting fi
 
 ```
 1. check_syntax objectName=ZCL_FOO objectType=CLAS
-2. atc_run      objectUri=/sap/bc/adt/oo/classes/zcl_foo
+2. atc_run      scope={"kind":"objects","objects":[{"objectType":"CLAS","objectName":"ZCL_FOO"}]}
 3. run_unit_tests objectName=ZCL_FOO objectType=CLAS
 ```
 
@@ -599,24 +635,27 @@ bunx nx test adt-mcp       # tests (runs integration suite)
 
 ## Feature Parity Map
 
-| CLI Command            | MCP Tool                | Status     |
-| ---------------------- | ----------------------- | ---------- |
-| `adt discovery`        | `discovery`             | ✅         |
-| `adt info`             | `system_info`           | ✅         |
-| `adt search`           | `search_objects`        | ✅         |
-| `adt get`              | `get_object`            | ✅         |
-| `adt source get`       | `get_source`            | ✅         |
-| `adt source put`       | `update_source`         | ✅         |
-| `adt activate`         | `activate_object`       | ✅         |
-| `adt check`            | `check_syntax`          | ✅         |
-| `adt aunit run`        | `run_unit_tests`        | ✅         |
-| `adt atc run`          | `atc_run`               | ✅         |
-| `adt cts tr list`      | `cts_list_transports`   | ✅         |
-| `adt cts tr get`       | `cts_get_transport`     | ✅         |
-| `adt cts tr delete`    | `cts_delete_transport`  | ✅         |
-| `adt cts tr create`    | `cts_create_transport`  | 🚧 Not yet |
-| `adt cts tr release`   | `cts_release_transport` | 🚧 Not yet |
-| `adt ls`               | —                       | 🔜 Future  |
-| `adt cts search`       | —                       | 🔜 Future  |
-| `adt import package`   | —                       | 🔜 Future  |
-| `adt import transport` | —                       | 🔜 Future  |
+| CLI Command                  | MCP Tool                        | Status     |
+| ---------------------------- | ------------------------------- | ---------- |
+| `adt discovery`              | `discovery`                     | ✅         |
+| `adt info`                   | `system_info`                   | ✅         |
+| `adt search`                 | `search_objects`                | ✅         |
+| `adt get`                    | `get_object`                    | ✅         |
+| `adt source get`             | `get_source`                    | ✅         |
+| `adt source versions`        | `list_source_versions`          | ✅         |
+| `adt source version get`     | `get_source_version`            | ✅         |
+| `adt source put`             | `update_source`                 | ✅         |
+| `adt activate`               | `activate_object`               | ✅         |
+| `adt check`                  | `check_syntax`                  | ✅         |
+| `adt aunit run`              | `run_unit_tests`                | ✅         |
+| `adt atc run`                | `atc_run`                       | ✅         |
+| `adt cts tr list`            | `cts_list_transports`           | ✅         |
+| `adt cts tr get`             | `cts_get_transport`             | ✅         |
+| `adt cts tr source-manifest` | `cts_transport_source_manifest` | ✅         |
+| `adt cts tr delete`          | `cts_delete_transport`          | ✅         |
+| `adt cts tr create`          | `cts_create_transport`          | 🚧 Not yet |
+| `adt cts tr release`         | `cts_release_transport`         | 🚧 Not yet |
+| `adt ls`                     | —                               | 🔜 Future  |
+| `adt cts search`             | —                               | 🔜 Future  |
+| `adt import package`         | —                               | 🔜 Future  |
+| `adt import transport`       | —                               | 🔜 Future  |

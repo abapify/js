@@ -29,6 +29,10 @@ export default {
       type: 'xsd:string',
     },
     {
+      name: 'checkClass',
+      type: 'xsd:string',
+    },
+    {
       name: 'messageId',
       type: 'xsd:string',
     },

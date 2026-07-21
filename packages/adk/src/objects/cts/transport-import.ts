@@ -501,8 +501,10 @@ export class AdkTransport {
 export interface ResolvedTransportObjects {
   /** Deduplicated list of transport objects (first-win across TRs). */
   objects: AdkTransportObjectRef[];
-  /** Maps each object key to the TR number it was sourced from. */
+  /** Maps each object key to the concrete request or task that supplied it. */
   sourceTransportMap: Map<string, string>;
+  /** Requested roots/tasks plus observed child tasks, in stable order. */
+  scopeTransportNumbers: string[];
 }
 
 function getFilteredObjects(
@@ -527,6 +529,62 @@ function addResolvedObject(
   sourceTransportMap.set(object.key, sourceTransport);
 }
 
+function getTransportObjectKey(object: TransportObjectData): string {
+  return `${object.pgmid ?? ''}/${object.type ?? ''}/${object.name ?? ''}`;
+}
+
+function getConcreteSourceTransportMap(
+  transport: AdkTransport,
+  requestedNumber: string,
+): Map<string, string> {
+  const sourceTransportMap = new Map<string, string>();
+  const data = transport.raw;
+  const requestNumber =
+    data.request?.number || transport.number || requestedNumber;
+
+  const addSource = (
+    object: TransportObjectData,
+    sourceTransport: string,
+  ): void => {
+    const key = getTransportObjectKey(object);
+    if (!sourceTransportMap.has(key)) {
+      sourceTransportMap.set(key, sourceTransport);
+    }
+  };
+
+  // Direct request objects have concrete request provenance.
+  for (const object of asArray(data.request?.abap_object)) {
+    addSource(object, requestNumber);
+  }
+
+  // Prefer concrete task provenance over the aggregate all_objects view.
+  const tasks = [...asArray(data.request?.task), ...asArray(data.task)];
+  for (const task of tasks) {
+    const taskNumber = task.number || transport.number || requestedNumber;
+    for (const object of asArray(task.abap_object)) {
+      addSource(object, taskNumber);
+    }
+  }
+
+  // all_objects is an aggregate without task attribution, so use it only as
+  // a fallback for keys not exposed by the concrete request/task containers.
+  for (const object of asArray(data.request?.all_objects?.abap_object)) {
+    addSource(object, requestNumber);
+  }
+
+  return sourceTransportMap;
+}
+
+function addScopeTransportNumber(
+  number: string,
+  scopeTransportNumbers: string[],
+  seenScopeTransportNumbers: Set<string>,
+): void {
+  if (!number || seenScopeTransportNumbers.has(number)) return;
+  seenScopeTransportNumbers.add(number);
+  scopeTransportNumbers.push(number);
+}
+
 /**
  * Load and resolve objects from one or more transport numbers, with optional
  * selector-based filtering and deduplication across TRs.
@@ -545,26 +603,48 @@ export async function resolveTransportObjects(
 ): Promise<ResolvedTransportObjects> {
   const objects: AdkTransportObjectRef[] = [];
   const sourceTransportMap = new Map<string, string>();
+  const scopeTransportNumbers: string[] = [];
+  const seenScopeTransportNumbers = new Set<string>();
 
-  if (transportNumbers.length === 1) {
-    const primaryNumber = transportNumbers[0] ?? '';
-    const tr = await AdkTransport.get(primaryNumber, ctx);
-    for (const object of getFilteredObjects(tr, selector)) {
-      addResolvedObject(object, primaryNumber, objects, sourceTransportMap);
-    }
-  } else {
-    const transports = await Promise.all(
-      transportNumbers.map((n) => AdkTransport.get(n, ctx)),
+  const transports = await Promise.all(
+    transportNumbers.map((number) => AdkTransport.get(number, ctx)),
+  );
+  const seenObjectKeys = new Set<string>();
+
+  for (const [index, transport] of transports.entries()) {
+    const requestedNumber = transportNumbers[index] ?? '';
+    const transportNumber = transport.number || requestedNumber;
+    addScopeTransportNumber(
+      transportNumber,
+      scopeTransportNumbers,
+      seenScopeTransportNumbers,
     );
-    const seen = new Set<string>();
-    for (const tr of transports) {
-      for (const object of getFilteredObjects(tr, selector)) {
-        addResolvedObject(object, tr.number, objects, sourceTransportMap, seen);
-      }
+    for (const task of transport.tasks) {
+      addScopeTransportNumber(
+        task.number,
+        scopeTransportNumbers,
+        seenScopeTransportNumbers,
+      );
+    }
+
+    const concreteSources = getConcreteSourceTransportMap(
+      transport,
+      requestedNumber,
+    );
+    for (const object of getFilteredObjects(transport, selector)) {
+      const sourceTransport =
+        concreteSources.get(object.key) ?? transportNumber;
+      addResolvedObject(
+        object,
+        sourceTransport,
+        objects,
+        sourceTransportMap,
+        seenObjectKeys,
+      );
     }
   }
 
-  return { objects, sourceTransportMap };
+  return { objects, sourceTransportMap, scopeTransportNumbers };
 }
 
 /**
