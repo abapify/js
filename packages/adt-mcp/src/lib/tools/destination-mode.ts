@@ -39,11 +39,13 @@ const forbiddenConnectionFields = {
 
 function destinationSchema(raw: unknown): Record<string, unknown> {
   const input = raw && typeof raw === 'object' ? raw : {};
-  const schema = { ...(input as Record<string, unknown>) };
+  const copy = { ...(input as Record<string, unknown>) };
   // Explicit `never` fields reject rather than silently strip unsafe input.
-  for (const field of Object.keys(forbiddenConnectionFields))
-    delete schema[field];
-  return { ...schema, ...forbiddenConnectionFields, destination };
+  const forbiddenKeys = new Set(Object.keys(forbiddenConnectionFields));
+  const filtered = Object.fromEntries(
+    Object.entries(copy).filter(([key]) => !forbiddenKeys.has(key)),
+  );
+  return { ...filtered, ...forbiddenConnectionFields, destination };
 }
 
 /**
@@ -52,18 +54,21 @@ function destinationSchema(raw: unknown): Record<string, unknown> {
  * must be both absent from the public schema and rejected if supplied, so they
  * are registered through the strict-schema API below.
  */
-const rawUriFieldsByTool: Readonly<Record<string, readonly string[]>> = {
-  atc_run: ['objectUri'],
-  find_references: ['objectUri'],
-  get_callers_of: ['objectUri'],
-  get_callees_of: ['objectUri'],
-  grep_objects: ['objectUris'],
-};
+const rawUriFieldsByTool = new Map<string, readonly string[]>([
+  ['atc_run', ['objectUri']],
+  ['find_references', ['objectUri']],
+  ['get_callers_of', ['objectUri']],
+  ['get_callees_of', ['objectUri']],
+  ['grep_objects', ['objectUris']],
+]);
 
 function strictCanonicalDestinationSchema(name: string, raw: unknown) {
   const schema = destinationSchema(raw);
-  for (const field of rawUriFieldsByTool[name] ?? []) delete schema[field];
-  return z.object(schema as z.ZodRawShape).strict();
+  const rawFields = rawUriFieldsByTool.get(name) ?? [];
+  const filtered = Object.fromEntries(
+    Object.entries(schema).filter(([key]) => !rawFields.includes(key)),
+  );
+  return z.object(filtered as z.ZodRawShape).strict();
 }
 
 type Handler = (...handlerArgs: unknown[]) => unknown;
@@ -209,50 +214,49 @@ export function destinationModeServer(
           throw new Error('MCP tools must declare a string name');
         }
         assertMcpToolIsClassified(name);
-        const requiresStrictCanonicalSchema = Boolean(rawUriFieldsByTool[name]);
+        const requiresStrictCanonicalSchema = rawUriFieldsByTool.has(name);
         const supportsStrictCanonicalSchema =
           typeof (target as unknown as { registerTool?: unknown })
             .registerTool === 'function';
         let strictCanonicalInputSchema:
           | ReturnType<typeof strictCanonicalDestinationSchema>
           | undefined;
-        // Existing registrations consistently use
-        // tool(name, description, inputSchema, handler).
-        if (typeof args[1] === 'string' && args.length >= 4) {
-          if (requiresStrictCanonicalSchema) {
-            strictCanonicalInputSchema = strictCanonicalDestinationSchema(
-              name,
-              args[2],
-            );
-          } else {
-            args[2] = destinationSchema(args[2]);
-          }
-        } else if (args.length >= 3) {
-          if (requiresStrictCanonicalSchema) {
-            strictCanonicalInputSchema = strictCanonicalDestinationSchema(
-              name,
-              args[1],
-            );
-          } else {
-            args[1] = destinationSchema(args[1]);
-          }
+        // Existing registrations consistently use one of:
+        //   tool(name, description, inputSchema, handler)
+        //   tool(name, inputSchema, handler)
+        if (args.length < 3) {
+          throw new Error(`MCP tool ${name} must declare an input schema and handler`);
         }
-        if (requiresStrictCanonicalSchema && !supportsStrictCanonicalSchema) {
-          if (typeof args[1] === 'string' && args.length >= 4) {
-            args[2] = destinationSchema(args[2]);
-          } else if (args.length >= 3) {
-            args[1] = destinationSchema(args[1]);
-          }
+        let description: string | undefined;
+        let inputSchema: unknown;
+        let handler: unknown;
+        if (typeof args[1] === 'string' && args.length >= 4) {
+          description = args[1];
+          inputSchema = args[2];
+          handler = args[3];
+        } else {
+          inputSchema = args[1];
+          handler = args[2];
         }
 
-        const handlerIndex = args.length - 1;
-        // handlerIndex is computed from the tool registration args array, not user input.
-        // eslint-disable-next-line
-        const handler = args[handlerIndex];
+        if (requiresStrictCanonicalSchema) {
+          if (supportsStrictCanonicalSchema) {
+            strictCanonicalInputSchema = strictCanonicalDestinationSchema(
+              name,
+              inputSchema,
+            );
+          } else {
+            inputSchema = destinationSchema(inputSchema);
+          }
+        } else {
+          inputSchema = destinationSchema(inputSchema);
+        }
+
         if (typeof handler !== 'function') {
           throw new Error(`MCP tool ${name} must declare a handler`);
         }
-        args[handlerIndex] = async (...handlerArgs: unknown[]) => {
+
+        const wrappedHandler = async (...handlerArgs: unknown[]) => {
           const toolArguments =
             handlerArgs[0] && typeof handlerArgs[0] === 'object'
               ? (handlerArgs[0] as Record<string, unknown>)
@@ -276,19 +280,25 @@ export function destinationModeServer(
           }
           return await (handler as Handler)(...handlerArgs);
         };
+        const processedArgs: unknown[] = [name];
+        if (description !== undefined) processedArgs.push(description);
+        processedArgs.push(
+          requiresStrictCanonicalSchema && supportsStrictCanonicalSchema
+            ? strictCanonicalInputSchema!
+            : inputSchema,
+          wrappedHandler,
+        );
         const registeredTool =
           requiresStrictCanonicalSchema && supportsStrictCanonicalSchema
             ? target.registerTool(
                 name,
                 {
-                  ...(typeof args[1] === 'string'
-                    ? { description: args[1] }
-                    : {}),
+                  ...(description !== undefined ? { description } : {}),
                   inputSchema: strictCanonicalInputSchema!,
                 },
-                args[handlerIndex] as never,
+                wrappedHandler as never,
               )
-            : Reflect.apply(target.tool, target, args);
+            : Reflect.apply(target.tool, target, processedArgs);
         if (!registeredTool) return registeredTool;
         const entry = toolListEntry(name, registeredTool);
         actionSchemaProjection(name, entry.inputSchema);
