@@ -6,7 +6,7 @@ import {
   type TransportObjectSelector,
   type TransportSourceManifest,
 } from '@abapify/adk';
-import type { AdtClient } from '@abapify/adt-client';
+import type { AdtClient, SourceVersionRef } from '@abapify/adt-client';
 
 export interface ListObjectVersionsInput {
   objectName: string;
@@ -76,6 +76,65 @@ function isSafeSourceHistoryError(error: unknown): boolean {
  * process-exit concerns. It returns ADK/client domain values directly so both
  * delivery surfaces expose the same normalized records.
  */
+/**
+ * Strip server-relative source locators from a listing so that only object
+ * identity, component ids, and transport provenance remain.
+ */
+export function toMetadataOnlySourceVersionListing(
+  result: ListObjectVersionsResult,
+): unknown {
+  return {
+    object: result.object,
+    components: result.components.map((component) => ({
+      id: component.id,
+      ...('versions' in component &&
+      Array.isArray((component as { versions?: unknown }).versions)
+        ? {
+            versions: (
+              component as { versions: SourceVersionRef[] }
+            ).versions.map(({ sourceUri: _sourceUri, ...version }) => version),
+          }
+        : {}),
+      ...('diagnostic' in component &&
+      (component as { diagnostic?: unknown }).diagnostic !== undefined
+        ? { diagnostic: (component as { diagnostic?: unknown }).diagnostic }
+        : {}),
+    })),
+  };
+}
+
+/**
+ * Strip source locators from a transport manifest so that only object
+ * identity, change metadata, and transport provenance remain.
+ */
+export function toMetadataOnlyTransportSourceManifest(
+  manifest: BuildTransportManifestResult,
+): unknown {
+  return {
+    requestedTransports: manifest.requestedTransports,
+    scopeTransports: manifest.scopeTransports,
+    entries: manifest.entries.map((entry) => {
+      const { sourceUri: _s, versionsUri: _v, ...component } = entry.component;
+      const stripSourceUri = (
+        ref: SourceVersionRef,
+      ): Omit<SourceVersionRef, 'sourceUri'> => {
+        const { sourceUri: _, ...rest } = ref;
+        return rest as Omit<SourceVersionRef, 'sourceUri'>;
+      };
+      return {
+        ...entry,
+        component,
+        ...(entry.base !== undefined
+          ? { base: stripSourceUri(entry.base) }
+          : {}),
+        ...(entry.head !== undefined
+          ? { head: stripSourceUri(entry.head) }
+          : {}),
+      };
+    }),
+  };
+}
+
 export class ExactSourceHistoryService {
   constructor(
     private readonly client: AdtClient,

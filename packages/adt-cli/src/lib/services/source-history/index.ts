@@ -1,6 +1,8 @@
 export {
   ExactSourceHistoryService,
   ExactSourceHistoryServiceError,
+  toMetadataOnlySourceVersionListing,
+  toMetadataOnlyTransportSourceManifest,
   type BuildTransportManifestInput,
   type BuildTransportManifestResult,
   type ExactSourceHistoryOperations,
