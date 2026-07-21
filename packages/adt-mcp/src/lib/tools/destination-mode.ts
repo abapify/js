@@ -170,6 +170,120 @@ function actionSchemaProjection(
   };
 }
 
+function normalizeToolArgs(args: unknown[]): {
+  name: string;
+  description: string | undefined;
+  inputSchema: unknown;
+  handler: unknown;
+} {
+  if (args.length < 3) {
+    throw new Error('MCP tools must declare an input schema and handler');
+  }
+  const name = args[0];
+  if (typeof name !== 'string') {
+    throw new Error('MCP tools must declare a string name');
+  }
+  let description: string | undefined;
+  let inputSchema: unknown;
+  let handler: unknown;
+  if (typeof args[1] === 'string' && args.length >= 4) {
+    description = args[1];
+    inputSchema = args[2];
+    handler = args[3];
+  } else {
+    inputSchema = args[1];
+    handler = args[2];
+  }
+  return { name, description, inputSchema, handler };
+}
+
+function transformToolInput(
+  name: string,
+  inputSchema: unknown,
+  target: McpServer,
+): {
+  transformedInputSchema: unknown;
+  strictInputSchema:
+    | ReturnType<typeof strictCanonicalDestinationSchema>
+    | undefined;
+  useRegisterTool: boolean;
+} {
+  const requiresStrictCanonicalSchema = rawUriFieldsByTool.has(name);
+  const supportsStrictCanonicalSchema =
+    typeof (target as unknown as { registerTool?: unknown }).registerTool ===
+    'function';
+  if (requiresStrictCanonicalSchema && supportsStrictCanonicalSchema) {
+    return {
+      transformedInputSchema: inputSchema,
+      strictInputSchema: strictCanonicalDestinationSchema(name, inputSchema),
+      useRegisterTool: true,
+    };
+  }
+  return {
+    transformedInputSchema: destinationSchema(inputSchema),
+    strictInputSchema: undefined,
+    useRegisterTool: false,
+  };
+}
+
+function wrapToolHandler(
+  handler: Handler,
+  name: string,
+  options: DestinationModeOptions,
+): Handler {
+  return async (...handlerArgs: unknown[]) => {
+    const toolArguments =
+      handlerArgs[0] && typeof handlerArgs[0] === 'object'
+        ? (handlerArgs[0] as Record<string, unknown>)
+        : {};
+    const extra =
+      handlerArgs[1] && typeof handlerArgs[1] === 'object'
+        ? (handlerArgs[1] as { sessionId?: string })
+        : {};
+    let access: McpRequestAccess | undefined;
+    try {
+      access = options.requestAccess?.(extra);
+    } catch {
+      return scopeDeniedResult();
+    }
+    if (
+      !isMcpToolAllowed(access, name, toolArguments) ||
+      !isMcpToolResourceAllowed(access, name, toolArguments) ||
+      !isMcpDestinationAllowed(access, toolArguments.destination)
+    ) {
+      return scopeDeniedResult();
+    }
+    return await handler(...handlerArgs);
+  };
+}
+
+function registerDestinationTool(
+  target: McpServer,
+  name: string,
+  description: string | undefined,
+  transformedInputSchema: unknown,
+  strictInputSchema:
+    | ReturnType<typeof strictCanonicalDestinationSchema>
+    | undefined,
+  wrappedHandler: Handler,
+  useRegisterTool: boolean,
+): unknown {
+  if (useRegisterTool) {
+    return target.registerTool(
+      name,
+      {
+        ...(description !== undefined ? { description } : {}),
+        inputSchema: strictInputSchema!,
+      },
+      wrappedHandler as never,
+    );
+  }
+  const processedArgs: unknown[] = [name];
+  if (description !== undefined) processedArgs.push(description);
+  processedArgs.push(transformedInputSchema, wrappedHandler);
+  return Reflect.apply(target.tool, target, processedArgs);
+}
+
 function toolListEntryForAccess(
   tool: DestinationToolListEntry,
   access: McpRequestAccess | undefined,
@@ -209,98 +323,28 @@ export function destinationModeServer(
     get(target, property, receiver) {
       if (property !== 'tool') return Reflect.get(target, property, receiver);
       return (...args: unknown[]) => {
-        const name = args[0];
-        if (typeof name !== 'string') {
-          throw new Error('MCP tools must declare a string name');
-        }
+        const { name, description, inputSchema, handler } =
+          normalizeToolArgs(args);
         assertMcpToolIsClassified(name);
-        const requiresStrictCanonicalSchema = rawUriFieldsByTool.has(name);
-        const supportsStrictCanonicalSchema =
-          typeof (target as unknown as { registerTool?: unknown })
-            .registerTool === 'function';
-        let strictCanonicalInputSchema:
-          | ReturnType<typeof strictCanonicalDestinationSchema>
-          | undefined;
-        // Existing registrations consistently use one of:
-        //   tool(name, description, inputSchema, handler)
-        //   tool(name, inputSchema, handler)
-        if (args.length < 3) {
-          throw new Error(
-            `MCP tool ${name} must declare an input schema and handler`,
-          );
-        }
-        let description: string | undefined;
-        let inputSchema: unknown;
-        let handler: unknown;
-        if (typeof args[1] === 'string' && args.length >= 4) {
-          description = args[1];
-          inputSchema = args[2];
-          handler = args[3];
-        } else {
-          inputSchema = args[1];
-          handler = args[2];
-        }
-
-        if (requiresStrictCanonicalSchema) {
-          if (supportsStrictCanonicalSchema) {
-            strictCanonicalInputSchema = strictCanonicalDestinationSchema(
-              name,
-              inputSchema,
-            );
-          } else {
-            inputSchema = destinationSchema(inputSchema);
-          }
-        } else {
-          inputSchema = destinationSchema(inputSchema);
-        }
-
         if (typeof handler !== 'function') {
           throw new Error(`MCP tool ${name} must declare a handler`);
         }
-
-        const wrappedHandler = async (...handlerArgs: unknown[]) => {
-          const toolArguments =
-            handlerArgs[0] && typeof handlerArgs[0] === 'object'
-              ? (handlerArgs[0] as Record<string, unknown>)
-              : {};
-          const extra =
-            handlerArgs[1] && typeof handlerArgs[1] === 'object'
-              ? (handlerArgs[1] as { sessionId?: string })
-              : {};
-          let access: McpRequestAccess | undefined;
-          try {
-            access = options.requestAccess?.(extra);
-          } catch {
-            return scopeDeniedResult();
-          }
-          if (
-            !isMcpToolAllowed(access, name, toolArguments) ||
-            !isMcpToolResourceAllowed(access, name, toolArguments) ||
-            !isMcpDestinationAllowed(access, toolArguments.destination)
-          ) {
-            return scopeDeniedResult();
-          }
-          return await (handler as Handler)(...handlerArgs);
-        };
-        const processedArgs: unknown[] = [name];
-        if (description !== undefined) processedArgs.push(description);
-        processedArgs.push(
-          requiresStrictCanonicalSchema && supportsStrictCanonicalSchema
-            ? strictCanonicalInputSchema!
-            : inputSchema,
-          wrappedHandler,
+        const { transformedInputSchema, strictInputSchema, useRegisterTool } =
+          transformToolInput(name, inputSchema, target);
+        const wrappedHandler = wrapToolHandler(
+          handler as Handler,
+          name,
+          options,
         );
-        const registeredTool =
-          requiresStrictCanonicalSchema && supportsStrictCanonicalSchema
-            ? target.registerTool(
-                name,
-                {
-                  ...(description !== undefined ? { description } : {}),
-                  inputSchema: strictCanonicalInputSchema!,
-                },
-                wrappedHandler as never,
-              )
-            : Reflect.apply(target.tool, target, processedArgs);
+        const registeredTool = registerDestinationTool(
+          target,
+          name,
+          description,
+          transformedInputSchema,
+          strictInputSchema,
+          wrappedHandler,
+          useRegisterTool,
+        );
         if (!registeredTool) return registeredTool;
         const entry = toolListEntry(name, registeredTool);
         actionSchemaProjection(name, entry.inputSchema);

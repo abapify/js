@@ -4,6 +4,7 @@
  * Uses crud() helper — full CRUD with v2 content type.
  */
 
+import { describe } from 'vitest';
 import { packagesV1 } from '../../src/schemas';
 import { fixtures } from '@abapify/adt-fixtures';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
@@ -77,4 +78,6 @@ class PackagesScenario extends ContractScenario {
 }
 
 // Run scenario
-runScenario(new PackagesScenario());
+describe('packages contract scenario', () => {
+  runScenario(new PackagesScenario());
+});
