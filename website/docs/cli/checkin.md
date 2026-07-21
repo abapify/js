@@ -47,7 +47,7 @@ adt checkin ./repo -p ZMYPKG -t DEVK900001
 adt checkin ./repo --format gcts -p ZMYPKG -t DEVK900001 \
     --types CLAS,INTF,DDLS --json
 
-# Force-unlock stale locks and skip activation
+# Release any persisted lock handles and skip activation
 adt checkin ./repo -p ZMYPKG -t DEVK900001 --unlock --no-activate
 ```
 
