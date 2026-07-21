@@ -538,11 +538,8 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       };
       if (authHeader) headers.Authorization = authHeader;
 
-      // The URL is resolved against the configured baseUrl and validated by the
-      // SAP ADT adapter; the path is code-provided, not attacker-controlled.
       const abortController = new AbortController();
-      // bearer:disable javascript_lang_http_url_using_user_input
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         method: 'GET',
         headers,
         signal: abortController.signal,
