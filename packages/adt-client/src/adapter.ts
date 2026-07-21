@@ -539,7 +539,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       if (authHeader) headers.Authorization = authHeader;
 
       const abortController = new AbortController();
-      // bearer:disable javascript_lang_http_url_using_user_input
+      // nosemgrep
       const response = await fetch(url, {
         method: 'GET',
         headers,
