@@ -246,6 +246,8 @@ export function destinationModeServer(
         }
 
         const handlerIndex = args.length - 1;
+        // handlerIndex is computed from the tool registration args array, not user input.
+        // eslint-disable-next-line
         const handler = args[handlerIndex];
         if (typeof handler !== 'function') {
           throw new Error(`MCP tool ${name} must declare a handler`);
