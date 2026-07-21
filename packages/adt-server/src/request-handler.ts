@@ -143,6 +143,47 @@ function parsePackageName(raw: string): string {
   return packagePathParameter.parse(decodePathParameter(raw));
 }
 
+function validateObjectSource(
+  result: { source: string; bytes: number },
+  maxBytes: number,
+): void {
+  if (
+    typeof result.source !== 'string' ||
+    result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
+    result.bytes > maxBytes
+  ) {
+    throw new Error('Bounded object source operation returned an invalid body');
+  }
+}
+
+function validateSourceVersionResult(
+  result: { source: string; bytes: number },
+  maxBytes: number,
+): void {
+  if (
+    typeof result.source !== 'string' ||
+    result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
+    result.bytes > maxBytes
+  ) {
+    throw new Error('Bounded source operation returned an invalid body');
+  }
+}
+
+function validateAtcDocumentationResult(
+  result: { html: string; bytes: number },
+  maxBytes: number,
+): void {
+  if (
+    typeof result.html !== 'string' ||
+    result.bytes !== Buffer.byteLength(result.html, 'utf8') ||
+    result.bytes > maxBytes
+  ) {
+    throw new Error(
+      'Bounded ATC documentation operation returned an invalid body',
+    );
+  }
+}
+
 function handleKnownError(
   response: http.ServerResponse,
   error: unknown,
@@ -551,15 +592,7 @@ async function handleObjectSourceRead(
       objectName,
       ...(input.version ? { version: input.version } : {}),
     });
-    if (
-      typeof result.source !== 'string' ||
-      result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
-      result.bytes > MAX_SOURCE_BYTES
-    ) {
-      throw new Error(
-        'Bounded object source operation returned an invalid body',
-      );
-    }
+    validateObjectSource(result, MAX_SOURCE_BYTES);
     const data = sourceVersionReadResponse.parse(result);
     sendJson(response, data);
   } catch (error) {
@@ -618,15 +651,7 @@ async function handleAtcDocumentationRead(
       documentationUri,
       maxBytes,
     });
-    if (
-      typeof result.html !== 'string' ||
-      result.bytes !== Buffer.byteLength(result.html, 'utf8') ||
-      result.bytes > maxBytes
-    ) {
-      throw new Error(
-        'Bounded ATC documentation operation returned an invalid body',
-      );
-    }
+    validateAtcDocumentationResult(result, maxBytes);
     const data = atcDocumentationReadResponse.parse(result);
     sendJson(response, data);
   } catch (error) {
@@ -736,13 +761,7 @@ async function handleSourceVersionRead(
       sourceUri: source.sourceUri,
       maxBytes: input.maxBytes,
     });
-    if (
-      typeof result.source !== 'string' ||
-      result.bytes !== Buffer.byteLength(result.source, 'utf8') ||
-      result.bytes > input.maxBytes
-    ) {
-      throw new Error('Bounded source operation returned an invalid body');
-    }
+    validateSourceVersionResult(result, input.maxBytes);
     const data = sourceVersionReadResponse.parse(result);
     sendJson(response, data);
   } catch (error) {
