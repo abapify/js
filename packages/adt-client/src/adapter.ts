@@ -539,8 +539,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       if (authHeader) headers.Authorization = authHeader;
 
       const abortController = new AbortController();
-      // The URL is built from the configured base URL plus a code-provided path.
-      // eslint-disable-next-line
+      // bearer:disable javascript_lang_http_url_using_user_input
       const response = await fetch(url, {
         method: 'GET',
         headers,
