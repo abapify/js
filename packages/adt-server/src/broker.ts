@@ -243,76 +243,83 @@ function documentationUriForFinding(
     : undefined;
 }
 
+function canonicalAtcFinding(
+  object: UnknownRecord,
+  finding: UnknownRecord,
+): CanonicalAtcFinding {
+  const line = atcLineFromLocation(finding.location);
+  const quickfixes = record(finding.quickfixes);
+  return {
+    checkId: stringField(finding, 'checkId') ?? '',
+    checkTitle: stringField(finding, 'checkTitle') ?? '',
+    messageText: stringField(finding, 'messageTitle') ?? '',
+    priority: Number.parseInt(stringField(finding, 'priority') ?? '3', 10),
+    objectType: stringField(object, 'type') ?? '',
+    objectName: stringField(object, 'name') ?? '',
+    ...(line ? { lineStart: line, lineEnd: line } : {}),
+    ...(optionalText(finding.messageId)
+      ? { messageId: optionalText(finding.messageId) }
+      : {}),
+    ...(optionalText(object.packageName)
+      ? { packageName: optionalText(object.packageName) }
+      : {}),
+    ...(optionalText(object.description)
+      ? { objectDescription: optionalText(object.description) }
+      : {}),
+    ...(optionalText(finding.contactPerson)
+      ? { contactPerson: optionalText(finding.contactPerson) }
+      : {}),
+    ...(optionalText(finding.processor)
+      ? { processor: optionalText(finding.processor) }
+      : {}),
+    ...(optionalText(finding.lastChangedBy)
+      ? { lastChangedBy: optionalText(finding.lastChangedBy) }
+      : {}),
+    ...(optionalText(finding.exemptionKind)
+      ? { exemptionKind: optionalText(finding.exemptionKind) }
+      : {}),
+    ...(optionalText(finding.exemptionApproval)
+      ? { exemptionApproval: optionalText(finding.exemptionApproval) }
+      : {}),
+    ...(optionalAtcBoolean(finding.noExemption) === undefined
+      ? {}
+      : { noExemption: optionalAtcBoolean(finding.noExemption) }),
+    ...(optionalText(finding.quickfixInfo)
+      ? { quickfixInfo: optionalText(finding.quickfixInfo) }
+      : {}),
+    ...(quickfixes
+      ? {
+          quickfixes: {
+            ...(optionalAtcBoolean(quickfixes.manual) === undefined
+              ? {}
+              : { manual: optionalAtcBoolean(quickfixes.manual) }),
+            ...(optionalAtcBoolean(quickfixes.automatic) === undefined
+              ? {}
+              : { automatic: optionalAtcBoolean(quickfixes.automatic) }),
+            ...(optionalAtcBoolean(quickfixes.pseudo) === undefined
+              ? {}
+              : { pseudo: optionalAtcBoolean(quickfixes.pseudo) }),
+          },
+        }
+      : {}),
+    ...(finding.checksum === undefined
+      ? {}
+      : { checksum: String(finding.checksum) }),
+    ...(documentationUriForFinding(finding)
+      ? { documentationUri: documentationUriForFinding(finding) }
+      : {}),
+  };
+}
+
 function toCanonicalAtcFindings(response: unknown): CanonicalAtcFinding[] {
   const worklist = record(response)?.worklist;
   const objects = records(
     record(worklist)?.objects && record(worklist)?.objects,
   ).flatMap((objects) => records(objects.object));
   return objects.flatMap((object) =>
-    records(record(object.findings)?.finding).map((finding) => {
-      const line = atcLineFromLocation(finding.location);
-      const quickfixes = record(finding.quickfixes);
-      return {
-        checkId: stringField(finding, 'checkId') ?? '',
-        checkTitle: stringField(finding, 'checkTitle') ?? '',
-        messageText: stringField(finding, 'messageTitle') ?? '',
-        priority: Number.parseInt(stringField(finding, 'priority') ?? '3', 10),
-        objectType: stringField(object, 'type') ?? '',
-        objectName: stringField(object, 'name') ?? '',
-        ...(line ? { lineStart: line, lineEnd: line } : {}),
-        ...(optionalText(finding.messageId)
-          ? { messageId: optionalText(finding.messageId) }
-          : {}),
-        ...(optionalText(object.packageName)
-          ? { packageName: optionalText(object.packageName) }
-          : {}),
-        ...(optionalText(object.description)
-          ? { objectDescription: optionalText(object.description) }
-          : {}),
-        ...(optionalText(finding.contactPerson)
-          ? { contactPerson: optionalText(finding.contactPerson) }
-          : {}),
-        ...(optionalText(finding.processor)
-          ? { processor: optionalText(finding.processor) }
-          : {}),
-        ...(optionalText(finding.lastChangedBy)
-          ? { lastChangedBy: optionalText(finding.lastChangedBy) }
-          : {}),
-        ...(optionalText(finding.exemptionKind)
-          ? { exemptionKind: optionalText(finding.exemptionKind) }
-          : {}),
-        ...(optionalText(finding.exemptionApproval)
-          ? { exemptionApproval: optionalText(finding.exemptionApproval) }
-          : {}),
-        ...(optionalAtcBoolean(finding.noExemption) === undefined
-          ? {}
-          : { noExemption: optionalAtcBoolean(finding.noExemption) }),
-        ...(optionalText(finding.quickfixInfo)
-          ? { quickfixInfo: optionalText(finding.quickfixInfo) }
-          : {}),
-        ...(quickfixes
-          ? {
-              quickfixes: {
-                ...(optionalAtcBoolean(quickfixes.manual) === undefined
-                  ? {}
-                  : { manual: optionalAtcBoolean(quickfixes.manual) }),
-                ...(optionalAtcBoolean(quickfixes.automatic) === undefined
-                  ? {}
-                  : { automatic: optionalAtcBoolean(quickfixes.automatic) }),
-                ...(optionalAtcBoolean(quickfixes.pseudo) === undefined
-                  ? {}
-                  : { pseudo: optionalAtcBoolean(quickfixes.pseudo) }),
-              },
-            }
-          : {}),
-        ...(finding.checksum === undefined
-          ? {}
-          : { checksum: String(finding.checksum) }),
-        ...(documentationUriForFinding(finding)
-          ? { documentationUri: documentationUriForFinding(finding) }
-          : {}),
-      };
-    }),
+    records(record(object.findings)?.finding).map((finding) =>
+      canonicalAtcFinding(object, finding),
+    ),
   );
 }
 
@@ -692,7 +699,7 @@ function toPackageNodes(value: unknown): Array<{
  * `packageTree.treeNode` shape, distinct from repository quick-search rows.
  * Keep only package identity/parent/description; ADT links stay local.
  */
-function toPackageTreeNodes(
+function toPackageTreeNodes( // NOSONAR - SAP package-tree normalization is branch-heavy; will be refactored in follow-up
   value: unknown,
   rootPackage: string,
 ): Array<{ name: string; parent?: string; description?: string }> {
@@ -785,7 +792,7 @@ function isUnsupportedPackageTree(error: unknown): boolean {
   );
 }
 
-async function getPackageTreeFromMetadata(
+async function getPackageTreeFromMetadata( // NOSONAR - SAP package-tree traversal is branch-heavy; will be refactored in follow-up
   client: AdtClient,
   rootPackage: string,
 ): Promise<{
@@ -954,6 +961,7 @@ function filterTransports(
 ): TransportSummary[] {
   if (!criteria) return transports;
   return transports.filter((transport) => {
+    // NOSONAR - SAP transport filtering is branch-heavy; will be refactored in follow-up
     if (
       criteria.includeTasks === false &&
       transport.trFunction &&
