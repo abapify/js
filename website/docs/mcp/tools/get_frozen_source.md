@@ -14,14 +14,28 @@ Defined in [`packages/adt-mcp/src/lib/tools/get-frozen-source.ts`](https://githu
 
 ```ts
 {
+  // Connection fields are rejected in shared-service/destination mode.
+  // Use an explicit destination binding instead.
+  baseUrl?: never;
+  client?: never;
+  username?: never;
+  password?: never;
+  systemId?: never;
+  destination: string; // ADT-managed destination key (injected by the shared-service MCP server)
   canonicalKey: string; // Canonical object key from the accepted Review scope
   componentId: string; // Immutable source component from the accepted Review scope
 }
 ```
 
+## Requirements
+
+- `get_frozen_source` is only available when the MCP server is running in shared-service/destination mode.
+- The caller must provide a `destination` binding (see `sap_connect` / destination mode).
+- An accepted signed Review scope that exposes `frozenSource` must be active; otherwise the tool returns `mcp_scope_denied`.
+
 ## Output
 
-The tool returns a single text content item whose body is a JSON-serialised object (`content[0].text`). On error, the response has `isError: true` and a human-readable message.
+The tool returns a single text content item whose body is a JSON-serialised object (`content[0].text`). On error, the response has `isError: true` and a human-readable message. A missing scope or destination binding returns `mcp_scope_denied`.
 
 ```json
 {
@@ -29,4 +43,4 @@ The tool returns a single text content item whose body is a JSON-serialised obje
 }
 ```
 
-See the source for the exact shape of `result`.
+On success `result` contains `canonicalKey`, `componentId`, `bytes`, and `source`. See the source for field details.

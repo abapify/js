@@ -20,7 +20,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/get-traces.ts`](https://github.com/a
   password?: string; // Password for basic auth
   systemId?: string;
   action?: 'list' | 'hitlist' | 'dbAccesses'; // Trace operation to execute (defaults to 'list')
-  id?: string; // Trace id for hitlist/dbAccesses actions
+  id?: string; // Trace id; required when action is 'hitlist' or 'dbAccesses'
 }
 ```
 
