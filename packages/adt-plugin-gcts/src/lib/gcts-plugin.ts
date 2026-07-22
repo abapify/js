@@ -12,8 +12,8 @@
  * round-trip that the E06 v0.1 follow-ups called out.
  */
 
-import { mkdirSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { createPlugin, type AdtPlugin } from '@abapify/adt-plugin';
 import type { AdtClient } from '@abapify/adk';
 import { getHandler, getSupportedTypes, isSupported } from './handlers/base';

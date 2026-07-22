@@ -24,7 +24,7 @@
  * ```
  */
 
-import { writeFile } from 'fs/promises';
+import { writeFile } from 'node:fs/promises';
 import type { AtcResult, AtcFinding, FindingResolver } from '../types';
 
 /**
@@ -83,7 +83,7 @@ export async function outputGitLabCodeQuality(
 
       // Parse ATC line number from location
       const lineMatch = finding.location?.match(/start=(\d+)/);
-      const atcLine = lineMatch ? parseInt(lineMatch[1], 10) : 1;
+      const atcLine = lineMatch ? Number.parseInt(lineMatch[1], 10) : 1;
 
       // Extract method name from ATC location URI
       const methodName = extractMethodName(finding.location);

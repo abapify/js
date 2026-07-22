@@ -9,9 +9,9 @@ import type { AdkObject } from '@abapify/adk';
 import { ConfigLoader } from '../config/loader';
 import { AuthRegistry } from '../config/auth';
 import { CliConfig } from '../config/interfaces';
-import fs from 'fs/promises';
-import path from 'path';
-import { tmpdir } from 'os';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
 
 /**
  * Mock abapGit plugin for testing

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { writeFileSync } from 'fs';
+import { writeFileSync } from 'node:fs';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
 
 export const infoCommand = new Command('info')

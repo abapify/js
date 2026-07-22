@@ -85,7 +85,7 @@ describe('parity: wb (E15)', () => {
     expect(mcp.json.objectUri).toBe(cliPayload!.objectUri);
     // Both paths parse the same usageReferenceResult XML — the reference
     // list should match (the key is identity, not field naming).
-    expect(mcp.json.results.length).toBe(cliPayload!.usages.length);
+    expect(mcp.json.results).toHaveLength(cliPayload!.usages.length);
   });
 
   it('callers: CLI `wb callers --json` and MCP `get_callers_of`', async () => {

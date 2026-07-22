@@ -319,7 +319,7 @@ describe('parity: cts', () => {
     expect(Array.isArray(mcp.json.objects)).toBe(true);
 
     // Parity: same object count and same object names (order-independent)
-    expect(mcp.json.objects.length).toBe(cliJson!.objects.length);
+    expect(mcp.json.objects).toHaveLength(cliJson!.objects.length);
     const cliNames = cliJson!.objects
       .map((o) => o.name)
       .sort((a, b) => a.localeCompare(b));

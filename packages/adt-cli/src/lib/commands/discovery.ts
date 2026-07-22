@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { writeFileSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { getAdtClientV2, getCaptured } from '../utils/adt-client-v2';
 import { DiscoveryPage } from '../ui/pages';
 

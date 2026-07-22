@@ -124,7 +124,7 @@ function convertWorklistToResult(
           checkId: finding.checkId || '',
           checkTitle: finding.checkTitle || '',
           messageId: finding.messageId || '',
-          priority: parseInt(finding.priority || '3', 10),
+          priority: Number.parseInt(finding.priority || '3', 10),
           messageText: finding.messageTitle || '',
           objectUri: obj.uri || '',
           objectType: obj.type || '',
@@ -376,7 +376,7 @@ export const atcCommand: CliCommandPlugin = {
 
     // Step 3: Run ATC checks with objects
     ctx.logger.info('⏳ Running ATC analysis...');
-    const maxResults = parseInt(options.maxResults || '100', 10);
+    const maxResults = Number.parseInt(options.maxResults || '100', 10);
     const runData = {
       run: {
         maximumVerdicts: maxResults,
