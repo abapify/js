@@ -129,5 +129,8 @@
     {
       "path": "./packages/adt-proxy"
     }
-  ]
+  ],
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0"
+  }
 }

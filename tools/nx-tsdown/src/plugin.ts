@@ -1,4 +1,4 @@
-import { type CreateNodesV2, logger, workspaceRoot } from '@nx/devkit';
+import { type CreateNodes, logger, workspaceRoot } from '@nx/devkit';
 import { dirname, join } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -33,7 +33,7 @@ function logDebug(message: string) {
   }
 }
 
-export const createNodesV2: CreateNodesV2 = [
+export const createNodesV2: CreateNodes = [
   '**/tsdown.config.ts',
   (configFiles, _options, _context) => {
     const verbose = isVerbose();

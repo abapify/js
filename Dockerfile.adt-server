@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM oven/bun:1.3.11 AS bun
+FROM oven/bun:1.3.14 AS bun
 
 FROM node:24-bookworm AS builder
 ARG BUN_CONFIG_REGISTRY

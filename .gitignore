@@ -161,3 +161,5 @@ website/node_modules/
 .nx/self-healing
 .claude/settings.local.json
 e2e/adt-sdk
+
+.nx/migrate-runs

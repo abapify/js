@@ -67,7 +67,7 @@ function createRegistry(
 } {
   const filename = options?.filename ?? FALLBACK_FILENAME;
   const config = buildConfig(options);
-  const registry = new Registry(undefined, config);
+  const registry = new Registry(config);
   registry.addFile(new MemoryFile(filename, source));
   registry.parse();
 

@@ -1,4 +1,4 @@
-import { type CreateNodesV2, logger, workspaceRoot } from '@nx/devkit';
+import { type CreateNodes, logger, workspaceRoot } from '@nx/devkit';
 import { dirname, join, relative } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { glob } from 'glob';
@@ -132,7 +132,7 @@ function isProjectInVitestConfig(
   return false;
 }
 
-export const createNodesV2: CreateNodesV2 = [
+export const createNodesV2: CreateNodes = [
   '**/vitest.config.{ts,js,mts,mjs,cts,cjs}',
   (configFiles, _options, _context) => {
     const verbose = isVerbose();

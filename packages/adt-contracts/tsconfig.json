@@ -6,7 +6,8 @@
     "paths": {
       "#schemas": ["./src/schemas.ts"],
       "#base": ["./src/base.ts"]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],
   "references": [

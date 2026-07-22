@@ -4,7 +4,7 @@
 FROM node:24-bookworm AS builder
 
 # Install bun (matches the version used in CI)
-RUN npm install -g bun@1.2.9
+RUN npm install -g bun@1.3.14
 
 WORKDIR /build
 
