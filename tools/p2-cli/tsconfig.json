@@ -10,8 +10,7 @@
     "rootDir": "src",
     "declaration": true,
     "noUncheckedSideEffectImports": false,
-    "types": ["*"],
-    "ignoreDeprecations": "6.0"
+    "types": ["*"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

@@ -8,8 +8,7 @@
     "sourceMap": true,
     "moduleResolution": "bundler",
     "module": "ESNext",
-    "target": "ES2022",
-    "ignoreDeprecations": "6.0"
+    "target": "ES2022"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"],

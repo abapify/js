@@ -8,8 +8,7 @@
     "types": ["node"],
     "lib": ["es2022", "dom"],
     "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "ignoreDeprecations": "6.0"
+    "jsxImportSource": "react"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [

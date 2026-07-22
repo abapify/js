@@ -7,8 +7,7 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"],
-    "ignoreDeprecations": "6.0"
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "references": [

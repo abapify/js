@@ -9,8 +9,7 @@
     "composite": true,
     "types": ["node"],
     "lib": ["es2022", "dom"],
-    "paths": {},
-    "ignoreDeprecations": "6.0"
+    "paths": {}
   },
   "include": ["src/**/*.ts"],
   "references": [

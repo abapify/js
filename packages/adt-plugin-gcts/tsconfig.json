@@ -6,7 +6,5 @@
     { "path": "./tsconfig.lib.json" },
     { "path": "./tsconfig.test.json" }
   ],
-  "compilerOptions": {
-    "ignoreDeprecations": "6.0"
-  }
+  "compilerOptions": {}
 }
