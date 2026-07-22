@@ -5,7 +5,7 @@ import {
   workspaceRoot,
 } from '@nx/devkit';
 import { dirname, relative, basename, join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 interface NxTypecheckPluginOptions {
   tsgo?: boolean;
@@ -25,7 +25,7 @@ function isVerbose(): boolean {
   try {
     const envPath = join(workspaceRoot, '.env');
     if (existsSync(envPath)) {
-      const envContent = require('node:fs').readFileSync(envPath, 'utf-8');
+      const envContent = readFileSync(envPath, 'utf-8');
       return envContent.includes('NX_VERBOSE_LOGGING=true');
     }
   } catch {
