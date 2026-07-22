@@ -27,9 +27,9 @@ const trustedAgentIds = new Set([
   'system-assistant',
   'autonomous-review-agent',
 ]);
-const trustedOperationClasses = new Set(['server', 'read']);
+const trustedOperationClasses = new Set(['server', 'read', 'safe_execute']);
 
-export type McpTrustedOperationClass = 'server' | 'read';
+export type McpTrustedOperationClass = 'server' | 'read' | 'safe_execute';
 
 export type McpInvocationJsonValue =
   | boolean
@@ -44,9 +44,7 @@ export interface TrustedMcpInvocationClaims {
   readonly tokenId: string;
   readonly principal: string;
   readonly agentId:
-    | 'ai-review'
-    | 'system-assistant'
-    | 'autonomous-review-agent';
+    'ai-review' | 'system-assistant' | 'autonomous-review-agent';
   readonly classes: readonly McpTrustedOperationClass[];
   readonly destinationKeys: readonly string[];
   readonly correlationId: string;
@@ -108,7 +106,12 @@ export interface McpInvocationVerifier {
 function isSystemAssistantPolicySupported(
   claims: TrustedMcpInvocationClaims,
 ): boolean {
-  if (Object.keys(claims.limits).length !== 0) return false;
+  if (
+    !hasServerReadClasses(claims) ||
+    Object.keys(claims.limits).length !== 0
+  ) {
+    return false;
+  }
   const constraintKeys = Object.keys(claims.constraint);
   return (
     constraintKeys.length === 1 &&
