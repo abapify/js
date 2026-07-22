@@ -4,9 +4,9 @@
  * ADT Codegen CLI (Hook-Based)
  */
 
-import { resolve } from 'path';
-import { pathToFileURL } from 'url';
-import { existsSync } from 'fs';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { existsSync } from 'node:fs';
 import { CodegenFramework } from './framework';
 import type { CodegenConfig } from './types';
 

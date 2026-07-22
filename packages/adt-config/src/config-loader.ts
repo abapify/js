@@ -7,8 +7,8 @@
  * 3. ~/.adt/config.json (global defaults)
  */
 
-import { existsSync, readFileSync, readdirSync } from 'fs';
-import { resolve, join } from 'path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import type { AdtConfig, Destination } from './types';
 
 // =============================================================================

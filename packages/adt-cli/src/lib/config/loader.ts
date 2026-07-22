@@ -4,9 +4,9 @@ import {
   ConfigValidationResult,
 } from './interfaces';
 import { AuthRegistry } from './auth';
-import { pathToFileURL } from 'url';
-import fs from 'fs/promises';
-import path from 'path';
+import { pathToFileURL } from 'node:url';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import yaml from 'js-yaml';
 
 export class ConfigLoader implements IConfigLoader {

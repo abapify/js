@@ -4,7 +4,7 @@
  * Outputs ATC findings in SARIF format for GitHub Code Scanning.
  */
 
-import { writeFile } from 'fs/promises';
+import { writeFile } from 'node:fs/promises';
 import type { AtcResult, AtcFinding } from '../types';
 
 export async function outputSarifReport(
@@ -44,7 +44,7 @@ export async function outputSarifReport(
 
     // Parse line number from location if available
     const lineMatch = finding.location?.match(/start=(\d+)/);
-    const line = lineMatch ? parseInt(lineMatch[1], 10) : 1;
+    const line = lineMatch ? Number.parseInt(lineMatch[1], 10) : 1;
 
     return {
       ruleId: finding.checkId,

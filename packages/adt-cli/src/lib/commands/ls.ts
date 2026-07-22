@@ -12,9 +12,9 @@
  */
 
 import { Command } from 'commander';
-import { readdir, readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 
 interface AbapObject {
   uri: string;

@@ -1,6 +1,6 @@
 import { type CreateNodesV2, logger, workspaceRoot } from '@nx/devkit';
-import { dirname, join } from 'path';
-import { existsSync } from 'fs';
+import { dirname, join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 
 function isVerbose(): boolean {
   // Check for --verbose flag in process arguments
@@ -17,7 +17,7 @@ function isVerbose(): boolean {
   try {
     const envPath = join(workspaceRoot, '.env');
     if (existsSync(envPath)) {
-      const envContent = require('fs').readFileSync(envPath, 'utf-8');
+      const envContent = readFileSync(envPath, 'utf-8');
       return envContent.includes('NX_VERBOSE_LOGGING=true');
     }
   } catch (_e) {
