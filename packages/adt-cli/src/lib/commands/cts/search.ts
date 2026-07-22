@@ -109,7 +109,7 @@ export const ctsSearchCommand = new Command('search')
 
       // Normalize response to array
       const transports = normalizeTransportFindResponse(result);
-      const maxResults = options.max ? parseInt(options.max, 10) : 50;
+      const maxResults = options.max ? Number.parseInt(options.max, 10) : 50;
       const displayTransports = transports.slice(0, maxResults);
 
       if (options.json) {

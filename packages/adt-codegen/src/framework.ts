@@ -3,9 +3,9 @@
  */
 
 import { XMLParser } from 'fast-xml-parser';
-import { readFile, writeFile, mkdir, rm } from 'fs/promises';
-import { join, resolve } from 'path';
-import { existsSync } from 'fs';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import type {
   CodegenConfig,
   CodegenPlugin,

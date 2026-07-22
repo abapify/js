@@ -1,5 +1,5 @@
-import { join } from 'path';
-import { homedir } from 'os';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 // Auth session storage
 export const AUTH_CONFIG_DIR = join(homedir(), '.adt');

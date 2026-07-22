@@ -5,8 +5,8 @@
  * This validates the full CLI functionality with mock client
  */
 
-import { spawn } from 'child_process';
-import { join } from 'path';
+import { spawn } from 'node:child_process';
+import { join } from 'node:path';
 
 async function runE2ETest() {
   console.log('🧪 Running E2E Transport Import Test...');

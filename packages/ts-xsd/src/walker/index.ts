@@ -753,8 +753,8 @@ function isArray(item: { maxOccurs?: number | string | 'unbounded' }): boolean {
   if (typeof item.maxOccurs === 'number') return item.maxOccurs > 1;
   if (typeof item.maxOccurs === 'string') {
     if (item.maxOccurs === 'unbounded') return true;
-    const num = parseInt(item.maxOccurs, 10);
-    return !isNaN(num) && num > 1;
+    const num = Number.parseInt(item.maxOccurs, 10);
+    return !Number.isNaN(num) && num > 1;
   }
   return false;
 }

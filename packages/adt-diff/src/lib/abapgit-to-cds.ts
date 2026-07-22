@@ -219,8 +219,8 @@ export function buildCdsDdl(
 
   // --- Sort fields by POSITION ---
   const sorted = [...dd03pEntries].sort((a, b) => {
-    const posA = parseInt(a.POSITION ?? '0', 10);
-    const posB = parseInt(b.POSITION ?? '0', 10);
+    const posA = Number.parseInt(a.POSITION ?? '0', 10);
+    const posB = Number.parseInt(b.POSITION ?? '0', 10);
     return posA - posB;
   });
 
@@ -427,8 +427,10 @@ function buildCdsTypeString(entry: DD03PData): string | null {
   }
 
   // Parse LENG and DECIMALS (strip leading zeros)
-  const leng = entry.LENG ? parseInt(entry.LENG, 10) : undefined;
-  const decimals = entry.DECIMALS ? parseInt(entry.DECIMALS, 10) : undefined;
+  const leng = entry.LENG ? Number.parseInt(entry.LENG, 10) : undefined;
+  const decimals = entry.DECIMALS
+    ? Number.parseInt(entry.DECIMALS, 10)
+    : undefined;
 
   // Variable-length types (string, rawstring)
   if (VARIABLE_LENGTH_TYPES.has(cdsName)) {

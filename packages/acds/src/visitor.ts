@@ -514,7 +514,7 @@ export class CdsVisitor extends BaseCstVisitor {
     if (ctx.NumberLiteral) {
       return {
         kind: 'number',
-        value: parseFloat(asTokens(ctx.NumberLiteral)[0].image),
+        value: Number.parseFloat(asTokens(ctx.NumberLiteral)[0].image),
       };
     }
     if (ctx.annotationArray) {
@@ -560,7 +560,7 @@ export class CdsVisitor extends BaseCstVisitor {
     if (ctx.False) return { kind: 'boolean', value: false };
     return {
       kind: 'number',
-      value: parseFloat(asTokens(ctx.NumberLiteral)[0].image),
+      value: Number.parseFloat(asTokens(ctx.NumberLiteral)[0].image),
     };
   }
 

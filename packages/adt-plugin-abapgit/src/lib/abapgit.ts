@@ -15,8 +15,8 @@ import {
   writeFileSync,
   unlinkSync,
   readdirSync,
-} from 'fs';
-import { join, relative, basename } from 'path';
+} from 'node:fs';
+import { join, relative, basename } from 'node:path';
 
 import {
   type FolderLogic,

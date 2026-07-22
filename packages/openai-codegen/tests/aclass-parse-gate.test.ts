@@ -84,7 +84,7 @@ describe('openai-codegen × aclass — parse-gate for petstore3 corpus', () => {
     const { ast } = parse(src);
     const iface = ast.definitions[0] as InterfaceDef;
     const methods = iface.members.filter((m) => m.kind === 'MethodDecl');
-    expect(methods.length).toBe(19);
+    expect(methods).toHaveLength(19);
     for (const m of methods) {
       expect(m.kind === 'MethodDecl' && m.raising.length).toBeGreaterThan(0);
     }

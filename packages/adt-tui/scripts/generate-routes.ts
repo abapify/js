@@ -14,8 +14,8 @@
  *   → Pattern: /sap/bc/adt/cts/transportrequests/:slug
  */
 
-import { readdirSync, statSync, writeFileSync } from 'fs';
-import { join, relative, dirname } from 'path';
+import { readdirSync, statSync, writeFileSync } from 'node:fs';
+import { join, relative, dirname } from 'node:path';
 
 interface RouteInfo {
   pattern: string;

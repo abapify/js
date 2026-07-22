@@ -11,9 +11,9 @@
  * - Works directly from discovery XML (no pre-processing needed)
  */
 
-import { readdir, readFile, writeFile, mkdir, rm } from 'fs/promises';
-import { join, dirname, relative } from 'path';
-import { existsSync } from 'fs';
+import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { join, dirname, relative } from 'node:path';
+import { existsSync } from 'node:fs';
 import { parseDiscoveryXml, getAllCollections } from './discovery-parser';
 import {
   type EndpointDefinition,

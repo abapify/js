@@ -386,7 +386,7 @@ describe('parseTablXml', () => {
 
     // Has key fields (CLIENT is the only field)
     const keyFields = dd03p.filter((f) => f.KEYFLAG === 'X');
-    expect(keyFields.length).toBe(1);
+    expect(keyFields).toHaveLength(1);
     expect(keyFields[0].FIELDNAME).toBe('CLIENT');
   });
 });

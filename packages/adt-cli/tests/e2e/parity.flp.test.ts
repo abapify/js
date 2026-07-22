@@ -87,7 +87,7 @@ describe('parity: flp', () => {
       {},
     );
     expect(mcp.isError).toBe(false);
-    expect(mcp.json.length).toBe(cliList!.length);
+    expect(mcp.json).toHaveLength(cliList!.length);
   });
 
   it('list tiles (global): CLI `flp list-tiles --json` and MCP `list_flp_tiles`', async () => {
@@ -132,7 +132,7 @@ describe('parity: flp', () => {
       { catalogId: CATALOG_ID },
     );
     expect(mcp.isError).toBe(false);
-    expect(mcp.json.length).toBe(cliList!.length);
+    expect(mcp.json).toHaveLength(cliList!.length);
   });
 
   it('get tile: CLI `flp get-tile <id> --json` and MCP `get_flp_tile`', async () => {

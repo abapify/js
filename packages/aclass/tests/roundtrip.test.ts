@@ -82,7 +82,7 @@ describe('roundtrip — AST captures every declaration the generator emits', () 
       const a = parse(src);
       const b = parse(src);
       // Both yield the same number and kind of top-level defs.
-      expect(b.ast.definitions.length, f).toBe(a.ast.definitions.length);
+      expect(b.ast.definitions).toHaveLength(a.ast.definitions.length);
       for (let i = 0; i < a.ast.definitions.length; i++) {
         expect(b.ast.definitions[i].kind, f).toBe(a.ast.definitions[i].kind);
       }

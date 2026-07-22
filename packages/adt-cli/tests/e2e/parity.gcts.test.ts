@@ -159,7 +159,7 @@ describe('parity: gcts', () => {
     );
     expect(mcp.isError).toBe(false);
     // MCP returns full list; CLI filtered by -a (all) returns the same.
-    expect(mcp.json.length).toBe(cliBranches!.length);
+    expect(mcp.json).toHaveLength(cliBranches!.length);
   });
 
   it('create branch: CLI `gcts branch create` and MCP `gcts_create_branch`', async () => {

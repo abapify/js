@@ -824,7 +824,7 @@ export const diffCommand: CliCommandPlugin = {
 
   async execute(args: Record<string, unknown>, ctx: CliContext) {
     const filePatterns = (args.files as string[]) ?? [];
-    const contextLines = parseInt(
+    const contextLines = Number.parseInt(
       String((args.context as string | number | undefined) ?? '3'),
       10,
     );

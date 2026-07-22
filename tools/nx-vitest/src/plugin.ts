@@ -1,6 +1,6 @@
 import { type CreateNodesV2, logger, workspaceRoot } from '@nx/devkit';
-import { dirname, join, relative } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import { dirname, join, relative } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import { glob } from 'glob';
 
 function isVerbose(): boolean {

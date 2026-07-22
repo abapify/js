@@ -79,7 +79,7 @@ export const treeListCommand = new Command('list')
       initializeAdk(client);
       const transports = await AdkTransportRequest.list();
 
-      const maxResults = options.max ? parseInt(options.max, 10) : 50;
+      const maxResults = options.max ? Number.parseInt(options.max, 10) : 50;
       const displayTransports = transports.slice(0, maxResults);
 
       if (options.json) {
