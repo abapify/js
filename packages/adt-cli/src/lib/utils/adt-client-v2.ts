@@ -146,7 +146,7 @@ export interface AdtClientV2Options {
   logOutput?: string;
   /** Write metadata alongside response files (default: false) */
   writeMetadata?: boolean;
-  /** SAP System ID (SID) - e.g., 'TRL', 'TRL' (default: from CLI --sid flag) */
+  /** SAP System ID (SID) - e.g., 'TRL' (default: from CLI --sid flag) */
   sid?: string;
   /** Enable capture plugin to capture raw XML and parsed JSON (default: false) */
   capture?: boolean;

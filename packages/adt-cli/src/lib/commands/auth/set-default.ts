@@ -3,7 +3,7 @@ import { setDefaultSid, listAvailableSids } from '../../utils/auth';
 
 export const setDefaultCommand = new Command('set-default')
   .description('Set the default SAP system')
-  .argument('<sid>', 'System ID to set as default (e.g., TRL, TRL)')
+  .argument('<sid>', 'System ID to set as default (e.g., TRL)')
   .action(async (sid: string) => {
     try {
       // Validate SID exists

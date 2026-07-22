@@ -42,7 +42,7 @@ export class AuthManager {
    *
    * Dynamically loads the plugin specified in destination.type and authenticates.
    *
-   * @param sid - System ID (e.g., 'TRL', 'TRL')
+   * @param sid - System ID (e.g., 'TRL')
    * @param destination - Destination config with plugin type and options
    */
   async login(sid: string, destination: Destination): Promise<AuthSession> {

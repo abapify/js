@@ -37,7 +37,7 @@ export async function getConfig(): Promise<LoadedConfig> {
 
 /**
  * Get a destination by name (SID)
- * @param name Destination name (e.g., 'TRL', 'TRL')
+ * @param name Destination name (e.g., 'TRL')
  */
 export async function getDestination(
   name: string,

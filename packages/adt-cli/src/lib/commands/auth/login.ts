@@ -274,11 +274,11 @@ export const loginCommand = new Command('login')
 
 async function promptForSid(): Promise<string> {
   const sid = await input({
-    message: 'System ID (e.g., TRL, TRL)',
+    message: 'System ID (e.g., TRL)',
     validate: (value) => {
       if (!value) return 'SID is required';
       if (!/^[A-Z0-9]{3}$/.test(value.toUpperCase())) {
-        return 'SID must be 3 alphanumeric characters (e.g., TRL, TRL)';
+        return 'SID must be 3 alphanumeric characters (e.g., TRL)';
       }
       return true;
     },
