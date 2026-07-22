@@ -20,7 +20,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/cts-transport-objects.ts`](https://g
   objFunc?: string;
   pgmid?: string;
   type?: string;
-  alsoTransports?: string;
+  alsoTransports?: string[]; // Additional transport numbers to merge
 }
 ```
 

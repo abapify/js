@@ -19,8 +19,12 @@ Defined in [`packages/adt-mcp/src/lib/tools/cts-transport-source-manifest.ts`](h
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
   systemId?: string;
-  transports: string; // Non-empty ordered list of CTS request or task numbers
-  selector?: object; // CTS object-function filter
+  transports: string[]; // Non-empty ordered list of CTS request or task numbers
+  selector?: {
+    objFunc?: string | string[]; // CTS object-function filter
+    pgmid?: string | string[]; // CTS program-id filter
+    type?: string | string[]; // ABAP object-type filter
+  }; // Optional CTS object selector; dimensions are ANDed
   concurrency?: number; // Maximum concurrent metadata/feed requests (hard cap 32)
 }
 ```
@@ -35,4 +39,4 @@ The tool returns a single text content item whose body is a JSON-serialised obje
 }
 ```
 
-See the source for the exact shape of `result`.
+The exact shape of `result` is an object with `requestedTransports`, `scopeTransports`, and `entries` (each entry contains `component`, optional `base`/`head` source versions, and extra metadata). See the source for field details.

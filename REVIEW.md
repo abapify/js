@@ -14,7 +14,7 @@ These rules must always be observed when reviewing or contributing to `abapify/a
 
 ## Dependencies and CI
 
-- `bun.lock` must stay in `.git/info/exclude`; do not remove it. The workspace uses Bun workspaces and `workspace:*` protocol.
+- `bun.lock` should be added to `.git/info/exclude` to keep JFrog URLs out of GitHub (currently not excluded). The workspace uses Bun workspaces and `workspace:*` protocol.
 - `package.json` workspace declarations, `nx.json`, and `bun.lock` must remain consistent.
 - GitHub Actions workflow versions must be pinned to real, current release tags.
 - OIDC trusted publishing is used for npm releases; no `NPM_TOKEN` secret is committed.
@@ -23,7 +23,7 @@ These rules must always be observed when reviewing or contributing to `abapify/a
 
 - The root `AGENTS.md` and `.agents/repo-guide.md` are updated when build/test conventions or repository layout change.
 - The root `REVIEW.md` (this file) is updated when the review policy changes.
-- `.agents/rules/` are the single source of truth for agent behavior; `.cursor/` and `.windsurf/` are redirect stubs.
+- `.agents/rules/` are the single source of truth for agent behavior. `.cursor/` is a thin native wrapper with Cursor-specific `.mdc` rules and command frontmatter that point to `.agents/`. `.windsurf/` is a deprecated redirect-stub layer.
 - `website/docs/` is a 1-to-1 projection of code where possible. Run `bun .agents/skills/docs-sync/scripts/check-structure.ts` before declaring docs work complete; run `bun .agents/skills/docs-sync/scripts/generate-stubs.ts --write` to materialise missing stubs.
 
 ## Code and design

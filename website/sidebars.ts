@@ -169,6 +169,7 @@ const sdkPackages = [
   'sdk/packages/adt-diff',
   'sdk/packages/adt-export',
   'sdk/packages/adt-fixtures',
+  'sdk/packages/adt-lint',
   'sdk/packages/adt-locks',
   'sdk/packages/adt-mcp',
   'sdk/packages/adt-pilot',
@@ -177,9 +178,12 @@ const sdkPackages = [
   'sdk/packages/adt-plugin-abapgit',
   'sdk/packages/adt-plugin-gcts',
   'sdk/packages/adt-plugin-gcts-cli',
+  'sdk/packages/adt-proxy',
   'sdk/packages/adt-puppeteer',
   'sdk/packages/adt-rfc',
   'sdk/packages/adt-schemas',
+  'sdk/packages/adt-server',
+  'sdk/packages/adt-server-client',
   'sdk/packages/adt-tui',
   'sdk/packages/asjson-parser',
   'sdk/packages/browser-auth',
@@ -187,10 +191,6 @@ const sdkPackages = [
   'sdk/packages/openai-codegen',
   'sdk/packages/speci',
   'sdk/packages/ts-xsd',
-  'sdk/packages/adt-lint',
-  'sdk/packages/adt-server',
-  'sdk/packages/adt-server-client',
-  'sdk/packages/adt-proxy',
 ];
 
 const sdkContracts = [

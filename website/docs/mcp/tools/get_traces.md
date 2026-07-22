@@ -19,7 +19,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/get-traces.ts`](https://github.com/a
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
   systemId?: string;
-  action: 'list' | 'hitlist' | 'dbAccesses'; // Trace operation to execute
+  action?: 'list' | 'hitlist' | 'dbAccesses'; // Trace operation to execute (defaults to 'list')
   id?: string; // Trace id for hitlist/dbAccesses actions
 }
 ```
@@ -30,8 +30,13 @@ The tool returns a single text content item whose body is a JSON-serialised obje
 
 ```json
 {
-  "content": [{ "type": "text", "text": "<JSON.stringify(result, null, 2)>" }]
+  "content": [
+    {
+      "type": "text",
+      "text": "<JSON.stringify({ action, id, result }, null, 2)>"
+    }
+  ]
 }
 ```
 
-See the source for the exact shape of `result`.
+The response wraps the trace result in an object with `action`, `id`, and `result` fields; trace data itself lives under `result`. See the source for details.

@@ -19,11 +19,11 @@ Defined in [`packages/adt-mcp/src/lib/tools/lint-abap.ts`](https://github.com/ab
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
   systemId?: string;
-  action: 'lint' | 'lint_and_fix' | 'list_rules';
-  source?: string; // ABAP source code to lint
+  action?: 'lint' | 'lint_and_fix' | 'list_rules'; // Defaults to 'lint'
+  source?: string; // ABAP source code to lint (required for 'lint' and 'lint_and_fix')
   objectName?: string; // Optional object name used for issue filename context
   lintPreset?: 'btp' | 'onpremise'; // Lint preset to apply (defaults to onpremise)
-  ruleOverrides?: unknown; // Optional per-rule override config passed to abaplint
+  ruleOverrides?: Record<string, unknown>; // Optional per-rule override config passed to abaplint
 }
 ```
 
