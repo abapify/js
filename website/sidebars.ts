@@ -140,6 +140,16 @@ const mcpTools = [
   'mcp/tools/unpublish_srvb',
   'mcp/tools/update_source',
   'mcp/tools/upload_cert',
+  'mcp/tools/list_source_versions',
+  'mcp/tools/get_short_dumps',
+  'mcp/tools/get_completions',
+  'mcp/tools/cts_transport_source_manifest',
+  'mcp/tools/cts_transport_objects',
+  'mcp/tools/get_frozen_source',
+  'mcp/tools/get_source_version',
+  'mcp/tools/get_context',
+  'mcp/tools/lint_abap',
+  'mcp/tools/get_traces',
 ];
 
 const sdkPackages = [
@@ -177,6 +187,10 @@ const sdkPackages = [
   'sdk/packages/openai-codegen',
   'sdk/packages/speci',
   'sdk/packages/ts-xsd',
+  'sdk/packages/adt-lint',
+  'sdk/packages/adt-server',
+  'sdk/packages/adt-server-client',
+  'sdk/packages/adt-proxy',
 ];
 
 const sdkContracts = [

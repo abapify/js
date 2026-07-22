@@ -96,32 +96,37 @@ the source in this monorepo.
 
 ### CLI & plugins (user-facing)
 
-| Package                                                   | npm                                                                                                                                     | Description                                              |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **[adt-cli](./packages/adt-cli)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-cli.svg)](https://www.npmjs.com/package/@abapify/adt-cli)                         | `adt` command-line interface                             |
-| **[adt-mcp](./packages/adt-mcp)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-mcp.svg)](https://www.npmjs.com/package/@abapify/adt-mcp)                         | MCP server — exposes ADT tools to AI assistants          |
-| **[adt-atc](./packages/adt-atc)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-atc.svg)](https://www.npmjs.com/package/@abapify/adt-atc)                         | ATC plugin — runs ABAP Test Cockpit, emits SARIF / GL CQ |
-| **[adt-aunit](./packages/adt-aunit)**                     | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-aunit.svg)](https://www.npmjs.com/package/@abapify/adt-aunit)                     | ABAP Unit Test plugin, JUnit XML output for CI           |
-| **[adt-diff](./packages/adt-diff)**                       | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-diff.svg)](https://www.npmjs.com/package/@abapify/adt-diff)                       | Diff plugin — compare local serialized files vs SAP      |
-| **[adt-export](./packages/adt-export)**                   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-export.svg)](https://www.npmjs.com/package/@abapify/adt-export)                   | Export plugin — deploy local sources to SAP              |
-| **[adt-plugin-abapgit](./packages/adt-plugin-abapgit)**   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin-abapgit.svg)](https://www.npmjs.com/package/@abapify/adt-plugin-abapgit)   | abapGit serialization format plugin                      |
-| **[adt-plugin-gcts](./packages/adt-plugin-gcts)**         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin-gcts.svg)](https://www.npmjs.com/package/@abapify/adt-plugin-gcts)         | gCTS (git-enabled CTS) plugin                            |
-| **[adt-plugin-gcts-cli](./packages/adt-plugin-gcts-cli)** | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin-gcts-cli.svg)](https://www.npmjs.com/package/@abapify/adt-plugin-gcts-cli) | `adt gcts` command wrapper over gCTS REST                |
-| **[adt-tui](./packages/adt-tui)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-tui.svg)](https://www.npmjs.com/package/@abapify/adt-tui)                         | Ink-based terminal UI primitives                         |
+| Package                                                   | npm                                                                                                                                     | Description                                                |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **[adt-cli](./packages/adt-cli)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-cli.svg)](https://www.npmjs.com/package/@abapify/adt-cli)                         | `adt` command-line interface                               |
+| **[adt-mcp](./packages/adt-mcp)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-mcp.svg)](https://www.npmjs.com/package/@abapify/adt-mcp)                         | MCP server — exposes ADT tools to AI assistants            |
+| **[adt-atc](./packages/adt-atc)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-atc.svg)](https://www.npmjs.com/package/@abapify/adt-atc)                         | ATC plugin — runs ABAP Test Cockpit, emits SARIF / GL CQ   |
+| **[adt-aunit](./packages/adt-aunit)**                     | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-aunit.svg)](https://www.npmjs.com/package/@abapify/adt-aunit)                     | ABAP Unit Test plugin, JUnit XML output for CI             |
+| **[adt-diff](./packages/adt-diff)**                       | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-diff.svg)](https://www.npmjs.com/package/@abapify/adt-diff)                       | Diff plugin — compare local serialized files vs SAP        |
+| **[adt-export](./packages/adt-export)**                   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-export.svg)](https://www.npmjs.com/package/@abapify/adt-export)                   | Export plugin — deploy local sources to SAP                |
+| **[adt-plugin-abapgit](./packages/adt-plugin-abapgit)**   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin-abapgit.svg)](https://www.npmjs.com/package/@abapify/adt-plugin-abapgit)   | abapGit serialization format plugin                        |
+| **[adt-plugin-gcts](./packages/adt-plugin-gcts)**         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin-gcts.svg)](https://www.npmjs.com/package/@abapify/adt-plugin-gcts)         | gCTS (git-enabled CTS) plugin                              |
+| **[adt-plugin-gcts-cli](./packages/adt-plugin-gcts-cli)** | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin-gcts-cli.svg)](https://www.npmjs.com/package/@abapify/adt-plugin-gcts-cli) | `adt gcts` command wrapper over gCTS REST                  |
+| **[adt-tui](./packages/adt-tui)**                         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-tui.svg)](https://www.npmjs.com/package/@abapify/adt-tui)                         | Ink-based terminal UI primitives                           |
+| **[adt-pilot](./packages/adt-pilot)**                     | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-pilot.svg)](https://www.npmjs.com/package/@abapify/adt-pilot)                     | abapify Pilot — Mastra AI agent for ABAP code review       |
+| **[adt-server](./packages/adt-server)**                   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-server.svg)](https://www.npmjs.com/package/@abapify/adt-server)                   | Destination-aware ADT sidecar for MCP and safe REST access |
 
 ### SDK & core libraries
 
-| Package                                       | npm                                                                                                                         | Description                                                  |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **[adt-client](./packages/adt-client)**       | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-client.svg)](https://www.npmjs.com/package/@abapify/adt-client)       | Contract-driven HTTP client for ADT REST APIs                |
-| **[adt-contracts](./packages/adt-contracts)** | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-contracts.svg)](https://www.npmjs.com/package/@abapify/adt-contracts) | Typed ADT REST API contract definitions                      |
-| **[adt-schemas](./packages/adt-schemas)**     | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-schemas.svg)](https://www.npmjs.com/package/@abapify/adt-schemas)     | SAP ADT XML schemas generated from XSD                       |
-| **[adk](./packages/adk)**                     | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadk.svg)](https://www.npmjs.com/package/@abapify/adk)                     | ABAP Development Kit — object construction and serialization |
-| **[adt-auth](./packages/adt-auth)**           | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-auth.svg)](https://www.npmjs.com/package/@abapify/adt-auth)           | Auth: Basic, SLC, OAuth, browser SSO                         |
-| **[adt-config](./packages/adt-config)**       | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-config.svg)](https://www.npmjs.com/package/@abapify/adt-config)       | Config loader for `adt.config.ts` / `.json`                  |
-| **[adt-locks](./packages/adt-locks)**         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-locks.svg)](https://www.npmjs.com/package/@abapify/adt-locks)         | Lock/unlock service for ADT objects                          |
-| **[adt-plugin](./packages/adt-plugin)**       | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin.svg)](https://www.npmjs.com/package/@abapify/adt-plugin)       | Plugin interface contract                                    |
-| **[adt-rfc](./packages/adt-rfc)**             | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-rfc.svg)](https://www.npmjs.com/package/@abapify/adt-rfc)             | RFC transport over SOAP-over-HTTP (`/sap/bc/soap/rfc`)       |
+| Package                                               | npm                                                                                                                                 | Description                                                  |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **[adt-client](./packages/adt-client)**               | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-client.svg)](https://www.npmjs.com/package/@abapify/adt-client)               | Contract-driven HTTP client for ADT REST APIs                |
+| **[adt-contracts](./packages/adt-contracts)**         | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-contracts.svg)](https://www.npmjs.com/package/@abapify/adt-contracts)         | Typed ADT REST API contract definitions                      |
+| **[adt-schemas](./packages/adt-schemas)**             | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-schemas.svg)](https://www.npmjs.com/package/@abapify/adt-schemas)             | SAP ADT XML schemas generated from XSD                       |
+| **[adk](./packages/adk)**                             | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadk.svg)](https://www.npmjs.com/package/@abapify/adk)                             | ABAP Development Kit — object construction and serialization |
+| **[adt-auth](./packages/adt-auth)**                   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-auth.svg)](https://www.npmjs.com/package/@abapify/adt-auth)                   | Auth: Basic, SLC, OAuth, browser SSO                         |
+| **[adt-config](./packages/adt-config)**               | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-config.svg)](https://www.npmjs.com/package/@abapify/adt-config)               | Config loader for `adt.config.ts` / `.json`                  |
+| **[adt-locks](./packages/adt-locks)**                 | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-locks.svg)](https://www.npmjs.com/package/@abapify/adt-locks)                 | Lock/unlock service for ADT objects                          |
+| **[adt-plugin](./packages/adt-plugin)**               | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-plugin.svg)](https://www.npmjs.com/package/@abapify/adt-plugin)               | Plugin interface contract                                    |
+| **[adt-rfc](./packages/adt-rfc)**                     | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-rfc.svg)](https://www.npmjs.com/package/@abapify/adt-rfc)                     | RFC transport over SOAP-over-HTTP (`/sap/bc/soap/rfc`)       |
+| **[adt-lint](./packages/adt-lint)**                   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-lint.svg)](https://www.npmjs.com/package/@abapify/adt-lint)                   | Shared ABAP lint and source-shaping utilities                |
+| **[adt-proxy](./packages/adt-proxy)**                 | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-proxy.svg)](https://www.npmjs.com/package/@abapify/adt-proxy)                 | ADT proxy server with JSON↔XML conversion                    |
+| **[adt-server-client](./packages/adt-server-client)** | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-server-client.svg)](https://www.npmjs.com/package/@abapify/adt-server-client) | Generated client for @abapify/adt-server                     |
 
 ### Authentication adapters
 
@@ -133,16 +138,25 @@ the source in this monorepo.
 
 ### Foundation libraries
 
-| Package                                         | npm                                                                                                                           | Description                                       |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| **[abap-ast](./packages/abap-ast)**             | [![npm](https://img.shields.io/npm/v/%40abapify%2Fabap-ast.svg)](https://www.npmjs.com/package/@abapify/abap-ast)             | Typed AST and pretty-printer for ABAP source code |
-| **[acds](./packages/acds)**                     | [![npm](https://img.shields.io/npm/v/%40abapify%2Facds.svg)](https://www.npmjs.com/package/@abapify/acds)                     | ABAP CDS parser — tokenizer + AST                 |
-| **[adt-codegen](./packages/adt-codegen)**       | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-codegen.svg)](https://www.npmjs.com/package/@abapify/adt-codegen)       | Hook-based code generation toolkit                |
-| **[asjson-parser](./packages/asjson-parser)**   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fasjson-parser.svg)](https://www.npmjs.com/package/@abapify/asjson-parser)   | ABAP asJSON canonical format parser               |
-| **[logger](./packages/logger)**                 | [![npm](https://img.shields.io/npm/v/%40abapify%2Flogger.svg)](https://www.npmjs.com/package/@abapify/logger)                 | Shared logger interface                           |
-| **[openai-codegen](./packages/openai-codegen)** | [![npm](https://img.shields.io/npm/v/%40abapify%2Fopenai-codegen.svg)](https://www.npmjs.com/package/@abapify/openai-codegen) | OpenAPI → ABAP client code generator              |
-| **[speci](./packages/speci)**                   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fspeci.svg)](https://www.npmjs.com/package/@abapify/speci)                   | Arrow-function REST contract specification        |
-| **[ts-xsd](./packages/ts-xsd)**                 | [![npm](https://img.shields.io/npm/v/%40abapify%2Fts-xsd.svg)](https://www.npmjs.com/package/@abapify/ts-xsd)                 | XSD parser, builder, TypeScript type inference    |
+| Package                                         | npm                                                                                                                           | Description                                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **[abap-ast](./packages/abap-ast)**             | [![npm](https://img.shields.io/npm/v/%40abapify%2Fabap-ast.svg)](https://www.npmjs.com/package/@abapify/abap-ast)             | Typed AST and pretty-printer for ABAP source code      |
+| **[acds](./packages/acds)**                     | [![npm](https://img.shields.io/npm/v/%40abapify%2Facds.svg)](https://www.npmjs.com/package/@abapify/acds)                     | ABAP CDS parser — tokenizer + AST                      |
+| **[adt-codegen](./packages/adt-codegen)**       | [![npm](https://img.shields.io/npm/v/%40abapify%2Fadt-codegen.svg)](https://www.npmjs.com/package/@abapify/adt-codegen)       | Hook-based code generation toolkit                     |
+| **[asjson-parser](./packages/asjson-parser)**   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fasjson-parser.svg)](https://www.npmjs.com/package/@abapify/asjson-parser)   | ABAP asJSON canonical format parser                    |
+| **[logger](./packages/logger)**                 | [![npm](https://img.shields.io/npm/v/%40abapify%2Flogger.svg)](https://www.npmjs.com/package/@abapify/logger)                 | Shared logger interface                                |
+| **[openai-codegen](./packages/openai-codegen)** | [![npm](https://img.shields.io/npm/v/%40abapify%2Fopenai-codegen.svg)](https://www.npmjs.com/package/@abapify/openai-codegen) | OpenAPI → ABAP client code generator                   |
+| **[speci](./packages/speci)**                   | [![npm](https://img.shields.io/npm/v/%40abapify%2Fspeci.svg)](https://www.npmjs.com/package/@abapify/speci)                   | Arrow-function REST contract specification             |
+| **[ts-xsd](./packages/ts-xsd)**                 | [![npm](https://img.shields.io/npm/v/%40abapify%2Fts-xsd.svg)](https://www.npmjs.com/package/@abapify/ts-xsd)                 | XSD parser, builder, TypeScript type inference         |
+| **[aclass](./packages/aclass)**                 | [![npm](https://img.shields.io/npm/v/%40abapify%2Faclass.svg)](https://www.npmjs.com/package/@abapify/aclass)                 | ABAP OO source parser — CLASS / INTERFACE declarations |
+
+### Development-only
+
+These packages are internal to the workspace and are not published to npm.
+
+| Package                                     | npm | Description                                          |
+| ------------------------------------------- | --- | ---------------------------------------------------- |
+| **[adt-fixtures](./packages/adt-fixtures)** | —   | SAP ADT XML fixtures for testing across the monorepo |
 
 ## Architecture
 
