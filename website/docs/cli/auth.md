@@ -43,8 +43,8 @@ fully manual URL + basic-auth prompt.
 
 ### `set-default`
 
-| Argument | Description                                      |
-| -------- | ------------------------------------------------ |
+| Argument | Description                               |
+| -------- | ----------------------------------------- |
 | `<sid>`  | System ID to set as default (e.g. `TRL`). |
 
 ### `list`

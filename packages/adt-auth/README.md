@@ -78,7 +78,7 @@ console.log('✅ Logged in via SLC!');
 ```typescript
 // Login to multiple systems
 await authManager.login(config1, 'TRL');
-await authManager.login(config2, 'TRL');
+await authManager.login(config2, 'QAS');
 await authManager.login(config3, 'PRD');
 
 // List all systems
@@ -164,7 +164,7 @@ Sessions are stored in `~/.adt/sessions/` with file permissions `0600` (owner re
 ~/.adt/
 └── sessions/
     ├── TRL.json
-    ├── TRL.json
+    ├── QAS.json
     └── PRD.json
 ```
 

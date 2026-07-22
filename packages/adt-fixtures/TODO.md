@@ -49,7 +49,7 @@ Real SAP XML responses needed for complete test coverage. Collect from SAP syste
 
 ## Security Reminder
 
-⚠️ **Never commit real abapify data to this submodule**
+⚠️ **Never commit real SAP system data to this submodule**
 
 - No real transport numbers (use DEVK*, MOCK*, TEST\*)
 - No real usernames
