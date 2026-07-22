@@ -26,7 +26,7 @@ Then use the command:
 
 ```bash
 # Run ATC on a transport
-adt atc -t S0DK942970
+adt atc -t TRLK942970
 
 # Run ATC on a package
 adt atc -p ZMY_PACKAGE
@@ -35,10 +35,10 @@ adt atc -p ZMY_PACKAGE
 adt atc -o /sap/bc/adt/oo/classes/zcl_my_class
 
 # Output as SARIF (for GitHub Code Scanning)
-adt atc -t S0DK942970 --format sarif --output atc-results.sarif
+adt atc -t TRLK942970 --format sarif --output atc-results.sarif
 
 # Output as GitLab Code Quality
-adt atc -t S0DK942970 --format gitlab --output gl-code-quality.json
+adt atc -t TRLK942970 --format gitlab --output gl-code-quality.json
 ```
 
 ### Options

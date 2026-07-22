@@ -18,7 +18,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/cts-get-transport.ts`](https://githu
   client?: string;   // SAP client number
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
-  transport: string; // Transport number (e.g. S0DK900001)
+  transport: string; // Transport number (e.g. TRLK900001)
 }
 ```
 

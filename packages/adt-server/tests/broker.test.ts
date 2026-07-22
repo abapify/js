@@ -33,8 +33,8 @@ test('redeems a frozen source reference through the private ADT broker', async (
 
   try {
     const resolved = await contexts.resolveFrozenSource({
-      destination: 'd01-adt',
-      systemSid: 'D01',
+      destination: 'trl-adt',
+      systemSid: 'TRL',
       sourceRef: 'v1.opaque-reference',
     });
 
@@ -52,8 +52,8 @@ test('redeems a frozen source reference through the private ADT broker', async (
           url: 'http://adt-api.internal/internal/adt-server/frozen-source-references:resolve',
           authorization: 'sidecar-token',
           body: {
-            destination: 'd01-adt',
-            systemSid: 'D01',
+            destination: 'trl-adt',
+            systemSid: 'TRL',
             sourceRef: 'v1.opaque-reference',
           },
         },
@@ -81,8 +81,8 @@ test('preserves a sidecar-issued source capability for local redemption', async 
     await assert.doesNotReject(async () => {
       assert.deepStrictEqual(
         await contexts.resolveFrozenSource({
-          destination: 'd01-adt',
-          systemSid: 'D01',
+          destination: 'trl-adt',
+          systemSid: 'TRL',
           sourceRef: 'v1.opaque-reference',
         }),
         { sourceCapability: 'src.v1.abc.def' },

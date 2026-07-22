@@ -31,7 +31,7 @@ List transport requests owned by the current user.
 
 ### `get <transport>`
 
-Get details of a single transport request (e.g. `S0DK942971`).
+Get details of a single transport request (e.g. `TRLK942971`).
 
 | Flag        | Description                        |
 | ----------- | ---------------------------------- |
@@ -142,10 +142,10 @@ Non-interactive configuration update.
 ```bash
 # Create + get
 adt cts tr create -d "Demo transport" --no-interactive
-adt cts tr get S0DK942971 --objects
+adt cts tr get TRLK942971 --objects
 
 # Release
-adt cts tr release S0DK942971 --release-all -y
+adt cts tr release TRLK942971 --release-all -y
 
 # Search by user
 adt cts search -u PPLENKOV -m 10

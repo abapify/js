@@ -32,7 +32,7 @@ export function registerCtsReassignTransportTool(
       ...sessionOrConnectionShape,
       transportNumber: z
         .string()
-        .describe('Transport number (e.g. S0DK900123)'),
+        .describe('Transport number (e.g. TRLK900123)'),
       targetUser: z.string().describe('SAP username of the new owner'),
       recursive: z
         .boolean()

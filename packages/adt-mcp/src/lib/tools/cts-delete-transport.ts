@@ -21,7 +21,7 @@ export function registerCtsDeleteTransportTool(
       ...sessionOrConnectionShape,
       transport: z
         .string()
-        .describe('Transport number to delete (e.g. S0DK900001)'),
+        .describe('Transport number to delete (e.g. TRLK900001)'),
     },
     async (args, extra) => {
       try {

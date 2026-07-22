@@ -5,9 +5,9 @@
  * Optionally runs pre-release checks (ATC).
  *
  * Usage:
- *   adt cts tr release S0DK900123
- *   adt cts tr release S0DK900123 --skip-check
- *   adt cts tr release S0DK900123 --json
+ *   adt cts tr release TRLK900123
+ *   adt cts tr release TRLK900123 --skip-check
+ *   adt cts tr release TRLK900123 --json
  */
 
 import { Command } from 'commander';
@@ -19,7 +19,7 @@ import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsReleaseCommand = new Command('release')
   .description('Release transport request')
-  .argument('<transport>', 'Transport number (e.g., D01K900123)')
+  .argument('<transport>', 'Transport number (e.g., TRLK900123)')
   .option('--skip-check', 'Skip pre-release validation')
   .option('--release-all', 'Release all tasks first, then the transport')
   .option('-y, --yes', 'Skip confirmation prompt')

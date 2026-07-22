@@ -47,7 +47,7 @@ export default {
 adt atc -p ZMY_PACKAGE
 
 # Run ATC on a transport, output SARIF for GitHub Code Scanning
-adt atc -t S0DK942970 --format sarif --output atc.sarif
+adt atc -t TRLK942970 --format sarif --output atc.sarif
 
 # GitLab Code Quality in an MR pipeline
 adt atc -t $CI_COMMIT_SHA --format gitlab --output gl-code-quality.json

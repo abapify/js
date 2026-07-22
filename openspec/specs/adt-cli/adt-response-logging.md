@@ -32,15 +32,15 @@ All logging flags use `--log-*` prefix for consistency:
 
 ```bash
 # Basic logging (console only)
-npx adt import transport D01K900103 --log-level=debug
+npx adt import transport TRLK900103 --log-level=debug
 
 # Save responses to files
-npx adt import transport D01K900103 \
+npx adt import transport TRLK900103 \
   --log-output=./tmp/logs \
   --log-response-files
 
 # Full debugging
-npx adt import transport D01K900103 \
+npx adt import transport TRLK900103 \
   --log-level=trace \
   --log-output=./tmp/logs \
   --log-response-files
@@ -179,7 +179,7 @@ Logged responses can be directly used as test fixtures:
 
 ```bash
 # Run with logging
-npx adt import transport D01K900103 \
+npx adt import transport TRLK900103 \
   --log-output=./tmp/logs \
   --log-response-files
 

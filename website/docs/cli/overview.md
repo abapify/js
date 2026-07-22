@@ -21,7 +21,7 @@ subcommand (they can appear anywhere on the command line):
 
 | Flag                         | Description                                                                                        |
 | ---------------------------- | -------------------------------------------------------------------------------------------------- |
-| `--sid <sid>`                | SAP System ID (e.g. `D01`, `S0D`). Overrides the default system picked by `adt auth set-default`.  |
+| `--sid <sid>`                | SAP System ID (e.g. `TRL`). Overrides the default system picked by `adt auth set-default`.  |
 | `-v, --verbose [components]` | Enable verbose logging. Optionally filter by component name (`adt`, `http`, `auth`, ...) or `all`. |
 | `--log-level <level>`        | Log level: `trace`, `debug`, `info`, `warn`, `error` (default: `info`).                            |
 | `--log-output <dir>`         | Output directory for log files (default: `./tmp/logs`).                                            |

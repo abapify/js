@@ -82,7 +82,7 @@ export interface CliContext {
   getAdtClient?: () => Promise<unknown>;
 
   /**
-   * ADT system name for hyperlinks (e.g., "S0D")
+   * ADT system name for hyperlinks (e.g., "TRL")
    * Used to construct adt:// protocol links.
    * Only available when running within adt-cli context.
    */

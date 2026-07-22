@@ -5,9 +5,9 @@
  * For interactive editing, use `adt cts tr change` (TUI).
  *
  * Usage:
- *   adt cts tr set S0DK900123 --description "New description"
- *   adt cts tr set S0DK900123 --target "QAS"
- *   adt cts tr set S0DK900123 --from-json payload.json
+ *   adt cts tr set TRLK900123 --description "New description"
+ *   adt cts tr set TRLK900123 --target "QAS"
+ *   adt cts tr set TRLK900123 --from-json payload.json
  */
 
 import { Command } from 'commander';
@@ -19,7 +19,7 @@ import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsSetCommand = new Command('set')
   .description('Update transport request (non-interactive, for scripting)')
-  .argument('<transport>', 'Transport number (e.g., D01K900123)')
+  .argument('<transport>', 'Transport number (e.g., TRLK900123)')
   .option('-d, --description <desc>', 'New transport description')
   .option('--target <target>', 'New target system')
   .option('--from-json <file>', 'Load full payload from JSON file')

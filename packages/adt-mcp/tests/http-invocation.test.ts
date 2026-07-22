@@ -43,9 +43,9 @@ function claims(overrides: JWTPayload = {}): JWTPayload {
     principal: 'petr.plenkov',
     agentId: 'system-assistant',
     classes: ['server', 'read'],
-    destinationKeys: ['d01-rise'],
+    destinationKeys: ['trl-rise'],
     correlationId: 'correlation-001',
-    constraint: { systemSid: 'D01', frozenScope: ['ZCL_ADT_REVIEW'] },
+    constraint: { systemSid: 'TRL', frozenScope: ['ZCL_ADT_REVIEW'] },
     limits: { maxSourceBytes: 65_536 },
     ...overrides,
   };
@@ -104,9 +104,9 @@ describe('MCP invocation verifier', () => {
       principal: 'petr.plenkov',
       agentId: 'system-assistant',
       classes: ['server', 'read'],
-      destinationKeys: ['d01-rise'],
+      destinationKeys: ['trl-rise'],
       correlationId: 'correlation-001',
-      constraint: { systemSid: 'D01', frozenScope: ['ZCL_ADT_REVIEW'] },
+      constraint: { systemSid: 'TRL', frozenScope: ['ZCL_ADT_REVIEW'] },
       limits: { maxSourceBytes: 65_536 },
     });
     assert.ok(verified);
@@ -197,8 +197,8 @@ describe('MCP invocation verifier', () => {
     const credential = await sign({
       agentId: 'autonomous-review-agent',
       classes: ['server', 'read'],
-      destinationKeys: ['d01-rise'],
-      constraint: { executionId, systemSid: 'D01' },
+      destinationKeys: ['trl-rise'],
+      constraint: { executionId, systemSid: 'TRL' },
       limits: {},
     });
 
@@ -213,10 +213,10 @@ describe('MCP invocation verifier', () => {
     const credential = await sign({
       agentId: 'autonomous-review-agent',
       classes: ['server', 'read'],
-      destinationKeys: ['d01-rise'],
+      destinationKeys: ['trl-rise'],
       constraint: {
         executionId: '11111111-1111-4111-8111-111111111111',
-        systemSid: 'D01!',
+        systemSid: 'TRL!',
       },
       limits: {},
     });
@@ -238,7 +238,7 @@ describe('MCP invocation verifier', () => {
 
   it('rejects empty and invalid destination keys', async () => {
     const empty = await sign({ destinationKeys: [] });
-    const invalid = await sign({ destinationKeys: ['D01_RISE'] });
+    const invalid = await sign({ destinationKeys: ['TRL_RISE'] });
 
     assert.strictEqual(await verifier.verify(`Bearer ${empty}`), undefined);
     assert.strictEqual(await verifier.verify(`Bearer ${invalid}`), undefined);

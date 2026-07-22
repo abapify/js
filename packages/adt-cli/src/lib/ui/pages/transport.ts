@@ -28,7 +28,7 @@ import { definePage } from '../router';
  * Transport page navigation parameters
  */
 export interface TransportParams extends NavParams {
-  /** Transport number (e.g., S0DK942971) */
+  /** Transport number (e.g., TRLK942971) */
   name?: string;
   /** Show objects in transport */
   showObjects?: boolean;
@@ -245,7 +245,7 @@ function renderTransportPage(
  * Usage:
  * ```ts
  * const page = await router.navTo(client, 'RQRQ', {
- *   name: 'S0DK942971',
+ *   name: 'TRLK942971',
  *   showObjects: true
  * });
  * page.print();

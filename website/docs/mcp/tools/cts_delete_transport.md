@@ -18,7 +18,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/cts-delete-transport.ts`](https://gi
   client?: string;   // SAP client number
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
-  transport: string; // Transport number to delete (e.g. S0DK900001)
+  transport: string; // Transport number to delete (e.g. TRLK900001)
 }
 ```
 

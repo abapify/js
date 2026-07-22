@@ -18,7 +18,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/cts-update-transport.ts`](https://gi
   client?: string;   // SAP client number
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
-  transportNumber: string; // Transport number (e.g. S0DK900123)
+  transportNumber: string; // Transport number (e.g. TRLK900123)
   description?: string; // New transport description
   target?: string; // New target system
   project?: string; // CTS project name

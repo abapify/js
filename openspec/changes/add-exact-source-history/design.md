@@ -42,7 +42,7 @@ ADT source history is link-driven. Object metadata describes one or more source 
 
 **Decision**: every manifest leaf represents one source component, not one repository object. A class can therefore produce definitions, implementations, macros, testclasses, and main leaves, each with independent provenance.
 
-**Rationale**: live D01 metadata proves those sections are independently versioned. Collapsing them to one object version would produce false before/after pairs.
+**Rationale**: live TRL metadata proves those sections are independently versioned. Collapsing them to one object version would produce false before/after pairs.
 
 ### 3a. Root requests expand to concrete task provenance
 
@@ -144,7 +144,7 @@ Names are illustrative; final exported schemas remain additive and versionable.
 3. ADK fixture tests for selection rules and composite components.
 4. CLI/MCP parity tests over the same fixtures.
 5. Targeted build, test, lint, and typecheck for affected projects with existing baseline failures reported separately.
-6. After credential rotation, one safe D01 smoke test that records only identities, counts, status codes, and hashes—not source.
+6. After credential rotation, one safe TRL smoke test that records only identities, counts, status codes, and hashes—not source.
 
 ## Open Questions
 

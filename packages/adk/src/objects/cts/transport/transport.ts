@@ -458,7 +458,7 @@ export class AdkTransportRequest extends AdkObject<
   /**
    * Get a transport request by number
    *
-   * @param number - Transport number (e.g., 'S0DK900001')
+   * @param number - Transport number (e.g., 'TRLK900001')
    * @param ctx - Optional ADK context (uses global context if not provided)
    */
   static async get(
@@ -631,7 +631,7 @@ export class AdkTransportTask extends AdkTransportRequest {
   /**
    * Get a transport task by number
    *
-   * @param number - Task number (e.g., 'S0DK900001')
+   * @param number - Task number (e.g., 'TRLK900001')
    * @param ctx - Optional ADK context (uses global context if not provided)
    */
   static override async get(

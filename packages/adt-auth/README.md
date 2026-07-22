@@ -39,13 +39,13 @@ const session = await authManager.login(
     password: 'pass',
     client: '100',
   },
-  'D01',
+  'TRL',
 );
 
 console.log('✅ Logged in!', session.sid);
 
 // Later: get credentials
-const credentials = authManager.getCredentials('D01');
+const credentials = authManager.getCredentials('TRL');
 ```
 
 ### SAP Secure Login Client (SLC)
@@ -67,7 +67,7 @@ const session = await authManager.login(
     },
     client: '200',
   },
-  'D01',
+  'TRL',
 );
 
 console.log('✅ Logged in via SLC!');
@@ -77,8 +77,8 @@ console.log('✅ Logged in via SLC!');
 
 ```typescript
 // Login to multiple systems
-await authManager.login(config1, 'D01');
-await authManager.login(config2, 'S0D');
+await authManager.login(config1, 'TRL');
+await authManager.login(config2, 'TRL');
 await authManager.login(config3, 'PRD');
 
 // List all systems
@@ -86,7 +86,7 @@ const sids = authManager.listSids();
 console.log('Available systems:', sids);
 
 // Set default
-authManager.setDefaultSid('D01');
+authManager.setDefaultSid('TRL');
 
 // Get default system credentials
 const creds = authManager.getCredentials(); // Uses default SID
@@ -163,8 +163,8 @@ Sessions are stored in `~/.adt/sessions/` with file permissions `0600` (owner re
 ```
 ~/.adt/
 └── sessions/
-    ├── D01.json
-    ├── S0D.json
+    ├── TRL.json
+    ├── TRL.json
     └── PRD.json
 ```
 
@@ -172,7 +172,7 @@ Sessions are stored in `~/.adt/sessions/` with file permissions `0600` (owner re
 
 ```json
 {
-  "sid": "D01",
+  "sid": "TRL",
   "credentials": {
     "method": "basic",
     "baseUrl": "https://sap.example.com",
@@ -194,7 +194,7 @@ import { AuthManager, BasicAuthMethod } from '@abapify/adt-auth';
 // Get credentials
 const authManager = new AuthManager();
 authManager.registerMethod(new BasicAuthMethod());
-const credentials = authManager.getCredentials('D01');
+const credentials = authManager.getCredentials('TRL');
 
 if (!credentials) {
   throw new Error('Not authenticated. Run: adt login');

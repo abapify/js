@@ -6,9 +6,9 @@
  * when the --recursive flag is used.
  *
  * Usage:
- *   adt cts tr reassign S0DK900123 NEWUSER
- *   adt cts tr reassign S0DK900123 NEWUSER --recursive
- *   adt cts tr reassign S0DK900123 NEWUSER --json
+ *   adt cts tr reassign TRLK900123 NEWUSER
+ *   adt cts tr reassign TRLK900123 NEWUSER --recursive
+ *   adt cts tr reassign TRLK900123 NEWUSER --json
  */
 
 import { Command } from 'commander';
@@ -19,7 +19,7 @@ import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsReassignCommand = new Command('reassign')
   .description('Change the owner of a transport request')
-  .argument('<transport>', 'Transport number (e.g., D01K900123)')
+  .argument('<transport>', 'Transport number (e.g., TRLK900123)')
   .argument('<new-owner>', 'SAP username of the new owner')
   .option(
     '-r, --recursive',

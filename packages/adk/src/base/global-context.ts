@@ -10,10 +10,10 @@
  *   initializeAdk(client);
  *
  *   // Then use ADK objects without passing context
- *   const transport = await AdkTransportRequest.get('S0DK900001');
+ *   const transport = await AdkTransportRequest.get('TRLK900001');
  *
  * For testing or multi-connection scenarios, you can still pass explicit context:
- *   const transport = await AdkTransportRequest.get('S0DK900001', customCtx);
+ *   const transport = await AdkTransportRequest.get('TRLK900001', customCtx);
  */
 
 import type { AdkContext } from './context';
@@ -49,7 +49,7 @@ let globalContext: AdkContext | null = null;
  * initializeAdk(client);
  *
  * // Now ADK objects work without context
- * const transport = await AdkTransportRequest.get('S0DK900001');
+ * const transport = await AdkTransportRequest.get('TRLK900001');
  * ```
  */
 export function initializeAdk(

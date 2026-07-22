@@ -592,7 +592,7 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     try {
       // SAP can resolve a development task to its parent request during LOCK.
       // Subsequent PUTs must use that authoritative CORRNR rather than the
-      // caller's task number (D01 rejects the task even with a valid handle).
+      // caller's task number (TRL rejects the task even with a valid handle).
       const effectiveTransport =
         this._lockHandle?.correlationNumber || transport;
 

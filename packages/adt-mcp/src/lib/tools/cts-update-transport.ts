@@ -33,7 +33,7 @@ export function registerCtsUpdateTransportTool(
       ...sessionOrConnectionShape,
       transportNumber: z
         .string()
-        .describe('Transport number (e.g. S0DK900123)'),
+        .describe('Transport number (e.g. TRLK900123)'),
       description: z.string().optional().describe('New transport description'),
       target: z.string().optional().describe('New target system'),
       project: z.string().optional().describe('CTS project name'),

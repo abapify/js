@@ -25,7 +25,7 @@ interface NavigatorProps {
   startUrl?: string;
   /** Fetch function */
   fetch: FetchFn;
-  /** SAP system name for ADT links (e.g., 'S0D', 'NPL') */
+  /** SAP system name for ADT links (e.g., 'TRL', 'NPL') */
   systemName?: string;
 }
 
@@ -201,7 +201,7 @@ function UrlPrompt({ onSubmit }: { onSubmit: (url: string) => void }) {
       </Box>
       <Box marginTop={1}>
         <Text dimColor>
-          Example: /sap/bc/adt/cts/transportrequests/S0DK900001
+          Example: /sap/bc/adt/cts/transportrequests/TRLK900001
         </Text>
       </Box>
     </Box>

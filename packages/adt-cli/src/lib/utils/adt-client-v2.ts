@@ -146,7 +146,7 @@ export interface AdtClientV2Options {
   logOutput?: string;
   /** Write metadata alongside response files (default: false) */
   writeMetadata?: boolean;
-  /** SAP System ID (SID) - e.g., 'D01', 'S0D' (default: from CLI --sid flag) */
+  /** SAP System ID (SID) - e.g., 'TRL' (default: from CLI --sid flag) */
   sid?: string;
   /** Enable capture plugin to capture raw XML and parsed JSON (default: false) */
   capture?: boolean;
@@ -352,7 +352,7 @@ export async function getAdtClientV2(
     reportNoSessionAndExit(effectiveOptions.sid);
   }
 
-  // Set system name for ADT hyperlinks (e.g., adt://S0D/sap/bc/adt/...)
+  // Set system name for ADT hyperlinks (e.g., adt://TRL/sap/bc/adt/...)
   setAdtSystem(session.sid);
 
   // Extract credentials based on auth method

@@ -152,7 +152,7 @@ export async function createCLI(options?: {
     .version('1.0.0')
     .option(
       '--sid <sid>',
-      'SAP System ID (e.g., D01, S0D) - overrides default system',
+      'SAP System ID (e.g., TRL) - overrides default system',
     )
     .option(
       '-v, --verbose [components]',

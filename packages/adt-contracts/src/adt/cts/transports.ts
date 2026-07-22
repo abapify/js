@@ -86,7 +86,7 @@ export interface TransportFindParams {
  * Single transport header from the response
  */
 export interface CtsReqHeader {
-  /** Transport number (e.g., S0DK921630) */
+  /** Transport number (e.g., TRLK921630) */
   TRKORR: string;
   /** Transport function code */
   TRFUNCTION: string;

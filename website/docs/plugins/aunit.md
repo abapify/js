@@ -58,7 +58,7 @@ adt aunit -p ZMY_PKG
 adt aunit -c ZCL_MYCLASS --format junit --output aunit.xml
 
 # Run tests on a transport + emit coverage
-adt aunit -t S0DK942970 \
+adt aunit -t TRLK942970 \
   --format junit --output aunit.xml \
   --coverage --coverage-format jacoco --coverage-output jacoco.xml
 

@@ -17,7 +17,7 @@ export interface RunOptions {
   fetch: FetchFn;
   /** Optional custom router */
   router?: Router;
-  /** SAP system name for ADT links (e.g., 'S0D', 'NPL') */
+  /** SAP system name for ADT links (e.g., 'TRL', 'NPL') */
   systemName?: string;
   /** Called when app exits */
   onExit?: () => void;

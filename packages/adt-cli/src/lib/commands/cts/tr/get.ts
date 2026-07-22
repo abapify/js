@@ -15,7 +15,7 @@ import '../../../ui/pages/transport';
 
 export const ctsGetCommand = new Command('get')
   .description('Get transport request details')
-  .argument('<transport>', 'Transport number (e.g., S0DK942971)')
+  .argument('<transport>', 'Transport number (e.g., TRLK942971)')
   .option('--json', 'Output as JSON')
   .option('--objects', 'Show list of objects in transport')
   .action(async function (this: Command, transport: string, options) {

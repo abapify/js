@@ -178,7 +178,7 @@ export function createLockService(
 
     async forceUnlock(objectUri) {
       // A second LOCK cannot recover a lost handle: real SAP systems such as
-      // D01 reject it with an "already locked in request" conflict. Re-locking
+      // TRL reject it with an "already locked in request" conflict. Re-locking
       // also risks creating a new CTS lock on systems that permit it. Only a
       // handle registered by a previous successful LOCK is safe to use.
       const entry = store?.list()?.find((item) => item.objectUri === objectUri);

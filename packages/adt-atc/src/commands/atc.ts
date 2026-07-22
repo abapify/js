@@ -207,7 +207,7 @@ export const atcCommand: CliCommandPlugin = {
     },
     {
       flags: '-t, --transport <transport>',
-      description: 'Run ATC on transport request (e.g., S0DK942970)',
+      description: 'Run ATC on transport request (e.g., TRLK942970)',
     },
     {
       flags: '-f, --from-file <file>',

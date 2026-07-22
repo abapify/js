@@ -19,7 +19,7 @@ export function registerCtsGetTransportTool(
     'Get details of a specific transport request',
     {
       ...sessionOrConnectionShape,
-      transport: z.string().describe('Transport number (e.g. S0DK900001)'),
+      transport: z.string().describe('Transport number (e.g. TRLK900001)'),
     },
     async (args, extra) => {
       try {

@@ -195,7 +195,7 @@ When SAP cookies expire but Okta session is still valid, use `adt auth refresh`:
 npx adt auth refresh
 
 # Or specify a system
-npx adt auth refresh --sid S0D
+npx adt auth refresh --sid TRL
 ```
 
 **How it works:**

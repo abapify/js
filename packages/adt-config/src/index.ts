@@ -11,7 +11,7 @@
  *
  * export default defineConfig({
  *   destinations: {
- *     D01: { type: 'puppeteer', options: { url: '...', client: '100' } },
+ *     TRL: { type: 'puppeteer', options: { url: '...', client: '100' } },
  *   }
  * });
  * ```

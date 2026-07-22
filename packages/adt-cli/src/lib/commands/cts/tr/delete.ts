@@ -7,7 +7,7 @@
  * - Requires typing transport number to confirm
  *
  * Usage:
- *   adt cts tr delete S0DK900123
+ *   adt cts tr delete TRLK900123
  */
 
 import { Command } from 'commander';
@@ -18,7 +18,7 @@ import { createCliLogger } from '../../../utils/logger-config';
 
 export const ctsDeleteCommand = new Command('delete')
   .description('Delete transport request (with mandatory confirmation)')
-  .argument('<transport>', 'Transport number (e.g., D01K900123)')
+  .argument('<transport>', 'Transport number (e.g., TRLK900123)')
   .option('-y, --yes', 'Skip interactive confirmation (non-interactive)')
   .option('--json', 'Output result as JSON')
   .action(async function (this: Command, transport: string, options) {

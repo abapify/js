@@ -23,7 +23,7 @@ export function registerCtsReleaseTransportTool(
       ...sessionOrConnectionShape,
       transport: z
         .string()
-        .describe('Transport number to release (e.g. S0DK900001)'),
+        .describe('Transport number to release (e.g. TRLK900001)'),
     },
     async (args, extra) => {
       try {

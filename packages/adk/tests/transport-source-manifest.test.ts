@@ -611,15 +611,15 @@ describe('buildTransportSourceManifest', () => {
       pgmid: 'LIMU',
       metadata: rootSourceMetadata(),
     });
-    mockResolution([object], ['D01K900236'], ['D01K900103', 'D01K900236']);
-    const head = version('00002', 0, ['D01K900236']);
-    const base = version('00001', 1, ['D01K900100']);
+    mockResolution([object], ['TRLK900236'], ['TRLK900103', 'TRLK900236']);
+    const head = version('00002', 0, ['TRLK900236']);
+    const base = version('00001', 1, ['TRLK900100']);
     const { ctx } = contextWithVersions(
       vi.fn().mockResolvedValue([head, base]),
     );
 
     const manifest = await buildTransportSourceManifest(
-      ['D01K900103'],
+      ['TRLK900103'],
       {},
       ctx,
     );
@@ -633,7 +633,7 @@ describe('buildTransportSourceManifest', () => {
           name: 'ZTEST_GCTS_PROGRAM',
           packageName: 'ZPACKAGE',
         },
-        sourceTransport: 'D01K900236',
+        sourceTransport: 'TRLK900236',
         changeKind: 'modified',
         exact: true,
         base,

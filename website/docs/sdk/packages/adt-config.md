@@ -40,7 +40,7 @@ import { defineConfig } from '@abapify/adt-config';
 
 export default defineConfig({
   destinations: {
-    D01: {
+    TRL: {
       type: 'puppeteer',
       options: { url: 'https://sap.example.com', client: '100' },
     },

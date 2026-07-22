@@ -18,7 +18,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/cts-reassign-transport.ts`](https://
   client?: string;   // SAP client number
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
-  transportNumber: string; // Transport number (e.g. S0DK900123)
+  transportNumber: string; // Transport number (e.g. TRLK900123)
   targetUser: string; // SAP username of the new owner
   recursive?: boolean; // Also reassign all modifiable tasks (default: false)
 }

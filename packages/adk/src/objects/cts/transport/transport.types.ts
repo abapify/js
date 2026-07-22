@@ -15,8 +15,8 @@
  *     └── abap_object[] - objects in this task
  *
  * Key insight:
- * - Fetching REQUEST (S0DK942970): objects in response.request.task[].abap_object
- * - Fetching TASK (S0DK942971): objects in response.task[].abap_object
+ * - Fetching REQUEST (TRLK942970): objects in response.request.task[].abap_object
+ * - Fetching TASK (TRLK942971): objects in response.task[].abap_object
  */
 
 import type { TransportGetResponse } from '../../../base/adt';

@@ -50,7 +50,7 @@ export interface BoundedTextFetchOptions {
  *
  * // Contract access
  * const session = await client.adt.core.http.sessions.getSession();
- * const transport = await client.adt.cts.transportrequests.get('S0DK900001');
+ * const transport = await client.adt.cts.transportrequests.get('TRLK900001');
  *
  * // Generic fetch utility
  * const response = await client.fetch('/sap/bc/adt/arbitrary/endpoint', {
@@ -61,7 +61,7 @@ export interface BoundedTextFetchOptions {
  * // For business logic, use ADK:
  * // import { initializeAdk, AdkTransportRequest } from '@abapify/adk';
  * // initializeAdk(client);
- * // const transport = await AdkTransportRequest.get('S0DK900001');
+ * // const transport = await AdkTransportRequest.get('TRLK900001');
  */
 
 // Re-export AdtClientType from adt-contracts for consumers
