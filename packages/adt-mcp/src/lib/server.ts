@@ -48,7 +48,7 @@ export interface McpServerOptions {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
-  /** Private ARM broker resolver for signed frozen-source capabilities. */
+  /** Private ADT broker resolver for signed frozen-source capabilities. */
   resolveFrozenSource: ToolContext['resolveFrozenSource'];
 }
 

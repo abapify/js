@@ -11,7 +11,7 @@
         abapsource:activeUnicodeCheck="true"
         adtcore:responsible="PPLENKOV"
         adtcore:masterLanguage="EN"
-        adtcore:masterSystem="BHF"
+        adtcore:masterSystem="D01"
         adtcore:abapLanguageVersion="X"
         adtcore:name="ZCL_AGE_SAMPLE_CLASS"
         adtcore:type="CLAS/OC"

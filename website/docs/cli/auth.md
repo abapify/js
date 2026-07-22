@@ -45,7 +45,7 @@ fully manual URL + basic-auth prompt.
 
 | Argument | Description                                      |
 | -------- | ------------------------------------------------ |
-| `<sid>`  | System ID to set as default (e.g. `BHF`, `S0D`). |
+| `<sid>`  | System ID to set as default (e.g. `D01`, `S0D`). |
 
 ### `list`
 
@@ -58,17 +58,17 @@ No options.
 adt auth login
 
 # Login with a BTP service key
-adt auth login --sid BHF --service-key ~/btp/bhf-key.json
+adt auth login --sid D01 --service-key ~/btp/d01-key.json
 
 # Check who I am
 adt auth status
 #  ✅ DEV — user PPLENKOV — cookie session valid until 2025-11-21T09:12:03Z
 
 # Switch the default system
-adt auth set-default BHF
+adt auth set-default D01
 
 # Clean logout
-adt auth logout --sid BHF
+adt auth logout --sid D01
 ```
 
 ## See also

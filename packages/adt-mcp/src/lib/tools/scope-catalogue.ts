@@ -35,7 +35,7 @@ export interface McpFrozenSourceAccess {
     readonly canonicalKey: string;
     /** Immutable source component within the canonical review object. */
     readonly componentId: string;
-    /** Opaque ARM capability; never accepted as a model/tool argument. */
+    /** Opaque ADT capability; never accepted as a model/tool argument. */
     readonly sourceRef: string;
   }[];
   readonly maxSourceBytes: number;

@@ -40,7 +40,7 @@ export type ResolveFrozenSource = (input: {
 }) => Promise<FrozenSourceResolution>;
 
 /**
- * The ARM broker may return a direct adapter URI or a source capability
+ * The ADT broker may return a direct adapter URI or a source capability
  * previously issued by this same sidecar REST process. Redeem the latter
  * before the MCP package can acquire a destination context or invoke SAP.
  */
@@ -57,7 +57,7 @@ export async function resolveMcpFrozenSource(
   });
 }
 
-/** The runtime supplies this from ARM's private broker; it never exposes a connection lease. */
+/** The runtime supplies this from ADT's private broker; it never exposes a connection lease. */
 export interface AdtServerOperations {
   listDestinations(): Promise<DestinationSummary[]>;
   listTransports(
@@ -135,7 +135,7 @@ export interface AdtServerMcpOptions {
   /** Ownership transfers to the running server, which shuts it down on close. */
   destinationRegistry: DestinationContextRegistry;
   /**
-   * Private ARM broker resolver for the opaque, signed source capabilities
+   * Private ADT broker resolver for the opaque, signed source capabilities
    * carried only in an AI Review invocation policy.
    */
   resolveFrozenSource: ResolveFrozenSource;

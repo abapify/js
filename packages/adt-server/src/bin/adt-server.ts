@@ -3,11 +3,11 @@ import { createAdtServerMcpOptions } from '../mcp-runtime.js';
 import { loadRestRuntimeSecurity } from '../rest-runtime.js';
 import { startAdtServer } from '../server.js';
 
-const baseUrl = process.env.ARM_BROKER_BASE_URL;
+const baseUrl = process.env.ADT_BROKER_BASE_URL;
 const tokenFile = process.env.ADT_SERVER_BROKER_TOKEN_FILE;
 if (!baseUrl || !tokenFile)
   throw new Error(
-    'ARM_BROKER_BASE_URL and ADT_SERVER_BROKER_TOKEN_FILE are required',
+    'ADT_BROKER_BASE_URL and ADT_SERVER_BROKER_TOKEN_FILE are required',
   );
 const brokerOptions = { baseUrl, tokenFile };
 const restTokenFile = process.env.ADT_SERVER_REST_TOKEN_FILE;

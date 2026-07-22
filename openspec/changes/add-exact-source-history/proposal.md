@@ -1,6 +1,6 @@
 ## Why
 
-Transport review needs the exact source state introduced by a transport, not only the object's current active or inactive source. SAP ADT object metadata exposes per-source-component `relations/versions` links, and a read-only BHF probe confirmed that those links return Atom feeds whose entries reference immutable historical content and the responsible transport.
+Transport review needs the exact source state introduced by a transport, not only the object's current active or inactive source. SAP ADT object metadata exposes per-source-component `relations/versions` links, and a read-only D01 probe confirmed that those links return Atom feeds whose entries reference immutable historical content and the responsible transport.
 
 The repository currently has no typed way to list those entries, read an immutable historical source, or resolve a transport into a per-component before/after manifest. Callers therefore cannot prove a delta and are forced to compare against mutable current state.
 
@@ -34,8 +34,8 @@ The repository currently has no typed way to list those entries, read an immutab
 
 ## Preconditions and Evidence
 
-- Observed in BHF: a program version feed returned 29 immutable entries; historical content was verified by hash and length only.
-- Observed in BHF: a class exposes independently versioned definitions, implementations, macros, testclasses, and main components.
+- Observed in D01: a program version feed returned 29 immutable entries; historical content was verified by hash and length only.
+- Observed in D01: a class exposes independently versioned definitions, implementations, macros, testclasses, and main components.
 - Existing generated `atomFeed` schema is sufficient and MUST be reused rather than edited.
-- Live regression verification remains conditional on valid rotated BHF credentials. Fixture-based tests and package builds are mandatory regardless.
+- Live regression verification remains conditional on valid rotated D01 credentials. Fixture-based tests and package builds are mandatory regardless.
 - Baseline workspace typecheck/lint failures that predate this change are recorded separately; validation MUST distinguish new failures from baseline failures.

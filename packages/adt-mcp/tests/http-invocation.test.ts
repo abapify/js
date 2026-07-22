@@ -1,5 +1,5 @@
 /**
- * Unit tests for ARM's signed MCP invocation credentials. These run against
+ * Unit tests for ADT's signed MCP invocation credentials. These run against
  * real ES256 JWS values — the verifier never trusts decoded, unsigned data.
  */
 import assert from 'node:assert/strict';
@@ -15,9 +15,9 @@ import {
   isMcpInvocationDispatchPolicySupported,
 } from '../src/lib/http/invocation.js';
 
-const issuer = 'arm-api';
+const issuer = 'adt-api';
 const audience = 'adt-server-mcp';
-const keyId = 'arm-mcp-2026-07';
+const keyId = 'adt-mcp-2026-07';
 const now = new Date('2026-07-19T12:00:00.000Z');
 const nowSeconds = Math.floor(now.getTime() / 1_000);
 
@@ -43,9 +43,9 @@ function claims(overrides: JWTPayload = {}): JWTPayload {
     principal: 'petr.plenkov',
     agentId: 'system-assistant',
     classes: ['server', 'read'],
-    destinationKeys: ['bhf-rise'],
+    destinationKeys: ['d01-rise'],
     correlationId: 'correlation-001',
-    constraint: { systemSid: 'BHF', frozenScope: ['ZCL_ARM_REVIEW'] },
+    constraint: { systemSid: 'D01', frozenScope: ['ZCL_ADT_REVIEW'] },
     limits: { maxSourceBytes: 65_536 },
     ...overrides,
   };
@@ -104,9 +104,9 @@ describe('MCP invocation verifier', () => {
       principal: 'petr.plenkov',
       agentId: 'system-assistant',
       classes: ['server', 'read'],
-      destinationKeys: ['bhf-rise'],
+      destinationKeys: ['d01-rise'],
       correlationId: 'correlation-001',
-      constraint: { systemSid: 'BHF', frozenScope: ['ZCL_ARM_REVIEW'] },
+      constraint: { systemSid: 'D01', frozenScope: ['ZCL_ADT_REVIEW'] },
       limits: { maxSourceBytes: 65_536 },
     });
     assert.ok(verified);
@@ -163,7 +163,7 @@ describe('MCP invocation verifier', () => {
     );
   });
 
-  it('rejects credentials whose lifetime exceeds the ARM five-minute maximum', async () => {
+  it('rejects credentials whose lifetime exceeds the ADT five-minute maximum', async () => {
     const credential = await sign({}, { expiration: nowSeconds + 301 });
 
     assert.strictEqual(
@@ -197,8 +197,8 @@ describe('MCP invocation verifier', () => {
     const credential = await sign({
       agentId: 'autonomous-review-agent',
       classes: ['server', 'read'],
-      destinationKeys: ['bhf-rise'],
-      constraint: { executionId, systemSid: 'BHF' },
+      destinationKeys: ['d01-rise'],
+      constraint: { executionId, systemSid: 'D01' },
       limits: {},
     });
 
@@ -213,10 +213,10 @@ describe('MCP invocation verifier', () => {
     const credential = await sign({
       agentId: 'autonomous-review-agent',
       classes: ['server', 'read'],
-      destinationKeys: ['bhf-rise'],
+      destinationKeys: ['d01-rise'],
       constraint: {
         executionId: '11111111-1111-4111-8111-111111111111',
-        systemSid: 'BHF!',
+        systemSid: 'D01!',
       },
       limits: {},
     });
@@ -238,7 +238,7 @@ describe('MCP invocation verifier', () => {
 
   it('rejects empty and invalid destination keys', async () => {
     const empty = await sign({ destinationKeys: [] });
-    const invalid = await sign({ destinationKeys: ['BHF_RISE'] });
+    const invalid = await sign({ destinationKeys: ['D01_RISE'] });
 
     assert.strictEqual(await verifier.verify(`Bearer ${empty}`), undefined);
     assert.strictEqual(await verifier.verify(`Bearer ${invalid}`), undefined);

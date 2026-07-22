@@ -1,6 +1,6 @@
 ## 1. Contract and fixture foundation
 
-- [ ] 1.1 Add sanitized Atom version-feed fixtures for a program and composite class; do not copy real source or credentials. Blocked until the exposed BHF ADT credential is rotated; repository rules require fixtures derived from real SAP responses rather than fabricated XML.
+- [ ] 1.1 Add sanitized Atom version-feed fixtures for a program and composite class; do not copy real source or credentials. Blocked until the exposed D01 ADT credential is rotated; repository rules require fixtures derived from real SAP responses rather than fabricated XML.
 - [x] 1.2 Add repository source-history contracts in `adt-contracts` for a link-provided versions URI and immutable source URI.
 - [x] 1.3 Reuse the generated `atomFeed` schema and add descriptor tests for path, Accept header, response schema, and URI validation.
 - [x] 1.4 Export the additive contract through the repository and root contract trees.
@@ -45,4 +45,4 @@
 - [ ] 6.3 Run targeted Nx builds for `adt-contracts`, `adt-client`, `adk`, `adt-cli`, and `adt-mcp` with `--skipSync` if workspace references are stale.
 - [ ] 6.4 Run targeted lint/typecheck and distinguish pre-existing baseline failures from regressions.
 - [ ] 6.5 Run `git diff --check` and inspect generated declarations/exports.
-- [ ] 6.6 After BHF credentials are rotated, run one read-only smoke test and record only counts, identifiers, statuses, and content hashes.
+- [ ] 6.6 After D01 credentials are rotated, run one read-only smoke test and record only counts, identifiers, statuses, and content hashes.

@@ -8,13 +8,13 @@ import {
   createHttpDestinationContexts,
 } from '../src/broker.js';
 
-test('redeems a frozen source reference through the private ARM broker', async () => {
+test('redeems a frozen source reference through the private ADT broker', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const requests: Array<{ url: string; headers: Headers; body: unknown }> = [];
   const contexts = createHttpDestinationContexts({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input, init) => {
       requests.push({
@@ -33,8 +33,8 @@ test('redeems a frozen source reference through the private ARM broker', async (
 
   try {
     const resolved = await contexts.resolveFrozenSource({
-      destination: 'bhf-adt',
-      systemSid: 'BHF',
+      destination: 'd01-adt',
+      systemSid: 'D01',
       sourceRef: 'v1.opaque-reference',
     });
 
@@ -44,16 +44,16 @@ test('redeems a frozen source reference through the private ARM broker', async (
     assert.deepStrictEqual(
       requests.map((request) => ({
         url: request.url,
-        authorization: request.headers.get('x-arm-adt-server-token'),
+        authorization: request.headers.get('x-adt-server-token'),
         body: request.body,
       })),
       [
         {
-          url: 'http://arm-api.internal/internal/adt-server/frozen-source-references:resolve',
+          url: 'http://adt-api.internal/internal/adt-server/frozen-source-references:resolve',
           authorization: 'sidecar-token',
           body: {
-            destination: 'bhf-adt',
-            systemSid: 'BHF',
+            destination: 'd01-adt',
+            systemSid: 'D01',
             sourceRef: 'v1.opaque-reference',
           },
         },
@@ -69,7 +69,7 @@ test('preserves a sidecar-issued source capability for local redemption', async 
   const tokenFile = path.join(directory, 'broker-token');
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const contexts = createHttpDestinationContexts({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(JSON.stringify({ sourceCapability: 'src.v1.abc.def' }), {
@@ -81,8 +81,8 @@ test('preserves a sidecar-issued source capability for local redemption', async 
     await assert.doesNotReject(async () => {
       assert.deepStrictEqual(
         await contexts.resolveFrozenSource({
-          destination: 'bhf-adt',
-          systemSid: 'BHF',
+          destination: 'd01-adt',
+          systemSid: 'D01',
           sourceRef: 'v1.opaque-reference',
         }),
         { sourceCapability: 'src.v1.abc.def' },
@@ -99,7 +99,7 @@ test('reads an immutable source through the bounded ADT primitive', async () => 
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const reads: Array<{ sourceUri: string; maxBytes: number }> = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(
@@ -155,13 +155,13 @@ test('reads an immutable source through the bounded ADT primitive', async () => 
   }
 });
 
-test('lists all system transport headers through CTS FIND and filters ARM-side', async () => {
+test('lists all system transport headers through CTS FIND and filters ADT-side', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-broker-'));
   const tokenFile = path.join(directory, 'broker-token');
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const transportFindCalls: unknown[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(
@@ -248,7 +248,7 @@ test('maps transport detail and objects to canonical REST references without ADT
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   let lease = 0;
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input) => {
       if (String(input).endsWith(':acquire')) {
@@ -391,7 +391,7 @@ test('maps a bounded package quick search without exposing ADT URIs', async () =
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const queries: unknown[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input) => {
       if (String(input).endsWith(':acquire')) {
@@ -476,7 +476,7 @@ test('maps one rooted ADT subpackage tree to canonical package nodes without ADT
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const treeCalls: unknown[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(
@@ -558,7 +558,7 @@ test('falls back to bounded package metadata traversal when the ADT tree capabil
     status: 406,
   });
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(
@@ -643,7 +643,7 @@ test('maps a bounded object quick search to canonical REST objects without ADT U
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const queries: unknown[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input) => {
       if (String(input).endsWith(':acquire')) {
@@ -742,7 +742,7 @@ test('maps direct package objects to canonical REST objects without foreign rows
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const queries: unknown[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input) => {
       if (String(input).endsWith(':acquire')) {
@@ -832,7 +832,7 @@ test('resolves canonical object metadata through the upstream resolver without l
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const propertyReads: unknown[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(
@@ -949,7 +949,7 @@ test('maps object source history to metadata only without leaking immutable sour
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const versionReads: string[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(
@@ -1050,7 +1050,7 @@ test('reads a bounded canonical object source without accepting or returning an 
     accept?: string;
   }> = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async () =>
       new Response(
@@ -1115,7 +1115,7 @@ test('runs ATC from a canonical package scope and retains only the trusted docum
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const calls: Array<{ kind: string; value: unknown }> = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input) => {
       if (String(input).endsWith(':acquire')) {
@@ -1264,7 +1264,7 @@ test('reads trusted ATC documentation through the bounded text primitive', async
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const reads: unknown[] = [];
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input) =>
       String(input).endsWith(':acquire')
@@ -1326,7 +1326,7 @@ test('releases an opaque REST lease with redacted success and failure outcomes',
   const requests: Array<{ url: string; body?: unknown }> = [];
   let calls = 0;
   const operations = createHttpBrokerOperations({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input, init) => {
       const url = String(input);
@@ -1418,7 +1418,7 @@ test('releases an MCP destination context through the private broker', async () 
   await writeFile(tokenFile, 'sidecar-token\n', 'utf8');
   const requests: Array<{ url: string; body?: unknown }> = [];
   const contexts = createHttpDestinationContexts({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input, init) => {
       const url = String(input);

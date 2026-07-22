@@ -19,7 +19,7 @@ import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsReassignCommand = new Command('reassign')
   .description('Change the owner of a transport request')
-  .argument('<transport>', 'Transport number (e.g., BHFK900123)')
+  .argument('<transport>', 'Transport number (e.g., D01K900123)')
   .argument('<new-owner>', 'SAP username of the new owner')
   .option(
     '-r, --recursive',

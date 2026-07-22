@@ -19,7 +19,7 @@ import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsSetCommand = new Command('set')
   .description('Update transport request (non-interactive, for scripting)')
-  .argument('<transport>', 'Transport number (e.g., BHFK900123)')
+  .argument('<transport>', 'Transport number (e.g., D01K900123)')
   .option('-d, --description <desc>', 'New transport description')
   .option('--target <target>', 'New target system')
   .option('--from-json <file>', 'Load full payload from JSON file')

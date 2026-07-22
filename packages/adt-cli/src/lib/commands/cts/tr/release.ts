@@ -19,7 +19,7 @@ import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsReleaseCommand = new Command('release')
   .description('Release transport request')
-  .argument('<transport>', 'Transport number (e.g., BHFK900123)')
+  .argument('<transport>', 'Transport number (e.g., D01K900123)')
   .option('--skip-check', 'Skip pre-release validation')
   .option('--release-all', 'Release all tasks first, then the transport')
   .option('-y, --yes', 'Skip confirmation prompt')

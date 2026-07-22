@@ -3,7 +3,7 @@
  *
  * The model supplies an accepted canonical object component, never an ADT URI
  * or an opaque capability. Destination mode checks the signed policy before
- * this handler, then ARM's private broker redeems the hidden capability.
+ * this handler, then ADT's private broker redeems the hidden capability.
  */
 
 import { Buffer } from 'node:buffer';

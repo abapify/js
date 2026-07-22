@@ -82,7 +82,7 @@ export interface HttpServerOptions {
    */
   oauth?: OAuthOptions;
   /**
-   * ARM-issued invocation verifier (required when `authMode ===
+   * ADT-issued invocation verifier (required when `authMode ===
    * 'invocation'`). Its trusted claims are the only source for identity and
    * scope in destination-aware sidecar mode.
    */

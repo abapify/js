@@ -18,7 +18,7 @@ import { createCliLogger } from '../../../utils/logger-config';
 
 export const ctsDeleteCommand = new Command('delete')
   .description('Delete transport request (with mandatory confirmation)')
-  .argument('<transport>', 'Transport number (e.g., BHFK900123)')
+  .argument('<transport>', 'Transport number (e.g., D01K900123)')
   .option('-y, --yes', 'Skip interactive confirmation (non-interactive)')
   .option('--json', 'Output result as JSON')
   .action(async function (this: Command, transport: string, options) {

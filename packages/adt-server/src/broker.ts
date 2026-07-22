@@ -1031,7 +1031,7 @@ function brokerLeaseHelpers(options: HttpBrokerOptions) {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-arm-adt-server-token': token,
+          'x-adt-server-token': token,
         },
         body: JSON.stringify({ destination, correlationId: randomUUID() }),
       },
@@ -1059,7 +1059,7 @@ function brokerLeaseHelpers(options: HttpBrokerOptions) {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-arm-adt-server-token': token,
+          'x-adt-server-token': token,
         },
         body: JSON.stringify({
           leaseId: lease.leaseId,
@@ -1076,7 +1076,7 @@ function brokerLeaseHelpers(options: HttpBrokerOptions) {
   return { fetcher, readBrokerToken, acquireLease, releaseLease };
 }
 
-/** ARM-private broker client. It exposes only safe summaries to the public server layer. */
+/** ADT-private broker client. It exposes only safe summaries to the public server layer. */
 export function createHttpBrokerOperations(
   options: HttpBrokerOptions,
 ): AdtServerOperations {
@@ -1089,7 +1089,7 @@ export function createHttpBrokerOperations(
   const request = async (path: string): Promise<Response> => {
     const token = await readBrokerToken();
     const response = await fetcher(new URL(path, options.baseUrl), {
-      headers: { 'x-arm-adt-server-token': token },
+      headers: { 'x-adt-server-token': token },
     });
     if (!response.ok)
       throw new Error(`ADT Server broker request failed (${response.status})`);
@@ -1628,7 +1628,7 @@ export function createHttpDestinationContexts(options: HttpBrokerOptions): {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            'x-arm-adt-server-token': token,
+            'x-adt-server-token': token,
           },
           body: JSON.stringify(input),
         },

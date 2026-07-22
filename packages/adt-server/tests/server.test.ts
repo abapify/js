@@ -55,7 +55,7 @@ test('redeems a sidecar-issued frozen source capability before an MCP context ex
       await resolveMcpFrozenSource(
         async () => ({ sourceCapability }),
         sourceCapabilities,
-        { destination: 'dev', systemSid: 'DEV', sourceRef: 'v1.arm-reference' },
+        { destination: 'dev', systemSid: 'DEV', sourceRef: 'v1.adt-reference' },
       ),
       {
         sourceUri:
@@ -67,7 +67,7 @@ test('redeems a sidecar-issued frozen source capability before an MCP context ex
     resolveMcpFrozenSource(
       async () => ({ sourceCapability }),
       sourceCapabilities,
-      { destination: 'qas', systemSid: 'QAS', sourceRef: 'v1.arm-reference' },
+      { destination: 'qas', systemSid: 'QAS', sourceRef: 'v1.adt-reference' },
     ),
   );
 });
@@ -112,7 +112,7 @@ test('mounts signed MCP only at /mcp while preserving REST endpoints', async () 
     limits: {},
   })
     .setProtectedHeader({ alg: 'ES256', kid: 'mount-test-key', typ: 'JWT' })
-    .setIssuer('arm-api')
+    .setIssuer('adt-api')
     .setAudience('adt-server-mcp')
     .setIssuedAt(now)
     .setNotBefore(now)
@@ -127,7 +127,7 @@ test('mounts signed MCP only at /mcp while preserving REST endpoints', async () 
       invocationVerifier: createMcpInvocationVerifier({
         publicKey,
         keyId: 'mount-test-key',
-        issuer: 'arm-api',
+        issuer: 'adt-api',
         audience: 'adt-server-mcp',
       }),
       destinationRegistry,

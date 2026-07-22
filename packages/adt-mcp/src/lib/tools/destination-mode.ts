@@ -27,7 +27,7 @@ import {
 const destination = z
   .string()
   .regex(/^[a-z][a-z0-9-]{1,62}$/u)
-  .describe('ARM-managed destination key');
+  .describe('ADT-managed destination key');
 
 const forbiddenConnectionFields = {
   baseUrl: z.never().optional(),

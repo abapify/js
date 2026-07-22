@@ -8,7 +8,7 @@ import { SignJWT } from 'jose';
 import { createAdtServerMcpOptions } from '../src/mcp-runtime.js';
 
 const brokerOptions = {
-  baseUrl: 'http://arm-api.internal',
+  baseUrl: 'http://adt-api.internal',
   tokenFile: '/run/secrets/adt-server-broker-token',
 };
 
@@ -49,8 +49,8 @@ test('accepts a dedicated P-256 public key without accepting a private key path'
     const options = await createAdtServerMcpOptions({
       env: {
         ADT_SERVER_MCP_PUBLIC_KEY_FILE: publicKeyPath,
-        ADT_SERVER_MCP_KEY_ID: 'arm-mcp-test',
-        ADT_SERVER_MCP_ISSUER: 'arm-api',
+        ADT_SERVER_MCP_KEY_ID: 'adt-mcp-test',
+        ADT_SERVER_MCP_ISSUER: 'adt-api',
         ADT_SERVER_MCP_ALLOWED_HOSTS: 'adt-server,mastra',
       },
       brokerOptions,
@@ -61,7 +61,7 @@ test('accepts a dedicated P-256 public key without accepting a private key path'
     const now = Math.floor(Date.now() / 1_000);
     const credential = await new SignJWT({
       v: 1,
-      kid: 'arm-mcp-test',
+      kid: 'adt-mcp-test',
       principal: 'runtime-test-user',
       agentId: 'system-assistant',
       classes: ['server', 'read'],
@@ -70,8 +70,8 @@ test('accepts a dedicated P-256 public key without accepting a private key path'
       constraint: { systemSid: 'DEV' },
       limits: {},
     })
-      .setProtectedHeader({ alg: 'ES256', kid: 'arm-mcp-test', typ: 'JWT' })
-      .setIssuer('arm-api')
+      .setProtectedHeader({ alg: 'ES256', kid: 'adt-mcp-test', typ: 'JWT' })
+      .setIssuer('adt-api')
       .setAudience('adt-server-mcp')
       .setIssuedAt(now)
       .setNotBefore(now)
@@ -103,8 +103,8 @@ test('rejects a non-P-256 public key before it can enable MCP', async () => {
       createAdtServerMcpOptions({
         env: {
           ADT_SERVER_MCP_PUBLIC_KEY_FILE: publicKeyPath,
-          ADT_SERVER_MCP_KEY_ID: 'arm-mcp-test',
-          ADT_SERVER_MCP_ISSUER: 'arm-api',
+          ADT_SERVER_MCP_KEY_ID: 'adt-mcp-test',
+          ADT_SERVER_MCP_ISSUER: 'adt-api',
         },
         brokerOptions,
       }),
@@ -132,8 +132,8 @@ test('rejects private key material even when supplied through the public key set
       createAdtServerMcpOptions({
         env: {
           ADT_SERVER_MCP_PUBLIC_KEY_FILE: keyPath,
-          ADT_SERVER_MCP_KEY_ID: 'arm-mcp-test',
-          ADT_SERVER_MCP_ISSUER: 'arm-api',
+          ADT_SERVER_MCP_KEY_ID: 'adt-mcp-test',
+          ADT_SERVER_MCP_ISSUER: 'adt-api',
         },
         brokerOptions,
       }),

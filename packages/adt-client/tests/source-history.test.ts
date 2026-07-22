@@ -35,12 +35,12 @@ describe('normalizeSourceVersionFeed', () => {
                   etag: 'head-etag',
                 },
                 {
-                  href: '/sap/bc/adt/cts/transportrequests/BHFK900236',
+                  href: '/sap/bc/adt/cts/transportrequests/D01K900236',
                   rel: 'http://www.sap.com/adt/relations/transport',
-                  title: 'BHFK900236',
+                  title: 'D01K900236',
                 },
                 {
-                  href: '/sap/bc/adt/cts/transportrequests/BHFK900237',
+                  href: '/sap/bc/adt/cts/transportrequests/D01K900237',
                   rel: 'http://www.sap.com/adt/relations/transport',
                 },
               ],
@@ -55,7 +55,7 @@ describe('normalizeSourceVersionFeed', () => {
                   type: 'text/plain; charset=utf-8',
                 },
                 {
-                  href: '/sap/bc/adt/cts/transportrequests/BHFK900101',
+                  href: '/sap/bc/adt/cts/transportrequests/D01K900101',
                   rel: 'http://www.sap.com/adt/relations/transport',
                 },
               ],
@@ -77,7 +77,7 @@ describe('normalizeSourceVersionFeed', () => {
         etag: 'head-etag',
         updatedAt: '2026-07-17T10:00:00Z',
         author: 'DEVELOPER',
-        transports: ['BHFK900236', 'BHFK900237'],
+        transports: ['D01K900236', 'D01K900237'],
       },
       {
         id: '00001',
@@ -87,7 +87,7 @@ describe('normalizeSourceVersionFeed', () => {
           '/sap/bc/adt/oo/classes/zcl_example/includes/implementations/versions/00001/content',
         contentType: 'text/plain; charset=utf-8',
         updatedAt: '2026-07-16T09:00:00Z',
-        transports: ['BHFK900101'],
+        transports: ['D01K900101'],
       },
     ]);
   });
@@ -105,11 +105,11 @@ describe('normalizeSourceVersionFeed', () => {
                 type: 'text/plain',
               },
               {
-                href: '/sap/bc/adt/cts/transportrequests/BHFK900236',
+                href: '/sap/bc/adt/cts/transportrequests/D01K900236',
                 rel: 'http://www.sap.com/adt/relations/transport',
               },
               {
-                href: '/sap/bc/adt/cts/transportrequests/BHFK900236',
+                href: '/sap/bc/adt/cts/transportrequests/D01K900236',
                 rel: 'http://www.sap.com/adt/relations/transport',
               },
             ],
@@ -121,7 +121,7 @@ describe('normalizeSourceVersionFeed', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.sourceUri).toBe(`${versionsUri}/00000/content`);
-    expect(result[0]?.transports).toEqual(['BHFK900236']);
+    expect(result[0]?.transports).toEqual(['D01K900236']);
   });
 
   it('uses Atom content src when SAP puts immutable source versions there', () => {
@@ -136,7 +136,7 @@ describe('normalizeSourceVersionFeed', () => {
             },
             link: [
               {
-                href: '/sap/bc/adt/cts/transportrequests/BHFK900236',
+                href: '/sap/bc/adt/cts/transportrequests/D01K900236',
                 rel: 'http://www.sap.com/adt/relations/transport/request',
               },
             ],
@@ -153,7 +153,7 @@ describe('normalizeSourceVersionFeed', () => {
         sourceUri:
           '/sap/bc/adt/programs/programs/ztest_gcts_program/source/main/versions/00042',
         contentType: 'text/plain',
-        transports: ['BHFK900236'],
+        transports: ['D01K900236'],
       },
     ]);
   });
@@ -172,7 +172,7 @@ describe('normalizeSourceVersionFeed', () => {
                 id: '00000',
                 link: [
                   {
-                    href: '/sap/bc/adt/cts/transportrequests/BHFK900236',
+                    href: '/sap/bc/adt/cts/transportrequests/D01K900236',
                     rel: 'http://www.sap.com/adt/relations/transport',
                   },
                 ],
@@ -332,7 +332,7 @@ describe('SourceHistoryService', () => {
             <atom:author><atom:name>DEVELOPER</atom:name></atom:author>
             <atom:content type="text/plain" src="/sap/bc/adt/programs/programs/ztest_gcts_program/source/main/versions/00042"/>
             <atom:id>00042</atom:id>
-            <atom:link href="/sap/bc/adt/cts/transportrequests/BHFK900236" rel="http://www.sap.com/adt/relations/transport/request"/>
+            <atom:link href="/sap/bc/adt/cts/transportrequests/D01K900236" rel="http://www.sap.com/adt/relations/transport/request"/>
             <atom:title>Version 42</atom:title>
             <atom:updated>2026-07-17T10:00:00Z</atom:updated>
           </atom:entry>
@@ -359,7 +359,7 @@ describe('SourceHistoryService', () => {
           id: '00042',
           sourceUri:
             '/sap/bc/adt/programs/programs/ztest_gcts_program/source/main/versions/00042',
-          transports: ['BHFK900236'],
+          transports: ['D01K900236'],
         },
       ]);
     } finally {

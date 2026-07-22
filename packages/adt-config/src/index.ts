@@ -11,7 +11,7 @@
  *
  * export default defineConfig({
  *   destinations: {
- *     BHF: { type: 'puppeteer', options: { url: '...', client: '100' } },
+ *     D01: { type: 'puppeteer', options: { url: '...', client: '100' } },
  *   }
  * });
  * ```

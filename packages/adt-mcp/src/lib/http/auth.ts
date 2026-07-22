@@ -12,7 +12,7 @@
  *   - `oauth`  — validate an OIDC-issued JWT (Okta, Entra ID, Cognito, …)
  *                against the configured issuer + audience + scopes. See
  *                `./oauth.ts` for the validator implementation.
- *   - `invocation` — validate an ARM-issued ES256 invocation credential and
+ *   - `invocation` — validate an ADT-issued ES256 invocation credential and
  *                surface only its immutable, trusted claims to the transport.
  *
  * The middleware writes a 401 JSON response on failure and returns
@@ -37,7 +37,7 @@ export interface AuthMiddlewareOptions {
   token?: string;
   /** Required when mode==='oauth'. OIDC issuer / audience / scopes. */
   oauth?: OAuthOptions;
-  /** Required when mode==='invocation'. ARM ES256 credential verifier. */
+  /** Required when mode==='invocation'. ADT ES256 credential verifier. */
   invocationVerifier?: McpInvocationVerifier;
   /**
    * Test-only hook: invoked synchronously whenever an OAuth request

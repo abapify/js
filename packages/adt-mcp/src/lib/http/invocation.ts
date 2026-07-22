@@ -1,5 +1,5 @@
 /**
- * Verification for ARM-issued MCP invocation credentials.
+ * Verification for ADT-issued MCP invocation credentials.
  *
  * This module is deliberately transport-independent: callers pass the
  * complete Authorization header and receive either immutable, trusted claims
@@ -39,7 +39,7 @@ export type McpInvocationJsonValue =
   | readonly McpInvocationJsonValue[]
   | Readonly<Record<string, McpInvocationJsonValue>>;
 
-/** Claims proved by a verified, ARM-issued invocation credential. */
+/** Claims proved by a verified, ADT-issued invocation credential. */
 export interface TrustedMcpInvocationClaims {
   readonly tokenId: string;
   readonly principal: string;
@@ -56,7 +56,7 @@ export interface TrustedMcpInvocationClaims {
 
 /**
  * Fully enforced narrowing policy for an AI Review source read. `sourceRef`
- * remains opaque to MCP clients and models; only ARM's private broker can
+ * remains opaque to MCP clients and models; only ADT's private broker can
  * redeem it after this policy has selected the exact canonical object and
  * source component.
  */
@@ -77,7 +77,7 @@ export interface McpInvocationVerifierOptions {
   publicKey: CryptoKey | KeyObject;
   /** The exact key id required in both JWS header and JWT payload. */
   keyId: string;
-  /** The exact ARM API issuer expected in `iss`. */
+  /** The exact ADT API issuer expected in `iss`. */
   issuer: string;
   /** The exact audience expected in `aud`. */
   audience: string;
@@ -150,7 +150,7 @@ export function isMcpInvocationDispatchPolicySupported(
 
 /**
  * The autonomous agent may inspect exactly one System through exactly one
- * Destination. Its execution id binds every ADT activity to ARM's durable
+ * Destination. Its execution id binds every ADT activity to ADT's durable
  * Agent Execution, while the sidecar's ordinary scope catalogue continues to
  * deny write tools. No ambient limits or additional constraints are accepted.
  */
@@ -584,7 +584,7 @@ function currentDate(now: (() => Date | number) | undefined): Date {
 }
 
 /**
- * Build a fail-closed verifier for the one ARM-to-ADT-Server invocation key.
+ * Build a fail-closed verifier for the one ADT-Server invocation key.
  * Configuration failures throw before serving traffic; credential failures
  * always resolve to `undefined` without logging token-derived information.
  */

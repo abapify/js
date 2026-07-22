@@ -523,7 +523,7 @@
 - decommission old transport commands, add cts tr commands, adt-tui package ([f84a58a](https://github.com/abapify/adt-cli/commit/f84a58a))
 - **adk:** enhance ADK package with class and interface support, update dependencies and build process ([75777b9](https://github.com/abapify/adt-cli/commit/75777b9))
 - **adk:** implement ADT XML parsing for ABAP objects ([c26a781](https://github.com/abapify/adt-cli/commit/c26a781))
-- **adk:** implement ADK architecture alignment with lazy loading [FSINN-1667] ([b3a52fa](https://github.com/abapify/adt-cli/commit/b3a52fa))
+- **adk:** implement ADK architecture alignment with lazy loading ([b3a52fa](https://github.com/abapify/adt-cli/commit/b3a52fa))
 - **adt-cli:** add ADT XML export option to get command ([9ec3e2b](https://github.com/abapify/adt-cli/commit/9ec3e2b))
 - **adt-cli:** add object structure option to get command ([a12dcd5](https://github.com/abapify/adt-cli/commit/a12dcd5))
 - **adt-cli:** enhance get command with object structure display for classes ([d318d1a](https://github.com/abapify/adt-cli/commit/d318d1a))

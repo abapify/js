@@ -39,13 +39,13 @@ const session = await authManager.login(
     password: 'pass',
     client: '100',
   },
-  'BHF',
+  'D01',
 );
 
 console.log('✅ Logged in!', session.sid);
 
 // Later: get credentials
-const credentials = authManager.getCredentials('BHF');
+const credentials = authManager.getCredentials('D01');
 ```
 
 ### SAP Secure Login Client (SLC)
@@ -67,7 +67,7 @@ const session = await authManager.login(
     },
     client: '200',
   },
-  'BHF',
+  'D01',
 );
 
 console.log('✅ Logged in via SLC!');
@@ -77,7 +77,7 @@ console.log('✅ Logged in via SLC!');
 
 ```typescript
 // Login to multiple systems
-await authManager.login(config1, 'BHF');
+await authManager.login(config1, 'D01');
 await authManager.login(config2, 'S0D');
 await authManager.login(config3, 'PRD');
 
@@ -86,7 +86,7 @@ const sids = authManager.listSids();
 console.log('Available systems:', sids);
 
 // Set default
-authManager.setDefaultSid('BHF');
+authManager.setDefaultSid('D01');
 
 // Get default system credentials
 const creds = authManager.getCredentials(); // Uses default SID
@@ -163,7 +163,7 @@ Sessions are stored in `~/.adt/sessions/` with file permissions `0600` (owner re
 ```
 ~/.adt/
 └── sessions/
-    ├── BHF.json
+    ├── D01.json
     ├── S0D.json
     └── PRD.json
 ```
@@ -172,7 +172,7 @@ Sessions are stored in `~/.adt/sessions/` with file permissions `0600` (owner re
 
 ```json
 {
-  "sid": "BHF",
+  "sid": "D01",
   "credentials": {
     "method": "basic",
     "baseUrl": "https://sap.example.com",
@@ -194,7 +194,7 @@ import { AuthManager, BasicAuthMethod } from '@abapify/adt-auth';
 // Get credentials
 const authManager = new AuthManager();
 authManager.registerMethod(new BasicAuthMethod());
-const credentials = authManager.getCredentials('BHF');
+const credentials = authManager.getCredentials('D01');
 
 if (!credentials) {
   throw new Error('Not authenticated. Run: adt login');

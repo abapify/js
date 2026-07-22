@@ -1,5 +1,5 @@
 /**
- * Integration tests for ARM invocation authentication on the MCP HTTP
+ * Integration tests for ADT invocation authentication on the MCP HTTP
  * transport. These prove that only verified claims become session identity
  * and scope, and that a session cannot be continued with another JTI.
  */
@@ -15,9 +15,9 @@ import {
 } from '../src/lib/http/server.js';
 import { createDestinationContextRegistry } from '../src/lib/session/destination-registry.js';
 
-const issuer = 'arm-api';
+const issuer = 'adt-api';
 const audience = 'adt-server-mcp';
-const keyId = 'arm-mcp-integration-test';
+const keyId = 'adt-mcp-integration-test';
 
 async function signInvocation(
   privateKey: CryptoKey,
@@ -60,7 +60,7 @@ async function signInvocation(
     .sign(privateKey);
 }
 
-test('ARM invocation auth snapshots verified read scope and binds continuation to its JTI', async () => {
+test('ADT invocation auth snapshots verified read scope and binds continuation to its JTI', async () => {
   const { privateKey, publicKey } = await generateKeyPair('ES256');
   let leases = 0;
   let contexts = 0;
@@ -172,7 +172,7 @@ test('ARM invocation auth snapshots verified read scope and binds continuation t
   }
 });
 
-test('ARM invocation auth fails closed for an AI Review policy the sidecar cannot yet enforce', async () => {
+test('ADT invocation auth fails closed for an AI Review policy the sidecar cannot yet enforce', async () => {
   const { privateKey, publicKey } = await generateKeyPair('ES256');
   let leases = 0;
   let contexts = 0;
@@ -465,7 +465,7 @@ test('AI Review redeems only the signed source component before acquiring its de
   }
 });
 
-test('ARM invocation auth rejects credentials that request write authority', async () => {
+test('ADT invocation auth rejects credentials that request write authority', async () => {
   const { privateKey, publicKey } = await generateKeyPair('ES256');
   const destinationRegistry = createDestinationContextRegistry({
     leaseProvider: {
@@ -518,7 +518,7 @@ test('ARM invocation auth rejects credentials that request write authority', asy
   }
 });
 
-test('ARM invocation mode requires a verifier and destination scope source', () => {
+test('ADT invocation mode requires a verifier and destination scope source', () => {
   assert.throws(
     () =>
       createHttpMcpHandler({

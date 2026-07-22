@@ -54,7 +54,7 @@ export interface ToolContext {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
   /**
-   * Redeems an opaque ARM source capability after destination-mode policy has
+   * Redeems an opaque ADT source capability after destination-mode policy has
    * selected it. The resolver may return only a trusted server-relative URI.
    */
   resolveFrozenSource?: (input: {
