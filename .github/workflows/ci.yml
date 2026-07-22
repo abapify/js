@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
           # For pull_request events, check out the PR head (not GitHub's auto-created
           # merge commit). This prevents 3-way merge from re-introducing deps that
           # the PR is supposed to remove. nrwl/nx-set-shas still computes the correct
