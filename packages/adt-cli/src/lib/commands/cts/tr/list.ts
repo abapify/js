@@ -20,7 +20,7 @@ export const ctsListCommand = new Command('list')
       // Use the transport service to list transports
       const transports = await client.services.transports.list();
 
-      const maxResults = parseInt(options.max, 10) || 50;
+      const maxResults = Number.parseInt(options.max, 10) || 50;
       const displayTransports = transports.slice(0, maxResults);
 
       if (options.json) {

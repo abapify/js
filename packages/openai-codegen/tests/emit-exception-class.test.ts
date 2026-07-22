@@ -107,7 +107,7 @@ describe('emitExceptionClass', () => {
     expect(result.class.implementations).toHaveLength(1);
     const impl = result.class.implementations[0];
     expect(impl.name).toBe('constructor');
-    expect(impl.body.length).toBe(5);
+    expect(impl.body).toHaveLength(5);
 
     const first = impl.body[0] as { kind: string; method?: string };
     expect(first.kind).toBe('Call');

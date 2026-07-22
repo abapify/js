@@ -359,7 +359,7 @@ if (prepare && name) {
     encoding: 'utf-8',
   });
   const npmVersion = (versionResult.stdout ?? '').trim();
-  const [maj, min] = npmVersion.split('.').map((n) => parseInt(n, 10));
+  const [maj, min] = npmVersion.split('.').map((n) => Number.parseInt(n, 10));
   const hasTrust = maj > 11 || (maj === 11 && min >= 10);
   if (!hasTrust) {
     report.problems.push(

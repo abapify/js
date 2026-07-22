@@ -9,7 +9,7 @@ export const searchCommand = new Command('search')
   .action(async (query: string, options) => {
     try {
       const adtClient = await getAdtClientV2();
-      const maxResults = parseInt(options.max, 10);
+      const maxResults = Number.parseInt(options.max, 10);
 
       console.log(
         `🔍 Searching for: "${query}" (max: ${maxResults} results)...\n`,

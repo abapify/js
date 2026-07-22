@@ -153,7 +153,7 @@ describe('emitLocalClasses — name substitution', () => {
     const defZcxMatches = localsDef.match(/ZCX_CUSTOM_ERROR/g) ?? [];
     const impZcxMatches = localsImp.match(/ZCX_CUSTOM_ERROR/g) ?? [];
     expect(defZcxMatches.length).toBeLessThanOrEqual(1);
-    expect(impZcxMatches.length).toBe(0);
+    expect(impZcxMatches).toHaveLength(0);
   });
 });
 

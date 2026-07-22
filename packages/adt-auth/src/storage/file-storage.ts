@@ -12,9 +12,9 @@ import {
   mkdirSync,
   readdirSync,
   unlinkSync,
-} from 'fs';
-import { join, dirname } from 'path';
-import { homedir } from 'os';
+} from 'node:fs';
+import { join, dirname } from 'node:path';
+import { homedir } from 'node:os';
 import type { AuthSession } from '../types';
 
 interface Config {

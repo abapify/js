@@ -6,8 +6,8 @@
  */
 
 import { Command } from 'commander';
-import { resolve, dirname } from 'path';
-import { existsSync } from 'fs';
+import { resolve, dirname } from 'node:path';
+import { existsSync } from 'node:fs';
 import type {
   CliCommandPlugin,
   CliContext,

@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 /**
  * Generates a cryptographically secure code verifier for PKCE flow

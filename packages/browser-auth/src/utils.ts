@@ -4,8 +4,8 @@
  * Cookie matching and path resolution utilities.
  */
 
-import { homedir } from 'os';
-import { join } from 'path';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 const DEFAULT_USER_DATA_DIR = join(homedir(), '.adt', 'browser-profile');
 

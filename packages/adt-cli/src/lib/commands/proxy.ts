@@ -8,7 +8,7 @@ export const proxyCommand = new Command('proxy')
     '-p, --port <port>',
     'Port to listen on (default: random available port)',
     (val: string) => {
-      const parsed = parseInt(val, 10);
+      const parsed = Number.parseInt(val, 10);
       if (Number.isNaN(parsed) || parsed < 0 || parsed > 65535) {
         throw new Error(`Invalid port: ${val}`);
       }
@@ -41,7 +41,7 @@ export const proxyCommand = new Command('proxy')
     '--max-body-size <bytes>',
     'Maximum request body size in bytes (default: 10485760)',
     (val: string) => {
-      const parsed = parseInt(val, 10);
+      const parsed = Number.parseInt(val, 10);
       if (Number.isNaN(parsed) || parsed <= 0) {
         throw new Error(`Invalid max-body-size: ${val}`);
       }

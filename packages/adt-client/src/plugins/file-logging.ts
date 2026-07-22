@@ -2,8 +2,8 @@
  * File Logging Plugin - Saves HTTP responses to files
  */
 
-import { mkdirSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { ResponsePlugin, ResponseContext } from './types';
 import type { Logger } from '@abapify/logger';
 

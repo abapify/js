@@ -8,8 +8,8 @@
  */
 
 import * as adtSchemas from '@abapify/adt-schemas';
-import { writeFileSync } from 'fs';
-import { join } from 'path';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Identify TypedSchema instances (ts-xsd) vs JSON schemas (zod)
 // TypedSchema has: parse(), build(), schema property, _type property

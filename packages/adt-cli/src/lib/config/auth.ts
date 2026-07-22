@@ -6,8 +6,8 @@ import {
   MockAuthConfig,
   ConfigValidationResult,
 } from './interfaces';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 /**
  * Authentication provider interface
