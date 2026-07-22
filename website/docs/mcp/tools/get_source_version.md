@@ -19,7 +19,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/get-source-version.ts`](https://gith
   username?: string; // Username for basic auth
   password?: string; // Password for basic auth
   systemId?: string;
-  destination?: string; // ADT-managed destination key (injected by the shared-service MCP server); when set, baseUrl/username/password/systemId are rejected
+  destination?: string; // ADT-managed destination key; supply it in shared-service/destination mode (set up via sap_connect); when set, baseUrl/username/password/systemId are rejected
   sourceCapability?: string; // Opaque capability returned by cts_transport_source_manifest (session-scoped)
   uri?: string; // Direct server-relative ADT URI; must start with /sap/bc/adt/ and is not allowed in destination mode
   maxBytes?: number; // Maximum UTF-8 response size in bytes (default 1 MiB, hard cap 2 MiB)
@@ -27,7 +27,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/get-source-version.ts`](https://gith
 ```
 
 - `sourceCapability` and `uri` are mutually exclusive.
-- In shared-service/destination mode, use `sourceCapability` and `destination`; `uri` is rejected with an error.
+- In shared-service/destination mode, the caller must supply `destination` (bound via `sap_connect`) and use `sourceCapability`; `uri` is rejected with an error.
 
 ## Output
 

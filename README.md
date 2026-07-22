@@ -90,9 +90,8 @@ Sources:
 
 ## Packages
 
-All packages are published to **[npmjs.org under `@abapify/*`](https://www.npmjs.com/search?q=%40abapify)**.
-Every entry below links to the on-npm package; the first column links to
-the source in this monorepo.
+All published packages are released to **[npmjs.org under `@abapify/*`](https://www.npmjs.com/search?q=%40abapify)**; internal/Development-only packages are not published.
+Published entries below include an npm badge; the first column links to the source in this monorepo.
 
 ### CLI & plugins (user-facing)
 

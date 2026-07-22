@@ -39,4 +39,4 @@ The tool returns a single text content item whose body is a JSON-serialised obje
 }
 ```
 
-The exact shape of `result` is an object with `requestedTransports`, `scopeTransports`, and `entries` (each entry contains `component`, optional `base`/`head` source versions, and extra metadata). See the source for field details.
+The exact shape of `result` is an object with `requestedTransports`, `scopeTransports`, and `entries`. Each entry contains `component` and optional `base`/`head` source versions; those source-version objects carry a `sourceCapability` opaque reference that `get_source_version` can redeem. Extra metadata is preserved on each entry. See the source for field details.

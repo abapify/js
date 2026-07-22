@@ -15,13 +15,13 @@ Defined in [`packages/adt-mcp/src/lib/tools/get-frozen-source.ts`](https://githu
 ```ts
 {
   // Connection fields are rejected in shared-service/destination mode.
-  // Use an explicit destination binding instead.
+  // Supply a destination binding instead.
   baseUrl?: never;
   client?: never;
   username?: never;
   password?: never;
   systemId?: never;
-  destination: string; // ADT-managed destination key (injected by the shared-service MCP server)
+  destination: string; // ADT-managed destination key; the caller must bind it via sap_connect/destination mode before calling this tool
   canonicalKey: string; // Canonical object key from the accepted Review scope
   componentId: string; // Immutable source component from the accepted Review scope
 }
@@ -30,7 +30,7 @@ Defined in [`packages/adt-mcp/src/lib/tools/get-frozen-source.ts`](https://githu
 ## Requirements
 
 - `get_frozen_source` is only available when the MCP server is running in shared-service/destination mode.
-- The caller must provide a `destination` binding (see `sap_connect` / destination mode).
+- The caller must supply a `destination` binding (set up via `sap_connect` / destination mode) and include it in the tool call.
 - An accepted signed Review scope that exposes `frozenSource` must be active; otherwise the tool returns `mcp_scope_denied`.
 
 ## Output

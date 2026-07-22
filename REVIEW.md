@@ -14,7 +14,7 @@ These rules must always be observed when reviewing or contributing to `abapify/a
 
 ## Dependencies and CI
 
-- `bun.lock` should be added to `.git/info/exclude` to keep JFrog URLs out of GitHub (currently not excluded). The workspace uses Bun workspaces and `workspace:*` protocol.
+- Keep `bun.lock` tracked and prevent private registry URLs through repository registry configuration or CI validation. The workspace uses Bun workspaces and `workspace:*` protocol.
 - `package.json` workspace declarations, `nx.json`, and `bun.lock` must remain consistent.
 - GitHub Actions workflow versions must be pinned to real, current release tags.
 - OIDC trusted publishing is used for npm releases; no `NPM_TOKEN` secret is committed.
@@ -32,11 +32,11 @@ These rules must always be observed when reviewing or contributing to `abapify/a
 
 The type pipeline is intentional and must not be short-circuited:
 
-```
+```text
 SAP XSD files
   → ts-xsd (parse + type inference)
   → adt-schemas (schema literals as TypeScript exports)
-  → adt-contracts (speci endpoint descriptors wrapping schemas)
+  → adt-contracts (specific endpoint descriptors wrapping schemas)
   → adt-client (executes contracts, full type inference at call site)
 ```
 

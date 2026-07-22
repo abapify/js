@@ -39,4 +39,4 @@ The tool returns a single text content item whose body is a JSON-serialised obje
 }
 ```
 
-The response wraps the trace result in an object with `action`, `id`, and `result` fields; trace data itself lives under `result`. See the source for details.
+The response wraps the trace result in an object with `action`, `id`, and `result` fields. `id` is omitted when `action` is `list` because no trace id is supplied; trace data itself lives under `result`. See the source for details.
