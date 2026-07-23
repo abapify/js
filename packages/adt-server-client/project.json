@@ -3,6 +3,15 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/adt-server-client/src",
   "projectType": "library",
-  "release": { "version": { "manifestRootsToUpdate": ["{projectRoot}"] } },
-  "tags": ["scope:adt", "type:client"]
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["{projectRoot}"]
+    }
+  },
+  "tags": ["scope:adt", "type:client"],
+  "targets": {
+    "typecheck": {
+      "command": "echo 'typecheck disabled: transitively depends on adt-mcp, where MCP SDK + Zod type inference causes OOM (see adt-mcp/project.json)'"
+    }
+  }
 }

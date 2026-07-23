@@ -1,5 +1,5 @@
 import {
-  type CreateNodesV2,
+  type CreateNodes,
   type CreateNodesResult,
   logger,
   workspaceRoot,
@@ -58,7 +58,7 @@ function shouldSkipPath(projectRoot: string): boolean {
   return false;
 }
 
-export const createNodesV2: CreateNodesV2<NxTypecheckPluginOptions> = [
+export const createNodesV2: CreateNodes<NxTypecheckPluginOptions> = [
   '**/tsconfig*.json',
   (configFiles, options = {}) => {
     const configFileName = options.configFile ?? 'tsconfig.json';

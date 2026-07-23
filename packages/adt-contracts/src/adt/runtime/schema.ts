@@ -41,7 +41,7 @@ export interface RuntimeTraceDetailResponse {
 
 function parseJsonOrRaw<T extends Record<string, unknown>>(raw: string): T {
   if (!raw) {
-    return {} as T;
+    return {} as unknown as T;
   }
 
   const trimmed = raw.trim();
@@ -51,7 +51,7 @@ function parseJsonOrRaw<T extends Record<string, unknown>>(raw: string): T {
 
   return {
     raw,
-  } as T;
+  } as unknown as T;
 }
 
 function buildJson<T>(value: T): string {

@@ -1,4 +1,4 @@
-import { type CreateNodesV2, logger, workspaceRoot } from '@nx/devkit';
+import { type CreateNodes, logger, workspaceRoot } from '@nx/devkit';
 import { dirname, join, relative } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -123,7 +123,7 @@ function detectGithubRepo(): string | null {
   }
 }
 
-export const createNodesV2: CreateNodesV2<NxNpmTrustOptions> = [
+export const createNodesV2: CreateNodes<NxNpmTrustOptions> = [
   '**/package.json',
   (configFiles, options = {}) => {
     const targetName = options.targetName ?? 'npm-trust-check';
@@ -207,6 +207,6 @@ export const createNodesV2: CreateNodesV2<NxNpmTrustOptions> = [
       })
       .filter(
         (x): x is NonNullable<typeof x> => x !== null,
-      ) as unknown as ReturnType<CreateNodesV2<NxNpmTrustOptions>[1]>;
+      ) as unknown as ReturnType<CreateNodes<NxNpmTrustOptions>[1]>;
   },
 ];
