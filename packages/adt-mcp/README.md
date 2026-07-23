@@ -498,6 +498,10 @@ Delete a transport request.
 
 Run ABAP Test Cockpit checks on an object or package and return the resulting findings worklist.
 
+In destination mode, this operation requires an explicit `safe_execute`
+grant. A `read` grant is insufficient because SAP creates a temporary
+server-side worklist for the analysis.
+
 **Parameters:**
 
 | Parameter | Type   | Description                                                                                                                                             |

@@ -49,11 +49,11 @@ test('HTTP destination mode projects only read-scoped tools without weakening hi
     const names = new Set(tools.tools.map((tool) => tool.name));
     const gctsConfig = tools.tools.find((tool) => tool.name === 'gcts_config');
     const gctsActionSchema = gctsConfig?.inputSchema.properties?.action as
-      | { enum?: unknown[] }
-      | undefined;
+      { enum?: unknown[] } | undefined;
 
     assert.ok(names.has('system_info'));
     assert.ok(names.has('gcts_config'));
+    assert.ok(!names.has('atc_run'));
     assert.ok(!names.has('lock_object'));
     assert.ok(!names.has('activate_object'));
     assert.deepStrictEqual(gctsActionSchema?.enum, ['get', 'list']);
@@ -340,8 +340,7 @@ test('HTTP destination mode fails closed when trusted access is absent', async (
   let contexts = 0;
   // eslint-disable-next-line prefer-const
   let access:
-    | { classes: Array<'read'>; destinationKeys: Array<string> }
-    | undefined;
+    { classes: Array<'read'>; destinationKeys: Array<string> } | undefined;
   const destinations = createDestinationContextRegistry({
     leaseProvider: {
       async acquire({ destination }) {
