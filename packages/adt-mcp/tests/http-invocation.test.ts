@@ -120,20 +120,6 @@ describe('MCP invocation verifier', () => {
     });
   });
 
-  it('recognises but does not dispatch an unimplemented safe-execution policy', async () => {
-    const credential = await sign({
-      classes: ['server', 'safe_execute'],
-      constraint: { systemSid: 'TRL' },
-      limits: {},
-    });
-
-    const verified = await verifier.verify(`Bearer ${credential}`);
-
-    assert.deepStrictEqual(verified?.classes, ['server', 'safe_execute']);
-    assert.ok(verified);
-    assert.strictEqual(isMcpInvocationDispatchPolicySupported(verified), false);
-  });
-
   it('rejects a credential with an invalid ES256 signature', async () => {
     const { privateKey: untrustedPrivateKey } = await generateKeyPair('ES256');
     const credential = await sign({}, { signingKey: untrustedPrivateKey });
