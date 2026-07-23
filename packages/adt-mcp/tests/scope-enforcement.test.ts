@@ -80,6 +80,49 @@ test('a read-scoped caller can dispatch a permitted read tool', async () => {
   assert.strictEqual(calls, 1);
 });
 
+test('ATC analysis requires an explicit safe-execution class', async () => {
+  const target = new CapturingServer();
+  let calls = 0;
+  const readServer = destinationModeServer(target as unknown as McpServer, {
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+  });
+  readServer.tool('atc_run', {}, async () => {
+    calls++;
+    return { content: [{ type: 'text' as const, text: 'unexpected' }] };
+  });
+
+  const denied = await target.handlers.get('atc_run')!(
+    { destination: 'dev' },
+    { sessionId: 'session-1' },
+  );
+  assert.strictEqual(denied.isError, true);
+  assert.strictEqual(denied.content[0]?.text, 'mcp_scope_denied');
+  assert.strictEqual(calls, 0);
+
+  const permittedTarget = new CapturingServer();
+  const safeExecutionServer = destinationModeServer(
+    permittedTarget as unknown as McpServer,
+    {
+      requestAccess: () => ({
+        classes: ['safe_execute'],
+        destinationKeys: ['dev'],
+      }),
+    },
+  );
+  safeExecutionServer.tool('atc_run', {}, async () => {
+    calls++;
+    return { content: [{ type: 'text' as const, text: 'permitted' }] };
+  });
+
+  const permitted = await permittedTarget.handlers.get('atc_run')!(
+    { destination: 'dev' },
+    { sessionId: 'session-2' },
+  );
+  assert.notStrictEqual(permitted.isError, true);
+  assert.strictEqual(permitted.content[0]?.text, 'permitted');
+  assert.strictEqual(calls, 1);
+});
+
 test('a read-scoped caller cannot dispatch a permitted read tool on an unauthorised destination', async () => {
   let leases = 0;
   let contexts = 0;
@@ -260,8 +303,7 @@ test('destination mode exposes capability-bound immutable source selection witho
       (candidate) => candidate.name === 'get_source_version',
     );
     const properties = tool?.inputSchema.properties as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
 
     assert.ok(tool);
     assert.ok(properties?.sourceCapability);
@@ -293,8 +335,7 @@ test('destination mode hides and rejects the legacy raw ATC URI target', async (
       (candidate) => candidate.name === 'atc_run',
     );
     const properties = tool?.inputSchema.properties as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
 
     assert.ok(tool);
     assert.ok(properties?.scope);
@@ -343,8 +384,7 @@ test('destination mode hides raw URI fields from all canonical read tools', asyn
     for (const [name, forbiddenField] of Object.entries(forbiddenFields)) {
       const tool = tools.tools.find((candidate) => candidate.name === name);
       const properties = tool?.inputSchema.properties as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       assert.ok(tool, `${name} must be listed to a read-scoped caller`);
       assert.ok(
         !Object.hasOwn(properties ?? {}, forbiddenField),
