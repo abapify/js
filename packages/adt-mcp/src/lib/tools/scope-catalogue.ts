@@ -6,19 +6,14 @@
  * catalogue is the single source of truth for the operation a tool performs.
  */
 
-export type McpOperationClass = 'server' | 'read' | 'safe_execute' | 'write';
+export type McpOperationClass = 'server' | 'read' | 'write';
 
 const destinationKeyPattern = /^[a-z][a-z0-9-]{1,62}$/u;
 
 export function isMcpOperationClass(
   value: unknown,
 ): value is McpOperationClass {
-  return (
-    value === 'server' ||
-    value === 'read' ||
-    value === 'safe_execute' ||
-    value === 'write'
-  );
+  return value === 'server' || value === 'read' || value === 'write';
 }
 
 export function isMcpDestinationKey(value: unknown): value is string {
@@ -63,13 +58,6 @@ const read = (names: readonly string[]): Record<string, StaticToolScope> =>
 const write = (names: readonly string[]): Record<string, StaticToolScope> =>
   Object.fromEntries(names.map((name) => [name, { operationClass: 'write' }]));
 
-const safeExecute = (
-  names: readonly string[],
-): Record<string, StaticToolScope> =>
-  Object.fromEntries(
-    names.map((name) => [name, { operationClass: 'safe_execute' }]),
-  );
-
 /**
  * Every registered MCP tool has one entry. A mixed-action tool resolves its
  * operation class from validated arguments; the default remains `write`.
@@ -77,6 +65,7 @@ const safeExecute = (
 export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
   {
     ...read([
+      'atc_run',
       'check_syntax',
       'discovery',
       'find_definition',
@@ -143,9 +132,6 @@ export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
       'cts_transport_objects',
       'cts_transport_source_manifest',
     ]),
-    // ATC creates a server-side worklist even though it does not mutate ABAP
-    // repository objects. It therefore needs an explicit execution grant.
-    ...safeExecute(['atc_run']),
     ...write([
       'activate_object',
       'activate_package',
