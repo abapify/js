@@ -29,7 +29,12 @@ function gitDiffChangedFiles(refA, refB) {
   const result = spawnSync(
     'git',
     ['diff', '--name-only', refA, refB, '--', '.', '../netlify.toml'],
-    { cwd: process.cwd(), encoding: 'utf8' },
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: { ...process.env, PATH: '/usr/local/bin:/usr/bin:/bin' },
+      shell: false,
+    },
   );
   if (result.error || result.status !== 0) {
     return null;
