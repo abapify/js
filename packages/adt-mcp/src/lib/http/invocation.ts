@@ -455,7 +455,7 @@ function parseSortedUniqueStrings(
 function parseScopedObjectKeys(value: unknown): readonly string[] | undefined {
   return parseSortedUniqueStrings(value, {
     maxItems: MAX_SCOPED_OBJECT_KEYS,
-    minItems: 0,
+    minItems: 1,
     matches: (item) => scopedCanonicalObjectKeyPattern.test(item),
   });
 }
@@ -548,7 +548,6 @@ export function parseScopedAdtInvocationPolicy(
   const safeExecutePolicy = safeExecute
     ? parseSafeExecutePolicy(claims.constraint.safeExecutePolicy)
     : undefined;
-  if (safeExecute && resourceKeys.length === 0) return undefined;
   const toolNames = parseScopedToolNames(
     claims.constraint.toolNames,
     operationClass,
@@ -985,27 +984,6 @@ function claimsFromPayload(
 ): TrustedMcpInvocationClaims | undefined {
   const record = payload as Record<string, unknown>;
   if (
-    !hasExactSortedKeys(record, [
-      'v',
-      'kid',
-      'iss',
-      'aud',
-      'iat',
-      'nbf',
-      'exp',
-      'jti',
-      'principal',
-      'agentId',
-      'classes',
-      'destinationKeys',
-      'correlationId',
-      'constraint',
-      'limits',
-    ])
-  ) {
-    return undefined;
-  }
-  if (
     !isValidTokenHeader(record, expectedKeyId, expectedIssuer, expectedAudience)
   ) {
     return undefined;
@@ -1052,11 +1030,6 @@ export function createMcpInvocationVerifier(
         });
         const protectedHeader = verified.protectedHeader;
         if (
-          !hasExactSortedKeys(protectedHeader as Record<string, unknown>, [
-            'alg',
-            'kid',
-            'typ',
-          ]) ||
           protectedHeader.alg !== 'ES256' ||
           protectedHeader.kid !== keyId ||
           protectedHeader.typ !== 'JWT'
