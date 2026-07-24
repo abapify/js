@@ -91,13 +91,13 @@ async function main() {
   // netlify.toml changed, skip the build.
   if (COMMIT_REF && CACHED_COMMIT_REF && CACHED_COMMIT_REF !== COMMIT_REF) {
     const files = gitDiffChangedFiles(CACHED_COMMIT_REF, COMMIT_REF);
-    if (files && files.length > 0) {
+    if (files?.length > 0) {
       console.log(
         `Building: ${files.length} change(s) in website/ or netlify.toml`,
       );
       process.exit(1);
     }
-    if (files && files.length === 0) {
+    if (files?.length === 0) {
       console.log(
         'Skipping: no website/ or netlify.toml changes since the last build',
       );

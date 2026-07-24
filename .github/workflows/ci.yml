@@ -71,14 +71,14 @@ jobs:
         run: bash .github/hooks/scripts/test-hooks.sh
         shell: bash
       - name: Print Environment Info
-        run: npx nx report
+        run: bunx nx report
         shell: bash
       - name: Check formatting for changed files
-        run: npx nx format:check --base=$NX_BASE --head=$NX_HEAD
+        run: bunx nx format:check --base=$NX_BASE --head=$NX_HEAD
       - name: Run affected lint, test, build and e2e-ci
-        run: npx nx affected -t lint test build e2e-ci --verbose=false --parallel=3
+        run: bunx nx affected -t lint test build e2e-ci --verbose=false --parallel=3
         if: ${{ env.NX_CLOUD_ACCESS_TOKEN != '' }}
-      - run: npx nx affected -t lint test build e2e-ci --verbose=false --parallel=3 --no-cloud
+      - run: bunx nx affected -t lint test build e2e-ci --verbose=false --parallel=3 --no-cloud
         if: ${{ env.NX_CLOUD_ACCESS_TOKEN == '' }}
-      - run: npx nx-cloud fix-ci
+      - run: bunx nx-cloud fix-ci
         if: always() && env.NX_CLOUD_ACCESS_TOKEN != ''
