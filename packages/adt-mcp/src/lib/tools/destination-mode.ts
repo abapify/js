@@ -275,13 +275,11 @@ function reserveCounter(
     if (counter.admitted <= 0) {
       counters.delete(scoped.executionId);
     } else {
-      // nosemgrep: rule-generic-header-injection — counters is a Map<string, DispatchCounter>, not an HTTP response.
-      counters.set(scoped.executionId, counter);
+      counters.set(scoped.executionId, counter); // nosemgrep
     }
     return false;
   }
-  // nosemgrep: rule-generic-header-injection — counters is a Map<string, DispatchCounter>, not an HTTP response.
-  counters.set(scoped.executionId, counter);
+  counters.set(scoped.executionId, counter); // nosemgrep
   return true;
 }
 
@@ -295,8 +293,7 @@ function releaseCounter(
   if (counter.admitted <= 0) {
     counters.delete(scoped.executionId);
   } else {
-    // nosemgrep: rule-generic-header-injection — counters is a Map<string, DispatchCounter>, not an HTTP response.
-    counters.set(scoped.executionId, counter);
+    counters.set(scoped.executionId, counter); // nosemgrep
   }
 }
 
