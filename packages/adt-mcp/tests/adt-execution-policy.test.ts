@@ -9,7 +9,7 @@ import {
 const scopeId = '11111111-1111-4111-8111-111111111111';
 const executionId = '22222222-2222-4222-8222-222222222222';
 const authorizationId = '33333333-3333-4333-8333-333333333333';
-const authorizationToken = 'eyJhbGciOiJFUzI1NiJ9.eyJncmFudCI6dHJ1ZX0.signature';
+const authorizationToken = 'mock_header.mock_payload.mock_signature';
 
 function claims(
   overrides: Partial<TrustedMcpInvocationClaims> = {},

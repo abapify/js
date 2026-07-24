@@ -22,9 +22,14 @@ import {
   toJacocoXml,
   toSonarGenericCoverageXml,
 } from '@abapify/adt-aunit/formatters/jacoco';
-import { normalizeUnitTestOptions } from './scope-catalogue.js';
+import {
+  normalizeUnitTestOptions,
+  type NormalizedUnitTestOptions,
+} from './scope-catalogue.js';
+import type { SafeExecutePolicy } from '../http/invocation.js';
 
 type AunitResultData = InferTypedSchema<typeof aunitResult>;
+type AdtClient = ReturnType<ToolContext['getClient']>;
 type AunitProgram = NonNullable<
   AunitResultData['runResult']['program']
 >[number];
@@ -199,6 +204,112 @@ function limitExceeded() {
   };
 }
 
+type SafeExecuteLimitResult = ReturnType<typeof limitExceeded>;
+type CoveragePayload = { format: string; xml: string; warning?: string };
+
+function checkSafeExecuteLimits(
+  counts: ReturnType<typeof resultCounts>,
+  safePolicy: SafeExecutePolicy | undefined,
+): SafeExecuteLimitResult | undefined {
+  if (!safePolicy) return undefined;
+  if (counts.findings > safePolicy.maxFindings) return limitExceeded();
+  if (
+    safePolicy.check === 'aunit' &&
+    (counts.testClasses > safePolicy.maxTestClasses ||
+      counts.testMethods > safePolicy.maxTestMethods)
+  ) {
+    return limitExceeded();
+  }
+  if (
+    safePolicy.check === 'coverage' &&
+    counts.programs > safePolicy.maxPrograms
+  ) {
+    return limitExceeded();
+  }
+  return undefined;
+}
+
+type CoverageFetchResult =
+  | { kind: 'payload'; value: CoveragePayload }
+  | { kind: 'limit'; value: SafeExecuteLimitResult };
+
+async function fetchCoveragePayload(
+  client: AdtClient,
+  response: AunitResultData,
+  normalizedOptions: NormalizedUnitTestOptions,
+  safePolicy: SafeExecutePolicy | undefined,
+): Promise<CoverageFetchResult> {
+  const measurementId = extractCoverageMeasurementId(response);
+  const runtime = (
+    client as unknown as {
+      adt: {
+        runtime?: {
+          traces: {
+            coverage: {
+              measurements: { post: (id: string) => Promise<unknown> };
+              statements: { get: (id: string) => Promise<unknown> };
+            };
+          };
+        };
+      };
+    }
+  ).adt.runtime;
+
+  const format = normalizedOptions.effectiveCoverageFormat ?? 'jacoco';
+
+  if (!measurementId) {
+    return {
+      kind: 'payload',
+      value: {
+        format,
+        xml: '',
+        warning: 'Coverage requested but SAP returned no measurement link.',
+      },
+    };
+  }
+  if (!runtime) {
+    return {
+      kind: 'payload',
+      value: {
+        format,
+        xml: '',
+        warning: 'runtime/traces contract not available on this client.',
+      },
+    };
+  }
+
+  const cov = runtime.traces.coverage;
+  try {
+    const measurements = (await cov.measurements.post(
+      measurementId,
+    )) as Parameters<typeof toJacocoXml>[0]['measurements'];
+    if (
+      safePolicy?.check === 'coverage' &&
+      coverageMeasurementCount(measurements.result) > safePolicy.maxMeasurements
+    ) {
+      return { kind: 'limit', value: limitExceeded() };
+    }
+    const statements = (await cov.statements.get(measurementId)) as Parameters<
+      typeof toJacocoXml
+    >[0]['statements'];
+    const xml =
+      format === 'sonar-generic'
+        ? toSonarGenericCoverageXml({ measurements, statements })
+        : toJacocoXml({ measurements, statements });
+    return { kind: 'payload', value: { format, xml } };
+  } catch (err) {
+    if (safePolicy) throw err;
+    return {
+      kind: 'payload',
+      value: {
+        format,
+        xml: '',
+        warning: `Coverage fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+      },
+    };
+  }
+}
+
 export function registerRunUnitTestsTool(
   server: McpServer,
   ctx: ToolContext,
@@ -284,90 +395,19 @@ export function registerRunUnitTestsTool(
         );
         const result = normalizeResult(response as AunitResultData);
         const counts = resultCounts(result.programs);
-        if (safePolicy) {
-          if (counts.findings > safePolicy.maxFindings) {
-            return limitExceeded();
-          }
-          if (
-            safePolicy.check === 'aunit' &&
-            (counts.testClasses > safePolicy.maxTestClasses ||
-              counts.testMethods > safePolicy.maxTestMethods)
-          ) {
-            return limitExceeded();
-          }
-          if (
-            safePolicy.check === 'coverage' &&
-            counts.programs > safePolicy.maxPrograms
-          ) {
-            return limitExceeded();
-          }
-        }
+        const limitResult = checkSafeExecuteLimits(counts, safePolicy);
+        if (limitResult) return limitResult;
 
-        // Optional: follow the coverage link and serialise a JaCoCo / Sonar report.
-        let coveragePayload:
-          { format: string; xml: string; warning?: string } | undefined;
-
+        let coveragePayload: CoveragePayload | undefined;
         if (wantsCoverage) {
-          const measurementId = extractCoverageMeasurementId(response);
-          const runtime = (
-            client as unknown as {
-              adt: {
-                runtime?: {
-                  traces: {
-                    coverage: {
-                      measurements: { post: (id: string) => Promise<unknown> };
-                      statements: { get: (id: string) => Promise<unknown> };
-                    };
-                  };
-                };
-              };
-            }
-          ).adt.runtime;
-
-          if (!measurementId) {
-            coveragePayload = {
-              format: normalizedOptions.effectiveCoverageFormat ?? 'jacoco',
-              xml: '',
-              warning:
-                'Coverage requested but SAP returned no measurement link.',
-            };
-          } else if (!runtime) {
-            coveragePayload = {
-              format: normalizedOptions.effectiveCoverageFormat ?? 'jacoco',
-              xml: '',
-              warning: 'runtime/traces contract not available on this client.',
-            };
-          } else {
-            const cov = runtime.traces.coverage;
-            try {
-              const measurements = (await cov.measurements.post(
-                measurementId,
-              )) as Parameters<typeof toJacocoXml>[0]['measurements'];
-              if (
-                safePolicy?.check === 'coverage' &&
-                coverageMeasurementCount(measurements.result) >
-                  safePolicy.maxMeasurements
-              ) {
-                return limitExceeded();
-              }
-              const statements = (await cov.statements.get(
-                measurementId,
-              )) as Parameters<typeof toJacocoXml>[0]['statements'];
-              const fmt = normalizedOptions.effectiveCoverageFormat ?? 'jacoco';
-              const xml =
-                fmt === 'sonar-generic'
-                  ? toSonarGenericCoverageXml({ measurements, statements })
-                  : toJacocoXml({ measurements, statements });
-              coveragePayload = { format: fmt, xml };
-            } catch (err) {
-              if (safePolicy) throw err;
-              coveragePayload = {
-                format: normalizedOptions.effectiveCoverageFormat ?? 'jacoco',
-                xml: '',
-                warning: `Coverage fetch failed: ${err instanceof Error ? err.message : String(err)}`,
-              };
-            }
-          }
+          const coverageResult = await fetchCoveragePayload(
+            client,
+            response as AunitResultData,
+            normalizedOptions,
+            safePolicy,
+          );
+          if (coverageResult.kind === 'limit') return coverageResult.value;
+          coveragePayload = coverageResult.value;
         }
 
         const payload = coveragePayload

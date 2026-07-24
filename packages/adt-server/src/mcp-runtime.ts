@@ -200,8 +200,7 @@ export async function createAdtServerMcpOptions(
     options.executeWithDeadline ?? executeWithDeadlineAndAbort;
   const safeExecuteOptions = (() => {
     if (!enableSafeExecute) return {};
-    const consumeExecutionAuthorization =
-      options.consumeExecutionAuthorization;
+    const consumeExecutionAuthorization = options.consumeExecutionAuthorization;
     const reportExecutionOutcome = options.reportExecutionOutcome;
     if (!consumeExecutionAuthorization || !reportExecutionOutcome) {
       throw new Error(
