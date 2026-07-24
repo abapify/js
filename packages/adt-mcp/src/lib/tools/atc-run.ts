@@ -130,6 +130,13 @@ function canonicalFindings(response: unknown): UnknownRecord[] {
   });
 }
 
+class AtcObjectUnavailableError extends Error {
+  constructor() {
+    super('ATC object is unavailable');
+    this.name = 'AtcObjectUnavailableError';
+  }
+}
+
 async function resolveScopeUris(
   client: AdtClient,
   scope: AtcScope,
@@ -149,7 +156,7 @@ async function resolveScopeUris(
             object.objectName,
             object.objectType,
           );
-          if (!uri) throw new Error('ATC object is unavailable');
+          if (!uri) throw new AtcObjectUnavailableError();
           return uri;
         }),
       );
@@ -205,22 +212,11 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const checkVariant = await resolveVariant(client, args.variant);
+        const targetUris = await resolveScopeUris(client, args.scope);
         const created = await client.adt.atc.worklists.create({
           checkVariant,
         });
         const worklistId = worklistIdFrom(created);
-        let targetUris: string[];
-        try {
-          targetUris = await resolveScopeUris(client, args.scope);
-        } catch (error) {
-          if (
-            error instanceof Error &&
-            error.message === 'ATC object is unavailable'
-          ) {
-            return mcpErrorResult(error, 'ATC run');
-          }
-          throw error;
-        }
 
         await client.adt.atc.runs.post(
           { worklistId },
@@ -264,6 +260,9 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           ],
         };
       } catch (error) {
+        if (error instanceof AtcObjectUnavailableError) {
+          return mcpErrorResult(error, 'ATC run');
+        }
         return handleSafeExecuteError(error, safePolicy, 'ATC run');
       }
     },
