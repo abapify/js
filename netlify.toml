@@ -19,7 +19,13 @@
   # which gets reported as a red `error` state + failing GitHub commit
   # status. Exit 0 from this command tells Netlify to skip the deploy
   # (reported as `skipped`, not `error`). Exit 1 means "proceed".
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../netlify.toml"
+  #
+  # The script runs from the `website/` base directory. It checks the
+  # Netlify cached diff first, then falls back to the GitHub API for
+  # pull requests so deploy previews are skipped unless the PR actually
+  # touches the docs site or `netlify.toml`. For private repos, set the
+  # `GITHUB_TOKEN` environment variable in the Netlify UI.
+  ignore = "node ./scripts/netlify-ignore.cjs"
 
 [build.environment]
   NODE_VERSION = "20"
