@@ -263,21 +263,38 @@ function isScopeAllowed(
   );
 }
 
-function maxToolCallsReached(
+function reserveCounter(
   scoped: NonNullable<McpRequestAccess['scoped']>,
   counters: Map<string, DispatchCounter>,
 ): boolean {
-  const counter = counters.get(scoped.executionId);
-  return counter !== undefined && counter.admitted >= scoped.maxToolCalls;
+  const existing = counters.get(scoped.executionId);
+  const counter = existing ?? { admitted: 0 };
+  counter.admitted++;
+  if (counter.admitted > scoped.maxToolCalls) {
+    counter.admitted--;
+    if (counter.admitted <= 0) {
+      counters.delete(scoped.executionId);
+    } else {
+      counters.set(scoped.executionId, counter);
+    }
+    return false;
+  }
+  counters.set(scoped.executionId, counter);
+  return true;
 }
 
-function incrementCounter(
+function releaseCounter(
   scoped: NonNullable<McpRequestAccess['scoped']>,
   counters: Map<string, DispatchCounter>,
 ): void {
-  const counter = counters.get(scoped.executionId) ?? { admitted: 0 };
-  counter.admitted++;
-  counters.set(scoped.executionId, counter);
+  const counter = counters.get(scoped.executionId);
+  if (!counter) return;
+  counter.admitted--;
+  if (counter.admitted <= 0) {
+    counters.delete(scoped.executionId);
+  } else {
+    counters.set(scoped.executionId, counter);
+  }
 }
 
 async function runSafeExecution(
@@ -308,6 +325,8 @@ async function runSafeExecution(
     return scopeDeniedResult();
   }
 
+  if (!reserveCounter(scoped, counters)) return scopeDeniedResult();
+
   try {
     const consumed = await consumeExecutionAuthorization({
       authorizationId,
@@ -321,12 +340,14 @@ async function runSafeExecution(
       operationId: policy.operationId,
       policy,
     });
-    if (!consumed) return scopeDeniedResult();
+    if (!consumed) {
+      releaseCounter(scoped, counters);
+      return scopeDeniedResult();
+    }
   } catch {
+    releaseCounter(scoped, counters);
     return scopeDeniedResult();
   }
-
-  incrementCounter(scoped, counters);
 
   let outcome: 'succeeded' | 'failed' | 'outcome_unknown';
   let result: unknown;
@@ -353,9 +374,11 @@ async function runSafeExecution(
       authorizationToken,
       outcome,
     });
-    if (!recorded) return safeExecuteLimitResult('outcome_unknown');
+    if (!recorded) result = safeExecuteLimitResult('outcome_unknown');
   } catch {
-    return safeExecuteLimitResult('outcome_unknown');
+    result = safeExecuteLimitResult('outcome_unknown');
+  } finally {
+    counters.delete(scoped.executionId);
   }
   return result;
 }
@@ -379,9 +402,6 @@ function wrapToolHandler(
     }
     const scoped = access?.scoped;
     if (scoped) {
-      if (maxToolCallsReached(scoped, counters)) {
-        return scopeDeniedResult();
-      }
       if (scoped.operationClass === 'safe_execute') {
         return await runSafeExecution(
           handler,
@@ -392,7 +412,7 @@ function wrapToolHandler(
           counters,
         );
       }
-      incrementCounter(scoped, counters);
+      if (!reserveCounter(scoped, counters)) return scopeDeniedResult();
     }
     return await handler(...handlerArgs);
   };

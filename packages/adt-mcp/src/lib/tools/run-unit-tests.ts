@@ -291,7 +291,10 @@ async function fetchCoveragePayload(
       safePolicy?.check === 'coverage' &&
       coverageMeasurementCount(measurements.result) > safePolicy.maxMeasurements
     ) {
-      return { kind: 'limit', value: limitExceeded() };
+      return {
+        kind: 'limit',
+        value: safeExecuteLimitResult('safe_execute_limit_exceeded'),
+      };
     }
     const statements = (await cov.statements.get(measurementId)) as Parameters<
       typeof toJacocoXml
