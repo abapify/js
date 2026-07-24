@@ -8,7 +8,7 @@
  * The script is executed by Netlify from the `website/` base directory.
  */
 
-const { execSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 const https = require('node:https');
 
 const CONTEXT = process.env.CONTEXT || '';
@@ -26,19 +26,15 @@ function hasWebsiteRelevantPath(filePath) {
 }
 
 function gitDiffChangedFiles(refA, refB) {
-  try {
-    const out = execSync(
-      `git diff --name-only ${refA} ${refB} -- . ../netlify.toml`,
-      {
-        encoding: 'utf8',
-        cwd: process.cwd(),
-        stdio: ['pipe', 'pipe', 'ignore'],
-      },
-    );
-    return out.trim().split('\n').filter(Boolean);
-  } catch {
+  const result = spawnSync(
+    'git',
+    ['diff', '--name-only', refA, refB, '--', '.', '../netlify.toml'],
+    { cwd: process.cwd(), encoding: 'utf8' },
+  );
+  if (result.error || result.status !== 0) {
     return null;
   }
+  return result.stdout.trim().split('\n').filter(Boolean);
 }
 
 function fetchJson(url) {
@@ -71,11 +67,15 @@ function fetchJson(url) {
 }
 
 async function prTouchesWebsite() {
+  const reviewId = Number(REVIEW_ID);
+  if (!Number.isInteger(reviewId) || reviewId <= 0) {
+    throw new Error(`Invalid REVIEW_ID: ${REVIEW_ID}`);
+  }
   const pageSize = 100;
   let page = 1;
   while (true) {
     const files = await fetchJson(
-      `https://api.github.com/repos/${REPO}/pulls/${REVIEW_ID}/files?per_page=${pageSize}&page=${page}`,
+      `https://api.github.com/repos/${REPO}/pulls/${reviewId}/files?per_page=${pageSize}&page=${page}`,
     );
     if (!Array.isArray(files) || files.length === 0) return false;
     for (const file of files) {
