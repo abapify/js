@@ -27,7 +27,7 @@ function hasWebsiteRelevantPath(filePath) {
 
 function gitDiffChangedFiles(refA, refB) {
   const result = spawnSync(
-    'git',
+    '/usr/bin/git',
     ['diff', '--name-only', refA, refB, '--', '.', '../netlify.toml'],
     {
       cwd: process.cwd(),
