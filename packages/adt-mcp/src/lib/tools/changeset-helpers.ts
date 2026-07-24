@@ -30,8 +30,7 @@ export function textOk(payload: unknown): {
 }
 
 export type RequireResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: TextErrorResult };
+  { ok: true; value: T } | { ok: false; error: TextErrorResult };
 
 /** Resolve the current HTTP MCP session registry entry, or return a 4xx-style error. */
 export function requireSession(

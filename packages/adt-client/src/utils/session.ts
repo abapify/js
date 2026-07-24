@@ -446,6 +446,43 @@ export class SessionManager {
     }
   }
 
+  private async fetchSecuritySessionCsrfToken(
+    baseUrl: string,
+    authHeader: string | undefined,
+    client: string | undefined,
+    language: string | undefined,
+    signal?: AbortSignal,
+  ): Promise<string | undefined> {
+    const sessionsUrl = new URL('/sap/bc/adt/core/http/sessions', baseUrl);
+    if (client) sessionsUrl.searchParams.append('sap-client', client);
+    if (language) sessionsUrl.searchParams.append('sap-language', language);
+    try {
+      this.logger?.debug(
+        'Session: Fetching CSRF token for security session cleanup',
+      );
+      const csrfResponse = await fetch(sessionsUrl.toString(), {
+        method: 'GET',
+        headers: {
+          ...this.buildSessionHeaders(authHeader),
+          'x-sap-security-session': 'use',
+          'x-csrf-token': 'Fetch',
+        },
+        signal: signal ?? AbortSignal.timeout(5_000),
+      });
+      if (!csrfResponse.ok) {
+        this.logger?.debug(
+          `Session: Cleanup CSRF fetch failed with status ${csrfResponse.status}`,
+        );
+        return undefined;
+      }
+      this.processResponse(csrfResponse);
+      return this.csrfManager.getCached() ?? undefined;
+    } catch {
+      this.logger?.debug('Session: Failed to fetch cleanup CSRF token');
+      return undefined;
+    }
+  }
+
   async initializeCsrf(
     baseUrl: string,
     authHeader?: string,
@@ -529,8 +566,10 @@ export class SessionManager {
           baseUrl,
           authHeader,
           client,
+          signal,
         );
       }
+      signal?.throwIfAborted();
 
       return true;
     } catch (error) {
@@ -543,6 +582,22 @@ export class SessionManager {
             authHeader,
             client,
           );
+        } else if (sessionPath) {
+          const cleanupToken = await this.fetchSecuritySessionCsrfToken(
+            baseUrl,
+            authHeader,
+            client,
+            language,
+          );
+          if (cleanupToken) {
+            await this.deleteSecuritySession(
+              sessionPath,
+              cleanupToken,
+              baseUrl,
+              authHeader,
+              client,
+            );
+          }
         }
         throw error;
       }

@@ -221,8 +221,11 @@ function snapshotScopedAccess(
     !access.principal ||
     typeof access.correlationId !== 'string' ||
     !access.correlationId ||
+    typeof access.scopeId !== 'string' ||
     !uuid.test(access.scopeId) ||
+    typeof access.executionId !== 'string' ||
     !uuid.test(access.executionId) ||
+    typeof access.systemSid !== 'string' ||
     !/^[A-Za-z0-9_-]{1,16}$/u.test(access.systemSid) ||
     !Number.isSafeInteger(access.maxToolCalls) ||
     access.maxToolCalls < 1 ||
@@ -257,6 +260,7 @@ function snapshotScopedAccess(
 
   if (access.operationClass === 'read') {
     if (
+      resourceKeys.length === 0 ||
       toolNames.some((name) => !readTools.has(name)) ||
       access.safeExecutePolicy !== undefined ||
       access.authorizationId !== undefined ||

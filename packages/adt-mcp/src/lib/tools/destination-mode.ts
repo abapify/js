@@ -377,8 +377,6 @@ async function runSafeExecution(
     if (!recorded) result = safeExecuteLimitResult('outcome_unknown');
   } catch {
     result = safeExecuteLimitResult('outcome_unknown');
-  } finally {
-    counters.delete(scoped.executionId);
   }
   return result;
 }

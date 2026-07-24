@@ -35,7 +35,9 @@ export function registerGetObjectTool(
           await client.adt.repository.informationsystem.search.quickSearch({
             query: args.objectName,
             maxResults: 10,
-            ...(args.objectType ? { objectType: args.objectType } : {}),
+            ...(args.objectType
+              ? { objectType: args.objectType.toUpperCase() }
+              : {}),
           });
 
         const objects = extractObjectReferences(searchResult);
@@ -48,8 +50,9 @@ export function registerGetObjectTool(
           if (!nameMatch) return false;
           if (!args.objectType) return true;
           return (
-            String(obj.type ?? '').toUpperCase() ===
-            args.objectType.toUpperCase()
+            String(obj.type ?? '')
+              .toUpperCase()
+              .split('/')[0] === args.objectType.toUpperCase().split('/')[0]
           );
         });
 

@@ -287,9 +287,8 @@ function canonicalObjectKey(
   if (typeof objectType !== 'string' || typeof objectName !== 'string') {
     return undefined;
   }
-  const key = `${objectType.trim().toUpperCase()}:${objectName
-    .trim()
-    .toUpperCase()}`;
+  const type = objectType.trim().toUpperCase().split('/')[0];
+  const key = `${type}:${objectName.trim().toUpperCase()}`;
   return /^[A-Z0-9_]{2,30}:[A-Z0-9_/$-]{1,128}$/u.test(key) ? key : undefined;
 }
 
@@ -522,10 +521,12 @@ export function isMcpToolListed(
   if (access.scoped) {
     const operationClass =
       'actionClasses' in entry ? undefined : entry.operationClass;
-    return (
-      operationClass === access.scoped.operationClass &&
-      access.scoped.toolNames.includes(name)
-    );
+    if (operationClass !== access.scoped.operationClass) return false;
+    if (!access.scoped.toolNames.includes(name)) return false;
+    if (operationClass === 'read' && access.scoped.resourceKeys.length === 0) {
+      return false;
+    }
+    return true;
   }
   if (name === 'get_frozen_source') return false;
   const classes =

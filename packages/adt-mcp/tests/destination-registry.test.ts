@@ -155,8 +155,7 @@ test('releaseAll waits for a pending creation and cleans its context and lease',
     | undefined;
   let resolveCreationStarted: (() => void) | undefined;
   let resolveContext:
-    | ((value: { client: never; close(): Promise<void> }) => void)
-    | undefined;
+    ((value: { client: never; close(): Promise<void> }) => void) | undefined;
   const leaseReady = new Promise<{
     destination: string;
     expiresAt: number;
