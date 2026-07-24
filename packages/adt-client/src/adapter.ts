@@ -247,13 +247,12 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
         logger?.debug(
           'Adapter: Initializing CSRF token before write operation',
         );
-        await sessionManager.initializeCsrf(
-          baseUrl,
+        await sessionManager.initializeCsrf(baseUrl, {
           authHeader, // undefined for cookie auth — SessionManager uses stored cookies
           client,
           language,
-          executionSignal,
-        );
+          signal: executionSignal,
+        });
       }
 
       // Prepare headers (pass URL for ETag lookup on PUT/PATCH)

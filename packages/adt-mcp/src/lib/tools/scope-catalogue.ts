@@ -364,12 +364,17 @@ function isScopedReadResourceAllowed(
   return Boolean(key && scoped.resourceKeys.includes(key));
 }
 
-function isScopedAtcResourceAllowed(
-  scoped: McpScopedAccess,
-  arguments_: Record<string, unknown>,
-): boolean {
-  const policy = scoped.safeExecutePolicy;
-  const scope = arguments_.scope;
+function validateAtcScope(
+  policy: NonNullable<McpScopedAccess['safeExecutePolicy']> | undefined,
+  scope: unknown,
+):
+  | {
+      scopeRecord: Record<string, unknown>;
+      maxObjects: number;
+      maxPackages: number;
+      maxVariants: number;
+    }
+  | undefined {
   if (
     !policy ||
     policy.operationId !== 'atc_run' ||
@@ -378,39 +383,64 @@ function isScopedAtcResourceAllowed(
     typeof scope !== 'object' ||
     Array.isArray(scope)
   ) {
-    return false;
+    return undefined;
   }
   const scopeRecord = scope as Record<string, unknown>;
-  const variantCount = 1;
-  if (variantCount > policy.maxVariants) return false;
-
+  if (policy.maxVariants < 1) return undefined;
   if (scopeRecord.kind === 'package') {
     // A package selector would expand only after SAP I/O, too late to compare
     // every object with the signed scope. The credential issuer must materialise the expansion
     // into this tool's canonical `objects` scope before issuing the grant.
-    return false;
+    return undefined;
   }
   if (scopeRecord.kind !== 'objects' || !Array.isArray(scopeRecord.objects)) {
     // Transport expansion has no corresponding signed count bound.
-    return false;
+    return undefined;
   }
+  return {
+    scopeRecord,
+    maxObjects: policy.maxObjects,
+    maxPackages: policy.maxPackages,
+    maxVariants: policy.maxVariants,
+  };
+}
+
+function collectAtcObjectKeys(
+  objects: unknown[],
+): { keys: string[]; packageCount: number } | undefined {
   const keys: string[] = [];
   let packageCount = 0;
-  for (const object of scopeRecord.objects) {
+  for (const object of objects) {
     if (!object || typeof object !== 'object' || Array.isArray(object)) {
-      return false;
+      return undefined;
     }
     const record = object as Record<string, unknown>;
     const key = canonicalObjectKey(record.objectType, record.objectName);
-    if (!key) return false;
+    if (!key) return undefined;
     if (key.startsWith('DEVC:')) packageCount++;
     keys.push(key);
   }
-  const sortedKeys = sortedUnique(keys);
+  return { keys, packageCount };
+}
+
+function isScopedAtcResourceAllowed(
+  scoped: McpScopedAccess,
+  arguments_: Record<string, unknown>,
+): boolean {
+  const validated = validateAtcScope(
+    scoped.safeExecutePolicy,
+    arguments_.scope,
+  );
+  if (!validated) return false;
+
+  const collected = collectAtcObjectKeys(validated.scopeRecord.objects);
+  if (!collected) return false;
+
+  const sortedKeys = sortedUnique(collected.keys);
   return Boolean(
     sortedKeys &&
-    sortedKeys.length <= policy.maxObjects &&
-    packageCount <= policy.maxPackages &&
+    sortedKeys.length <= validated.maxObjects &&
+    collected.packageCount <= validated.maxPackages &&
     exactStringArrays(scoped.resourceKeys, sortedKeys),
   );
 }

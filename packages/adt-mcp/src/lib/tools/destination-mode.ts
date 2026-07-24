@@ -297,14 +297,16 @@ function releaseCounter(
   }
 }
 
-async function runSafeExecution(
-  handler: Handler,
-  handlerArgs: unknown[],
-  scoped: NonNullable<McpRequestAccess['scoped']>,
-  toolArguments: Record<string, unknown>,
-  options: DestinationModeOptions,
-  counters: Map<string, DispatchCounter>,
-): Promise<unknown> {
+async function runSafeExecution(context: {
+  handler: Handler;
+  handlerArgs: unknown[];
+  scoped: NonNullable<McpRequestAccess['scoped']>;
+  toolArguments: Record<string, unknown>;
+  options: DestinationModeOptions;
+  counters: Map<string, DispatchCounter>;
+}): Promise<unknown> {
+  const { handler, handlerArgs, scoped, toolArguments, options, counters } =
+    context;
   const policy = scoped.safeExecutePolicy;
   const { authorizationId, authorizationToken } = scoped;
   const destinationKey = toolArguments.destination;
@@ -401,14 +403,14 @@ function wrapToolHandler(
     const scoped = access?.scoped;
     if (scoped) {
       if (scoped.operationClass === 'safe_execute') {
-        return await runSafeExecution(
+        return await runSafeExecution({
           handler,
           handlerArgs,
           scoped,
           toolArguments,
           options,
           counters,
-        );
+        });
       }
       if (!reserveCounter(scoped, counters)) return scopeDeniedResult();
     }
@@ -416,16 +418,25 @@ function wrapToolHandler(
   };
 }
 
-function registerDestinationTool(
-  target: McpServer,
-  name: string,
-  description: string | undefined,
-  transformedInputSchema: unknown,
+function registerDestinationTool(context: {
+  target: McpServer;
+  name: string;
+  description: string | undefined;
+  transformedInputSchema: unknown;
   strictInputSchema:
-    ReturnType<typeof strictCanonicalDestinationSchema> | undefined,
-  wrappedHandler: Handler,
-  useRegisterTool: boolean,
-): unknown {
+    ReturnType<typeof strictCanonicalDestinationSchema> | undefined;
+  wrappedHandler: Handler;
+  useRegisterTool: boolean;
+}): unknown {
+  const {
+    target,
+    name,
+    description,
+    transformedInputSchema,
+    strictInputSchema,
+    wrappedHandler,
+    useRegisterTool,
+  } = context;
   if (useRegisterTool) {
     return target.registerTool(
       name,
@@ -496,7 +507,7 @@ export function destinationModeServer(
           options,
           counters,
         );
-        const registeredTool = registerDestinationTool(
+        const registeredTool = registerDestinationTool({
           target,
           name,
           description,
@@ -504,7 +515,7 @@ export function destinationModeServer(
           strictInputSchema,
           wrappedHandler,
           useRegisterTool,
-        );
+        });
         if (!registeredTool) return registeredTool;
         const entry = toolListEntry(name, registeredTool);
         actionSchemaProjection(name, entry.inputSchema);

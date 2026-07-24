@@ -402,10 +402,77 @@ export class SessionManager {
    * the slot — SAP allows only one security session per user.
    *
    * @param baseUrl - SAP system base URL
-   * @param authHeader - Authorization header (Basic/Bearer), or undefined for cookie auth
-   * @param client - SAP client number
-   * @param language - SAP language
+   * @param options.authHeader - Authorization header, or undefined for cookie auth
+   * @param options.client - SAP client number
+   * @param options.language - SAP language
+   * @param options.signal - AbortSignal for cancellation
    */
+  async initializeCsrf(
+    baseUrl: string,
+    {
+      authHeader,
+      client,
+      language,
+      signal,
+    }: {
+      authHeader?: string;
+      client?: string;
+      language?: string;
+      signal?: AbortSignal;
+    } = {},
+  ): Promise<boolean> {
+    signal?.throwIfAborted();
+    const sessionsUrl = this.buildSessionsUrl(baseUrl, client, language);
+    let sessionPath: string | undefined;
+
+    try {
+      sessionPath = await this.createSecuritySession(
+        sessionsUrl,
+        authHeader,
+        signal,
+      );
+      if (!sessionPath) return false;
+      if (!(await this.acquireCsrfToken(sessionsUrl, authHeader, signal))) {
+        return false;
+      }
+
+      const acquiredCsrfToken = this.csrfManager.getCached();
+      if (acquiredCsrfToken) {
+        await this.deleteSecuritySession({
+          sessionPath,
+          csrfToken: acquiredCsrfToken,
+          baseUrl,
+          authHeader,
+          client,
+          signal,
+        });
+      }
+      signal?.throwIfAborted();
+
+      return true;
+    } catch (error) {
+      return this.handleCsrfInitializationError(error, {
+        baseUrl,
+        authHeader,
+        client,
+        language,
+        sessionPath,
+        signal,
+      });
+    }
+  }
+
+  private buildSessionsUrl(
+    baseUrl: string,
+    client?: string,
+    language?: string,
+  ): URL {
+    const url = new URL('/sap/bc/adt/core/http/sessions', baseUrl);
+    if (client) url.searchParams.append('sap-client', client);
+    if (language) url.searchParams.append('sap-language', language);
+    return url;
+  }
+
   private buildSessionHeaders(authHeader?: string): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.sap.adt.core.http.session.v3+xml',
@@ -417,14 +484,87 @@ export class SessionManager {
     return headers;
   }
 
-  private async deleteSecuritySession(
-    sessionPath: string,
-    csrfToken: string,
-    baseUrl: string,
+  private async createSecuritySession(
+    sessionsUrl: URL,
     authHeader?: string,
-    client?: string,
     signal?: AbortSignal,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
+    this.logger?.debug('Session: Creating security session');
+    const response = await fetch(sessionsUrl.toString(), {
+      method: 'GET',
+      headers: {
+        ...this.buildSessionHeaders(authHeader),
+        'x-sap-security-session': 'create',
+      },
+      signal,
+    });
+    signal?.throwIfAborted();
+
+    if (!response.ok) {
+      this.logger?.warn(
+        `Session: Security session creation failed with status ${response.status}`,
+      );
+      return undefined;
+    }
+    this.processResponse(response);
+
+    const body = await response.text();
+    signal?.throwIfAborted();
+    return body.match(/href="([^"]*\/sessions\/[^"]*)"/)?.[1];
+  }
+
+  private async acquireCsrfToken(
+    sessionsUrl: URL,
+    authHeader?: string,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    this.logger?.debug('Session: Fetching CSRF token');
+    const response = await fetch(sessionsUrl.toString(), {
+      method: 'GET',
+      headers: {
+        ...this.buildSessionHeaders(authHeader),
+        'x-sap-security-session': 'use',
+        'x-csrf-token': 'Fetch',
+      },
+      signal,
+    });
+    signal?.throwIfAborted();
+
+    if (!response.ok) {
+      this.logger?.warn(
+        `Session: CSRF fetch failed with status ${response.status}`,
+      );
+      return false;
+    }
+    this.processResponse(response);
+
+    if (!this.csrfManager.hasCached()) {
+      this.logger?.warn(
+        'Session: CSRF fetch succeeded but no token found in response',
+      );
+      return false;
+    }
+
+    this.securitySessionActive = true;
+    this.logger?.debug('Session: CSRF token acquired');
+    return true;
+  }
+
+  private async deleteSecuritySession({
+    sessionPath,
+    csrfToken,
+    baseUrl,
+    authHeader,
+    client,
+    signal,
+  }: {
+    sessionPath: string;
+    csrfToken: string;
+    baseUrl: string;
+    authHeader?: string;
+    client?: string;
+    signal?: AbortSignal;
+  }): Promise<void> {
     const deleteUrl = new URL(sessionPath, baseUrl);
     if (client) deleteUrl.searchParams.append('sap-client', client);
     try {
@@ -446,21 +586,25 @@ export class SessionManager {
     }
   }
 
-  private async fetchSecuritySessionCsrfToken(
-    baseUrl: string,
-    authHeader: string | undefined,
-    client: string | undefined,
-    language: string | undefined,
-    signal?: AbortSignal,
-  ): Promise<string | undefined> {
-    const sessionsUrl = new URL('/sap/bc/adt/core/http/sessions', baseUrl);
-    if (client) sessionsUrl.searchParams.append('sap-client', client);
-    if (language) sessionsUrl.searchParams.append('sap-language', language);
+  private async fetchSecuritySessionCsrfToken({
+    baseUrl,
+    authHeader,
+    client,
+    language,
+    signal,
+  }: {
+    baseUrl: string;
+    authHeader?: string;
+    client?: string;
+    language?: string;
+    signal?: AbortSignal;
+  }): Promise<string | undefined> {
+    const sessionsUrl = this.buildSessionsUrl(baseUrl, client, language);
     try {
       this.logger?.debug(
         'Session: Fetching CSRF token for security session cleanup',
       );
-      const csrfResponse = await fetch(sessionsUrl.toString(), {
+      const response = await fetch(sessionsUrl.toString(), {
         method: 'GET',
         headers: {
           ...this.buildSessionHeaders(authHeader),
@@ -469,143 +613,86 @@ export class SessionManager {
         },
         signal: signal ?? AbortSignal.timeout(5_000),
       });
-      if (!csrfResponse.ok) {
+      if (!response.ok) {
         this.logger?.debug(
-          `Session: Cleanup CSRF fetch failed with status ${csrfResponse.status}`,
+          `Session: Cleanup CSRF fetch failed with status ${response.status}`,
         );
         return undefined;
       }
-      this.processResponse(csrfResponse);
-      return this.csrfManager.getCached() ?? undefined;
+      this.processResponse(response);
+      return this.csrfManager.getCached();
     } catch {
       this.logger?.debug('Session: Failed to fetch cleanup CSRF token');
       return undefined;
     }
   }
 
-  async initializeCsrf(
-    baseUrl: string,
-    authHeader?: string,
-    client?: string,
-    language?: string,
-    signal?: AbortSignal,
-  ): Promise<boolean> {
-    signal?.throwIfAborted();
-    const sessionsUrl = new URL('/sap/bc/adt/core/http/sessions', baseUrl);
-    if (client) sessionsUrl.searchParams.append('sap-client', client);
-    if (language) sessionsUrl.searchParams.append('sap-language', language);
-
-    let sessionPath: string | undefined;
-    let acquiredCsrfToken: string | undefined;
-
-    try {
-      // ── Step 1: Create security session ──────────────────────────
-      this.logger?.debug('Session: Creating security session');
-      const createResponse = await fetch(sessionsUrl.toString(), {
-        method: 'GET',
-        headers: {
-          ...this.buildSessionHeaders(authHeader),
-          'x-sap-security-session': 'create',
-        },
-        signal,
+  private async deleteSecuritySessionWithFallback({
+    sessionPath,
+    baseUrl,
+    authHeader,
+    client,
+    language,
+  }: {
+    sessionPath: string;
+    baseUrl: string;
+    authHeader?: string;
+    client?: string;
+    language?: string;
+  }): Promise<void> {
+    const token =
+      this.csrfManager.getCached() ??
+      (await this.fetchSecuritySessionCsrfToken({
+        baseUrl,
+        authHeader,
+        client,
+        language,
+      }));
+    if (token) {
+      await this.deleteSecuritySession({
+        sessionPath,
+        csrfToken: token,
+        baseUrl,
+        authHeader,
+        client,
       });
-      signal?.throwIfAborted();
+    }
+  }
 
-      if (!createResponse.ok) {
-        this.logger?.warn(
-          `Session: Security session creation failed with status ${createResponse.status}`,
-        );
-        return false;
-      }
-      this.processResponse(createResponse);
-
-      const createBody = await createResponse.text();
-      signal?.throwIfAborted();
-      const sessionHrefMatch = createBody.match(
-        /href="([^"]*\/sessions\/[^"]*)"/,
-      );
-      sessionPath = sessionHrefMatch?.[1];
-
-      // ── Step 2: Fetch CSRF token within the session ──────────────
-      this.logger?.debug('Session: Fetching CSRF token');
-      const csrfResponse = await fetch(sessionsUrl.toString(), {
-        method: 'GET',
-        headers: {
-          ...this.buildSessionHeaders(authHeader),
-          'x-sap-security-session': 'use',
-          'x-csrf-token': 'Fetch',
-        },
-        signal,
-      });
-      signal?.throwIfAborted();
-
-      if (!csrfResponse.ok) {
-        this.logger?.warn(
-          `Session: CSRF fetch failed with status ${csrfResponse.status}`,
-        );
-        return false;
-      }
-      this.processResponse(csrfResponse);
-
-      if (!this.csrfManager.hasCached()) {
-        this.logger?.warn(
-          'Session: CSRF fetch succeeded but no token found in response',
-        );
-        return false;
-      }
-
-      acquiredCsrfToken = this.csrfManager.getCached() ?? undefined;
-      this.securitySessionActive = true;
-      this.logger?.debug('Session: CSRF token acquired');
-
-      // ── Step 3: Delete the security session (token stays valid) ──
-      if (sessionPath && acquiredCsrfToken) {
-        await this.deleteSecuritySession(
-          sessionPath,
-          acquiredCsrfToken,
-          baseUrl,
-          authHeader,
-          client,
-          signal,
-        );
-      }
-      signal?.throwIfAborted();
-
-      return true;
-    } catch (error) {
-      if (signal?.aborted) {
-        if (sessionPath && acquiredCsrfToken) {
-          await this.deleteSecuritySession(
-            sessionPath,
-            acquiredCsrfToken,
-            baseUrl,
-            authHeader,
-            client,
-          );
-        } else if (sessionPath) {
-          const cleanupToken = await this.fetchSecuritySessionCsrfToken(
-            baseUrl,
-            authHeader,
-            client,
-            language,
-          );
-          if (cleanupToken) {
-            await this.deleteSecuritySession(
-              sessionPath,
-              cleanupToken,
-              baseUrl,
-              authHeader,
-              client,
-            );
-          }
-        }
-        throw error;
-      }
+  private handleCsrfInitializationError(
+    error: unknown,
+    {
+      baseUrl,
+      authHeader,
+      client,
+      language,
+      sessionPath,
+      signal,
+    }: {
+      baseUrl: string;
+      authHeader?: string;
+      client?: string;
+      language?: string;
+      sessionPath?: string;
+      signal?: AbortSignal;
+    },
+  ): boolean {
+    if (!signal?.aborted) {
       this.logger?.error(
         `Session: CSRF initialization error: ${error instanceof Error ? error.message : String(error)}`,
       );
       return false;
     }
+    if (sessionPath) {
+      this.deleteSecuritySessionWithFallback({
+        sessionPath,
+        baseUrl,
+        authHeader,
+        client,
+        language,
+      }).catch(() => undefined);
+    }
+    throw error;
   }
 
   /**
