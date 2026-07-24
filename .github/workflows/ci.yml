@@ -54,7 +54,7 @@ jobs:
             exit 0
           fi
 
-          if git diff --name-only "$BASE" "$HEAD" | grep -qvE '^(website/|docs/|.*\.md|netlify\.toml)$'; then
+          if git diff --name-only "$BASE" "$HEAD" | grep -qvE '^website/|^docs/|\.md$|^netlify\.toml$'; then
             echo "has-code-changes=true" >> "$GITHUB_OUTPUT"
           else
             echo "has-code-changes=false" >> "$GITHUB_OUTPUT"
