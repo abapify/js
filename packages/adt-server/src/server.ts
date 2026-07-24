@@ -30,8 +30,7 @@ export interface DestinationSummary {
 }
 
 export type FrozenSourceResolution =
-  | { sourceUri: string }
-  | { sourceCapability: string };
+  { sourceUri: string } | { sourceCapability: string };
 
 export type ResolveFrozenSource = (input: {
   destination: string;
@@ -139,6 +138,18 @@ export interface AdtServerMcpOptions {
    * carried only in an AI Review invocation policy.
    */
   resolveFrozenSource: ResolveFrozenSource;
+  /** Deployment-owned atomic authorization hook. */
+  consumeExecutionAuthorization?: NonNullable<
+    import('@abapify/adt-mcp').ToolContext['consumeExecutionAuthorization']
+  >;
+  /** Deployment-owned terminal outcome hook. */
+  reportExecutionOutcome?: NonNullable<
+    import('@abapify/adt-mcp').ToolContext['reportExecutionOutcome']
+  >;
+  /** Hard-cancellable SAP runtime; safe execution is denied when absent. */
+  executeWithDeadline?: NonNullable<
+    import('@abapify/adt-mcp').ToolContext['executeWithDeadline']
+  >;
   allowedHosts?: string[];
 }
 
@@ -213,8 +224,7 @@ function createServerMcpHandler(
   options: AdtServerOptions,
   host: string,
   sourceCapabilities:
-    | ReturnType<typeof createRestSourceCapabilityService>
-    | undefined,
+    ReturnType<typeof createRestSourceCapabilityService> | undefined,
 ) {
   if (!options.mcp) return undefined;
   const mcpOptions = options.mcp;
@@ -253,6 +263,20 @@ function createServerMcpHandler(
           input,
         );
       },
+      ...(mcpOptions.consumeExecutionAuthorization
+        ? {
+            consumeExecutionAuthorization:
+              mcpOptions.consumeExecutionAuthorization,
+          }
+        : {}),
+      ...(mcpOptions.reportExecutionOutcome
+        ? {
+            reportExecutionOutcome: mcpOptions.reportExecutionOutcome,
+          }
+        : {}),
+      ...(mcpOptions.executeWithDeadline
+        ? { executeWithDeadline: mcpOptions.executeWithDeadline }
+        : {}),
     },
   });
 }

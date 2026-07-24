@@ -191,6 +191,23 @@ export function getErrorStatus(error: unknown): number | undefined {
 }
 
 /**
+ * A completed SAP HTTP error response is a deterministic failed execution.
+ * Network, body-stream, abort, and internal parsing errors deliberately do not
+ * match, because dispatch may have happened and their outcome is uncertain.
+ */
+export function isKnownAdtHttpFailure(error: unknown): boolean {
+  const status = getErrorStatus(error);
+  return (
+    error instanceof Error &&
+    error.name === 'AdtError' &&
+    typeof status === 'number' &&
+    Number.isInteger(status) &&
+    status >= 400 &&
+    status <= 599
+  );
+}
+
+/**
  * Build a standard MCP error result with BTP 404 awareness.
  */
 export function mcpErrorResult(

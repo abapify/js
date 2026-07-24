@@ -28,6 +28,7 @@ import {
   isMcpDestinationKey,
   isMcpOperationClass,
   type McpFrozenSourceAccess,
+  type McpScopedAccess,
   type McpRequestAccess,
 } from '../tools/scope-catalogue.js';
 import {
@@ -39,6 +40,8 @@ import {
   isMcpInvocationDispatchPolicySupported,
   parseAiReviewFrozenSourcePolicy,
   parseFrozenSource,
+  parseScopedAdtInvocationPolicy,
+  parseSafeExecutePolicy,
 } from './invocation.js';
 import type {
   McpInvocationVerifier,
@@ -120,6 +123,15 @@ export interface HttpServerOptions {
     resolveFrozenSource?: NonNullable<
       import('../types.js').ToolContext['resolveFrozenSource']
     >;
+    consumeExecutionAuthorization?: NonNullable<
+      import('../types.js').ToolContext['consumeExecutionAuthorization']
+    >;
+    reportExecutionOutcome?: NonNullable<
+      import('../types.js').ToolContext['reportExecutionOutcome']
+    >;
+    executeWithDeadline?: NonNullable<
+      import('../types.js').ToolContext['executeWithDeadline']
+    >;
   };
   /** Inject a logger that writes to stderr by default. */
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
@@ -175,11 +187,114 @@ function snapshotRequestAccess(
 
   const frozenSource = snapshotFrozenSourceAccess(access.frozenSource);
   if (access.frozenSource && !frozenSource) return undefined;
+  const scoped = snapshotScopedAccess(access.scoped);
+  if (access.scoped && !scoped) return undefined;
+  if (
+    scoped &&
+    (classes.length !== 2 ||
+      classes[0] !== 'server' ||
+      classes[1] !== scoped.operationClass)
+  ) {
+    return undefined;
+  }
 
   return Object.freeze({
     classes: Object.freeze([...classes]),
     destinationKeys: Object.freeze([...destinationKeys]),
     ...(frozenSource ? { frozenSource } : {}),
+    ...(scoped ? { scoped } : {}),
+  });
+}
+
+function snapshotScopedAccess(
+  access: McpScopedAccess | undefined,
+): McpScopedAccess | undefined {
+  if (!access) return undefined;
+  const uuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+  const objectKey = /^[A-Z0-9_]{2,30}:[A-Z0-9_/$-]{1,128}$/u;
+  const readTools = new Set(['get_object', 'get_object_structure']);
+  if (
+    typeof access.tokenId !== 'string' ||
+    !access.tokenId ||
+    typeof access.principal !== 'string' ||
+    !access.principal ||
+    typeof access.correlationId !== 'string' ||
+    !access.correlationId ||
+    !uuid.test(access.scopeId) ||
+    !uuid.test(access.executionId) ||
+    !/^[A-Z0-9_-]{1,16}$/u.test(access.systemSid) ||
+    !Number.isSafeInteger(access.maxToolCalls) ||
+    access.maxToolCalls < 1 ||
+    access.maxToolCalls > 12 ||
+    !Array.isArray(access.resourceKeys) ||
+    access.resourceKeys.length > 100 ||
+    !Array.isArray(access.toolNames) ||
+    access.toolNames.length < 1
+  ) {
+    return undefined;
+  }
+  const resourceKeys = [...access.resourceKeys];
+  const toolNames = [...access.toolNames];
+  if (
+    resourceKeys.some(
+      (key) => typeof key !== 'string' || !objectKey.test(key),
+    ) ||
+    new Set(resourceKeys).size !== resourceKeys.length ||
+    resourceKeys.some(
+      (key, index) =>
+        key !==
+        [...resourceKeys].sort((left, right) => left.localeCompare(right))[
+          index
+        ],
+    ) ||
+    toolNames.some((name) => typeof name !== 'string') ||
+    new Set(toolNames).size !== toolNames.length ||
+    toolNames.some(
+      (name, index) =>
+        name !==
+        [...toolNames].sort((left, right) => left.localeCompare(right))[index],
+    )
+  ) {
+    return undefined;
+  }
+
+  if (access.operationClass === 'read') {
+    if (
+      toolNames.some((name) => !readTools.has(name)) ||
+      access.safeExecutePolicy !== undefined ||
+      access.authorizationId !== undefined ||
+      access.authorizationToken !== undefined
+    ) {
+      return undefined;
+    }
+    return Object.freeze({
+      ...access,
+      resourceKeys: Object.freeze(resourceKeys),
+      toolNames: Object.freeze(toolNames),
+    });
+  }
+  if (access.operationClass !== 'safe_execute') return undefined;
+  const safeExecutePolicy = parseSafeExecutePolicy(access.safeExecutePolicy);
+  if (
+    !safeExecutePolicy ||
+    toolNames.length !== 1 ||
+    toolNames[0] !== safeExecutePolicy.operationId ||
+    typeof access.authorizationId !== 'string' ||
+    !uuid.test(access.authorizationId) ||
+    typeof access.authorizationToken !== 'string' ||
+    access.authorizationToken.length > 16 * 1024 ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(
+      access.authorizationToken,
+    )
+  ) {
+    return undefined;
+  }
+  return Object.freeze({
+    ...access,
+    resourceKeys: Object.freeze(resourceKeys),
+    toolNames: Object.freeze(toolNames),
+    safeExecutePolicy,
   });
 }
 
@@ -256,10 +371,21 @@ function invocationRequestAccess(
     return undefined;
   }
   const frozenSource = parseAiReviewFrozenSourcePolicy(invocation);
+  const scopedPolicy = parseScopedAdtInvocationPolicy(invocation);
   return snapshotRequestAccess({
     classes: invocation.classes,
     destinationKeys: invocation.destinationKeys,
     ...(frozenSource ? { frozenSource } : {}),
+    ...(scopedPolicy
+      ? {
+          scoped: {
+            tokenId: invocation.tokenId,
+            principal: invocation.principal,
+            correlationId: invocation.correlationId,
+            ...scopedPolicy,
+          },
+        }
+      : {}),
   });
 }
 
@@ -589,6 +715,24 @@ export function createHttpMcpHandler(
                   ? {
                       resolveFrozenSource:
                         destinationServer.resolveFrozenSource,
+                    }
+                  : {}),
+                ...(destinationServer.consumeExecutionAuthorization
+                  ? {
+                      consumeExecutionAuthorization:
+                        destinationServer.consumeExecutionAuthorization,
+                    }
+                  : {}),
+                ...(destinationServer.reportExecutionOutcome
+                  ? {
+                      reportExecutionOutcome:
+                        destinationServer.reportExecutionOutcome,
+                    }
+                  : {}),
+                ...(destinationServer.executeWithDeadline
+                  ? {
+                      executeWithDeadline:
+                        destinationServer.executeWithDeadline,
                     }
                   : {}),
               }

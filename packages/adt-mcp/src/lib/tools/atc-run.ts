@@ -12,7 +12,7 @@ import type { AdtClient } from '@abapify/adt-client';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
-import { resolveObjectUri } from './utils';
+import { isKnownAdtHttpFailure, resolveObjectUri } from './utils';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -192,6 +192,12 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
       objectUri: z.never().optional(),
     },
     async (args, extra) => {
+      const access = ctx.requestAccess?.(extra ?? {});
+      const safePolicy =
+        access?.scoped?.operationClass === 'safe_execute' &&
+        access.scoped.safeExecutePolicy?.operationId === 'atc_run'
+          ? access.scoped.safeExecutePolicy
+          : undefined;
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const checkVariant = await resolveVariant(client, args.variant);
@@ -205,7 +211,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           { worklistId },
           {
             run: {
-              maximumVerdicts: 10_000,
+              maximumVerdicts: safePolicy?.maxFindings ?? 10_000,
               objectSets: {
                 objectSet: [
                   {
@@ -222,6 +228,18 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
         const worklist = await client.adt.atc.worklists.get(worklistId, {
           includeExemptedFindings: 'false',
         });
+        const findings = canonicalFindings(worklist);
+        if (safePolicy && findings.length > safePolicy.maxFindings) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: 'safe_execute_limit_exceeded',
+              },
+            ],
+          };
+        }
 
         return {
           content: [
@@ -230,7 +248,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
               text: JSON.stringify(
                 {
                   checkVariant,
-                  findings: canonicalFindings(worklist),
+                  findings,
                 },
                 null,
                 2,
@@ -239,6 +257,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           ],
         };
       } catch (error) {
+        if (safePolicy && !isKnownAdtHttpFailure(error)) throw error;
         return {
           isError: true,
           content: [

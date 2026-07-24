@@ -48,6 +48,12 @@ export interface McpServerOptions {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
+  /** Deployment-owned atomic authorization hook required by scoped execution. */
+  consumeExecutionAuthorization?: ToolContext['consumeExecutionAuthorization'];
+  /** Deployment-owned terminal outcome hook required by scoped execution. */
+  reportExecutionOutcome?: ToolContext['reportExecutionOutcome'];
+  /** Hard-cancellable runtime required for scoped execution. */
+  executeWithDeadline?: ToolContext['executeWithDeadline'];
   /** Private ADT broker resolver for signed frozen-source capabilities. */
   resolveFrozenSource: ToolContext['resolveFrozenSource'];
 }
@@ -88,6 +94,20 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
           destinationRegistry: options.destinationRegistry,
           requestIdentity: options.requestIdentity,
           requestAccess: options.requestAccess,
+          ...(options.consumeExecutionAuthorization
+            ? {
+                consumeExecutionAuthorization:
+                  options.consumeExecutionAuthorization,
+              }
+            : {}),
+          ...(options.reportExecutionOutcome
+            ? {
+                reportExecutionOutcome: options.reportExecutionOutcome,
+              }
+            : {}),
+          ...(options.executeWithDeadline
+            ? { executeWithDeadline: options.executeWithDeadline }
+            : {}),
           ...(options.resolveFrozenSource
             ? { resolveFrozenSource: options.resolveFrozenSource }
             : {}),
@@ -98,7 +118,12 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
   const destinationMode = options?.destinationRegistry;
   registerTools(
     destinationMode
-      ? destinationModeServer(server, { requestAccess: options.requestAccess })
+      ? destinationModeServer(server, {
+          requestAccess: options.requestAccess,
+          consumeExecutionAuthorization: options.consumeExecutionAuthorization,
+          reportExecutionOutcome: options.reportExecutionOutcome,
+          executeWithDeadline: options.executeWithDeadline,
+        })
       : server,
     ctx,
   );

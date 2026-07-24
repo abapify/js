@@ -35,6 +35,7 @@ export {
   type AdtHttpAdapter,
   type BoundedTextRequestOptions,
 } from './adapter';
+export { runWithAdtAbortSignal } from './cancellation';
 
 // Export plugins
 export {

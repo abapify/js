@@ -12,6 +12,7 @@ import type {
   McpServer,
   RegisteredTool,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolContext } from '../types.js';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import {
   actionClassesForMcpTool,
@@ -59,6 +60,7 @@ const rawUriFieldsByTool = new Map<string, readonly string[]>([
   ['find_references', ['objectUri']],
   ['get_callers_of', ['objectUri']],
   ['get_callees_of', ['objectUri']],
+  ['get_source_version', ['uri']],
   ['grep_objects', ['objectUris']],
 ]);
 
@@ -81,6 +83,9 @@ export interface DestinationModeOptions {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
+  consumeExecutionAuthorization?: ToolContext['consumeExecutionAuthorization'];
+  reportExecutionOutcome?: ToolContext['reportExecutionOutcome'];
+  executeWithDeadline?: ToolContext['executeWithDeadline'];
 }
 
 type DestinationToolListEntry = {
@@ -100,6 +105,26 @@ function scopeDeniedResult() {
     content: [{ type: 'text' as const, text: 'mcp_scope_denied' }],
   };
 }
+
+function safeExecuteLimitResult(
+  text: 'safe_execute_limit_exceeded' | 'outcome_unknown',
+) {
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text }],
+  };
+}
+
+function isToolErrorResult(result: unknown): boolean {
+  return (
+    !!result &&
+    typeof result === 'object' &&
+    !Array.isArray(result) &&
+    (result as { isError?: unknown }).isError === true
+  );
+}
+
+type DispatchCounter = { admitted: number };
 
 function toolListEntry(
   name: string,
@@ -203,8 +228,7 @@ function transformToolInput(
 ): {
   transformedInputSchema: unknown;
   strictInputSchema:
-    | ReturnType<typeof strictCanonicalDestinationSchema>
-    | undefined;
+    ReturnType<typeof strictCanonicalDestinationSchema> | undefined;
   useRegisterTool: boolean;
 } {
   const requiresStrictCanonicalSchema = rawUriFieldsByTool.has(name);
@@ -229,6 +253,7 @@ function wrapToolHandler(
   handler: Handler,
   name: string,
   options: DestinationModeOptions,
+  counter: DispatchCounter,
 ): Handler {
   return async (...handlerArgs: unknown[]) => {
     const toolArguments =
@@ -252,7 +277,83 @@ function wrapToolHandler(
     ) {
       return scopeDeniedResult();
     }
-    return await handler(...handlerArgs);
+    const scoped = access?.scoped;
+    if (scoped && counter.admitted >= scoped.maxToolCalls) {
+      return scopeDeniedResult();
+    }
+
+    if (scoped?.operationClass !== 'safe_execute') {
+      if (scoped) counter.admitted++;
+      return await handler(...handlerArgs);
+    }
+
+    const policy = scoped.safeExecutePolicy;
+    const authorizationId = scoped.authorizationId;
+    const authorizationToken = scoped.authorizationToken;
+    const destinationKey = toolArguments.destination;
+    const consumeExecutionAuthorization = options.consumeExecutionAuthorization;
+    const reportExecutionOutcome = options.reportExecutionOutcome;
+    const executeWithDeadline = options.executeWithDeadline;
+    if (
+      !policy ||
+      !authorizationId ||
+      !authorizationToken ||
+      typeof destinationKey !== 'string' ||
+      !consumeExecutionAuthorization ||
+      !reportExecutionOutcome ||
+      !executeWithDeadline
+    ) {
+      return scopeDeniedResult();
+    }
+    try {
+      const consumed = await consumeExecutionAuthorization({
+        authorizationId,
+        authorizationToken,
+        principal: scoped.principal,
+        scopeId: scoped.scopeId,
+        executionId: scoped.executionId,
+        systemSid: scoped.systemSid,
+        resourceKeys: scoped.resourceKeys,
+        destination: destinationKey,
+        operationId: policy.operationId,
+        policy,
+      });
+      if (!consumed) return scopeDeniedResult();
+    } catch {
+      return scopeDeniedResult();
+    }
+
+    counter.admitted++;
+    let outcome: 'succeeded' | 'failed' | 'outcome_unknown';
+    let result: unknown;
+    try {
+      result = await executeWithDeadline({
+        maxDurationMs: policy.maxDurationMs,
+        operation: async () => await handler(...handlerArgs),
+      });
+      if (
+        new TextEncoder().encode(JSON.stringify(result)).byteLength >
+        policy.maxResultBytes
+      ) {
+        result = safeExecuteLimitResult('safe_execute_limit_exceeded');
+      }
+      outcome = isToolErrorResult(result) ? 'failed' : 'succeeded';
+    } catch {
+      outcome = 'outcome_unknown';
+      result = safeExecuteLimitResult('outcome_unknown');
+    }
+
+    try {
+      const recorded = await reportExecutionOutcome({
+        authorizationId,
+        authorizationToken,
+        outcome,
+      });
+      if (!recorded) return safeExecuteLimitResult('outcome_unknown');
+    } catch {
+      return safeExecuteLimitResult('outcome_unknown');
+    }
+    return result;
   };
 }
 
@@ -262,8 +363,7 @@ function registerDestinationTool(
   description: string | undefined,
   transformedInputSchema: unknown,
   strictInputSchema:
-    | ReturnType<typeof strictCanonicalDestinationSchema>
-    | undefined,
+    ReturnType<typeof strictCanonicalDestinationSchema> | undefined,
   wrappedHandler: Handler,
   useRegisterTool: boolean,
 ): unknown {
@@ -317,6 +417,7 @@ export function destinationModeServer(
   options: DestinationModeOptions = {},
 ): McpServer {
   const inventory = new Map<string, DestinationToolListEntry>();
+  const counter: DispatchCounter = { admitted: 0 };
   destinationToolInventories.set(server, inventory);
   return new Proxy(server, {
     get(target, property, receiver) {
@@ -334,6 +435,7 @@ export function destinationModeServer(
           handler as Handler,
           name,
           options,
+          counter,
         );
         const registeredTool = registerDestinationTool(
           target,

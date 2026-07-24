@@ -411,7 +411,9 @@ export class SessionManager {
     authHeader?: string,
     client?: string,
     language?: string,
+    signal?: AbortSignal,
   ): Promise<boolean> {
+    signal?.throwIfAborted();
     const sessionsUrl = new URL('/sap/bc/adt/core/http/sessions', baseUrl);
 
     if (client) {
@@ -442,7 +444,9 @@ export class SessionManager {
           ...baseHeaders(),
           'x-sap-security-session': 'create',
         },
+        signal,
       });
+      signal?.throwIfAborted();
 
       if (!createResponse.ok) {
         this.logger?.warn(
@@ -456,6 +460,7 @@ export class SessionManager {
 
       // Extract session URL from response body for later DELETE
       const createBody = await createResponse.text();
+      signal?.throwIfAborted();
       const sessionHrefMatch = createBody.match(
         /href="([^"]*\/sessions\/[^"]*)"/,
       );
@@ -470,7 +475,9 @@ export class SessionManager {
           'x-sap-security-session': 'use',
           'x-csrf-token': 'Fetch',
         },
+        signal,
       });
+      signal?.throwIfAborted();
 
       if (!csrfResponse.ok) {
         this.logger?.warn(
@@ -509,9 +516,12 @@ export class SessionManager {
               'x-sap-security-session': 'use',
               'x-csrf-token': this.csrfManager.getCached()!,
             },
+            signal,
           });
+          signal?.throwIfAborted();
           this.logger?.debug('Session: Security session deleted');
-        } catch {
+        } catch (error) {
+          if (signal?.aborted) throw error;
           // Best-effort — session will time out anyway
           this.logger?.debug(
             'Session: Failed to delete security session (will expire)',
@@ -521,6 +531,10 @@ export class SessionManager {
 
       return true;
     } catch (error) {
+      if (signal?.aborted) {
+        this.clear();
+        throw error;
+      }
       this.logger?.error(
         `Session: CSRF initialization error: ${error instanceof Error ? error.message : String(error)}`,
       );
