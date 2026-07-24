@@ -25,7 +25,7 @@ async function signInvocation(
     tokenId?: string;
     classes?: string[];
     destinationKeys?: string[];
-    agentId?: 'ai-review' | 'system-assistant';
+    agentId?: 'ai-review' | 'jess';
     constraint?: Record<string, unknown>;
     limits?: Record<string, unknown>;
   } = {},
@@ -35,7 +35,7 @@ async function signInvocation(
     v: 1,
     kid: keyId,
     principal: 'petr.plenkov',
-    agentId: overrides.agentId ?? 'system-assistant',
+    agentId: overrides.agentId ?? 'jess',
     classes: overrides.classes ?? ['server', 'read'],
     destinationKeys: overrides.destinationKeys ?? ['dev'],
     correlationId: 'correlation-http-invocation',
@@ -47,8 +47,21 @@ async function signInvocation(
             runId: 'run-1',
             frozenCanonicalKeys: ['CLAS:ZCL_SCOPE_TEST'],
           }
-        : { systemSid: 'DEV' }),
-    limits: overrides.limits ?? {},
+        : {
+            kind: 'jess-adt-v1',
+            threadId: '11111111-1111-4111-8111-111111111111',
+            executionId: '22222222-2222-4222-8222-222222222222',
+            systemSid: 'DEV',
+            objectKeys: ['CLAS:ZCL_SCOPE_TEST'],
+            toolNames: ['get_object'],
+          }),
+    limits:
+      overrides.limits ??
+      (overrides.agentId === 'ai-review'
+        ? {}
+        : {
+            maxToolCalls: 3,
+          }),
   })
     .setProtectedHeader({ alg: 'ES256', kid: keyId, typ: 'JWT' })
     .setIssuer(issuer)
@@ -121,7 +134,7 @@ test('ADT invocation auth snapshots verified read scope and binds continuation t
     assert.ok(transport.sessionId);
 
     const tools = await client.listTools();
-    assert.ok(tools.tools.some((tool) => tool.name === 'system_info'));
+    assert.ok(tools.tools.some((tool) => tool.name === 'get_object'));
     assert.ok(!tools.tools.some((tool) => tool.name === 'lock_object'));
 
     const denied = await client.callTool({
@@ -152,8 +165,12 @@ test('ADT invocation auth snapshots verified read scope and binds continuation t
         id: 1,
         method: 'tools/call',
         params: {
-          name: 'system_info',
-          arguments: { destination: 'dev' },
+          name: 'get_object',
+          arguments: {
+            destination: 'dev',
+            objectType: 'CLAS',
+            objectName: 'ZCL_SCOPE_TEST',
+          },
         },
       }),
     });

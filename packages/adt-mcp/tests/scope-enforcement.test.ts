@@ -121,6 +121,10 @@ test('ATC analysis requires an explicit safe-execution class', async () => {
   assert.notStrictEqual(permitted.isError, true);
   assert.strictEqual(permitted.content[0]?.text, 'permitted');
   assert.strictEqual(calls, 1);
+  assert.strictEqual(
+    MCP_TOOL_SCOPE_CATALOGUE.run_unit_tests?.operationClass,
+    'safe_execute',
+  );
 });
 
 test('a read-scoped caller cannot dispatch a permitted read tool on an unauthorised destination', async () => {
@@ -257,7 +261,10 @@ test('createMcpServer denies a crafted write call in destination mode', async ()
   const destinations = destinationRegistry(() => leases++);
   const server = createMcpServer({
     destinationRegistry: destinations,
-    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+    requestAccess: () => ({
+      classes: ['safe_execute'],
+      destinationKeys: ['dev'],
+    }),
   });
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
@@ -375,7 +382,6 @@ test('destination mode hides raw URI fields from all canonical read tools', asyn
   try {
     const tools = await client.listTools();
     const forbiddenFields: Readonly<Record<string, string>> = {
-      atc_run: 'objectUri',
       get_callers_of: 'objectUri',
       get_callees_of: 'objectUri',
       find_references: 'objectUri',

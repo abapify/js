@@ -193,6 +193,12 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
     },
     async (args, extra) => {
       try {
+        const access = ctx.requestAccess?.(extra ?? {});
+        const safePolicy =
+          access?.jess?.operationClass === 'safe_execute' &&
+          access.jess.safeExecutePolicy?.operationId === 'atc_run'
+            ? access.jess.safeExecutePolicy
+            : undefined;
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const checkVariant = await resolveVariant(client, args.variant);
         const created = await client.adt.atc.worklists.create({
@@ -205,7 +211,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           { worklistId },
           {
             run: {
-              maximumVerdicts: 10_000,
+              maximumVerdicts: safePolicy?.maxFindings ?? 10_000,
               objectSets: {
                 objectSet: [
                   {
@@ -222,6 +228,18 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
         const worklist = await client.adt.atc.worklists.get(worklistId, {
           includeExemptedFindings: 'false',
         });
+        const findings = canonicalFindings(worklist);
+        if (safePolicy && findings.length > safePolicy.maxFindings) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: 'safe_execute_limit_exceeded',
+              },
+            ],
+          };
+        }
 
         return {
           content: [
@@ -230,7 +248,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
               text: JSON.stringify(
                 {
                   checkVariant,
-                  findings: canonicalFindings(worklist),
+                  findings,
                 },
                 null,
                 2,

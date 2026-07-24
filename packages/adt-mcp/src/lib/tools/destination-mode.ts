@@ -12,6 +12,7 @@ import type {
   McpServer,
   RegisteredTool,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolContext } from '../types.js';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import {
   actionClassesForMcpTool,
@@ -81,6 +82,8 @@ export interface DestinationModeOptions {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
+  consumeSafeExecuteGrant?: ToolContext['consumeSafeExecuteGrant'];
+  executeSafeTool?: ToolContext['executeSafeTool'];
 }
 
 type DestinationToolListEntry = {
@@ -100,6 +103,17 @@ function scopeDeniedResult() {
     content: [{ type: 'text' as const, text: 'mcp_scope_denied' }],
   };
 }
+
+function safeExecuteLimitResult(
+  text: 'safe_execute_limit_exceeded' | 'outcome_unknown',
+) {
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text }],
+  };
+}
+
+type DispatchCounter = { admitted: number };
 
 function toolListEntry(
   name: string,
@@ -203,8 +217,7 @@ function transformToolInput(
 ): {
   transformedInputSchema: unknown;
   strictInputSchema:
-    | ReturnType<typeof strictCanonicalDestinationSchema>
-    | undefined;
+    ReturnType<typeof strictCanonicalDestinationSchema> | undefined;
   useRegisterTool: boolean;
 } {
   const requiresStrictCanonicalSchema = rawUriFieldsByTool.has(name);
@@ -229,6 +242,7 @@ function wrapToolHandler(
   handler: Handler,
   name: string,
   options: DestinationModeOptions,
+  counter: DispatchCounter,
 ): Handler {
   return async (...handlerArgs: unknown[]) => {
     const toolArguments =
@@ -252,7 +266,66 @@ function wrapToolHandler(
     ) {
       return scopeDeniedResult();
     }
-    return await handler(...handlerArgs);
+    const jess = access?.jess;
+    if (jess && counter.admitted >= jess.maxToolCalls) {
+      return scopeDeniedResult();
+    }
+
+    if (jess?.operationClass !== 'safe_execute') {
+      if (jess) counter.admitted++;
+      return await handler(...handlerArgs);
+    }
+
+    const policy = jess.safeExecutePolicy;
+    const grantJti = jess.safeExecuteGrantJti;
+    const opaqueGrant = jess.safeExecuteGrant;
+    const destinationKey = toolArguments.destination;
+    const consumeSafeExecuteGrant = options.consumeSafeExecuteGrant;
+    const executeSafeTool = options.executeSafeTool;
+    if (
+      !policy ||
+      !grantJti ||
+      !opaqueGrant ||
+      typeof destinationKey !== 'string' ||
+      !consumeSafeExecuteGrant ||
+      !executeSafeTool
+    ) {
+      return scopeDeniedResult();
+    }
+    try {
+      const consumed = await consumeSafeExecuteGrant({
+        grantJti,
+        opaqueGrant,
+        principal: jess.principal,
+        threadId: jess.threadId,
+        executionId: jess.executionId,
+        systemSid: jess.systemSid,
+        objectKeys: jess.objectKeys,
+        destination: destinationKey,
+        operationId: policy.operationId,
+        policy,
+      });
+      if (!consumed) return scopeDeniedResult();
+    } catch {
+      return scopeDeniedResult();
+    }
+
+    counter.admitted++;
+    try {
+      const result = await executeSafeTool({
+        maxDurationMs: policy.maxDurationMs,
+        operation: async () => await handler(...handlerArgs),
+      });
+      if (
+        new TextEncoder().encode(JSON.stringify(result)).byteLength >
+        policy.maxResultBytes
+      ) {
+        return safeExecuteLimitResult('safe_execute_limit_exceeded');
+      }
+      return result;
+    } catch {
+      return safeExecuteLimitResult('outcome_unknown');
+    }
   };
 }
 
@@ -262,8 +335,7 @@ function registerDestinationTool(
   description: string | undefined,
   transformedInputSchema: unknown,
   strictInputSchema:
-    | ReturnType<typeof strictCanonicalDestinationSchema>
-    | undefined,
+    ReturnType<typeof strictCanonicalDestinationSchema> | undefined,
   wrappedHandler: Handler,
   useRegisterTool: boolean,
 ): unknown {
@@ -317,6 +389,7 @@ export function destinationModeServer(
   options: DestinationModeOptions = {},
 ): McpServer {
   const inventory = new Map<string, DestinationToolListEntry>();
+  const counter: DispatchCounter = { admitted: 0 };
   destinationToolInventories.set(server, inventory);
   return new Proxy(server, {
     get(target, property, receiver) {
@@ -334,6 +407,7 @@ export function destinationModeServer(
           handler as Handler,
           name,
           options,
+          counter,
         );
         const registeredTool = registerDestinationTool(
           target,

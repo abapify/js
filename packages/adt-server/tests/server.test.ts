@@ -104,12 +104,19 @@ test('mounts signed MCP only at /mcp while preserving REST endpoints', async () 
     v: 1,
     kid: 'mount-test-key',
     principal: 'mount-test-user',
-    agentId: 'system-assistant',
+    agentId: 'jess',
     classes: ['server', 'read'],
     destinationKeys: ['dev'],
     correlationId: 'mount-test-correlation',
-    constraint: { systemSid: 'DEV' },
-    limits: {},
+    constraint: {
+      kind: 'jess-adt-v1',
+      threadId: '11111111-1111-4111-8111-111111111111',
+      executionId: '22222222-2222-4222-8222-222222222222',
+      systemSid: 'DEV',
+      objectKeys: ['CLAS:ZCL_MOUNT_TEST'],
+      toolNames: ['get_object'],
+    },
+    limits: { maxToolCalls: 1 },
   })
     .setProtectedHeader({ alg: 'ES256', kid: 'mount-test-key', typ: 'JWT' })
     .setIssuer('adt-api')

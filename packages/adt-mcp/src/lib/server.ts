@@ -48,6 +48,10 @@ export interface McpServerOptions {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
+  /** Atomic ARM grant-consumption hook required by Jess safe execution. */
+  consumeSafeExecuteGrant?: ToolContext['consumeSafeExecuteGrant'];
+  /** Hard-cancellable runtime required for Jess safe execution. */
+  executeSafeTool?: ToolContext['executeSafeTool'];
   /** Private ADT broker resolver for signed frozen-source capabilities. */
   resolveFrozenSource: ToolContext['resolveFrozenSource'];
 }
@@ -88,6 +92,14 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
           destinationRegistry: options.destinationRegistry,
           requestIdentity: options.requestIdentity,
           requestAccess: options.requestAccess,
+          ...(options.consumeSafeExecuteGrant
+            ? {
+                consumeSafeExecuteGrant: options.consumeSafeExecuteGrant,
+              }
+            : {}),
+          ...(options.executeSafeTool
+            ? { executeSafeTool: options.executeSafeTool }
+            : {}),
           ...(options.resolveFrozenSource
             ? { resolveFrozenSource: options.resolveFrozenSource }
             : {}),
@@ -98,7 +110,11 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
   const destinationMode = options?.destinationRegistry;
   registerTools(
     destinationMode
-      ? destinationModeServer(server, { requestAccess: options.requestAccess })
+      ? destinationModeServer(server, {
+          requestAccess: options.requestAccess,
+          consumeSafeExecuteGrant: options.consumeSafeExecuteGrant,
+          executeSafeTool: options.executeSafeTool,
+        })
       : server,
     ctx,
   );

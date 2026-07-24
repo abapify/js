@@ -28,6 +28,7 @@ import {
   isMcpDestinationKey,
   isMcpOperationClass,
   type McpFrozenSourceAccess,
+  type McpJessAccess,
   type McpRequestAccess,
 } from '../tools/scope-catalogue.js';
 import {
@@ -39,6 +40,8 @@ import {
   isMcpInvocationDispatchPolicySupported,
   parseAiReviewFrozenSourcePolicy,
   parseFrozenSource,
+  parseJessAdtInvocationPolicy,
+  parseSafeExecutePolicy,
 } from './invocation.js';
 import type {
   McpInvocationVerifier,
@@ -120,6 +123,12 @@ export interface HttpServerOptions {
     resolveFrozenSource?: NonNullable<
       import('../types.js').ToolContext['resolveFrozenSource']
     >;
+    consumeSafeExecuteGrant?: NonNullable<
+      import('../types.js').ToolContext['consumeSafeExecuteGrant']
+    >;
+    executeSafeTool?: NonNullable<
+      import('../types.js').ToolContext['executeSafeTool']
+    >;
   };
   /** Inject a logger that writes to stderr by default. */
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
@@ -175,11 +184,115 @@ function snapshotRequestAccess(
 
   const frozenSource = snapshotFrozenSourceAccess(access.frozenSource);
   if (access.frozenSource && !frozenSource) return undefined;
+  const jess = snapshotJessAccess(access.jess);
+  if (access.jess && !jess) return undefined;
+  if (
+    jess &&
+    (classes.length !== 2 ||
+      classes[0] !== 'server' ||
+      classes[1] !== jess.operationClass)
+  ) {
+    return undefined;
+  }
 
   return Object.freeze({
     classes: Object.freeze([...classes]),
     destinationKeys: Object.freeze([...destinationKeys]),
     ...(frozenSource ? { frozenSource } : {}),
+    ...(jess ? { jess } : {}),
+  });
+}
+
+function snapshotJessAccess(
+  access: McpJessAccess | undefined,
+): McpJessAccess | undefined {
+  if (!access) return undefined;
+  const uuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+  const objectKey = /^[A-Z0-9_]{2,30}:[A-Z0-9_/$-]{1,128}$/u;
+  const readTools = new Set([
+    'get_object',
+    'get_object_structure',
+    'cts_get_transport',
+    'cts_transport_objects',
+  ]);
+  if (
+    typeof access.tokenId !== 'string' ||
+    !access.tokenId ||
+    typeof access.principal !== 'string' ||
+    !access.principal ||
+    typeof access.correlationId !== 'string' ||
+    !access.correlationId ||
+    !uuid.test(access.threadId) ||
+    !uuid.test(access.executionId) ||
+    !/^[A-Z0-9_-]{1,16}$/u.test(access.systemSid) ||
+    !Number.isSafeInteger(access.maxToolCalls) ||
+    access.maxToolCalls < 1 ||
+    access.maxToolCalls > 12 ||
+    !Array.isArray(access.objectKeys) ||
+    access.objectKeys.length > 100 ||
+    !Array.isArray(access.toolNames) ||
+    access.toolNames.length < 1
+  ) {
+    return undefined;
+  }
+  const objectKeys = [...access.objectKeys];
+  const toolNames = [...access.toolNames];
+  if (
+    objectKeys.some((key) => typeof key !== 'string' || !objectKey.test(key)) ||
+    new Set(objectKeys).size !== objectKeys.length ||
+    objectKeys.some(
+      (key, index) =>
+        key !==
+        [...objectKeys].sort((left, right) => left.localeCompare(right))[index],
+    ) ||
+    toolNames.some((name) => typeof name !== 'string') ||
+    new Set(toolNames).size !== toolNames.length ||
+    toolNames.some(
+      (name, index) =>
+        name !==
+        [...toolNames].sort((left, right) => left.localeCompare(right))[index],
+    )
+  ) {
+    return undefined;
+  }
+
+  if (access.operationClass === 'read') {
+    if (
+      toolNames.some((name) => !readTools.has(name)) ||
+      access.safeExecutePolicy !== undefined ||
+      access.safeExecuteGrantJti !== undefined ||
+      access.safeExecuteGrant !== undefined
+    ) {
+      return undefined;
+    }
+    return Object.freeze({
+      ...access,
+      objectKeys: Object.freeze(objectKeys),
+      toolNames: Object.freeze(toolNames),
+    });
+  }
+  if (access.operationClass !== 'safe_execute') return undefined;
+  const safeExecutePolicy = parseSafeExecutePolicy(access.safeExecutePolicy);
+  if (
+    !safeExecutePolicy ||
+    toolNames.length !== 1 ||
+    toolNames[0] !== safeExecutePolicy.operationId ||
+    typeof access.safeExecuteGrantJti !== 'string' ||
+    !uuid.test(access.safeExecuteGrantJti) ||
+    typeof access.safeExecuteGrant !== 'string' ||
+    access.safeExecuteGrant.length > 16 * 1024 ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(
+      access.safeExecuteGrant,
+    )
+  ) {
+    return undefined;
+  }
+  return Object.freeze({
+    ...access,
+    objectKeys: Object.freeze(objectKeys),
+    toolNames: Object.freeze(toolNames),
+    safeExecutePolicy,
   });
 }
 
@@ -256,10 +369,21 @@ function invocationRequestAccess(
     return undefined;
   }
   const frozenSource = parseAiReviewFrozenSourcePolicy(invocation);
+  const jessPolicy = parseJessAdtInvocationPolicy(invocation);
   return snapshotRequestAccess({
     classes: invocation.classes,
     destinationKeys: invocation.destinationKeys,
     ...(frozenSource ? { frozenSource } : {}),
+    ...(jessPolicy
+      ? {
+          jess: {
+            tokenId: invocation.tokenId,
+            principal: invocation.principal,
+            correlationId: invocation.correlationId,
+            ...jessPolicy,
+          },
+        }
+      : {}),
   });
 }
 
@@ -589,6 +713,17 @@ export function createHttpMcpHandler(
                   ? {
                       resolveFrozenSource:
                         destinationServer.resolveFrozenSource,
+                    }
+                  : {}),
+                ...(destinationServer.consumeSafeExecuteGrant
+                  ? {
+                      consumeSafeExecuteGrant:
+                        destinationServer.consumeSafeExecuteGrant,
+                    }
+                  : {}),
+                ...(destinationServer.executeSafeTool
+                  ? {
+                      executeSafeTool: destinationServer.executeSafeTool,
                     }
                   : {}),
               }

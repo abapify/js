@@ -6,6 +6,8 @@
  * catalogue is the single source of truth for the operation a tool performs.
  */
 
+import type { SafeExecutePolicy } from '../http/invocation.js';
+
 export type McpOperationClass = 'server' | 'read' | 'safe_execute' | 'write';
 
 const destinationKeyPattern = /^[a-z][a-z0-9-]{1,62}$/u;
@@ -32,6 +34,24 @@ export interface McpRequestAccess {
   destinationKeys: readonly string[];
   /** A typed signed policy that removes ambient AI Review read authority. */
   frozenSource?: McpFrozenSourceAccess;
+  /** Exact execution-scoped Jess catalogue and dispatch policy. */
+  jess?: McpJessAccess;
+}
+
+export interface McpJessAccess {
+  readonly tokenId: string;
+  readonly principal: string;
+  readonly correlationId: string;
+  readonly threadId: string;
+  readonly executionId: string;
+  readonly systemSid: string;
+  readonly objectKeys: readonly string[];
+  readonly toolNames: readonly string[];
+  readonly operationClass: 'read' | 'safe_execute';
+  readonly maxToolCalls: number;
+  readonly safeExecutePolicy?: SafeExecutePolicy;
+  readonly safeExecuteGrantJti?: string;
+  readonly safeExecuteGrant?: string;
 }
 
 export interface McpFrozenSourceAccess {
@@ -131,7 +151,6 @@ export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
       'lookup_user',
       'pretty_print',
       'run_query',
-      'run_unit_tests',
       'sap_connect',
       'sap_disconnect',
       'search_objects',
@@ -145,7 +164,7 @@ export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
     ]),
     // ATC creates a server-side worklist even though it does not mutate ABAP
     // repository objects. It therefore needs an explicit execution grant.
-    ...safeExecute(['atc_run']),
+    ...safeExecute(['atc_run', 'run_unit_tests']),
     ...write([
       'activate_object',
       'activate_package',
@@ -247,11 +266,180 @@ export function isMcpToolAllowed(
   arguments_: Record<string, unknown> = {},
 ): boolean {
   const classes = access?.classes;
-  return Boolean(
+  const classAllowed = Boolean(
     Array.isArray(classes) &&
     classes.every(isMcpOperationClass) &&
     classes.includes(operationClassForMcpTool(name, arguments_)),
   );
+  if (!classAllowed) return false;
+  const jess = access?.jess;
+  return (
+    !jess ||
+    (jess.operationClass === operationClassForMcpTool(name, arguments_) &&
+      jess.toolNames.includes(name))
+  );
+}
+
+function canonicalObjectKey(
+  objectType: unknown,
+  objectName: unknown,
+): string | undefined {
+  if (typeof objectType !== 'string' || typeof objectName !== 'string') {
+    return undefined;
+  }
+  const key = `${objectType.trim().toUpperCase()}:${objectName
+    .trim()
+    .toUpperCase()}`;
+  return /^[A-Z0-9_]{2,30}:[A-Z0-9_/$-]{1,128}$/u.test(key) ? key : undefined;
+}
+
+function sortedUnique(
+  values: readonly string[],
+): readonly string[] | undefined {
+  if (new Set(values).size !== values.length) return undefined;
+  return [...values].sort((left, right) => left.localeCompare(right));
+}
+
+function exactStringArrays(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+export interface NormalizedUnitTestOptions {
+  readonly effectiveWithCoverage: boolean;
+  readonly effectiveCoverageFormat: 'jacoco' | 'sonar-generic' | null;
+}
+
+/**
+ * Canonicalises the accepted AUnit coverage spellings before policy
+ * comparison. The legacy alias is accepted only for compatibility and can
+ * never disagree with `withCoverage`.
+ */
+export function normalizeUnitTestOptions(
+  arguments_: Record<string, unknown>,
+): NormalizedUnitTestOptions | undefined {
+  const withCoverage = arguments_.withCoverage;
+  const coverage = arguments_.coverage;
+  const coverageFormat = arguments_.coverageFormat;
+  if (
+    (withCoverage !== undefined && typeof withCoverage !== 'boolean') ||
+    (coverage !== undefined && typeof coverage !== 'boolean') ||
+    (coverageFormat !== undefined &&
+      coverageFormat !== 'jacoco' &&
+      coverageFormat !== 'sonar-generic')
+  ) {
+    return undefined;
+  }
+  if (
+    withCoverage !== undefined &&
+    coverage !== undefined &&
+    withCoverage !== coverage
+  ) {
+    return undefined;
+  }
+  const effectiveWithCoverage =
+    (coverage as boolean | undefined) ??
+    (withCoverage as boolean | undefined) ??
+    false;
+  return {
+    effectiveWithCoverage,
+    effectiveCoverageFormat: effectiveWithCoverage
+      ? ((coverageFormat as 'jacoco' | 'sonar-generic' | undefined) ?? 'jacoco')
+      : null,
+  };
+}
+
+function isJessReadResourceAllowed(
+  jess: McpJessAccess,
+  name: string,
+  arguments_: Record<string, unknown>,
+): boolean {
+  if (name !== 'get_object' && name !== 'get_object_structure') return true;
+  const key = canonicalObjectKey(arguments_.objectType, arguments_.objectName);
+  return Boolean(key && jess.objectKeys.includes(key));
+}
+
+function isJessAtcResourceAllowed(
+  jess: McpJessAccess,
+  arguments_: Record<string, unknown>,
+): boolean {
+  const policy = jess.safeExecutePolicy;
+  const scope = arguments_.scope;
+  if (
+    !policy ||
+    policy.operationId !== 'atc_run' ||
+    policy.check !== 'atc' ||
+    !scope ||
+    typeof scope !== 'object' ||
+    Array.isArray(scope)
+  ) {
+    return false;
+  }
+  const scopeRecord = scope as Record<string, unknown>;
+  const variantCount = 1;
+  if (variantCount > policy.maxVariants) return false;
+
+  if (scopeRecord.kind === 'package') {
+    // A package selector would expand only after SAP I/O, too late to compare
+    // every object with the signed scope. ARM must materialise the expansion
+    // into this tool's canonical `objects` scope before issuing the grant.
+    return false;
+  }
+  if (scopeRecord.kind !== 'objects' || !Array.isArray(scopeRecord.objects)) {
+    // Transport expansion has no corresponding signed count bound.
+    return false;
+  }
+  const keys: string[] = [];
+  let packageCount = 0;
+  for (const object of scopeRecord.objects) {
+    if (!object || typeof object !== 'object' || Array.isArray(object)) {
+      return false;
+    }
+    const record = object as Record<string, unknown>;
+    const key = canonicalObjectKey(record.objectType, record.objectName);
+    if (!key) return false;
+    if (key.startsWith('DEVC:')) packageCount++;
+    keys.push(key);
+  }
+  const sortedKeys = sortedUnique(keys);
+  return Boolean(
+    sortedKeys &&
+    sortedKeys.length <= policy.maxObjects &&
+    packageCount <= policy.maxPackages &&
+    exactStringArrays(jess.objectKeys, sortedKeys),
+  );
+}
+
+function isJessUnitTestResourceAllowed(
+  jess: McpJessAccess,
+  arguments_: Record<string, unknown>,
+): boolean {
+  const policy = jess.safeExecutePolicy;
+  const key = canonicalObjectKey(arguments_.objectType, arguments_.objectName);
+  const normalized = normalizeUnitTestOptions(arguments_);
+  if (
+    !policy ||
+    policy.operationId !== 'run_unit_tests' ||
+    !key ||
+    !normalized ||
+    policy.maxObjects < 1 ||
+    !exactStringArrays(jess.objectKeys, [key])
+  ) {
+    return false;
+  }
+  return policy.check === 'aunit'
+    ? normalized.effectiveWithCoverage === false &&
+        normalized.effectiveCoverageFormat === null &&
+        policy.effectiveWithCoverage === false &&
+        policy.effectiveCoverageFormat === null
+    : normalized.effectiveWithCoverage === true &&
+        normalized.effectiveCoverageFormat === policy.effectiveCoverageFormat &&
+        policy.effectiveWithCoverage === true;
 }
 
 /**
@@ -264,6 +452,19 @@ export function isMcpToolResourceAllowed(
   name: string,
   arguments_: Record<string, unknown> = {},
 ): boolean {
+  const jess = access?.jess;
+  if (jess) {
+    if (jess.operationClass === 'read') {
+      return isJessReadResourceAllowed(jess, name, arguments_);
+    }
+    if (name === 'atc_run') {
+      return isJessAtcResourceAllowed(jess, arguments_);
+    }
+    if (name === 'run_unit_tests') {
+      return isJessUnitTestResourceAllowed(jess, arguments_);
+    }
+    return false;
+  }
   const frozenSource = access?.frozenSource;
   if (!frozenSource) return name !== 'get_frozen_source';
   if (name !== 'get_frozen_source') return false;
@@ -317,6 +518,14 @@ export function isMcpToolListed(
     return false;
   }
   if (access.frozenSource) return name === 'get_frozen_source';
+  if (access.jess) {
+    const operationClass =
+      'actionClasses' in entry ? undefined : entry.operationClass;
+    return (
+      operationClass === access.jess.operationClass &&
+      access.jess.toolNames.includes(name)
+    );
+  }
   if (name === 'get_frozen_source') return false;
   const classes =
     'actionClasses' in entry

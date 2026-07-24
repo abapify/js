@@ -30,8 +30,7 @@ export interface DestinationSummary {
 }
 
 export type FrozenSourceResolution =
-  | { sourceUri: string }
-  | { sourceCapability: string };
+  { sourceUri: string } | { sourceCapability: string };
 
 export type ResolveFrozenSource = (input: {
   destination: string;
@@ -139,6 +138,14 @@ export interface AdtServerMcpOptions {
    * carried only in an AI Review invocation policy.
    */
   resolveFrozenSource: ResolveFrozenSource;
+  /** Atomic ARM grant consume; present only when safe execution is enabled. */
+  consumeSafeExecuteGrant?: NonNullable<
+    import('@abapify/adt-mcp').ToolContext['consumeSafeExecuteGrant']
+  >;
+  /** Hard-cancellable SAP runtime; safe execution is denied when absent. */
+  executeSafeTool?: NonNullable<
+    import('@abapify/adt-mcp').ToolContext['executeSafeTool']
+  >;
   allowedHosts?: string[];
 }
 
@@ -213,8 +220,7 @@ function createServerMcpHandler(
   options: AdtServerOptions,
   host: string,
   sourceCapabilities:
-    | ReturnType<typeof createRestSourceCapabilityService>
-    | undefined,
+    ReturnType<typeof createRestSourceCapabilityService> | undefined,
 ) {
   if (!options.mcp) return undefined;
   const mcpOptions = options.mcp;
@@ -253,6 +259,14 @@ function createServerMcpHandler(
           input,
         );
       },
+      ...(mcpOptions.consumeSafeExecuteGrant
+        ? {
+            consumeSafeExecuteGrant: mcpOptions.consumeSafeExecuteGrant,
+          }
+        : {}),
+      ...(mcpOptions.executeSafeTool
+        ? { executeSafeTool: mcpOptions.executeSafeTool }
+        : {}),
     },
   });
 }

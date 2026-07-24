@@ -41,12 +41,19 @@ function claims(overrides: JWTPayload = {}): JWTPayload {
     v: 1,
     kid: keyId,
     principal: 'petr.plenkov',
-    agentId: 'system-assistant',
+    agentId: 'jess',
     classes: ['server', 'read'],
     destinationKeys: ['trl-rise'],
     correlationId: 'correlation-001',
-    constraint: { systemSid: 'TRL', frozenScope: ['ZCL_ADT_REVIEW'] },
-    limits: { maxSourceBytes: 65_536 },
+    constraint: {
+      kind: 'jess-adt-v1',
+      threadId: '11111111-1111-4111-8111-111111111111',
+      executionId: '22222222-2222-4222-8222-222222222222',
+      systemSid: 'TRL',
+      objectKeys: ['CLAS:ZCL_ADT_REVIEW'],
+      toolNames: ['get_object'],
+    },
+    limits: { maxToolCalls: 3 },
     ...overrides,
   };
 }
@@ -102,19 +109,26 @@ describe('MCP invocation verifier', () => {
     assert.deepStrictEqual(verified, {
       tokenId: 'jti-test-001',
       principal: 'petr.plenkov',
-      agentId: 'system-assistant',
+      agentId: 'jess',
       classes: ['server', 'read'],
       destinationKeys: ['trl-rise'],
       correlationId: 'correlation-001',
-      constraint: { systemSid: 'TRL', frozenScope: ['ZCL_ADT_REVIEW'] },
-      limits: { maxSourceBytes: 65_536 },
+      constraint: {
+        kind: 'jess-adt-v1',
+        threadId: '11111111-1111-4111-8111-111111111111',
+        executionId: '22222222-2222-4222-8222-222222222222',
+        systemSid: 'TRL',
+        objectKeys: ['CLAS:ZCL_ADT_REVIEW'],
+        toolNames: ['get_object'],
+      },
+      limits: { maxToolCalls: 3 },
     });
     assert.ok(verified);
     assert.ok(Object.isFrozen(verified));
     assert.ok(Object.isFrozen(verified.classes));
     assert.ok(Object.isFrozen(verified.destinationKeys));
     assert.ok(Object.isFrozen(verified.constraint));
-    assert.ok(Object.isFrozen(verified.constraint.frozenScope));
+    assert.ok(Object.isFrozen(verified.constraint.objectKeys));
     assert.throws(() => {
       (verified.destinationKeys as string[]).push('other-rise');
     });
@@ -206,39 +220,14 @@ describe('MCP invocation verifier', () => {
     );
   });
 
-  it('accepts only the exact read-only autonomous review agent scope', async () => {
-    const executionId = '11111111-1111-4111-8111-111111111111';
-    const credential = await sign({
-      agentId: 'autonomous-review-agent',
-      classes: ['server', 'read'],
-      destinationKeys: ['trl-rise'],
-      constraint: { executionId, systemSid: 'TRL' },
-      limits: {},
-    });
-
-    const verified = await verifier.verify(`Bearer ${credential}`);
-
-    assert.ok(verified);
-    assert.strictEqual(verified.agentId, 'autonomous-review-agent');
-    assert.strictEqual(isMcpInvocationDispatchPolicySupported(verified), true);
-  });
-
-  it('rejects a relaxed autonomous review system constraint', async () => {
-    const credential = await sign({
-      agentId: 'autonomous-review-agent',
-      classes: ['server', 'read'],
-      destinationKeys: ['trl-rise'],
-      constraint: {
-        executionId: '11111111-1111-4111-8111-111111111111',
-        systemSid: 'TRL!',
-      },
-      limits: {},
-    });
-
-    const verified = await verifier.verify(`Bearer ${credential}`);
-
-    assert.ok(verified);
-    assert.strictEqual(isMcpInvocationDispatchPolicySupported(verified), false);
+  it('rejects retired agent identities', async () => {
+    for (const agentId of ['system-assistant', 'autonomous-review-agent']) {
+      const credential = await sign({ agentId });
+      assert.strictEqual(
+        await verifier.verify(`Bearer ${credential}`),
+        undefined,
+      );
+    }
   });
 
   it('rejects an invocation that requests write authority', async () => {

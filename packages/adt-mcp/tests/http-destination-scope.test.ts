@@ -54,6 +54,7 @@ test('HTTP destination mode projects only read-scoped tools without weakening hi
     assert.ok(names.has('system_info'));
     assert.ok(names.has('gcts_config'));
     assert.ok(!names.has('atc_run'));
+    assert.ok(!names.has('run_unit_tests'));
     assert.ok(!names.has('lock_object'));
     assert.ok(!names.has('activate_object'));
     assert.deepStrictEqual(gctsActionSchema?.enum, ['get', 'list']);

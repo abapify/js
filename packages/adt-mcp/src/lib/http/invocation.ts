@@ -17,17 +17,24 @@ const MAX_TOKEN_LIFETIME_SECONDS = 5 * 60;
 const MAX_FROZEN_SOURCES = 500;
 const MAX_SOURCE_REFERENCE_LENGTH = 8 * 1024;
 const MAX_FROZEN_SOURCE_BYTES = 2 * 1024 * 1024;
+const MAX_JESS_OBJECT_KEYS = 100;
+const MAX_JESS_TOOL_CALLS = 12;
+const MAX_SAFE_EXECUTE_GRANT_BYTES = 16 * 1024;
 const destinationKeyPattern = /^[a-z][a-z0-9-]{1,62}$/u;
 const canonicalKeyPattern = /^[A-Z0-9_]+:.+$/u;
+const jessCanonicalObjectKeyPattern = /^[A-Z0-9_]{2,30}:[A-Z0-9_/$-]{1,128}$/u;
+const compactJwsPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-const trustedAgentIds = new Set([
-  'ai-review',
-  'system-assistant',
-  'autonomous-review-agent',
-]);
+const trustedAgentIds = new Set(['ai-review', 'jess']);
 const trustedOperationClasses = new Set(['server', 'read', 'safe_execute']);
+const jessReadTools = new Set([
+  'get_object',
+  'get_object_structure',
+  'cts_get_transport',
+  'cts_transport_objects',
+]);
 
 export type McpTrustedOperationClass = 'server' | 'read' | 'safe_execute';
 
@@ -43,8 +50,7 @@ export type McpInvocationJsonValue =
 export interface TrustedMcpInvocationClaims {
   readonly tokenId: string;
   readonly principal: string;
-  readonly agentId:
-    'ai-review' | 'system-assistant' | 'autonomous-review-agent';
+  readonly agentId: 'ai-review' | 'jess';
   readonly classes: readonly McpTrustedOperationClass[];
   readonly destinationKeys: readonly string[];
   readonly correlationId: string;
@@ -68,6 +74,56 @@ export interface AiReviewFrozenSourcePolicy {
     readonly sourceRef: string;
   }[];
   readonly maxSourceBytes: number;
+}
+
+export type SafeExecutePolicy =
+  | {
+      readonly operationId: 'atc_run';
+      readonly check: 'atc';
+      readonly maxDurationMs: number;
+      readonly maxResultBytes: number;
+      readonly maxFindings: number;
+      readonly maxObjects: number;
+      readonly maxPackages: number;
+      readonly maxVariants: number;
+    }
+  | {
+      readonly operationId: 'run_unit_tests';
+      readonly check: 'aunit';
+      readonly effectiveWithCoverage: false;
+      readonly effectiveCoverageFormat: null;
+      readonly maxDurationMs: number;
+      readonly maxResultBytes: number;
+      readonly maxFindings: number;
+      readonly maxObjects: number;
+      readonly maxTestClasses: number;
+      readonly maxTestMethods: number;
+    }
+  | {
+      readonly operationId: 'run_unit_tests';
+      readonly check: 'coverage';
+      readonly effectiveWithCoverage: true;
+      readonly effectiveCoverageFormat: 'jacoco' | 'sonar-generic';
+      readonly maxDurationMs: number;
+      readonly maxResultBytes: number;
+      readonly maxFindings: number;
+      readonly maxObjects: number;
+      readonly maxPrograms: number;
+      readonly maxMeasurements: number;
+    };
+
+export interface JessAdtInvocationPolicy {
+  readonly threadId: string;
+  readonly executionId: string;
+  readonly systemSid: string;
+  readonly objectKeys: readonly string[];
+  readonly toolNames: readonly string[];
+  readonly operationClass: 'read' | 'safe_execute';
+  readonly maxToolCalls: number;
+  readonly safeExecutePolicy?: SafeExecutePolicy;
+  /** Server-owned opaque grant material; never exposed in a tool schema. */
+  readonly safeExecuteGrantJti?: string;
+  readonly safeExecuteGrant?: string;
 }
 
 export interface McpInvocationVerifierOptions {
@@ -99,47 +155,22 @@ export interface McpInvocationVerifier {
  * access; accepting a syntactically valid policy without enforcing it would
  * widen the signed credential.
  *
- * The initial system-assistant policy is fully enforced by its exact
- * destination key plus the selected System marker. AI Review stays fail
- * closed until the frozen-object/capability policy is implemented at dispatch.
+ * Only the exact Jess execution policy and AI Review frozen-source policy are
+ * dispatchable. Retired and structurally incomplete policies fail closed.
  */
-function isSystemAssistantPolicySupported(
-  claims: TrustedMcpInvocationClaims,
-): boolean {
-  if (
-    !hasServerReadClasses(claims) ||
-    Object.keys(claims.limits).length !== 0
-  ) {
-    return false;
-  }
-  const constraintKeys = Object.keys(claims.constraint);
-  return (
-    constraintKeys.length === 1 &&
-    constraintKeys[0] === 'systemSid' &&
-    requiredIdentifier(claims.constraint.systemSid) !== undefined
-  );
-}
-
 function hasServerReadClasses(claims: TrustedMcpInvocationClaims): boolean {
   return (
     claims.classes.length === 2 &&
-    claims.classes.includes('server') &&
-    claims.classes.includes('read')
+    claims.classes[0] === 'server' &&
+    claims.classes[1] === 'read'
   );
 }
 
 export function isMcpInvocationDispatchPolicySupported(
   claims: TrustedMcpInvocationClaims,
 ): boolean {
-  if (claims.agentId === 'system-assistant') {
-    return isSystemAssistantPolicySupported(claims);
-  }
-  if (claims.agentId === 'autonomous-review-agent') {
-    return (
-      hasServerReadClasses(claims) &&
-      claims.destinationKeys.length === 1 &&
-      parseAutonomousReviewAgentPolicy(claims) !== undefined
-    );
+  if (claims.agentId === 'jess') {
+    return parseJessAdtInvocationPolicy(claims) !== undefined;
   }
   if (claims.agentId === 'ai-review') {
     return (
@@ -151,29 +182,6 @@ export function isMcpInvocationDispatchPolicySupported(
   return false;
 }
 
-/**
- * The autonomous agent may inspect exactly one System through exactly one
- * Destination. Its execution id binds every ADT activity to ADT's durable
- * Agent Execution, while the sidecar's ordinary scope catalogue continues to
- * deny write tools. No ambient limits or additional constraints are accepted.
- */
-export function parseAutonomousReviewAgentPolicy(
-  claims: TrustedMcpInvocationClaims,
-): { readonly executionId: string; readonly systemSid: string } | undefined {
-  if (claims.agentId !== 'autonomous-review-agent') return undefined;
-  if (Object.keys(claims.limits).length !== 0) return undefined;
-  const constraintKeys = Object.keys(claims.constraint).sort((a, b) =>
-    a.localeCompare(b),
-  );
-  if (constraintKeys.length !== 2) return undefined;
-  if (constraintKeys[0] !== 'executionId') return undefined;
-  if (constraintKeys[1] !== 'systemSid') return undefined;
-  const executionId = requiredUuid(claims.constraint.executionId);
-  const systemSid = requiredSystemSid(claims.constraint.systemSid);
-  if (!executionId || !systemSid) return undefined;
-  return Object.freeze({ executionId, systemSid });
-}
-
 function requiredUuid(value: unknown): string | undefined {
   return typeof value === 'string' && uuidPattern.test(value)
     ? value
@@ -182,6 +190,323 @@ function requiredUuid(value: unknown): string | undefined {
 
 function requiredSourceReference(value: unknown): string | undefined {
   return requiredString(value, { maxLength: MAX_SOURCE_REFERENCE_LENGTH });
+}
+
+function hasExactSortedKeys(
+  value: Readonly<Record<string, unknown>>,
+  expected: readonly string[],
+): boolean {
+  const actual = Object.keys(value).sort((left, right) =>
+    left.localeCompare(right),
+  );
+  const sortedExpected = [...expected].sort((left, right) =>
+    left.localeCompare(right),
+  );
+  return (
+    actual.length === sortedExpected.length &&
+    actual.every((key, index) => key === sortedExpected[index])
+  );
+}
+
+function positiveSafeInteger(value: unknown): number | undefined {
+  return Number.isSafeInteger(value) && (value as number) > 0
+    ? (value as number)
+    : undefined;
+}
+
+function parseSafeExecuteCommon(
+  value: Readonly<Record<string, McpInvocationJsonValue>>,
+):
+  | {
+      maxDurationMs: number;
+      maxResultBytes: number;
+      maxFindings: number;
+      maxObjects: number;
+    }
+  | undefined {
+  const maxDurationMs = positiveSafeInteger(value.maxDurationMs);
+  const maxResultBytes = positiveSafeInteger(value.maxResultBytes);
+  const maxFindings = positiveSafeInteger(value.maxFindings);
+  const maxObjects = positiveSafeInteger(value.maxObjects);
+  if (
+    maxDurationMs === undefined ||
+    maxResultBytes === undefined ||
+    maxFindings === undefined ||
+    maxObjects === undefined
+  ) {
+    return undefined;
+  }
+  return { maxDurationMs, maxResultBytes, maxFindings, maxObjects };
+}
+
+const safeExecuteCommonKeys = [
+  'operationId',
+  'check',
+  'maxDurationMs',
+  'maxResultBytes',
+  'maxFindings',
+  'maxObjects',
+] as const;
+
+export function parseSafeExecutePolicy(
+  value: unknown,
+): SafeExecutePolicy | undefined {
+  if (!isPlainObject(value)) return undefined;
+  const cloned = cloneJsonRecord(value);
+  if (!cloned) return undefined;
+  const common = parseSafeExecuteCommon(cloned);
+  if (!common) return undefined;
+
+  if (
+    cloned.operationId === 'atc_run' &&
+    cloned.check === 'atc' &&
+    hasExactSortedKeys(cloned, [
+      ...safeExecuteCommonKeys,
+      'maxPackages',
+      'maxVariants',
+    ])
+  ) {
+    const maxPackages = positiveSafeInteger(cloned.maxPackages);
+    const maxVariants = positiveSafeInteger(cloned.maxVariants);
+    if (maxPackages === undefined || maxVariants === undefined) {
+      return undefined;
+    }
+    return Object.freeze({
+      operationId: 'atc_run',
+      check: 'atc',
+      ...common,
+      maxPackages,
+      maxVariants,
+    });
+  }
+
+  if (
+    cloned.operationId === 'run_unit_tests' &&
+    cloned.check === 'aunit' &&
+    cloned.effectiveWithCoverage === false &&
+    cloned.effectiveCoverageFormat === null &&
+    hasExactSortedKeys(cloned, [
+      ...safeExecuteCommonKeys,
+      'effectiveWithCoverage',
+      'effectiveCoverageFormat',
+      'maxTestClasses',
+      'maxTestMethods',
+    ])
+  ) {
+    const maxTestClasses = positiveSafeInteger(cloned.maxTestClasses);
+    const maxTestMethods = positiveSafeInteger(cloned.maxTestMethods);
+    if (maxTestClasses === undefined || maxTestMethods === undefined) {
+      return undefined;
+    }
+    return Object.freeze({
+      operationId: 'run_unit_tests',
+      check: 'aunit',
+      effectiveWithCoverage: false,
+      effectiveCoverageFormat: null,
+      ...common,
+      maxTestClasses,
+      maxTestMethods,
+    });
+  }
+
+  if (
+    cloned.operationId === 'run_unit_tests' &&
+    cloned.check === 'coverage' &&
+    cloned.effectiveWithCoverage === true &&
+    (cloned.effectiveCoverageFormat === 'jacoco' ||
+      cloned.effectiveCoverageFormat === 'sonar-generic') &&
+    hasExactSortedKeys(cloned, [
+      ...safeExecuteCommonKeys,
+      'effectiveWithCoverage',
+      'effectiveCoverageFormat',
+      'maxPrograms',
+      'maxMeasurements',
+    ])
+  ) {
+    const maxPrograms = positiveSafeInteger(cloned.maxPrograms);
+    const maxMeasurements = positiveSafeInteger(cloned.maxMeasurements);
+    if (maxPrograms === undefined || maxMeasurements === undefined) {
+      return undefined;
+    }
+    return Object.freeze({
+      operationId: 'run_unit_tests',
+      check: 'coverage',
+      effectiveWithCoverage: true,
+      effectiveCoverageFormat: cloned.effectiveCoverageFormat,
+      ...common,
+      maxPrograms,
+      maxMeasurements,
+    });
+  }
+
+  return undefined;
+}
+
+function parseSortedUniqueStrings(
+  value: unknown,
+  options: {
+    maxItems: number;
+    minItems: number;
+    matches: (item: string) => boolean;
+  },
+): readonly string[] | undefined {
+  if (
+    !Array.isArray(value) ||
+    value.length < options.minItems ||
+    value.length > options.maxItems
+  ) {
+    return undefined;
+  }
+  const parsed: string[] = [];
+  for (const item of value) {
+    if (
+      typeof item !== 'string' ||
+      !options.matches(item) ||
+      parsed.includes(item)
+    ) {
+      return undefined;
+    }
+    parsed.push(item);
+  }
+  const sorted = [...parsed].sort((left, right) => left.localeCompare(right));
+  if (!parsed.every((item, index) => item === sorted[index])) return undefined;
+  return Object.freeze(parsed);
+}
+
+function parseJessObjectKeys(value: unknown): readonly string[] | undefined {
+  return parseSortedUniqueStrings(value, {
+    maxItems: MAX_JESS_OBJECT_KEYS,
+    minItems: 0,
+    matches: (item) => jessCanonicalObjectKeyPattern.test(item),
+  });
+}
+
+function parseJessToolNames(
+  value: unknown,
+  operationClass: 'read' | 'safe_execute',
+  safeExecutePolicy: SafeExecutePolicy | undefined,
+): readonly string[] | undefined {
+  const toolNames = parseSortedUniqueStrings(value, {
+    maxItems: operationClass === 'read' ? jessReadTools.size : 1,
+    minItems: 1,
+    matches: (item) =>
+      operationClass === 'read'
+        ? jessReadTools.has(item)
+        : item === 'atc_run' || item === 'run_unit_tests',
+  });
+  if (!toolNames) return undefined;
+  if (operationClass === 'read') {
+    return safeExecutePolicy === undefined ? toolNames : undefined;
+  }
+  return safeExecutePolicy && toolNames[0] === safeExecutePolicy.operationId
+    ? toolNames
+    : undefined;
+}
+
+function parseOpaqueSafeExecuteGrant(value: unknown): string | undefined {
+  return typeof value === 'string' &&
+    value.length <= MAX_SAFE_EXECUTE_GRANT_BYTES &&
+    compactJwsPattern.test(value)
+    ? value
+    : undefined;
+}
+
+export function parseJessAdtInvocationPolicy(
+  claims: TrustedMcpInvocationClaims,
+): JessAdtInvocationPolicy | undefined {
+  if (claims.agentId !== 'jess' || claims.destinationKeys.length !== 1) {
+    return undefined;
+  }
+  if (
+    claims.classes.length !== 2 ||
+    claims.classes[0] !== 'server' ||
+    (claims.classes[1] !== 'read' && claims.classes[1] !== 'safe_execute')
+  ) {
+    return undefined;
+  }
+  const operationClass = claims.classes[1];
+  const safeExecute = operationClass === 'safe_execute';
+  const expectedConstraintKeys = [
+    'kind',
+    'threadId',
+    'executionId',
+    'systemSid',
+    'objectKeys',
+    'toolNames',
+    ...(safeExecute
+      ? ['safeExecutePolicy', 'safeExecuteGrantJti', 'safeExecuteGrant']
+      : []),
+  ];
+  if (!hasExactSortedKeys(claims.constraint, expectedConstraintKeys)) {
+    return undefined;
+  }
+  if (
+    claims.constraint.kind !== 'jess-adt-v1' ||
+    !hasExactSortedKeys(claims.limits, ['maxToolCalls'])
+  ) {
+    return undefined;
+  }
+
+  const threadId = requiredUuid(claims.constraint.threadId);
+  const executionId = requiredUuid(claims.constraint.executionId);
+  const systemSid = requiredSystemSid(claims.constraint.systemSid);
+  const objectKeys = parseJessObjectKeys(claims.constraint.objectKeys);
+  const maxToolCalls = positiveSafeInteger(claims.limits.maxToolCalls);
+  if (
+    !threadId ||
+    !executionId ||
+    !systemSid ||
+    !objectKeys ||
+    maxToolCalls === undefined ||
+    maxToolCalls > MAX_JESS_TOOL_CALLS
+  ) {
+    return undefined;
+  }
+
+  const safeExecutePolicy = safeExecute
+    ? parseSafeExecutePolicy(claims.constraint.safeExecutePolicy)
+    : undefined;
+  if (safeExecute && objectKeys.length === 0) return undefined;
+  const toolNames = parseJessToolNames(
+    claims.constraint.toolNames,
+    operationClass,
+    safeExecutePolicy,
+  );
+  if (!toolNames) return undefined;
+
+  if (!safeExecute) {
+    return Object.freeze({
+      threadId,
+      executionId,
+      systemSid,
+      objectKeys,
+      toolNames,
+      operationClass,
+      maxToolCalls,
+    });
+  }
+
+  const safeExecuteGrantJti = requiredUuid(
+    claims.constraint.safeExecuteGrantJti,
+  );
+  const safeExecuteGrant = parseOpaqueSafeExecuteGrant(
+    claims.constraint.safeExecuteGrant,
+  );
+  if (!safeExecutePolicy || !safeExecuteGrantJti || !safeExecuteGrant) {
+    return undefined;
+  }
+  return Object.freeze({
+    threadId,
+    executionId,
+    systemSid,
+    objectKeys,
+    toolNames,
+    operationClass,
+    maxToolCalls,
+    safeExecutePolicy,
+    safeExecuteGrantJti,
+    safeExecuteGrant,
+  });
 }
 
 export function parseFrozenSource(
@@ -405,7 +730,9 @@ function cloneTrustedClasses(
   if (!Array.isArray(value) || value.length === 0) return undefined;
   const classes: McpTrustedOperationClass[] = [];
   for (const item of value) {
-    if (!isTrustedOperationClass(item)) return undefined;
+    if (!isTrustedOperationClass(item) || classes.includes(item)) {
+      return undefined;
+    }
     classes.push(item);
   }
   return Object.freeze(classes);
@@ -415,7 +742,11 @@ function cloneDestinationKeys(value: unknown): readonly string[] | undefined {
   if (!Array.isArray(value) || value.length === 0) return undefined;
   const destinationKeys: string[] = [];
   for (const item of value) {
-    if (typeof item !== 'string' || !destinationKeyPattern.test(item)) {
+    if (
+      typeof item !== 'string' ||
+      !destinationKeyPattern.test(item) ||
+      destinationKeys.includes(item)
+    ) {
       return undefined;
     }
     destinationKeys.push(item);
@@ -574,6 +905,27 @@ function claimsFromPayload(
 ): TrustedMcpInvocationClaims | undefined {
   const record = payload as Record<string, unknown>;
   if (
+    !hasExactSortedKeys(record, [
+      'v',
+      'kid',
+      'iss',
+      'aud',
+      'iat',
+      'nbf',
+      'exp',
+      'jti',
+      'principal',
+      'agentId',
+      'classes',
+      'destinationKeys',
+      'correlationId',
+      'constraint',
+      'limits',
+    ])
+  ) {
+    return undefined;
+  }
+  if (
     !isValidTokenHeader(record, expectedKeyId, expectedIssuer, expectedAudience)
   ) {
     return undefined;
@@ -618,7 +970,19 @@ export function createMcpInvocationVerifier(
           audience,
           currentDate: currentDate(now),
         });
-        if (verified.protectedHeader.kid !== keyId) return undefined;
+        const protectedHeader = verified.protectedHeader;
+        if (
+          !hasExactSortedKeys(protectedHeader as Record<string, unknown>, [
+            'alg',
+            'kid',
+            'typ',
+          ]) ||
+          protectedHeader.alg !== 'ES256' ||
+          protectedHeader.kid !== keyId ||
+          protectedHeader.typ !== 'JWT'
+        ) {
+          return undefined;
+        }
         return claimsFromPayload(verified.payload, keyId, issuer, audience);
       } catch {
         return undefined;
