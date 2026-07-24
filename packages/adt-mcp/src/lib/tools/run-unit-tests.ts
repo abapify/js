@@ -14,7 +14,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
-import { resolveObjectUri } from './utils';
+import {
+  extractSafeExecutePolicy,
+  handleSafeExecuteError,
+  resolveObjectUri,
+  safeExecuteLimitResult,
+} from './utils';
 import type { InferTypedSchema } from '@abapify/adt-schemas';
 import { aunitResult } from '@abapify/adt-schemas';
 import { extractCoverageMeasurementId } from '@abapify/adt-contracts';
@@ -22,8 +27,14 @@ import {
   toJacocoXml,
   toSonarGenericCoverageXml,
 } from '@abapify/adt-aunit/formatters/jacoco';
+import {
+  normalizeUnitTestOptions,
+  type NormalizedUnitTestOptions,
+} from './scope-catalogue.js';
+import type { SafeExecutePolicy } from '../http/invocation.js';
 
 type AunitResultData = InferTypedSchema<typeof aunitResult>;
+type AdtClient = ReturnType<ToolContext['getClient']>;
 type AunitProgram = NonNullable<
   AunitResultData['runResult']['program']
 >[number];
@@ -143,6 +154,170 @@ function normalizeResult(response: AunitResultData): {
   return { totalTests, passCount, failCount, errorCount, programs };
 }
 
+function alertCount(rawAlerts: unknown): number {
+  if (!rawAlerts) return 0;
+  return Array.isArray(rawAlerts) ? rawAlerts.length : 1;
+}
+
+function resultCounts(programs: AunitProgram[]): {
+  programs: number;
+  testClasses: number;
+  testMethods: number;
+  findings: number;
+} {
+  let testClasses = 0;
+  let testMethods = 0;
+  let findings = 0;
+  for (const program of programs) {
+    const rawClasses = program.testClasses?.testClass ?? [];
+    const classes = Array.isArray(rawClasses) ? rawClasses : [rawClasses];
+    findings += alertCount(program.alerts?.alert);
+    testClasses += classes.length;
+    for (const testClass of classes) {
+      const rawMethods = testClass?.testMethods?.testMethod ?? [];
+      const methods = Array.isArray(rawMethods) ? rawMethods : [rawMethods];
+      findings += alertCount(testClass.alerts?.alert);
+      testMethods += methods.length;
+      for (const method of methods) {
+        findings += alertCount(method?.alerts?.alert);
+      }
+    }
+  }
+  return {
+    programs: programs.length,
+    testClasses,
+    testMethods,
+    findings,
+  };
+}
+
+function coverageMeasurementCount(value: unknown): number {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 0;
+  const record = value as Record<string, unknown>;
+  const nodes = record.nodes;
+  if (!nodes || typeof nodes !== 'object' || Array.isArray(nodes)) return 0;
+  const rawChildren = (nodes as Record<string, unknown>).node;
+  const children = Array.isArray(rawChildren)
+    ? rawChildren
+    : rawChildren
+      ? [rawChildren]
+      : [];
+  return children.reduce(
+    (total, child) => total + 1 + coverageMeasurementCount(child),
+    0,
+  );
+}
+
+type SafeExecuteLimitResult = ReturnType<typeof safeExecuteLimitResult>;
+type CoveragePayload = { format: string; xml: string; warning?: string };
+
+function checkSafeExecuteLimits(
+  counts: ReturnType<typeof resultCounts>,
+  safePolicy: SafeExecutePolicy | undefined,
+): SafeExecuteLimitResult | undefined {
+  if (!safePolicy) return undefined;
+  if (counts.findings > safePolicy.maxFindings)
+    return safeExecuteLimitResult('safe_execute_limit_exceeded');
+  if (
+    safePolicy.check === 'aunit' &&
+    (counts.testClasses > safePolicy.maxTestClasses ||
+      counts.testMethods > safePolicy.maxTestMethods)
+  ) {
+    return safeExecuteLimitResult('safe_execute_limit_exceeded');
+  }
+  if (
+    safePolicy.check === 'coverage' &&
+    counts.programs > safePolicy.maxPrograms
+  ) {
+    return safeExecuteLimitResult('safe_execute_limit_exceeded');
+  }
+  return undefined;
+}
+
+type CoverageFetchResult =
+  | { kind: 'payload'; value: CoveragePayload }
+  | { kind: 'limit'; value: SafeExecuteLimitResult };
+
+async function fetchCoveragePayload(
+  client: AdtClient,
+  response: AunitResultData,
+  normalizedOptions: NormalizedUnitTestOptions,
+  safePolicy: SafeExecutePolicy | undefined,
+): Promise<CoverageFetchResult> {
+  const measurementId = extractCoverageMeasurementId(response);
+  const runtime = (
+    client as unknown as {
+      adt: {
+        runtime?: {
+          traces: {
+            coverage: {
+              measurements: { post: (id: string) => Promise<unknown> };
+              statements: { get: (id: string) => Promise<unknown> };
+            };
+          };
+        };
+      };
+    }
+  ).adt.runtime;
+
+  const format = normalizedOptions.effectiveCoverageFormat ?? 'jacoco';
+
+  if (!measurementId) {
+    return {
+      kind: 'payload',
+      value: {
+        format,
+        xml: '',
+        warning: 'Coverage requested but SAP returned no measurement link.',
+      },
+    };
+  }
+  if (!runtime) {
+    return {
+      kind: 'payload',
+      value: {
+        format,
+        xml: '',
+        warning: 'runtime/traces contract not available on this client.',
+      },
+    };
+  }
+
+  const cov = runtime.traces.coverage;
+  try {
+    const measurements = (await cov.measurements.post(
+      measurementId,
+    )) as Parameters<typeof toJacocoXml>[0]['measurements'];
+    if (
+      safePolicy?.check === 'coverage' &&
+      coverageMeasurementCount(measurements.result) > safePolicy.maxMeasurements
+    ) {
+      return {
+        kind: 'limit',
+        value: safeExecuteLimitResult('safe_execute_limit_exceeded'),
+      };
+    }
+    const statements = (await cov.statements.get(measurementId)) as Parameters<
+      typeof toJacocoXml
+    >[0]['statements'];
+    const xml =
+      format === 'sonar-generic'
+        ? toSonarGenericCoverageXml({ measurements, statements })
+        : toJacocoXml({ measurements, statements });
+    return { kind: 'payload', value: { format, xml } };
+  } catch (err) {
+    if (safePolicy) throw err;
+    return {
+      kind: 'payload',
+      value: {
+        format,
+        xml: '',
+        warning: `Coverage fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+      },
+    };
+  }
+}
+
 export function registerRunUnitTestsTool(
   server: McpServer,
   ctx: ToolContext,
@@ -164,7 +339,6 @@ export function registerRunUnitTestsTool(
       withCoverage: z
         .boolean()
         .optional()
-        .default(false)
         .describe('Whether to collect code coverage data'),
       coverage: z
         .boolean()
@@ -179,7 +353,23 @@ export function registerRunUnitTestsTool(
         .describe('Coverage report format when coverage is enabled'),
     },
     async (args, extra) => {
+      const safePolicy = extractSafeExecutePolicy(
+        ctx.requestAccess?.(extra ?? {}),
+        'run_unit_tests',
+      );
       try {
+        const normalizedOptions = normalizeUnitTestOptions(args);
+        if (!normalizedOptions) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: 'Run unit tests failed: coverage options disagree',
+              },
+            ],
+          };
+        }
         const { client } = await resolveClient(ctx, args, extra ?? {});
 
         const objectUri = await resolveObjectUri(
@@ -199,8 +389,7 @@ export function registerRunUnitTestsTool(
           };
         }
 
-        const wantsCoverage =
-          (args.coverage ?? false) || (args.withCoverage ?? false);
+        const wantsCoverage = normalizedOptions.effectiveWithCoverage;
 
         const body = buildRunConfiguration([objectUri], wantsCoverage);
 
@@ -211,65 +400,20 @@ export function registerRunUnitTestsTool(
           body as Parameters<typeof client.adt.aunit.testruns.post>[0],
         );
         const result = normalizeResult(response as AunitResultData);
+        const counts = resultCounts(result.programs);
+        const limitResult = checkSafeExecuteLimits(counts, safePolicy);
+        if (limitResult) return limitResult;
 
-        // Optional: follow the coverage link and serialise a JaCoCo / Sonar report.
-        let coveragePayload:
-          | { format: string; xml: string; warning?: string }
-          | undefined;
-
+        let coveragePayload: CoveragePayload | undefined;
         if (wantsCoverage) {
-          const measurementId = extractCoverageMeasurementId(response);
-          const runtime = (
-            client as unknown as {
-              adt: {
-                runtime?: {
-                  traces: {
-                    coverage: {
-                      measurements: { post: (id: string) => Promise<unknown> };
-                      statements: { get: (id: string) => Promise<unknown> };
-                    };
-                  };
-                };
-              };
-            }
-          ).adt.runtime;
-
-          if (!measurementId) {
-            coveragePayload = {
-              format: args.coverageFormat ?? 'jacoco',
-              xml: '',
-              warning:
-                'Coverage requested but SAP returned no measurement link.',
-            };
-          } else if (!runtime) {
-            coveragePayload = {
-              format: args.coverageFormat ?? 'jacoco',
-              xml: '',
-              warning: 'runtime/traces contract not available on this client.',
-            };
-          } else {
-            const cov = runtime.traces.coverage;
-            try {
-              const measurements = (await cov.measurements.post(
-                measurementId,
-              )) as Parameters<typeof toJacocoXml>[0]['measurements'];
-              const statements = (await cov.statements.get(
-                measurementId,
-              )) as Parameters<typeof toJacocoXml>[0]['statements'];
-              const fmt = args.coverageFormat ?? 'jacoco';
-              const xml =
-                fmt === 'sonar-generic'
-                  ? toSonarGenericCoverageXml({ measurements, statements })
-                  : toJacocoXml({ measurements, statements });
-              coveragePayload = { format: fmt, xml };
-            } catch (err) {
-              coveragePayload = {
-                format: args.coverageFormat ?? 'jacoco',
-                xml: '',
-                warning: `Coverage fetch failed: ${err instanceof Error ? err.message : String(err)}`,
-              };
-            }
-          }
+          const coverageResult = await fetchCoveragePayload(
+            client,
+            response as AunitResultData,
+            normalizedOptions,
+            safePolicy,
+          );
+          if (coverageResult.kind === 'limit') return coverageResult.value;
+          coveragePayload = coverageResult.value;
         }
 
         const payload = coveragePayload
@@ -285,15 +429,7 @@ export function registerRunUnitTestsTool(
           ],
         };
       } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text: `Run unit tests failed: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-        };
+        return handleSafeExecuteError(error, safePolicy, 'Run unit tests');
       }
     },
   );

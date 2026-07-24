@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import {
   createDestinationContextRegistry,
   createMcpInvocationVerifier,
+  type ToolContext,
 } from '@abapify/adt-mcp';
+import { runWithAdtAbortSignal } from '@abapify/adt-client';
 import {
   createHttpDestinationContexts,
   type HttpBrokerOptions,
@@ -17,6 +19,83 @@ type RuntimeEnvironment = Readonly<Record<string, string | undefined>>;
 export interface AdtServerMcpRuntimeOptions {
   env: RuntimeEnvironment;
   brokerOptions: HttpBrokerOptions;
+  /** Deployment-owned one-shot authorization consumer. */
+  consumeExecutionAuthorization?: NonNullable<
+    ToolContext['consumeExecutionAuthorization']
+  >;
+  /** Deployment-owned terminal outcome recorder. */
+  reportExecutionOutcome?: NonNullable<ToolContext['reportExecutionOutcome']>;
+  /**
+   * Optional deployment/test override for the execution-scoped abort runtime.
+   */
+  executeWithDeadline?: NonNullable<ToolContext['executeWithDeadline']>;
+}
+
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+function scheduleDeadline(
+  deadline: number,
+  onDeadline: () => void,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const schedule = () => {
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) {
+      onDeadline();
+      return;
+    }
+    timer = setTimeout(schedule, Math.min(remaining, MAX_TIMER_DELAY_MS));
+  };
+  schedule();
+  return () => {
+    if (timer !== undefined) clearTimeout(timer);
+  };
+}
+
+/**
+ * Aborts all SAP HTTP work in this async execution context at the signed
+ * deadline, then waits for the tool operation to settle before returning.
+ */
+export async function executeWithDeadlineAndAbort(input: {
+  maxDurationMs: number;
+  operation: () => Promise<unknown>;
+}): Promise<unknown> {
+  if (!Number.isSafeInteger(input.maxDurationMs) || input.maxDurationMs <= 0) {
+    throw new RangeError('maxDurationMs must be a positive safe integer');
+  }
+
+  const abortController = new AbortController();
+  const deadline = performance.now() + input.maxDurationMs;
+  let deadlineExceeded = false;
+  const markDeadlineExceeded = () => {
+    deadlineExceeded = true;
+    if (!abortController.signal.aborted) {
+      abortController.abort(new Error('safe_execute deadline exceeded'));
+    }
+  };
+  const clearDeadline = scheduleDeadline(deadline, markDeadlineExceeded);
+  const deadlineHasPassed = () =>
+    deadlineExceeded || performance.now() >= deadline;
+
+  try {
+    const result = await runWithAdtAbortSignal(
+      abortController.signal,
+      input.operation,
+    );
+    if (deadlineHasPassed()) {
+      markDeadlineExceeded();
+      throw new Error('safe_execute deadline exceeded');
+    }
+    return result;
+  } catch (error) {
+    if (deadlineHasPassed()) {
+      markDeadlineExceeded();
+      throw new Error('safe_execute deadline exceeded', { cause: error });
+    }
+    throw error;
+  } finally {
+    clearDeadline();
+  }
 }
 
 function configuredValue(
@@ -63,6 +142,18 @@ function allowedHostsFromEnv(env: RuntimeEnvironment): string[] | undefined {
   return [...new Set(hosts)];
 }
 
+function safeExecuteEnabled(env: RuntimeEnvironment): boolean {
+  const configured = configuredValue(
+    env,
+    'ADT_SERVER_MCP_SAFE_EXECUTE_ENABLED',
+  );
+  if (configured === undefined || configured === 'false') return false;
+  if (configured === 'true') return true;
+  throw new Error(
+    'ADT_SERVER_MCP_SAFE_EXECUTE_ENABLED must be exactly true or false',
+  );
+}
+
 async function loadP256PublicKey(file: string) {
   const pem = await readFile(file, 'utf8');
   if (/-----BEGIN(?: EC)? PRIVATE KEY-----/u.test(pem)) {
@@ -95,8 +186,33 @@ async function loadP256PublicKey(file: string) {
 export async function createAdtServerMcpOptions(
   options: AdtServerMcpRuntimeOptions,
 ): Promise<AdtServerMcpOptions | undefined> {
+  const enableSafeExecute = safeExecuteEnabled(options.env);
   const invocation = invocationConfiguration(options.env);
-  if (!invocation) return undefined;
+  if (!invocation) {
+    if (enableSafeExecute) {
+      throw new Error(
+        'ADT Server MCP safe_execute requires MCP invocation configuration',
+      );
+    }
+    return undefined;
+  }
+  const executeWithDeadline =
+    options.executeWithDeadline ?? executeWithDeadlineAndAbort;
+  const safeExecuteOptions = (() => {
+    if (!enableSafeExecute) return {};
+    const consumeExecutionAuthorization = options.consumeExecutionAuthorization;
+    const reportExecutionOutcome = options.reportExecutionOutcome;
+    if (!consumeExecutionAuthorization || !reportExecutionOutcome) {
+      throw new Error(
+        'ADT Server MCP safe_execute requires deployment-owned authorization and outcome hooks',
+      );
+    }
+    return {
+      consumeExecutionAuthorization,
+      reportExecutionOutcome,
+      executeWithDeadline,
+    };
+  })();
 
   const publicKey = await loadP256PublicKey(invocation.publicKeyFile);
   const { leaseProvider, contextFactory, resolveFrozenSource } =
@@ -113,6 +229,7 @@ export async function createAdtServerMcpOptions(
       contextFactory,
     }),
     resolveFrozenSource,
+    ...safeExecuteOptions,
     allowedHosts: allowedHostsFromEnv(options.env),
   };
 }

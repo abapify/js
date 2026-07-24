@@ -48,6 +48,12 @@ export interface McpServerOptions {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
+  /** Deployment-owned atomic authorization hook required by scoped execution. */
+  consumeExecutionAuthorization?: ToolContext['consumeExecutionAuthorization'];
+  /** Deployment-owned terminal outcome hook required by scoped execution. */
+  reportExecutionOutcome?: ToolContext['reportExecutionOutcome'];
+  /** Hard-cancellable runtime required for scoped execution. */
+  executeWithDeadline?: ToolContext['executeWithDeadline'];
   /** Private ADT broker resolver for signed frozen-source capabilities. */
   resolveFrozenSource: ToolContext['resolveFrozenSource'];
 }
@@ -70,11 +76,23 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
     { capabilities: { tools: {} } },
   );
 
-  const registry = options?.registry;
+  const {
+    registry,
+    clientFactory,
+    resolveSystem,
+    destinationRegistry,
+    requestIdentity,
+    requestAccess,
+    consumeExecutionAuthorization,
+    reportExecutionOutcome,
+    executeWithDeadline,
+    resolveFrozenSource,
+  } = options ?? {};
+
   const sourceCapabilities = createSourceCapabilityRegistry();
 
   const ctx: ToolContext = {
-    getClient: options?.clientFactory ?? defaultClientFactory,
+    getClient: clientFactory ?? defaultClientFactory,
     sourceCapabilities,
     ...(registry
       ? {
@@ -82,29 +100,39 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
           getSession: (mcpSessionId: string) => registry.get(mcpSessionId),
         }
       : {}),
-    ...(options?.resolveSystem ? { resolveSystem: options.resolveSystem } : {}),
-    ...(options?.destinationRegistry
+    ...(resolveSystem ? { resolveSystem } : {}),
+    ...(destinationRegistry
       ? {
-          destinationRegistry: options.destinationRegistry,
-          requestIdentity: options.requestIdentity,
-          requestAccess: options.requestAccess,
-          ...(options.resolveFrozenSource
-            ? { resolveFrozenSource: options.resolveFrozenSource }
+          destinationRegistry,
+          requestIdentity,
+          requestAccess,
+          ...(consumeExecutionAuthorization
+            ? { consumeExecutionAuthorization }
             : {}),
+          ...(reportExecutionOutcome ? { reportExecutionOutcome } : {}),
+          ...(executeWithDeadline ? { executeWithDeadline } : {}),
+          ...(resolveFrozenSource ? { resolveFrozenSource } : {}),
         }
       : {}),
   };
 
-  const destinationMode = options?.destinationRegistry;
   registerTools(
-    destinationMode
-      ? destinationModeServer(server, { requestAccess: options.requestAccess })
+    destinationRegistry
+      ? destinationModeServer(server, {
+          requestAccess,
+          consumeExecutionAuthorization,
+          reportExecutionOutcome,
+          executeWithDeadline,
+        })
       : server,
     ctx,
   );
-  if (destinationMode) {
+  if (destinationRegistry) {
     installDestinationModeToolListProjection(server, {
-      requestAccess: options?.requestAccess,
+      requestAccess,
+      consumeExecutionAuthorization,
+      reportExecutionOutcome,
+      executeWithDeadline,
     });
   }
 

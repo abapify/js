@@ -10,6 +10,7 @@ import type {
   RequestIdentity,
 } from './session/destination-registry.js';
 import type { McpRequestAccess } from './tools/scope-catalogue.js';
+import type { SafeExecutePolicy } from './http/invocation.js';
 import type { createSourceCapabilityRegistry } from './source-capabilities.js';
 
 /**
@@ -53,6 +54,42 @@ export interface ToolContext {
   requestAccess?: (extra: {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
+  /**
+   * Atomically consumes the policy broker's opaque scoped check grant. The implementation
+   * owns ADT Server service authentication and must return true only after
+   * the policy broker responds with the successful consume result.
+   */
+  consumeExecutionAuthorization?: (input: {
+    authorizationId: string;
+    authorizationToken: string;
+    principal: string;
+    scopeId: string;
+    executionId: string;
+    systemSid: string;
+    resourceKeys: readonly string[];
+    destination: string;
+    operationId: 'atc_run' | 'run_unit_tests';
+    policy: SafeExecutePolicy;
+  }) => Promise<boolean>;
+  /**
+   * Records the single terminal state of a consumed broker grant. It is called
+   * exactly once after the SAP operation settles and must never trigger a
+   * retry of that operation.
+   */
+  reportExecutionOutcome?: (input: {
+    authorizationId: string;
+    authorizationToken: string;
+    outcome: 'succeeded' | 'failed' | 'outcome_unknown';
+  }) => Promise<boolean>;
+  /**
+   * Executes a consumed safe check under a runtime that can actually
+   * terminate its SAP transport at `maxDurationMs`. Returning early while the
+   * supplied operation continues is forbidden.
+   */
+  executeWithDeadline?: (input: {
+    maxDurationMs: number;
+    operation: () => Promise<unknown>;
+  }) => Promise<unknown>;
   /**
    * Redeems an opaque ADT source capability after destination-mode policy has
    * selected it. The resolver may return only a trusted server-relative URI.

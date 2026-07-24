@@ -28,6 +28,7 @@ import {
   isMcpDestinationKey,
   isMcpOperationClass,
   type McpFrozenSourceAccess,
+  type McpScopedAccess,
   type McpRequestAccess,
 } from '../tools/scope-catalogue.js';
 import {
@@ -39,6 +40,8 @@ import {
   isMcpInvocationDispatchPolicySupported,
   parseAiReviewFrozenSourcePolicy,
   parseFrozenSource,
+  parseScopedAdtInvocationPolicy,
+  parseSafeExecutePolicy,
 } from './invocation.js';
 import type {
   McpInvocationVerifier,
@@ -120,6 +123,15 @@ export interface HttpServerOptions {
     resolveFrozenSource?: NonNullable<
       import('../types.js').ToolContext['resolveFrozenSource']
     >;
+    consumeExecutionAuthorization?: NonNullable<
+      import('../types.js').ToolContext['consumeExecutionAuthorization']
+    >;
+    reportExecutionOutcome?: NonNullable<
+      import('../types.js').ToolContext['reportExecutionOutcome']
+    >;
+    executeWithDeadline?: NonNullable<
+      import('../types.js').ToolContext['executeWithDeadline']
+    >;
   };
   /** Inject a logger that writes to stderr by default. */
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
@@ -175,12 +187,169 @@ function snapshotRequestAccess(
 
   const frozenSource = snapshotFrozenSourceAccess(access.frozenSource);
   if (access.frozenSource && !frozenSource) return undefined;
+  const scoped = snapshotScopedAccess(access.scoped);
+  if (access.scoped && !scoped) return undefined;
+  if (
+    scoped &&
+    (classes.length !== 2 ||
+      classes[0] !== 'server' ||
+      classes[1] !== scoped.operationClass)
+  ) {
+    return undefined;
+  }
 
   return Object.freeze({
     classes: Object.freeze([...classes]),
     destinationKeys: Object.freeze([...destinationKeys]),
     ...(frozenSource ? { frozenSource } : {}),
+    ...(scoped ? { scoped } : {}),
   });
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const OBJECT_KEY_REGEX = /^[A-Z0-9_]{2,30}:[A-Z0-9_/$-]{1,128}$/u;
+const READ_SCOPED_TOOLS = new Set(['get_object', 'get_object_structure']);
+const SYSTEM_SID_REGEX = /^[A-Za-z0-9_-]{1,16}$/u;
+const AUTHORIZATION_TOKEN_REGEX =
+  /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
+
+function normalizeAndValidateStrings(values: unknown[]): string[] | undefined {
+  if (!Array.isArray(values)) return undefined;
+  const result: string[] = [];
+  for (const value of values) {
+    if (typeof value !== 'string' || !value) return undefined;
+    result.push(value);
+  }
+  return result;
+}
+
+function isSortedUniqueStrings(values: string[]): boolean {
+  const sorted = [...values].sort((left, right) => left.localeCompare(right));
+  return (
+    new Set(values).size === values.length &&
+    values.every((value, index) => value === sorted[index])
+  );
+}
+
+function validateCommonScopedFields(
+  access: McpScopedAccess,
+): { resourceKeys: string[]; toolNames: string[] } | undefined {
+  if (typeof access.tokenId !== 'string' || !access.tokenId) return undefined;
+  if (typeof access.principal !== 'string' || !access.principal)
+    return undefined;
+  if (typeof access.correlationId !== 'string' || !access.correlationId)
+    return undefined;
+  if (typeof access.scopeId !== 'string' || !UUID_REGEX.test(access.scopeId)) {
+    return undefined;
+  }
+  if (
+    typeof access.executionId !== 'string' ||
+    !UUID_REGEX.test(access.executionId)
+  ) {
+    return undefined;
+  }
+  if (
+    typeof access.systemSid !== 'string' ||
+    !SYSTEM_SID_REGEX.test(access.systemSid)
+  ) {
+    return undefined;
+  }
+  if (
+    !Number.isSafeInteger(access.maxToolCalls) ||
+    access.maxToolCalls < 1 ||
+    access.maxToolCalls > 12
+  ) {
+    return undefined;
+  }
+
+  const resourceKeys = normalizeAndValidateStrings(access.resourceKeys);
+  const toolNames = normalizeAndValidateStrings(access.toolNames);
+  if (
+    !resourceKeys ||
+    resourceKeys.length > 100 ||
+    resourceKeys.some((key) => !OBJECT_KEY_REGEX.test(key)) ||
+    !isSortedUniqueStrings(resourceKeys) ||
+    !toolNames ||
+    toolNames.length === 0 ||
+    !isSortedUniqueStrings(toolNames)
+  ) {
+    return undefined;
+  }
+
+  return { resourceKeys, toolNames };
+}
+
+function buildScopedAccess(
+  access: McpScopedAccess,
+  resourceKeys: string[],
+  toolNames: string[],
+  overrides: Record<string, unknown> = {},
+): McpScopedAccess {
+  return Object.freeze({
+    ...access,
+    resourceKeys: Object.freeze(resourceKeys),
+    toolNames: Object.freeze(toolNames),
+    ...overrides,
+  }) as McpScopedAccess;
+}
+
+function snapshotReadScope(
+  access: McpScopedAccess,
+  resourceKeys: string[],
+  toolNames: string[],
+): McpScopedAccess | undefined {
+  if (
+    resourceKeys.length === 0 ||
+    toolNames.some((name) => !READ_SCOPED_TOOLS.has(name)) ||
+    access.safeExecutePolicy !== undefined ||
+    access.authorizationId !== undefined ||
+    access.authorizationToken !== undefined
+  ) {
+    return undefined;
+  }
+  return buildScopedAccess(access, resourceKeys, toolNames);
+}
+
+function snapshotSafeExecuteScope(
+  access: McpScopedAccess,
+  resourceKeys: string[],
+  toolNames: string[],
+): McpScopedAccess | undefined {
+  const safeExecutePolicy = parseSafeExecutePolicy(access.safeExecutePolicy);
+  if (
+    !safeExecutePolicy ||
+    resourceKeys.length === 0 ||
+    toolNames.length !== 1 ||
+    toolNames[0] !== safeExecutePolicy.operationId ||
+    typeof access.authorizationId !== 'string' ||
+    !UUID_REGEX.test(access.authorizationId) ||
+    typeof access.authorizationToken !== 'string' ||
+    access.authorizationToken.length > 16 * 1024 ||
+    !AUTHORIZATION_TOKEN_REGEX.test(access.authorizationToken)
+  ) {
+    return undefined;
+  }
+  return buildScopedAccess(access, resourceKeys, toolNames, {
+    safeExecutePolicy,
+  });
+}
+
+function snapshotScopedAccess(
+  access: McpScopedAccess | undefined,
+): McpScopedAccess | undefined {
+  if (!access) return undefined;
+  const validated = validateCommonScopedFields(access);
+  if (!validated) return undefined;
+  const { resourceKeys, toolNames } = validated;
+
+  if (access.operationClass === 'read') {
+    return snapshotReadScope(access, resourceKeys, toolNames);
+  }
+  if (access.operationClass === 'safe_execute') {
+    return snapshotSafeExecuteScope(access, resourceKeys, toolNames);
+  }
+  return undefined;
 }
 
 function snapshotFrozenSourceAccess(
@@ -256,10 +425,21 @@ function invocationRequestAccess(
     return undefined;
   }
   const frozenSource = parseAiReviewFrozenSourcePolicy(invocation);
+  const scopedPolicy = parseScopedAdtInvocationPolicy(invocation);
   return snapshotRequestAccess({
     classes: invocation.classes,
     destinationKeys: invocation.destinationKeys,
     ...(frozenSource ? { frozenSource } : {}),
+    ...(scopedPolicy
+      ? {
+          scoped: {
+            tokenId: invocation.tokenId,
+            principal: invocation.principal,
+            correlationId: invocation.correlationId,
+            ...scopedPolicy,
+          },
+        }
+      : {}),
   });
 }
 
@@ -589,6 +769,24 @@ export function createHttpMcpHandler(
                   ? {
                       resolveFrozenSource:
                         destinationServer.resolveFrozenSource,
+                    }
+                  : {}),
+                ...(destinationServer.consumeExecutionAuthorization
+                  ? {
+                      consumeExecutionAuthorization:
+                        destinationServer.consumeExecutionAuthorization,
+                    }
+                  : {}),
+                ...(destinationServer.reportExecutionOutcome
+                  ? {
+                      reportExecutionOutcome:
+                        destinationServer.reportExecutionOutcome,
+                    }
+                  : {}),
+                ...(destinationServer.executeWithDeadline
+                  ? {
+                      executeWithDeadline:
+                        destinationServer.executeWithDeadline,
                     }
                   : {}),
               }

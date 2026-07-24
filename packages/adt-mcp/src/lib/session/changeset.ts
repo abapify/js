@@ -22,10 +22,7 @@
  */
 
 export type ChangesetStatus =
-  | 'open'
-  | 'committing'
-  | 'committed'
-  | 'rolled_back';
+  'open' | 'committing' | 'committed' | 'rolled_back';
 
 export interface ChangesetEntry {
   /** Fully-qualified ADT object URI (e.g. `/sap/bc/adt/oo/classes/zcl_demo`). */

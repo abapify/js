@@ -2,6 +2,9 @@
  * Shared utilities for MCP tool implementations.
  */
 
+import type { McpRequestAccess } from './scope-catalogue.js';
+import type { SafeExecutePolicy } from '../http/invocation.js';
+
 export interface SearchObject {
   name?: string;
   type?: string;
@@ -191,6 +194,23 @@ export function getErrorStatus(error: unknown): number | undefined {
 }
 
 /**
+ * A completed SAP HTTP error response is a deterministic failed execution.
+ * Network, body-stream, abort, and internal parsing errors deliberately do not
+ * match, because dispatch may have happened and their outcome is uncertain.
+ */
+export function isKnownAdtHttpFailure(error: unknown): boolean {
+  const status = getErrorStatus(error);
+  return (
+    error instanceof Error &&
+    error.name === 'AdtError' &&
+    typeof status === 'number' &&
+    Number.isInteger(status) &&
+    status >= 400 &&
+    status <= 599
+  );
+}
+
+/**
  * Build a standard MCP error result with BTP 404 awareness.
  */
 export function mcpErrorResult(
@@ -206,5 +226,57 @@ export function mcpErrorResult(
   return {
     isError: true as const,
     content: [{ type: 'text' as const, text: message }],
+  };
+}
+
+export type McpErrorResult = ReturnType<typeof mcpErrorResult>;
+
+/**
+ * Extract the safe-execute policy for a tool when the caller has been granted
+ * a scoped safe-execute grant for this operationId.
+ */
+export function extractSafeExecutePolicy(
+  access: McpRequestAccess | undefined,
+  operationId: string,
+): SafeExecutePolicy | undefined {
+  return access?.scoped?.operationClass === 'safe_execute' &&
+    access.scoped.safeExecutePolicy?.operationId === operationId
+    ? access.scoped.safeExecutePolicy
+    : undefined;
+}
+
+/**
+ * For safe-execute tool handlers, rethrow non-deterministic errors when a safe
+ * policy is active so the outer execution recorder can report outcome_unknown;
+ * return a standard MCP error for known SAP HTTP failures.
+ */
+export function handleSafeExecuteError(
+  error: unknown,
+  safePolicy: SafeExecutePolicy | undefined,
+  toolLabel: string,
+): McpErrorResult {
+  if (safePolicy && !isKnownAdtHttpFailure(error)) throw error;
+  return mcpErrorResult(error, toolLabel);
+}
+
+/**
+ * Standard MCP result returned when the active scope does not allow a tool.
+ */
+export function scopeDeniedResult() {
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text: 'mcp_scope_denied' }],
+  };
+}
+
+/**
+ * Standard MCP result returned when a safe-execute guard limit is hit.
+ */
+export function safeExecuteLimitResult(
+  text: 'safe_execute_limit_exceeded' | 'outcome_unknown',
+) {
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text }],
   };
 }

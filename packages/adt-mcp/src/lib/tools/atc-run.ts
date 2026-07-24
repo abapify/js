@@ -12,7 +12,13 @@ import type { AdtClient } from '@abapify/adt-client';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
-import { resolveObjectUri } from './utils';
+import {
+  extractSafeExecutePolicy,
+  handleSafeExecuteError,
+  mcpErrorResult,
+  resolveObjectUri,
+  safeExecuteLimitResult,
+} from './utils';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -124,6 +130,13 @@ function canonicalFindings(response: unknown): UnknownRecord[] {
   });
 }
 
+class AtcObjectUnavailableError extends Error {
+  constructor() {
+    super('ATC object is unavailable');
+    this.name = 'AtcObjectUnavailableError';
+  }
+}
+
 async function resolveScopeUris(
   client: AdtClient,
   scope: AtcScope,
@@ -143,7 +156,7 @@ async function resolveScopeUris(
             object.objectName,
             object.objectType,
           );
-          if (!uri) throw new Error('ATC object is unavailable');
+          if (!uri) throw new AtcObjectUnavailableError();
           return uri;
         }),
       );
@@ -192,20 +205,24 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
       objectUri: z.never().optional(),
     },
     async (args, extra) => {
+      const safePolicy = extractSafeExecutePolicy(
+        ctx.requestAccess?.(extra ?? {}),
+        'atc_run',
+      );
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const checkVariant = await resolveVariant(client, args.variant);
+        const targetUris = await resolveScopeUris(client, args.scope);
         const created = await client.adt.atc.worklists.create({
           checkVariant,
         });
         const worklistId = worklistIdFrom(created);
-        const targetUris = await resolveScopeUris(client, args.scope);
 
         await client.adt.atc.runs.post(
           { worklistId },
           {
             run: {
-              maximumVerdicts: 10_000,
+              maximumVerdicts: safePolicy?.maxFindings ?? 10_000,
               objectSets: {
                 objectSet: [
                   {
@@ -222,6 +239,10 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
         const worklist = await client.adt.atc.worklists.get(worklistId, {
           includeExemptedFindings: 'false',
         });
+        const findings = canonicalFindings(worklist);
+        if (safePolicy && findings.length > safePolicy.maxFindings) {
+          return safeExecuteLimitResult('safe_execute_limit_exceeded');
+        }
 
         return {
           content: [
@@ -230,7 +251,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
               text: JSON.stringify(
                 {
                   checkVariant,
-                  findings: canonicalFindings(worklist),
+                  findings,
                 },
                 null,
                 2,
@@ -239,15 +260,10 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           ],
         };
       } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text: `ATC run failed: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-        };
+        if (error instanceof AtcObjectUnavailableError) {
+          return mcpErrorResult(error, 'ATC run');
+        }
+        return handleSafeExecuteError(error, safePolicy, 'ATC run');
       }
     },
   );

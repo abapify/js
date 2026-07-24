@@ -10,6 +10,7 @@ export {
 export { openApiDocument, openApiYaml } from './openapi.js';
 export {
   createAdtServerMcpOptions,
+  executeWithDeadlineAndAbort,
   type AdtServerMcpRuntimeOptions,
 } from './mcp-runtime.js';
 export {

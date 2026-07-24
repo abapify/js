@@ -74,7 +74,6 @@ export function registerGetObjectStructureTool(
       objectName: z.string().describe('ABAP object name'),
       objectType: z
         .string()
-        .optional()
         .describe('Object type (e.g. CLAS, PROG, INTF, FUGR)'),
       version: z
         .enum(['active', 'inactive'])
