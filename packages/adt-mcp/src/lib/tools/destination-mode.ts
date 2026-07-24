@@ -234,6 +234,132 @@ function transformToolInput(
   };
 }
 
+type HandlerArgs = {
+  toolArguments: Record<string, unknown>;
+  extra: { sessionId?: string };
+};
+
+function parseHandlerArgs(handlerArgs: unknown[]): HandlerArgs {
+  const toolArguments =
+    handlerArgs[0] && typeof handlerArgs[0] === 'object'
+      ? (handlerArgs[0] as Record<string, unknown>)
+      : {};
+  const extra =
+    handlerArgs[1] && typeof handlerArgs[1] === 'object'
+      ? (handlerArgs[1] as { sessionId?: string })
+      : {};
+  return { toolArguments, extra };
+}
+
+function isScopeAllowed(
+  access: McpRequestAccess | undefined,
+  name: string,
+  toolArguments: Record<string, unknown>,
+): boolean {
+  return (
+    isMcpToolAllowed(access, name, toolArguments) &&
+    isMcpToolResourceAllowed(access, name, toolArguments) &&
+    isMcpDestinationAllowed(access, toolArguments.destination)
+  );
+}
+
+function maxToolCallsReached(
+  scoped: NonNullable<McpRequestAccess['scoped']>,
+  counters: Map<string, DispatchCounter>,
+): boolean {
+  const counter = counters.get(scoped.executionId);
+  return counter !== undefined && counter.admitted >= scoped.maxToolCalls;
+}
+
+function incrementCounter(
+  scoped: NonNullable<McpRequestAccess['scoped']>,
+  counters: Map<string, DispatchCounter>,
+): void {
+  const counter = counters.get(scoped.executionId) ?? { admitted: 0 };
+  counter.admitted++;
+  counters.set(scoped.executionId, counter);
+}
+
+async function runSafeExecution(
+  handler: Handler,
+  handlerArgs: unknown[],
+  scoped: NonNullable<McpRequestAccess['scoped']>,
+  toolArguments: Record<string, unknown>,
+  options: DestinationModeOptions,
+  counters: Map<string, DispatchCounter>,
+): Promise<unknown> {
+  const policy = scoped.safeExecutePolicy;
+  const { authorizationId, authorizationToken } = scoped;
+  const destinationKey = toolArguments.destination;
+  const {
+    consumeExecutionAuthorization,
+    reportExecutionOutcome,
+    executeWithDeadline,
+  } = options;
+  if (
+    !policy ||
+    !authorizationId ||
+    !authorizationToken ||
+    typeof destinationKey !== 'string' ||
+    !consumeExecutionAuthorization ||
+    !reportExecutionOutcome ||
+    !executeWithDeadline
+  ) {
+    return scopeDeniedResult();
+  }
+
+  try {
+    const consumed = await consumeExecutionAuthorization({
+      authorizationId,
+      authorizationToken,
+      principal: scoped.principal,
+      scopeId: scoped.scopeId,
+      executionId: scoped.executionId,
+      systemSid: scoped.systemSid,
+      resourceKeys: scoped.resourceKeys,
+      destination: destinationKey,
+      operationId: policy.operationId,
+      policy,
+    });
+    if (!consumed) return scopeDeniedResult();
+  } catch {
+    return scopeDeniedResult();
+  }
+
+  incrementCounter(scoped, counters);
+
+  let outcome: 'succeeded' | 'failed' | 'outcome_unknown';
+  let result: unknown;
+  try {
+    result = await executeWithDeadline({
+      maxDurationMs: policy.maxDurationMs,
+      operation: async () => await handler(...handlerArgs),
+    });
+    if (
+      new TextEncoder().encode(JSON.stringify(result)).byteLength >
+      policy.maxResultBytes
+    ) {
+      result = safeExecuteLimitResult('safe_execute_limit_exceeded');
+    }
+    outcome = isToolErrorResult(result) ? 'failed' : 'succeeded';
+  } catch {
+    outcome = 'outcome_unknown';
+    result = safeExecuteLimitResult('outcome_unknown');
+  }
+
+  try {
+    const recorded = await reportExecutionOutcome({
+      authorizationId,
+      authorizationToken,
+      outcome,
+    });
+    if (!recorded) return safeExecuteLimitResult('outcome_unknown');
+  } catch {
+    return safeExecuteLimitResult('outcome_unknown');
+  }
+  return result;
+}
+
 function wrapToolHandler(
   handler: Handler,
   name: string,
@@ -241,113 +367,34 @@ function wrapToolHandler(
   counters: Map<string, DispatchCounter>,
 ): Handler {
   return async (...handlerArgs: unknown[]) => {
-    const toolArguments =
-      handlerArgs[0] && typeof handlerArgs[0] === 'object'
-        ? (handlerArgs[0] as Record<string, unknown>)
-        : {};
-    const extra =
-      handlerArgs[1] && typeof handlerArgs[1] === 'object'
-        ? (handlerArgs[1] as { sessionId?: string })
-        : {};
+    const { toolArguments, extra } = parseHandlerArgs(handlerArgs);
     let access: McpRequestAccess | undefined;
     try {
       access = options.requestAccess?.(extra);
     } catch {
       return scopeDeniedResult();
     }
-    if (
-      !isMcpToolAllowed(access, name, toolArguments) ||
-      !isMcpToolResourceAllowed(access, name, toolArguments) ||
-      !isMcpDestinationAllowed(access, toolArguments.destination)
-    ) {
+    if (!isScopeAllowed(access, name, toolArguments)) {
       return scopeDeniedResult();
     }
     const scoped = access?.scoped;
     if (scoped) {
-      const counter = counters.get(scoped.executionId);
-      if (counter && counter.admitted >= scoped.maxToolCalls) {
+      if (maxToolCallsReached(scoped, counters)) {
         return scopeDeniedResult();
       }
-    }
-
-    if (scoped?.operationClass !== 'safe_execute') {
-      if (scoped) {
-        const counter = counters.get(scoped.executionId) ?? { admitted: 0 };
-        counter.admitted++;
-        counters.set(scoped.executionId, counter);
+      if (scoped.operationClass === 'safe_execute') {
+        return await runSafeExecution(
+          handler,
+          handlerArgs,
+          scoped,
+          toolArguments,
+          options,
+          counters,
+        );
       }
-      return await handler(...handlerArgs);
+      incrementCounter(scoped, counters);
     }
-
-    const policy = scoped.safeExecutePolicy;
-    const authorizationId = scoped.authorizationId;
-    const authorizationToken = scoped.authorizationToken;
-    const destinationKey = toolArguments.destination;
-    const consumeExecutionAuthorization = options.consumeExecutionAuthorization;
-    const reportExecutionOutcome = options.reportExecutionOutcome;
-    const executeWithDeadline = options.executeWithDeadline;
-    if (
-      !policy ||
-      !authorizationId ||
-      !authorizationToken ||
-      typeof destinationKey !== 'string' ||
-      !consumeExecutionAuthorization ||
-      !reportExecutionOutcome ||
-      !executeWithDeadline
-    ) {
-      return scopeDeniedResult();
-    }
-    try {
-      const consumed = await consumeExecutionAuthorization({
-        authorizationId,
-        authorizationToken,
-        principal: scoped.principal,
-        scopeId: scoped.scopeId,
-        executionId: scoped.executionId,
-        systemSid: scoped.systemSid,
-        resourceKeys: scoped.resourceKeys,
-        destination: destinationKey,
-        operationId: policy.operationId,
-        policy,
-      });
-      if (!consumed) return scopeDeniedResult();
-    } catch {
-      return scopeDeniedResult();
-    }
-
-    const counter = counters.get(scoped.executionId) ?? { admitted: 0 };
-    counter.admitted++;
-    counters.set(scoped.executionId, counter);
-    let outcome: 'succeeded' | 'failed' | 'outcome_unknown';
-    let result: unknown;
-    try {
-      result = await executeWithDeadline({
-        maxDurationMs: policy.maxDurationMs,
-        operation: async () => await handler(...handlerArgs),
-      });
-      if (
-        new TextEncoder().encode(JSON.stringify(result)).byteLength >
-        policy.maxResultBytes
-      ) {
-        result = safeExecuteLimitResult('safe_execute_limit_exceeded');
-      }
-      outcome = isToolErrorResult(result) ? 'failed' : 'succeeded';
-    } catch {
-      outcome = 'outcome_unknown';
-      result = safeExecuteLimitResult('outcome_unknown');
-    }
-
-    try {
-      const recorded = await reportExecutionOutcome({
-        authorizationId,
-        authorizationToken,
-        outcome,
-      });
-      if (!recorded) return safeExecuteLimitResult('outcome_unknown');
-    } catch {
-      return safeExecuteLimitResult('outcome_unknown');
-    }
-    return result;
+    return await handler(...handlerArgs);
   };
 }
 

@@ -406,6 +406,46 @@ export class SessionManager {
    * @param client - SAP client number
    * @param language - SAP language
    */
+  private buildSessionHeaders(authHeader?: string): Record<string, string> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.sap.adt.core.http.session.v3+xml',
+      'X-sap-adt-sessiontype': 'stateful',
+    };
+    if (authHeader) headers.Authorization = authHeader;
+    const cookie = this.cookieStore.getCookieHeader();
+    if (cookie) headers.Cookie = cookie;
+    return headers;
+  }
+
+  private async deleteSecuritySession(
+    sessionPath: string,
+    csrfToken: string,
+    baseUrl: string,
+    authHeader?: string,
+    client?: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const deleteUrl = new URL(sessionPath, baseUrl);
+    if (client) deleteUrl.searchParams.append('sap-client', client);
+    try {
+      this.logger?.debug(`Session: Deleting security session ${sessionPath}`);
+      await fetch(deleteUrl.toString(), {
+        method: 'DELETE',
+        headers: {
+          ...this.buildSessionHeaders(authHeader),
+          'x-sap-security-session': 'use',
+          'x-csrf-token': csrfToken,
+        },
+        signal: signal ?? AbortSignal.timeout(5_000),
+      });
+      this.logger?.debug('Session: Security session deleted');
+    } catch {
+      this.logger?.debug(
+        'Session: Failed to delete security session (will expire)',
+      );
+    }
+  }
+
   async initializeCsrf(
     baseUrl: string,
     authHeader?: string,
@@ -415,25 +455,8 @@ export class SessionManager {
   ): Promise<boolean> {
     signal?.throwIfAborted();
     const sessionsUrl = new URL('/sap/bc/adt/core/http/sessions', baseUrl);
-
-    if (client) {
-      sessionsUrl.searchParams.append('sap-client', client);
-    }
-    if (language) {
-      sessionsUrl.searchParams.append('sap-language', language);
-    }
-
-    /** Build common headers, optionally including Authorization and cookies */
-    const baseHeaders = (): Record<string, string> => {
-      const h: Record<string, string> = {
-        Accept: 'application/vnd.sap.adt.core.http.session.v3+xml',
-        'X-sap-adt-sessiontype': 'stateful',
-      };
-      if (authHeader) h.Authorization = authHeader;
-      const cookie = this.cookieStore.getCookieHeader();
-      if (cookie) h.Cookie = cookie;
-      return h;
-    };
+    if (client) sessionsUrl.searchParams.append('sap-client', client);
+    if (language) sessionsUrl.searchParams.append('sap-language', language);
 
     let sessionPath: string | undefined;
     let acquiredCsrfToken: string | undefined;
@@ -444,7 +467,7 @@ export class SessionManager {
       const createResponse = await fetch(sessionsUrl.toString(), {
         method: 'GET',
         headers: {
-          ...baseHeaders(),
+          ...this.buildSessionHeaders(authHeader),
           'x-sap-security-session': 'create',
         },
         signal,
@@ -457,11 +480,8 @@ export class SessionManager {
         );
         return false;
       }
-
-      // Extract cookies (sap-contextid) from the create response
       this.processResponse(createResponse);
 
-      // Extract session URL from response body for later DELETE
       const createBody = await createResponse.text();
       signal?.throwIfAborted();
       const sessionHrefMatch = createBody.match(
@@ -474,7 +494,7 @@ export class SessionManager {
       const csrfResponse = await fetch(sessionsUrl.toString(), {
         method: 'GET',
         headers: {
-          ...baseHeaders(),
+          ...this.buildSessionHeaders(authHeader),
           'x-sap-security-session': 'use',
           'x-csrf-token': 'Fetch',
         },
@@ -488,11 +508,9 @@ export class SessionManager {
         );
         return false;
       }
-
       this.processResponse(csrfResponse);
 
-      const success = this.csrfManager.hasCached();
-      if (!success) {
+      if (!this.csrfManager.hasCached()) {
         this.logger?.warn(
           'Session: CSRF fetch succeeded but no token found in response',
         );
@@ -504,57 +522,27 @@ export class SessionManager {
       this.logger?.debug('Session: CSRF token acquired');
 
       // ── Step 3: Delete the security session (token stays valid) ──
-      // Frees the session slot — SAP allows one security session per user.
-      if (sessionPath) {
-        const deleteUrl = new URL(sessionPath, baseUrl);
-        if (client) deleteUrl.searchParams.append('sap-client', client);
-        const csrfToken = acquiredCsrfToken ?? this.csrfManager.getCached();
-        if (!csrfToken) return false;
-
-        try {
-          this.logger?.debug(
-            `Session: Deleting security session ${sessionPath}`,
-          );
-          await fetch(deleteUrl.toString(), {
-            method: 'DELETE',
-            headers: {
-              ...baseHeaders(),
-              'x-sap-security-session': 'use',
-              'x-csrf-token': csrfToken,
-            },
-            signal: AbortSignal.timeout(5_000),
-          });
-          this.logger?.debug('Session: Security session deleted');
-        } catch (_error) {
-          // Best-effort — session will time out anyway
-          this.logger?.debug(
-            'Session: Failed to delete security session (will expire)',
-          );
-        }
+      if (sessionPath && acquiredCsrfToken) {
+        await this.deleteSecuritySession(
+          sessionPath,
+          acquiredCsrfToken,
+          baseUrl,
+          authHeader,
+          client,
+        );
       }
 
       return true;
     } catch (error) {
       if (signal?.aborted) {
         if (sessionPath && acquiredCsrfToken) {
-          const deleteUrl = new URL(sessionPath, baseUrl);
-          if (client) deleteUrl.searchParams.append('sap-client', client);
-          try {
-            await fetch(deleteUrl.toString(), {
-              method: 'DELETE',
-              headers: {
-                ...baseHeaders(),
-                'x-sap-security-session': 'use',
-                'x-csrf-token': acquiredCsrfToken,
-              },
-              signal: AbortSignal.timeout(5_000),
-            });
-            this.logger?.debug('Session: Security session deleted on cancel');
-          } catch (_cleanupError) {
-            this.logger?.debug(
-              'Session: Failed to delete security session on cancel (will expire)',
-            );
-          }
+          await this.deleteSecuritySession(
+            sessionPath,
+            acquiredCsrfToken,
+            baseUrl,
+            authHeader,
+            client,
+          );
         }
         throw error;
       }
