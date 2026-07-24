@@ -223,7 +223,7 @@ function snapshotScopedAccess(
     !access.correlationId ||
     !uuid.test(access.scopeId) ||
     !uuid.test(access.executionId) ||
-    !/^[A-Z0-9_-]{1,16}$/u.test(access.systemSid) ||
+    !/^[A-Za-z0-9_-]{1,16}$/u.test(access.systemSid) ||
     !Number.isSafeInteger(access.maxToolCalls) ||
     access.maxToolCalls < 1 ||
     access.maxToolCalls > 12 ||
@@ -236,25 +236,21 @@ function snapshotScopedAccess(
   }
   const resourceKeys = [...access.resourceKeys];
   const toolNames = [...access.toolNames];
+  const sortedResourceKeys = [...resourceKeys].sort((left, right) =>
+    left.localeCompare(right),
+  );
+  const sortedToolNames = [...toolNames].sort((left, right) =>
+    left.localeCompare(right),
+  );
   if (
     resourceKeys.some(
       (key) => typeof key !== 'string' || !objectKey.test(key),
     ) ||
     new Set(resourceKeys).size !== resourceKeys.length ||
-    resourceKeys.some(
-      (key, index) =>
-        key !==
-        [...resourceKeys].sort((left, right) => left.localeCompare(right))[
-          index
-        ],
-    ) ||
+    resourceKeys.some((key, index) => key !== sortedResourceKeys[index]) ||
     toolNames.some((name) => typeof name !== 'string') ||
     new Set(toolNames).size !== toolNames.length ||
-    toolNames.some(
-      (name, index) =>
-        name !==
-        [...toolNames].sort((left, right) => left.localeCompare(right))[index],
-    )
+    toolNames.some((name, index) => name !== sortedToolNames[index])
   ) {
     return undefined;
   }

@@ -12,7 +12,11 @@ import type { AdtClient } from '@abapify/adt-client';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
-import { isKnownAdtHttpFailure, resolveObjectUri } from './utils';
+import {
+  isKnownAdtHttpFailure,
+  resolveObjectUri,
+  safeExecuteLimitResult,
+} from './utils';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -230,15 +234,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
         });
         const findings = canonicalFindings(worklist);
         if (safePolicy && findings.length > safePolicy.maxFindings) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text' as const,
-                text: 'safe_execute_limit_exceeded',
-              },
-            ],
-          };
+          return safeExecuteLimitResult('safe_execute_limit_exceeded');
         }
 
         return {

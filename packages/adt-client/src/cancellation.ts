@@ -7,12 +7,12 @@ const adtAbortSignal = new AsyncLocalStorage<AbortSignal>();
  * storage keeps concurrent clients and invocations isolated without mutating
  * shared client state.
  */
-export function runWithAdtAbortSignal<T>(
+export async function runWithAdtAbortSignal<T>(
   signal: AbortSignal,
   operation: () => Promise<T>,
 ): Promise<T> {
   signal.throwIfAborted();
-  return adtAbortSignal.run(signal, operation);
+  return await adtAbortSignal.run(signal, operation);
 }
 
 export function activeAdtAbortSignal(): AbortSignal | undefined {

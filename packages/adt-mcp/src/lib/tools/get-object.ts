@@ -21,6 +21,10 @@ export function registerGetObjectTool(
     {
       ...sessionOrConnectionShape,
       objectName: z.string().describe('ABAP object name to inspect'),
+      objectType: z
+        .string()
+        .optional()
+        .describe('Object type (e.g. CLAS, PROG, INTF, FUGR)'),
     },
     async (args, extra) => {
       try {
@@ -31,16 +35,23 @@ export function registerGetObjectTool(
           await client.adt.repository.informationsystem.search.quickSearch({
             query: args.objectName,
             maxResults: 10,
+            ...(args.objectType ? { objectType: args.objectType } : {}),
           });
 
         const objects = extractObjectReferences(searchResult);
 
-        // Find exact match
-        const exactMatch = objects.find(
-          (obj) =>
+        // Find exact match, optionally filtered by object type
+        const exactMatch = objects.find((obj) => {
+          const nameMatch =
             String(obj.name ?? '').toUpperCase() ===
-            args.objectName.toUpperCase(),
-        );
+            args.objectName.toUpperCase();
+          if (!nameMatch) return false;
+          if (!args.objectType) return true;
+          return (
+            String(obj.type ?? '').toUpperCase() ===
+            args.objectType.toUpperCase()
+          );
+        });
 
         if (!exactMatch) {
           const similar = objects

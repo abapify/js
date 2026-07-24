@@ -24,6 +24,7 @@ import {
   type McpOperationClass,
   type McpRequestAccess,
 } from './scope-catalogue.js';
+import { safeExecuteLimitResult, scopeDeniedResult } from './utils.js';
 
 const destination = z
   .string()
@@ -98,22 +99,6 @@ const destinationToolInventories = new WeakMap<
   McpServer,
   Map<string, DestinationToolListEntry>
 >();
-
-function scopeDeniedResult() {
-  return {
-    isError: true as const,
-    content: [{ type: 'text' as const, text: 'mcp_scope_denied' }],
-  };
-}
-
-function safeExecuteLimitResult(
-  text: 'safe_execute_limit_exceeded' | 'outcome_unknown',
-) {
-  return {
-    isError: true as const,
-    content: [{ type: 'text' as const, text }],
-  };
-}
 
 function isToolErrorResult(result: unknown): boolean {
   return (
@@ -253,7 +238,7 @@ function wrapToolHandler(
   handler: Handler,
   name: string,
   options: DestinationModeOptions,
-  counter: DispatchCounter,
+  counters: Map<string, DispatchCounter>,
 ): Handler {
   return async (...handlerArgs: unknown[]) => {
     const toolArguments =
@@ -278,12 +263,19 @@ function wrapToolHandler(
       return scopeDeniedResult();
     }
     const scoped = access?.scoped;
-    if (scoped && counter.admitted >= scoped.maxToolCalls) {
-      return scopeDeniedResult();
+    if (scoped) {
+      const counter = counters.get(scoped.executionId);
+      if (counter && counter.admitted >= scoped.maxToolCalls) {
+        return scopeDeniedResult();
+      }
     }
 
     if (scoped?.operationClass !== 'safe_execute') {
-      if (scoped) counter.admitted++;
+      if (scoped) {
+        const counter = counters.get(scoped.executionId) ?? { admitted: 0 };
+        counter.admitted++;
+        counters.set(scoped.executionId, counter);
+      }
       return await handler(...handlerArgs);
     }
 
@@ -323,7 +315,9 @@ function wrapToolHandler(
       return scopeDeniedResult();
     }
 
+    const counter = counters.get(scoped.executionId) ?? { admitted: 0 };
     counter.admitted++;
+    counters.set(scoped.executionId, counter);
     let outcome: 'succeeded' | 'failed' | 'outcome_unknown';
     let result: unknown;
     try {
@@ -417,7 +411,7 @@ export function destinationModeServer(
   options: DestinationModeOptions = {},
 ): McpServer {
   const inventory = new Map<string, DestinationToolListEntry>();
-  const counter: DispatchCounter = { admitted: 0 };
+  const counters = new Map<string, DispatchCounter>();
   destinationToolInventories.set(server, inventory);
   return new Proxy(server, {
     get(target, property, receiver) {
@@ -435,7 +429,7 @@ export function destinationModeServer(
           handler as Handler,
           name,
           options,
-          counter,
+          counters,
         );
         const registeredTool = registerDestinationTool(
           target,

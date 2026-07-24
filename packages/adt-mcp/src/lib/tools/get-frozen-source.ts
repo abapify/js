@@ -12,13 +12,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { AdtResponseTooLargeError } from '@abapify/adt-client';
 import type { ToolContext } from '../types.js';
 import { resolveClient } from './session-helpers.js';
-
-function denied() {
-  return {
-    isError: true as const,
-    content: [{ type: 'text' as const, text: 'mcp_scope_denied' }],
-  };
-}
+import { scopeDeniedResult } from './utils.js';
 
 export function registerGetFrozenSourceTool(
   server: McpServer,
@@ -54,7 +48,7 @@ export function registerGetFrozenSourceTool(
         !ctx.resolveFrozenSource ||
         typeof destination !== 'string'
       ) {
-        return denied();
+        return scopeDeniedResult();
       }
 
       try {
@@ -71,7 +65,7 @@ export function registerGetFrozenSourceTool(
           // eslint-disable-next-line no-control-regex
           /[\s\\\u0000-\u0008\u000e-\u001f\u007f]/u.test(resolved.sourceUri)
         ) {
-          return denied();
+          return scopeDeniedResult();
         }
         const { client } = await resolveClient(ctx, args, extra ?? {});
         let text: string;

@@ -14,7 +14,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
-import { isKnownAdtHttpFailure, resolveObjectUri } from './utils';
+import {
+  isKnownAdtHttpFailure,
+  resolveObjectUri,
+  safeExecuteLimitResult,
+} from './utils';
 import type { InferTypedSchema } from '@abapify/adt-schemas';
 import { aunitResult } from '@abapify/adt-schemas';
 import { extractCoverageMeasurementId } from '@abapify/adt-contracts';
@@ -149,6 +153,11 @@ function normalizeResult(response: AunitResultData): {
   return { totalTests, passCount, failCount, errorCount, programs };
 }
 
+function alertCount(rawAlerts: unknown): number {
+  if (!rawAlerts) return 0;
+  return Array.isArray(rawAlerts) ? rawAlerts.length : 1;
+}
+
 function resultCounts(programs: AunitProgram[]): {
   programs: number;
   testClasses: number;
@@ -161,14 +170,15 @@ function resultCounts(programs: AunitProgram[]): {
   for (const program of programs) {
     const rawClasses = program.testClasses?.testClass ?? [];
     const classes = Array.isArray(rawClasses) ? rawClasses : [rawClasses];
+    findings += alertCount(program.alerts?.alert);
     testClasses += classes.length;
     for (const testClass of classes) {
       const rawMethods = testClass?.testMethods?.testMethod ?? [];
       const methods = Array.isArray(rawMethods) ? rawMethods : [rawMethods];
+      findings += alertCount(testClass.alerts?.alert);
       testMethods += methods.length;
       for (const method of methods) {
-        const rawAlerts = method?.alerts?.alert ?? [];
-        findings += Array.isArray(rawAlerts) ? rawAlerts.length : 1;
+        findings += alertCount(method?.alerts?.alert);
       }
     }
   }
@@ -197,14 +207,7 @@ function coverageMeasurementCount(value: unknown): number {
   );
 }
 
-function limitExceeded() {
-  return {
-    isError: true as const,
-    content: [{ type: 'text' as const, text: 'safe_execute_limit_exceeded' }],
-  };
-}
-
-type SafeExecuteLimitResult = ReturnType<typeof limitExceeded>;
+type SafeExecuteLimitResult = ReturnType<typeof safeExecuteLimitResult>;
 type CoveragePayload = { format: string; xml: string; warning?: string };
 
 function checkSafeExecuteLimits(
@@ -212,19 +215,20 @@ function checkSafeExecuteLimits(
   safePolicy: SafeExecutePolicy | undefined,
 ): SafeExecuteLimitResult | undefined {
   if (!safePolicy) return undefined;
-  if (counts.findings > safePolicy.maxFindings) return limitExceeded();
+  if (counts.findings > safePolicy.maxFindings)
+    return safeExecuteLimitResult('safe_execute_limit_exceeded');
   if (
     safePolicy.check === 'aunit' &&
     (counts.testClasses > safePolicy.maxTestClasses ||
       counts.testMethods > safePolicy.maxTestMethods)
   ) {
-    return limitExceeded();
+    return safeExecuteLimitResult('safe_execute_limit_exceeded');
   }
   if (
     safePolicy.check === 'coverage' &&
     counts.programs > safePolicy.maxPrograms
   ) {
-    return limitExceeded();
+    return safeExecuteLimitResult('safe_execute_limit_exceeded');
   }
   return undefined;
 }

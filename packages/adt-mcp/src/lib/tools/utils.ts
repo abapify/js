@@ -225,3 +225,25 @@ export function mcpErrorResult(
     content: [{ type: 'text' as const, text: message }],
   };
 }
+
+/**
+ * Standard MCP result returned when the active scope does not allow a tool.
+ */
+export function scopeDeniedResult() {
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text: 'mcp_scope_denied' }],
+  };
+}
+
+/**
+ * Standard MCP result returned when a safe-execute guard limit is hit.
+ */
+export function safeExecuteLimitResult(
+  text: 'safe_execute_limit_exceeded' | 'outcome_unknown',
+) {
+  return {
+    isError: true as const,
+    content: [{ type: 'text' as const, text }],
+  };
+}

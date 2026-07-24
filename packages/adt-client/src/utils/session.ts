@@ -435,6 +435,9 @@ export class SessionManager {
       return h;
     };
 
+    let sessionPath: string | undefined;
+    let acquiredCsrfToken: string | undefined;
+
     try {
       // ── Step 1: Create security session ──────────────────────────
       this.logger?.debug('Session: Creating security session');
@@ -464,7 +467,7 @@ export class SessionManager {
       const sessionHrefMatch = createBody.match(
         /href="([^"]*\/sessions\/[^"]*)"/,
       );
-      const sessionPath = sessionHrefMatch?.[1];
+      sessionPath = sessionHrefMatch?.[1];
 
       // ── Step 2: Fetch CSRF token within the session ──────────────
       this.logger?.debug('Session: Fetching CSRF token');
@@ -496,6 +499,7 @@ export class SessionManager {
         return false;
       }
 
+      acquiredCsrfToken = this.csrfManager.getCached() ?? undefined;
       this.securitySessionActive = true;
       this.logger?.debug('Session: CSRF token acquired');
 
@@ -504,6 +508,8 @@ export class SessionManager {
       if (sessionPath) {
         const deleteUrl = new URL(sessionPath, baseUrl);
         if (client) deleteUrl.searchParams.append('sap-client', client);
+        const csrfToken = acquiredCsrfToken ?? this.csrfManager.getCached();
+        if (!csrfToken) return false;
 
         try {
           this.logger?.debug(
@@ -514,14 +520,12 @@ export class SessionManager {
             headers: {
               ...baseHeaders(),
               'x-sap-security-session': 'use',
-              'x-csrf-token': this.csrfManager.getCached()!,
+              'x-csrf-token': csrfToken,
             },
-            signal,
+            signal: AbortSignal.timeout(5_000),
           });
-          signal?.throwIfAborted();
           this.logger?.debug('Session: Security session deleted');
-        } catch (error) {
-          if (signal?.aborted) throw error;
+        } catch (_error) {
           // Best-effort — session will time out anyway
           this.logger?.debug(
             'Session: Failed to delete security session (will expire)',
@@ -532,7 +536,26 @@ export class SessionManager {
       return true;
     } catch (error) {
       if (signal?.aborted) {
-        this.clear();
+        if (sessionPath && acquiredCsrfToken) {
+          const deleteUrl = new URL(sessionPath, baseUrl);
+          if (client) deleteUrl.searchParams.append('sap-client', client);
+          try {
+            await fetch(deleteUrl.toString(), {
+              method: 'DELETE',
+              headers: {
+                ...baseHeaders(),
+                'x-sap-security-session': 'use',
+                'x-csrf-token': acquiredCsrfToken,
+              },
+              signal: AbortSignal.timeout(5_000),
+            });
+            this.logger?.debug('Session: Security session deleted on cancel');
+          } catch (_cleanupError) {
+            this.logger?.debug(
+              'Session: Failed to delete security session on cancel (will expire)',
+            );
+          }
+        }
         throw error;
       }
       this.logger?.error(

@@ -360,6 +360,7 @@ function isScopedReadResourceAllowed(
   arguments_: Record<string, unknown>,
 ): boolean {
   if (name !== 'get_object' && name !== 'get_object_structure') return true;
+  if (scoped.resourceKeys.length === 0) return false;
   const key = canonicalObjectKey(arguments_.objectType, arguments_.objectName);
   return Boolean(key && scoped.resourceKeys.includes(key));
 }
