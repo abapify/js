@@ -18,3 +18,8 @@ export {
   createHttpDestinationContexts,
   type HttpBrokerOptions,
 } from './broker.js';
+export {
+  loadRestRuntimeSecurity,
+  type RestRuntimeSecurity,
+  type RestRuntimeSecurityOptions,
+} from './rest-runtime.js';
