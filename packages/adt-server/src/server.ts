@@ -142,6 +142,10 @@ export interface AdtServerMcpOptions {
   consumeSafeExecuteGrant?: NonNullable<
     import('@abapify/adt-mcp').ToolContext['consumeSafeExecuteGrant']
   >;
+  /** Single terminal ARM outcome report; safe execution is denied when absent. */
+  reportSafeExecuteGrantOutcome?: NonNullable<
+    import('@abapify/adt-mcp').ToolContext['reportSafeExecuteGrantOutcome']
+  >;
   /** Hard-cancellable SAP runtime; safe execution is denied when absent. */
   executeSafeTool?: NonNullable<
     import('@abapify/adt-mcp').ToolContext['executeSafeTool']
@@ -262,6 +266,12 @@ function createServerMcpHandler(
       ...(mcpOptions.consumeSafeExecuteGrant
         ? {
             consumeSafeExecuteGrant: mcpOptions.consumeSafeExecuteGrant,
+          }
+        : {}),
+      ...(mcpOptions.reportSafeExecuteGrantOutcome
+        ? {
+            reportSafeExecuteGrantOutcome:
+              mcpOptions.reportSafeExecuteGrantOutcome,
           }
         : {}),
       ...(mcpOptions.executeSafeTool

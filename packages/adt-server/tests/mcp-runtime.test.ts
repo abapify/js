@@ -8,7 +8,10 @@ import { SignJWT } from 'jose';
 import {
   createAdtServerMcpOptions,
   createSafeExecuteGrantConsumer,
+  createSafeExecuteGrantOutcomeReporter,
+  executeSafeToolWithAbort,
 } from '../src/mcp-runtime.js';
+import { createAdtAdapter } from '@abapify/adt-client';
 
 const brokerOptions = {
   baseUrl: 'http://adt-api.internal',
@@ -98,7 +101,7 @@ test('accepts a dedicated P-256 public key without accepting a private key path'
   }
 });
 
-test('safe_execute stays disabled without a hard-cancellable SAP runtime', async () => {
+test('safe_execute uses the hard-cancellable SAP runtime by default', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-mcp-'));
   const publicKeyPath = path.join(directory, 'public.pem');
   const { publicKey } = generateKeyPairSync('ec', {
@@ -111,21 +114,94 @@ test('safe_execute stays disabled without a hard-cancellable SAP runtime', async
   );
 
   try {
-    await assert.rejects(
-      createAdtServerMcpOptions({
-        env: {
-          ADT_SERVER_MCP_PUBLIC_KEY_FILE: publicKeyPath,
-          ADT_SERVER_MCP_KEY_ID: 'adt-mcp-test',
-          ADT_SERVER_MCP_ISSUER: 'adt-api',
-          ADT_SERVER_MCP_SAFE_EXECUTE_ENABLED: 'true',
-        },
-        brokerOptions,
-      }),
-      /hard-cancellable SAP runtime/i,
+    const options = await createAdtServerMcpOptions({
+      env: {
+        ADT_SERVER_MCP_PUBLIC_KEY_FILE: publicKeyPath,
+        ADT_SERVER_MCP_KEY_ID: 'adt-mcp-test',
+        ADT_SERVER_MCP_ISSUER: 'adt-api',
+        ADT_SERVER_MCP_SAFE_EXECUTE_ENABLED: 'true',
+      },
+      brokerOptions,
+    });
+
+    assert.strictEqual(options?.executeSafeTool, executeSafeToolWithAbort);
+    assert.strictEqual(
+      typeof options?.reportSafeExecuteGrantOutcome,
+      'function',
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('safe_execute aborts SAP I/O and awaits settlement before reporting timeout', async () => {
+  const originalFetch = globalThis.fetch;
+  let observedSignal: AbortSignal | undefined;
+  let operationSettled = false;
+  let fetchCalls = 0;
+  globalThis.fetch = async (_input, init) => {
+    fetchCalls++;
+    observedSignal = init?.signal ?? undefined;
+    return await new Promise<Response>((_resolve, reject) => {
+      observedSignal?.addEventListener(
+        'abort',
+        () => {
+          queueMicrotask(() => {
+            operationSettled = true;
+            reject(observedSignal?.reason);
+          });
+        },
+        { once: true },
+      );
+    });
+  };
+  const adapter = createAdtAdapter({
+    baseUrl: 'https://sap.example.test',
+    username: 'test',
+    password: 'test',
+  });
+
+  try {
+    await assert.rejects(
+      executeSafeToolWithAbort({
+        maxDurationMs: 10,
+        operation: async () => {
+          try {
+            return await adapter.request({
+              method: 'GET',
+              url: '/sap/bc/adt/atc/runs',
+            });
+          } catch {
+            // Tool handlers normalize transport failures into MCP results.
+            return { isError: true };
+          }
+        },
+      }),
+      /deadline exceeded/i,
+    );
+    assert.strictEqual(observedSignal?.aborted, true);
+    assert.strictEqual(operationSettled, true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.strictEqual(fetchCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('safe_execute rejects a late settlement even when the event loop delays the timer', async () => {
+  await assert.rejects(
+    executeSafeToolWithAbort({
+      maxDurationMs: 1,
+      operation: async () => {
+        const settleAfter = performance.now() + 10;
+        while (performance.now() < settleAfter) {
+          // Simulate synchronous result processing that delays timer delivery.
+        }
+        return { completed: true };
+      },
+    }),
+    /deadline exceeded/i,
+  );
 });
 
 test('consumes a grant through the authenticated ARM sidecar route without widening the body', async () => {
@@ -141,7 +217,7 @@ test('consumes a grant through the authenticated ARM sidecar route without widen
       }
     | undefined;
   const consume = createSafeExecuteGrantConsumer({
-    baseUrl: 'http://arm-api.internal',
+    baseUrl: 'http://adt-api.internal',
     tokenFile,
     fetch: async (input, init) => {
       observed = {
@@ -180,7 +256,7 @@ test('consumes a grant through the authenticated ARM sidecar route without widen
     assert.strictEqual(allowed, true);
     assert.strictEqual(
       observed?.url,
-      'http://arm-api.internal/internal/adt-server/jess-safe-execute-grants/33333333-3333-4333-8333-333333333333/consume',
+      'http://adt-api.internal/internal/adt-server/jess-safe-execute-grants/33333333-3333-4333-8333-333333333333/consume',
     );
     assert.strictEqual(observed?.method, 'POST');
     assert.deepStrictEqual(observed?.headers, {
@@ -190,6 +266,61 @@ test('consumes a grant through the authenticated ARM sidecar route without widen
     assert.strictEqual(
       observed?.body,
       JSON.stringify({ opaqueGrant: 'header.payload.signature' }),
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('reports one terminal grant outcome through the authenticated ARM sidecar route', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-server-mcp-'));
+  const tokenFile = path.join(directory, 'sidecar-token');
+  await writeFile(tokenFile, 'service-token\n', 'utf8');
+  let observed:
+    | {
+        url: string;
+        method?: string;
+        headers?: HeadersInit;
+        body?: BodyInit | null;
+      }
+    | undefined;
+  const report = createSafeExecuteGrantOutcomeReporter({
+    baseUrl: 'http://adt-api.internal',
+    tokenFile,
+    fetch: async (input, init) => {
+      observed = {
+        url: String(input),
+        method: init?.method,
+        headers: init?.headers,
+        body: init?.body,
+      };
+      return new Response(null, { status: 204 });
+    },
+  });
+
+  try {
+    const recorded = await report({
+      grantJti: '33333333-3333-4333-8333-333333333333',
+      opaqueGrant: 'header.payload.signature',
+      outcome: 'outcome_unknown',
+    });
+
+    assert.strictEqual(recorded, true);
+    assert.strictEqual(
+      observed?.url,
+      'http://adt-api.internal/internal/adt-server/jess-safe-execute-grants/33333333-3333-4333-8333-333333333333/outcome',
+    );
+    assert.strictEqual(observed?.method, 'POST');
+    assert.deepStrictEqual(observed?.headers, {
+      'content-type': 'application/json',
+      'x-adt-server-token': 'service-token',
+    });
+    assert.strictEqual(
+      observed?.body,
+      JSON.stringify({
+        opaqueGrant: 'header.payload.signature',
+        outcome: 'outcome_unknown',
+      }),
     );
   } finally {
     await rm(directory, { recursive: true, force: true });

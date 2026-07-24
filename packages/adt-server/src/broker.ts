@@ -1089,7 +1089,7 @@ export function createHttpBrokerOperations(
   const request = async (path: string): Promise<Response> => {
     const token = await readBrokerToken();
     const response = await fetcher(new URL(path, options.baseUrl), {
-      headers: { 'x-adt-server-token': token },
+      headers: { 'x-arm-adt-server-token': token },
     });
     if (!response.ok)
       throw new Error(`ADT Server broker request failed (${response.status})`);

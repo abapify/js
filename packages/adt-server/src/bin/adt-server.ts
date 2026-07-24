@@ -1,5 +1,8 @@
 import { createHttpBrokerOperations } from '../broker.js';
-import { createAdtServerMcpOptions } from '../mcp-runtime.js';
+import {
+  createAdtServerMcpOptions,
+  executeSafeToolWithAbort,
+} from '../mcp-runtime.js';
 import { loadRestRuntimeSecurity } from '../rest-runtime.js';
 import { startAdtServer } from '../server.js';
 
@@ -21,6 +24,7 @@ async function main(): Promise<void> {
     createAdtServerMcpOptions({
       env: process.env,
       brokerOptions,
+      executeSafeTool: executeSafeToolWithAbort,
     }),
     loadRestRuntimeSecurity({
       tokenFile: restTokenFile,

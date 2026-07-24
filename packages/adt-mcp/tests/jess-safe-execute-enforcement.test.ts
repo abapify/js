@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { destinationModeServer } from '../src/lib/tools/destination-mode.js';
+import { registerAtcRunTool } from '../src/lib/tools/atc-run.js';
+import { registerRunUnitTestsTool } from '../src/lib/tools/run-unit-tests.js';
 import {
   isMcpToolListed,
   normalizeUnitTestOptions,
   type McpRequestAccess,
 } from '../src/lib/tools/scope-catalogue.js';
+import { isKnownAdtHttpFailure } from '../src/lib/tools/utils.js';
 
 type ToolResult = {
   isError?: boolean;
@@ -62,6 +65,30 @@ function safeAccess(): McpRequestAccess {
   };
 }
 
+function safeAunitAccess(): McpRequestAccess {
+  const access = safeAccess();
+  return {
+    ...access,
+    jess: {
+      ...access.jess!,
+      objectKeys: ['CLAS:ZCL_RELEASE_GATE'],
+      toolNames: ['run_unit_tests'],
+      safeExecutePolicy: {
+        operationId: 'run_unit_tests',
+        check: 'aunit',
+        effectiveWithCoverage: false,
+        effectiveCoverageFormat: null,
+        maxDurationMs: 30_000,
+        maxResultBytes: 1_024,
+        maxFindings: 10,
+        maxObjects: 1,
+        maxTestClasses: 10,
+        maxTestMethods: 100,
+      },
+    },
+  };
+}
+
 const exactAtcArgs = {
   destination: 'tst-adt',
   scope: {
@@ -72,6 +99,99 @@ const exactAtcArgs = {
 };
 
 describe('Jess safe-execute catalogue and dispatch', () => {
+  it('classifies only completed SAP HTTP error responses as deterministic failures', () => {
+    const sapResponse = Object.assign(new Error('HTTP 400: Bad Request'), {
+      name: 'AdtError',
+      status: 400,
+    });
+    const transportFailure = new TypeError('fetch failed');
+    const abortFailure = Object.assign(new Error('deadline exceeded'), {
+      name: 'AbortError',
+    });
+
+    assert.strictEqual(isKnownAdtHttpFailure(sapResponse), true);
+    assert.strictEqual(isKnownAdtHttpFailure(transportFailure), false);
+    assert.strictEqual(isKnownAdtHttpFailure(abortFailure), false);
+  });
+
+  it('normalises known ATC HTTP failures but rethrows uncertain transport failures', async () => {
+    const target = new CapturingServer();
+    let failure: Error = Object.assign(new Error('HTTP 400: Bad Request'), {
+      name: 'AdtError',
+      status: 400,
+    });
+    registerAtcRunTool(target as unknown as McpServer, {
+      getClient: () =>
+        ({
+          adt: {
+            atc: {
+              worklists: {
+                create: async () => {
+                  throw failure;
+                },
+              },
+            },
+          },
+        }) as never,
+      requestAccess: safeAccess,
+    });
+    const handler = target.handlers.get('atc_run')!;
+    const args = {
+      baseUrl: 'https://sap.example.test',
+      scope: exactAtcArgs.scope,
+      variant: 'DEFAULT',
+    };
+
+    await assert.doesNotReject(async () => {
+      const result = await handler(args, {});
+      assert.strictEqual(result.isError, true);
+    });
+
+    failure = new TypeError('fetch failed');
+    await assert.rejects(handler(args, {}), /fetch failed/u);
+  });
+
+  it('normalises known AUnit HTTP failures but rethrows uncertain transport failures', async () => {
+    const target = new CapturingServer();
+    let failure: Error = Object.assign(
+      new Error('HTTP 500: Internal Server Error'),
+      {
+        name: 'AdtError',
+        status: 500,
+      },
+    );
+    registerRunUnitTestsTool(target as unknown as McpServer, {
+      getClient: () =>
+        ({
+          adt: {
+            aunit: {
+              testruns: {
+                post: async () => {
+                  throw failure;
+                },
+              },
+            },
+          },
+        }) as never,
+      requestAccess: safeAunitAccess,
+    });
+    const handler = target.handlers.get('run_unit_tests')!;
+    const args = {
+      baseUrl: 'https://sap.example.test',
+      objectName: 'ZCL_RELEASE_GATE',
+      objectType: 'CLAS',
+      withCoverage: false,
+    };
+
+    await assert.doesNotReject(async () => {
+      const result = await handler(args, {});
+      assert.strictEqual(result.isError, true);
+    });
+
+    failure = new TypeError('fetch failed');
+    await assert.rejects(handler(args, {}), /fetch failed/u);
+  });
+
   it('normalises coverage flags and rejects disagreement', () => {
     assert.deepStrictEqual(normalizeUnitTestOptions({}), {
       effectiveWithCoverage: false,
@@ -132,6 +252,7 @@ describe('Jess safe-execute catalogue and dispatch', () => {
         return true;
       },
       executeSafeTool: async ({ operation }) => await operation(),
+      reportSafeExecuteGrantOutcome: async () => true,
     });
     server.tool('atc_run', {}, async () => {
       handlerCalls++;
@@ -165,6 +286,7 @@ describe('Jess safe-execute catalogue and dispatch', () => {
         return true;
       },
       executeSafeTool: async ({ operation }) => await operation(),
+      reportSafeExecuteGrantOutcome: async () => true,
     });
     server.tool('atc_run', {}, async () => ({
       content: [{ type: 'text' as const, text: 'unexpected' }],
@@ -203,6 +325,10 @@ describe('Jess safe-execute catalogue and dispatch', () => {
         return true;
       },
       executeSafeTool: async ({ operation }) => await operation(),
+      reportSafeExecuteGrantOutcome: async ({ outcome }) => {
+        events.push(`outcome:${outcome}`);
+        return true;
+      },
     });
     server.tool('atc_run', {}, async () => {
       events.push('handler');
@@ -217,7 +343,12 @@ describe('Jess safe-execute catalogue and dispatch', () => {
     });
 
     assert.strictEqual(first.isError, undefined);
-    assert.deepStrictEqual(events, ['consume', 'handler', 'consume']);
+    assert.deepStrictEqual(events, [
+      'consume',
+      'handler',
+      'outcome:succeeded',
+      'consume',
+    ]);
     assert.strictEqual(replay.isError, true);
     assert.strictEqual(replay.content[0]?.text, 'mcp_scope_denied');
   });
@@ -266,7 +397,7 @@ describe('Jess safe-execute catalogue and dispatch', () => {
     assert.strictEqual(handlerCalls, 1);
   });
 
-  it('stays fail-closed before consume when no hard-cancellable runtime exists', async () => {
+  it('stays fail-closed before consume when the runtime or outcome recorder is absent', async () => {
     const target = new CapturingServer();
     let consumes = 0;
     const server = destinationModeServer(target as unknown as McpServer, {
@@ -275,6 +406,7 @@ describe('Jess safe-execute catalogue and dispatch', () => {
         consumes++;
         return true;
       },
+      executeSafeTool: async ({ operation }) => await operation(),
     });
     server.tool('atc_run', {}, async () => ({
       content: [{ type: 'text' as const, text: 'unexpected' }],
@@ -299,6 +431,10 @@ describe('Jess safe-execute catalogue and dispatch', () => {
       requestAccess: () => access,
       consumeSafeExecuteGrant: async () => true,
       executeSafeTool: async ({ operation }) => await operation(),
+      reportSafeExecuteGrantOutcome: async ({ outcome }) => {
+        assert.strictEqual(outcome, 'failed');
+        return true;
+      },
     });
     server.tool('atc_run', {}, async () => ({
       content: [{ type: 'text' as const, text: 'larger-than-eight-bytes' }],
@@ -310,5 +446,105 @@ describe('Jess safe-execute catalogue and dispatch', () => {
 
     assert.strictEqual(result.isError, true);
     assert.strictEqual(result.content[0]?.text, 'safe_execute_limit_exceeded');
+  });
+
+  it('records deterministic tool failures only after the operation settles', async () => {
+    const target = new CapturingServer();
+    const events: string[] = [];
+    const server = destinationModeServer(target as unknown as McpServer, {
+      requestAccess: safeAccess,
+      consumeSafeExecuteGrant: async () => {
+        events.push('consume');
+        return true;
+      },
+      executeSafeTool: async ({ operation }) => await operation(),
+      reportSafeExecuteGrantOutcome: async (input) => {
+        events.push(`outcome:${input.outcome}`);
+        assert.strictEqual(
+          input.grantJti,
+          '33333333-3333-4333-8333-333333333333',
+        );
+        assert.strictEqual(input.opaqueGrant, 'header.payload.signature');
+        return true;
+      },
+    });
+    server.tool('atc_run', {}, async () => {
+      events.push('handler-settled');
+      return {
+        isError: true,
+        content: [{ type: 'text' as const, text: 'deterministic failure' }],
+      };
+    });
+
+    const result = await target.handlers.get('atc_run')!(exactAtcArgs, {
+      sessionId: 'session-1',
+    });
+
+    assert.strictEqual(result.isError, true);
+    assert.deepStrictEqual(events, [
+      'consume',
+      'handler-settled',
+      'outcome:failed',
+    ]);
+  });
+
+  it('records outcome_unknown once after an uncertain operation settles without retrying SAP', async () => {
+    const target = new CapturingServer();
+    const events: string[] = [];
+    let handlerCalls = 0;
+    const server = destinationModeServer(target as unknown as McpServer, {
+      requestAccess: safeAccess,
+      consumeSafeExecuteGrant: async () => true,
+      executeSafeTool: async ({ operation }) => {
+        await operation();
+        throw new Error('transport outcome is uncertain');
+      },
+      reportSafeExecuteGrantOutcome: async ({ outcome }) => {
+        events.push(outcome);
+        return true;
+      },
+    });
+    server.tool('atc_run', {}, async () => {
+      handlerCalls++;
+      events.push('handler-settled');
+      return { content: [{ type: 'text' as const, text: 'late result' }] };
+    });
+
+    const result = await target.handlers.get('atc_run')!(exactAtcArgs, {
+      sessionId: 'session-1',
+    });
+
+    assert.strictEqual(result.isError, true);
+    assert.strictEqual(result.content[0]?.text, 'outcome_unknown');
+    assert.strictEqual(handlerCalls, 1);
+    assert.deepStrictEqual(events, ['handler-settled', 'outcome_unknown']);
+  });
+
+  it('returns outcome_unknown when the single terminal report fails without rerunning SAP', async () => {
+    const target = new CapturingServer();
+    let handlerCalls = 0;
+    let reports = 0;
+    const server = destinationModeServer(target as unknown as McpServer, {
+      requestAccess: safeAccess,
+      consumeSafeExecuteGrant: async () => true,
+      executeSafeTool: async ({ operation }) => await operation(),
+      reportSafeExecuteGrantOutcome: async () => {
+        reports++;
+        return false;
+      },
+    });
+    server.tool('atc_run', {}, async () => {
+      handlerCalls++;
+      return { content: [{ type: 'text' as const, text: 'SAP completed' }] };
+    });
+
+    const result = await target.handlers.get('atc_run')!(exactAtcArgs, {
+      sessionId: 'session-1',
+    });
+
+    assert.strictEqual(result.isError, true);
+    assert.strictEqual(result.content[0]?.text, 'outcome_unknown');
+    assert.strictEqual(handlerCalls, 1);
+    assert.strictEqual(reports, 1);
   });
 });

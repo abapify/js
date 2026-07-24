@@ -12,7 +12,7 @@ import type { AdtClient } from '@abapify/adt-client';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
-import { resolveObjectUri } from './utils';
+import { isKnownAdtHttpFailure, resolveObjectUri } from './utils';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -192,13 +192,13 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
       objectUri: z.never().optional(),
     },
     async (args, extra) => {
+      const access = ctx.requestAccess?.(extra ?? {});
+      const safePolicy =
+        access?.jess?.operationClass === 'safe_execute' &&
+        access.jess.safeExecutePolicy?.operationId === 'atc_run'
+          ? access.jess.safeExecutePolicy
+          : undefined;
       try {
-        const access = ctx.requestAccess?.(extra ?? {});
-        const safePolicy =
-          access?.jess?.operationClass === 'safe_execute' &&
-          access.jess.safeExecutePolicy?.operationId === 'atc_run'
-            ? access.jess.safeExecutePolicy
-            : undefined;
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const checkVariant = await resolveVariant(client, args.variant);
         const created = await client.adt.atc.worklists.create({
@@ -257,6 +257,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           ],
         };
       } catch (error) {
+        if (safePolicy && !isKnownAdtHttpFailure(error)) throw error;
         return {
           isError: true,
           content: [

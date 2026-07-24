@@ -60,6 +60,7 @@ const rawUriFieldsByTool = new Map<string, readonly string[]>([
   ['find_references', ['objectUri']],
   ['get_callers_of', ['objectUri']],
   ['get_callees_of', ['objectUri']],
+  ['get_source_version', ['uri']],
   ['grep_objects', ['objectUris']],
 ]);
 
@@ -83,6 +84,7 @@ export interface DestinationModeOptions {
     sessionId?: string;
   }) => McpRequestAccess | undefined;
   consumeSafeExecuteGrant?: ToolContext['consumeSafeExecuteGrant'];
+  reportSafeExecuteGrantOutcome?: ToolContext['reportSafeExecuteGrantOutcome'];
   executeSafeTool?: ToolContext['executeSafeTool'];
 }
 
@@ -111,6 +113,15 @@ function safeExecuteLimitResult(
     isError: true as const,
     content: [{ type: 'text' as const, text }],
   };
+}
+
+function isToolErrorResult(result: unknown): boolean {
+  return (
+    !!result &&
+    typeof result === 'object' &&
+    !Array.isArray(result) &&
+    (result as { isError?: unknown }).isError === true
+  );
 }
 
 type DispatchCounter = { admitted: number };
@@ -281,6 +292,7 @@ function wrapToolHandler(
     const opaqueGrant = jess.safeExecuteGrant;
     const destinationKey = toolArguments.destination;
     const consumeSafeExecuteGrant = options.consumeSafeExecuteGrant;
+    const reportSafeExecuteGrantOutcome = options.reportSafeExecuteGrantOutcome;
     const executeSafeTool = options.executeSafeTool;
     if (
       !policy ||
@@ -288,6 +300,7 @@ function wrapToolHandler(
       !opaqueGrant ||
       typeof destinationKey !== 'string' ||
       !consumeSafeExecuteGrant ||
+      !reportSafeExecuteGrantOutcome ||
       !executeSafeTool
     ) {
       return scopeDeniedResult();
@@ -311,8 +324,10 @@ function wrapToolHandler(
     }
 
     counter.admitted++;
+    let outcome: 'succeeded' | 'failed' | 'outcome_unknown';
+    let result: unknown;
     try {
-      const result = await executeSafeTool({
+      result = await executeSafeTool({
         maxDurationMs: policy.maxDurationMs,
         operation: async () => await handler(...handlerArgs),
       });
@@ -320,12 +335,25 @@ function wrapToolHandler(
         new TextEncoder().encode(JSON.stringify(result)).byteLength >
         policy.maxResultBytes
       ) {
-        return safeExecuteLimitResult('safe_execute_limit_exceeded');
+        result = safeExecuteLimitResult('safe_execute_limit_exceeded');
       }
-      return result;
+      outcome = isToolErrorResult(result) ? 'failed' : 'succeeded';
+    } catch {
+      outcome = 'outcome_unknown';
+      result = safeExecuteLimitResult('outcome_unknown');
+    }
+
+    try {
+      const recorded = await reportSafeExecuteGrantOutcome({
+        grantJti,
+        opaqueGrant,
+        outcome,
+      });
+      if (!recorded) return safeExecuteLimitResult('outcome_unknown');
     } catch {
       return safeExecuteLimitResult('outcome_unknown');
     }
+    return result;
   };
 }
 

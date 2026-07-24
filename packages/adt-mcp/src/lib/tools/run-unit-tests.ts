@@ -14,7 +14,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
-import { resolveObjectUri } from './utils';
+import { isKnownAdtHttpFailure, resolveObjectUri } from './utils';
 import type { InferTypedSchema } from '@abapify/adt-schemas';
 import { aunitResult } from '@abapify/adt-schemas';
 import { extractCoverageMeasurementId } from '@abapify/adt-contracts';
@@ -234,6 +234,12 @@ export function registerRunUnitTestsTool(
         .describe('Coverage report format when coverage is enabled'),
     },
     async (args, extra) => {
+      const access = ctx.requestAccess?.(extra ?? {});
+      const safePolicy =
+        access?.jess?.operationClass === 'safe_execute' &&
+        access.jess.safeExecutePolicy?.operationId === 'run_unit_tests'
+          ? access.jess.safeExecutePolicy
+          : undefined;
       try {
         const normalizedOptions = normalizeUnitTestOptions(args);
         if (!normalizedOptions) {
@@ -247,12 +253,6 @@ export function registerRunUnitTestsTool(
             ],
           };
         }
-        const access = ctx.requestAccess?.(extra ?? {});
-        const safePolicy =
-          access?.jess?.operationClass === 'safe_execute' &&
-          access.jess.safeExecutePolicy?.operationId === 'run_unit_tests'
-            ? access.jess.safeExecutePolicy
-            : undefined;
         const { client } = await resolveClient(ctx, args, extra ?? {});
 
         const objectUri = await resolveObjectUri(
@@ -360,6 +360,7 @@ export function registerRunUnitTestsTool(
                   : toJacocoXml({ measurements, statements });
               coveragePayload = { format: fmt, xml };
             } catch (err) {
+              if (safePolicy) throw err;
               coveragePayload = {
                 format: normalizedOptions.effectiveCoverageFormat ?? 'jacoco',
                 xml: '',
@@ -382,6 +383,7 @@ export function registerRunUnitTestsTool(
           ],
         };
       } catch (error) {
+        if (safePolicy && !isKnownAdtHttpFailure(error)) throw error;
         return {
           isError: true,
           content: [

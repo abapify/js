@@ -154,10 +154,9 @@ test('mounts signed MCP only at /mcp while preserving REST endpoints', async () 
 
   try {
     await client.connect(transport);
-    assert.ok(
-      (await client.listTools()).tools.some(
-        (tool) => tool.name === 'system_info',
-      ),
+    assert.deepStrictEqual(
+      (await client.listTools()).tools.map((tool) => tool.name),
+      ['get_object'],
     );
 
     const ready = await fetch(`${server.url}/readyz`);

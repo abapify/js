@@ -50,6 +50,8 @@ export interface McpServerOptions {
   }) => McpRequestAccess | undefined;
   /** Atomic ARM grant-consumption hook required by Jess safe execution. */
   consumeSafeExecuteGrant?: ToolContext['consumeSafeExecuteGrant'];
+  /** Single terminal ARM outcome hook required by Jess safe execution. */
+  reportSafeExecuteGrantOutcome?: ToolContext['reportSafeExecuteGrantOutcome'];
   /** Hard-cancellable runtime required for Jess safe execution. */
   executeSafeTool?: ToolContext['executeSafeTool'];
   /** Private ADT broker resolver for signed frozen-source capabilities. */
@@ -97,6 +99,12 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
                 consumeSafeExecuteGrant: options.consumeSafeExecuteGrant,
               }
             : {}),
+          ...(options.reportSafeExecuteGrantOutcome
+            ? {
+                reportSafeExecuteGrantOutcome:
+                  options.reportSafeExecuteGrantOutcome,
+              }
+            : {}),
           ...(options.executeSafeTool
             ? { executeSafeTool: options.executeSafeTool }
             : {}),
@@ -113,6 +121,7 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
       ? destinationModeServer(server, {
           requestAccess: options.requestAccess,
           consumeSafeExecuteGrant: options.consumeSafeExecuteGrant,
+          reportSafeExecuteGrantOutcome: options.reportSafeExecuteGrantOutcome,
           executeSafeTool: options.executeSafeTool,
         })
       : server,

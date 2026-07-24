@@ -261,10 +261,7 @@ test('createMcpServer denies a crafted write call in destination mode', async ()
   const destinations = destinationRegistry(() => leases++);
   const server = createMcpServer({
     destinationRegistry: destinations,
-    requestAccess: () => ({
-      classes: ['safe_execute'],
-      destinationKeys: ['dev'],
-    }),
+    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
   });
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
@@ -326,7 +323,10 @@ test('destination mode hides and rejects the legacy raw ATC URI target', async (
   const destinations = destinationRegistry(() => undefined);
   const server = createMcpServer({
     destinationRegistry: destinations,
-    requestAccess: () => ({ classes: ['read'], destinationKeys: ['dev'] }),
+    requestAccess: () => ({
+      classes: ['safe_execute'],
+      destinationKeys: ['dev'],
+    }),
   });
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();

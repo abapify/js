@@ -10,6 +10,7 @@ import type { HttpAdapter, HttpRequestOptions } from '@abapify/adt-contracts';
 import type { ResponsePlugin, ResponseContext } from './plugins/types';
 import { SessionManager } from './utils/session';
 import { createAdtError } from './errors';
+import { activeAdtAbortSignal } from './cancellation';
 
 // Re-export HttpAdapter type for consumers
 /**
@@ -123,6 +124,32 @@ async function readResponseTextBounded(
   return new TextDecoder().decode(combined);
 }
 
+function executionAbortController(): {
+  abortController: AbortController;
+  dispose: () => void;
+} {
+  const abortController = new AbortController();
+  const executionSignal = activeAdtAbortSignal();
+  if (!executionSignal) {
+    return { abortController, dispose: () => undefined };
+  }
+
+  const abortFromExecution = () =>
+    abortController.abort(executionSignal.reason);
+  if (executionSignal.aborted) {
+    abortFromExecution();
+  } else {
+    executionSignal.addEventListener('abort', abortFromExecution, {
+      once: true,
+    });
+  }
+  return {
+    abortController,
+    dispose: () =>
+      executionSignal.removeEventListener('abort', abortFromExecution),
+  };
+}
+
 /**
  * Create ADT HTTP adapter with Basic or SAML Authentication and plugin support
  */
@@ -176,6 +203,8 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
     async request<TResponse = unknown>(
       options: HttpRequestOptions,
     ): Promise<TResponse> {
+      const executionSignal = activeAdtAbortSignal();
+      executionSignal?.throwIfAborted();
       logger?.debug('=== ADAPTER REQUEST START ===');
       logger?.debug('options.url:', options.url);
       logger?.debug('options.method:', options.method);
@@ -223,6 +252,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
           authHeader, // undefined for cookie auth — SessionManager uses stored cookies
           client,
           language,
+          executionSignal,
         );
       }
 
@@ -241,8 +271,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       // Get schemas from speci's standard fields
       // Check if bodySchema is Serializable (has build method from adt-schemas)
       let bodySerializableSchema:
-        | { build: (data: unknown) => string }
-        | undefined;
+        { build: (data: unknown) => string } | undefined;
       if (options.bodySchema && typeof options.bodySchema === 'object') {
         if (
           'build' in options.bodySchema &&
@@ -363,6 +392,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
         method: options.method,
         headers,
         body: requestBody,
+        signal: executionSignal,
       });
 
       // Process response for session management (cookies, CSRF, ETags)
@@ -538,32 +568,36 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       };
       if (authHeader) headers.Authorization = authHeader;
 
-      const abortController = new AbortController();
-      // nosemgrep
-      const response = await fetch(url, {
-        method: 'GET',
-        headers,
-        signal: abortController.signal,
-      });
-      sessionManager.processResponse(response, url.pathname);
+      const { abortController, dispose } = executionAbortController();
+      try {
+        // nosemgrep
+        const response = await fetch(url, {
+          method: 'GET',
+          headers,
+          signal: abortController.signal,
+        });
+        sessionManager.processResponse(response, url.pathname);
 
-      const text = await readResponseTextBounded(
-        response,
-        maxBytes,
-        abortController,
-      );
-
-      if (!response.ok) {
-        throw createAdtError(
-          response.status,
-          response.statusText,
-          url.toString(),
-          'GET',
-          text,
+        const text = await readResponseTextBounded(
+          response,
+          maxBytes,
+          abortController,
         );
-      }
 
-      return text;
+        if (!response.ok) {
+          throw createAdtError(
+            response.status,
+            response.statusText,
+            url.toString(),
+            'GET',
+            text,
+          );
+        }
+
+        return text;
+      } finally {
+        dispose();
+      }
     },
   };
 }

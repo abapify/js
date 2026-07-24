@@ -72,6 +72,16 @@ export interface ToolContext {
     policy: SafeExecutePolicy;
   }) => Promise<boolean>;
   /**
+   * Records the single terminal state of a consumed ARM grant. It is called
+   * exactly once after the SAP operation settles and must never trigger a
+   * retry of that operation.
+   */
+  reportSafeExecuteGrantOutcome?: (input: {
+    grantJti: string;
+    opaqueGrant: string;
+    outcome: 'succeeded' | 'failed' | 'outcome_unknown';
+  }) => Promise<boolean>;
+  /**
    * Executes a consumed safe check under a runtime that can actually
    * terminate its SAP transport at `maxDurationMs`. Returning early while the
    * supplied operation continues is forbidden.

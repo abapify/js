@@ -5,6 +5,7 @@ import {
   createMcpInvocationVerifier,
   type ToolContext,
 } from '@abapify/adt-mcp';
+import { runWithAdtAbortSignal } from '@abapify/adt-client';
 import {
   createHttpDestinationContexts,
   type HttpBrokerOptions,
@@ -19,10 +20,76 @@ export interface AdtServerMcpRuntimeOptions {
   env: RuntimeEnvironment;
   brokerOptions: HttpBrokerOptions;
   /**
-   * Test/deployment seam for a runtime that can terminate and settle SAP I/O.
-   * The current in-process ADT adapter does not meet that contract.
+   * Optional deployment/test override for the execution-scoped abort runtime.
    */
   executeSafeTool?: NonNullable<ToolContext['executeSafeTool']>;
+}
+
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+function scheduleDeadline(
+  deadline: number,
+  onDeadline: () => void,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const schedule = () => {
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) {
+      onDeadline();
+      return;
+    }
+    timer = setTimeout(schedule, Math.min(remaining, MAX_TIMER_DELAY_MS));
+  };
+  schedule();
+  return () => {
+    if (timer !== undefined) clearTimeout(timer);
+  };
+}
+
+/**
+ * Aborts all SAP HTTP work in this async execution context at the signed
+ * deadline, then waits for the tool operation to settle before returning.
+ */
+export async function executeSafeToolWithAbort(input: {
+  maxDurationMs: number;
+  operation: () => Promise<unknown>;
+}): Promise<unknown> {
+  if (!Number.isSafeInteger(input.maxDurationMs) || input.maxDurationMs <= 0) {
+    throw new RangeError('maxDurationMs must be a positive safe integer');
+  }
+
+  const abortController = new AbortController();
+  const deadline = performance.now() + input.maxDurationMs;
+  let deadlineExceeded = false;
+  const markDeadlineExceeded = () => {
+    deadlineExceeded = true;
+    if (!abortController.signal.aborted) {
+      abortController.abort(new Error('safe_execute deadline exceeded'));
+    }
+  };
+  const clearDeadline = scheduleDeadline(deadline, markDeadlineExceeded);
+  const deadlineHasPassed = () =>
+    deadlineExceeded || performance.now() >= deadline;
+
+  try {
+    const result = await runWithAdtAbortSignal(
+      abortController.signal,
+      input.operation,
+    );
+    if (deadlineHasPassed()) {
+      markDeadlineExceeded();
+      throw new Error('safe_execute deadline exceeded');
+    }
+    return result;
+  } catch (error) {
+    if (deadlineHasPassed()) {
+      markDeadlineExceeded();
+      throw new Error('safe_execute deadline exceeded', { cause: error });
+    }
+    throw error;
+  } finally {
+    clearDeadline();
+  }
 }
 
 function configuredValue(
@@ -113,6 +180,38 @@ export function createSafeExecuteGrantConsumer(
   };
 }
 
+export function createSafeExecuteGrantOutcomeReporter(
+  options: HttpBrokerOptions,
+): NonNullable<ToolContext['reportSafeExecuteGrantOutcome']> {
+  const fetcher = options.fetch ?? globalThis.fetch;
+  return async ({ grantJti, opaqueGrant, outcome }) => {
+    try {
+      const token = (await readFile(options.tokenFile, 'utf8')).trim();
+      if (!token) return false;
+      const response = await fetcher(
+        new URL(
+          `/internal/adt-server/jess-safe-execute-grants/${encodeURIComponent(
+            grantJti,
+          )}/outcome`,
+          options.baseUrl,
+        ),
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-adt-server-token': token,
+          },
+          body: JSON.stringify({ opaqueGrant, outcome }),
+        },
+      );
+      return response.status === 204;
+    } catch {
+      // Grant material and validation details are intentionally never logged.
+      return false;
+    }
+  };
+}
+
 async function loadP256PublicKey(file: string) {
   const pem = await readFile(file, 'utf8');
   if (/-----BEGIN(?: EC)? PRIVATE KEY-----/u.test(pem)) {
@@ -155,12 +254,7 @@ export async function createAdtServerMcpOptions(
     }
     return undefined;
   }
-  const executeSafeTool = options.executeSafeTool;
-  if (enableSafeExecute && !executeSafeTool) {
-    throw new Error(
-      'ADT Server MCP safe_execute requires a hard-cancellable SAP runtime',
-    );
-  }
+  const executeSafeTool = options.executeSafeTool ?? executeSafeToolWithAbort;
 
   const publicKey = await loadP256PublicKey(invocation.publicKeyFile);
   const { leaseProvider, contextFactory, resolveFrozenSource } =
@@ -180,6 +274,9 @@ export async function createAdtServerMcpOptions(
     ...(enableSafeExecute
       ? {
           consumeSafeExecuteGrant: createSafeExecuteGrantConsumer(
+            options.brokerOptions,
+          ),
+          reportSafeExecuteGrantOutcome: createSafeExecuteGrantOutcomeReporter(
             options.brokerOptions,
           ),
           executeSafeTool,

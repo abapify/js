@@ -126,6 +126,9 @@ export interface HttpServerOptions {
     consumeSafeExecuteGrant?: NonNullable<
       import('../types.js').ToolContext['consumeSafeExecuteGrant']
     >;
+    reportSafeExecuteGrantOutcome?: NonNullable<
+      import('../types.js').ToolContext['reportSafeExecuteGrantOutcome']
+    >;
     executeSafeTool?: NonNullable<
       import('../types.js').ToolContext['executeSafeTool']
     >;
@@ -719,6 +722,12 @@ export function createHttpMcpHandler(
                   ? {
                       consumeSafeExecuteGrant:
                         destinationServer.consumeSafeExecuteGrant,
+                    }
+                  : {}),
+                ...(destinationServer.reportSafeExecuteGrantOutcome
+                  ? {
+                      reportSafeExecuteGrantOutcome:
+                        destinationServer.reportSafeExecuteGrantOutcome,
                     }
                   : {}),
                 ...(destinationServer.executeSafeTool
