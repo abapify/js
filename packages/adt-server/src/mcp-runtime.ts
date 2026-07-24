@@ -142,6 +142,74 @@ function allowedHostsFromEnv(env: RuntimeEnvironment): string[] | undefined {
   return [...new Set(hosts)];
 }
 
+type ConsumeExecutionAuthorization = NonNullable<
+  ToolContext['consumeExecutionAuthorization']
+>;
+type ReportExecutionOutcome = NonNullable<
+  ToolContext['reportExecutionOutcome']
+>;
+
+function createHttpAuthorizationConsumer(
+  url: string,
+  fetchImpl: typeof globalThis.fetch = globalThis.fetch,
+): ConsumeExecutionAuthorization {
+  const endpoint = new URL(url).toString();
+  return async (input) => {
+    const response = await fetchImpl(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${input.authorizationToken}`,
+      },
+      body: JSON.stringify(input),
+    });
+    return response.ok;
+  };
+}
+
+function createHttpOutcomeReporter(
+  url: string,
+  fetchImpl: typeof globalThis.fetch = globalThis.fetch,
+): ReportExecutionOutcome {
+  const endpoint = new URL(url).toString();
+  return async (input) => {
+    const response = await fetchImpl(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${input.authorizationToken}`,
+      },
+      body: JSON.stringify(input),
+    });
+    return response.ok;
+  };
+}
+
+function safeExecuteHooksFromEnv(
+  env: RuntimeEnvironment,
+  fetchImpl: typeof globalThis.fetch = globalThis.fetch,
+): {
+  consumeExecutionAuthorization?: ConsumeExecutionAuthorization;
+  reportExecutionOutcome?: ReportExecutionOutcome;
+} {
+  const consumerUrl = configuredValue(
+    env,
+    'ADT_SERVER_MCP_AUTHORIZATION_CONSUMER_URL',
+  );
+  const reporterUrl = configuredValue(
+    env,
+    'ADT_SERVER_MCP_OUTCOME_REPORTER_URL',
+  );
+  return {
+    consumeExecutionAuthorization: consumerUrl
+      ? createHttpAuthorizationConsumer(consumerUrl, fetchImpl)
+      : undefined,
+    reportExecutionOutcome: reporterUrl
+      ? createHttpOutcomeReporter(reporterUrl, fetchImpl)
+      : undefined,
+  };
+}
+
 function safeExecuteEnabled(env: RuntimeEnvironment): boolean {
   const configured = configuredValue(
     env,
@@ -198,10 +266,16 @@ export async function createAdtServerMcpOptions(
   }
   const executeWithDeadline =
     options.executeWithDeadline ?? executeWithDeadlineAndAbort;
+  const envHooks = enableSafeExecute
+    ? safeExecuteHooksFromEnv(options.env)
+    : undefined;
   const safeExecuteOptions = (() => {
     if (!enableSafeExecute) return {};
-    const consumeExecutionAuthorization = options.consumeExecutionAuthorization;
-    const reportExecutionOutcome = options.reportExecutionOutcome;
+    const consumeExecutionAuthorization =
+      options.consumeExecutionAuthorization ??
+      envHooks?.consumeExecutionAuthorization;
+    const reportExecutionOutcome =
+      options.reportExecutionOutcome ?? envHooks?.reportExecutionOutcome;
     if (!consumeExecutionAuthorization || !reportExecutionOutcome) {
       throw new Error(
         'ADT Server MCP safe_execute requires deployment-owned authorization and outcome hooks',
