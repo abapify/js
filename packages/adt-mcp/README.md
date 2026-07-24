@@ -532,7 +532,7 @@ server-side worklist for the analysis.
 
 ```
 1. list_package_objects packageName=ZPACKAGE
-2. get_object      objectName=ZCL_FOO
+2. get_object      objectName=ZCL_FOO objectType=CLAS
 3. get_source      objectName=ZCL_FOO objectType=CLAS
 ```
 

@@ -23,7 +23,6 @@ export function registerGetObjectTool(
       objectName: z.string().describe('ABAP object name to inspect'),
       objectType: z
         .string()
-        .optional()
         .describe('Object type (e.g. CLAS, PROG, INTF, FUGR)'),
     },
     async (args, extra) => {

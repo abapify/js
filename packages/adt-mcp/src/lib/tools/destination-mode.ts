@@ -548,7 +548,17 @@ export function installDestinationModeToolListProjection(
     }
     return {
       tools: Array.from(inventory.values())
-        .filter((tool) => isMcpToolListed(access, tool.name))
+        .filter((tool) => {
+          if (!isMcpToolListed(access, tool.name)) return false;
+          if (access?.scoped?.operationClass === 'safe_execute') {
+            return (
+              typeof options.consumeExecutionAuthorization === 'function' &&
+              typeof options.reportExecutionOutcome === 'function' &&
+              typeof options.executeWithDeadline === 'function'
+            );
+          }
+          return true;
+        })
         .map((tool) => toolListEntryForAccess(tool, access)),
     };
   });

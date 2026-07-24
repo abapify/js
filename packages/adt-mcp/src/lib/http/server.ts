@@ -226,7 +226,10 @@ function normalizeAndValidateStrings(values: unknown[]): string[] | undefined {
 
 function isSortedUniqueStrings(values: string[]): boolean {
   const sorted = [...values].sort((left, right) => left.localeCompare(right));
-  return values.every((value, index) => value === sorted[index]);
+  return (
+    new Set(values).size === values.length &&
+    values.every((value, index) => value === sorted[index])
+  );
 }
 
 function validateCommonScopedFields(
@@ -316,6 +319,7 @@ function snapshotSafeExecuteScope(
   const safeExecutePolicy = parseSafeExecutePolicy(access.safeExecutePolicy);
   if (
     !safeExecutePolicy ||
+    resourceKeys.length === 0 ||
     toolNames.length !== 1 ||
     toolNames[0] !== safeExecutePolicy.operationId ||
     typeof access.authorizationId !== 'string' ||

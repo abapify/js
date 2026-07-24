@@ -165,6 +165,7 @@ describe('adt-mcp integration tests', () => {
       const { json } = await callTool('get_object', {
         ...connArgs(),
         objectName: 'ZCL_EXAMPLE',
+        objectType: 'CLAS',
       });
       const data = json as { found: boolean; object?: { name: string } };
       assert.strictEqual(data.found, true);
@@ -177,6 +178,7 @@ describe('adt-mcp integration tests', () => {
       const { json } = await callTool('get_object', {
         ...connArgs(),
         objectName: 'DOES_NOT_EXIST',
+        objectType: 'CLAS',
       });
       const data = json as { found: boolean; message?: string };
       assert.strictEqual(data.found, false);

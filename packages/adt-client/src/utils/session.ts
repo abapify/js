@@ -280,6 +280,9 @@ export class ETagManager {
  * Session Manager - Orchestrates cookies and CSRF tokens
  */
 export class SessionManager {
+  private static readonly SESSION_PATH_PREFIX =
+    '/sap/bc/adt/core/http/sessions/';
+
   private readonly cookieStore = new CookieStore();
   private readonly csrfManager = new CsrfTokenManager();
   private readonly etagManager = new ETagManager();
@@ -391,6 +394,51 @@ export class SessionManager {
   }
 
   /**
+   * Reject session paths that could send cleanup requests off-target.
+   * Only relative paths under the ADT sessions endpoint (or same-origin
+   * absolute URLs with that path) are accepted.
+   */
+  private isTrustedSessionPath({
+    baseUrl,
+    sessionPath,
+  }: {
+    baseUrl: string;
+    sessionPath: string;
+  }): boolean {
+    if (sessionPath.startsWith(SessionManager.SESSION_PATH_PREFIX)) {
+      return true;
+    }
+    try {
+      const parsed = new URL(sessionPath, baseUrl);
+      const base = new URL(baseUrl);
+      return (
+        parsed.origin === base.origin &&
+        parsed.pathname.startsWith(SessionManager.SESSION_PATH_PREFIX)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private extractTrustedSessionPath({
+    baseUrl,
+    body,
+  }: {
+    baseUrl: string;
+    body: string;
+  }): string | undefined {
+    const match = body.match(/href="([^"]*\/sessions\/[^"]*)"/);
+    const sessionPath = match?.[1];
+    if (!sessionPath || !this.isTrustedSessionPath({ baseUrl, sessionPath })) {
+      this.logger?.warn(
+        'Session: Created security session returned an untrusted path',
+      );
+      return undefined;
+    }
+    return sessionPath;
+  }
+
+  /**
    * Initialize CSRF token using the Eclipse ADT security session flow:
    *
    * 1. GET /sessions + x-sap-security-session: create  → create security session
@@ -400,39 +448,74 @@ export class SessionManager {
    * The CSRF token survives the session deletion and remains valid for
    * all subsequent lock/unlock operations. Deleting the session frees
    * the slot — SAP allows only one security session per user.
-   *
-   * @param baseUrl - SAP system base URL
-   * @param options.authHeader - Authorization header, or undefined for cookie auth
-   * @param options.client - SAP client number
-   * @param options.language - SAP language
-   * @param options.signal - AbortSignal for cancellation
    */
+  private resolveInitializeCsrfArgs(...args: unknown[]): {
+    authHeader?: string;
+    client?: string;
+    language?: string;
+    signal?: AbortSignal;
+  } {
+    if (args.length === 1) {
+      const first = args[0];
+      if (first !== null) {
+        if (typeof first === 'object') {
+          return first as {
+            authHeader?: string;
+            client?: string;
+            language?: string;
+            signal?: AbortSignal;
+          };
+        }
+      }
+    }
+    return {
+      authHeader: typeof args[0] === 'string' ? args[0] : undefined,
+      client: typeof args[1] === 'string' ? args[1] : undefined,
+      language: typeof args[2] === 'string' ? args[2] : undefined,
+      signal: args[3] instanceof AbortSignal ? args[3] : undefined,
+    };
+  }
+
   async initializeCsrf(
     baseUrl: string,
-    {
-      authHeader,
-      client,
-      language,
-      signal,
-    }: {
+    authHeader?: string,
+    client?: string,
+    language?: string,
+    signal?: AbortSignal,
+  ): Promise<boolean>;
+  async initializeCsrf(
+    baseUrl: string,
+    options?: {
       authHeader?: string;
       client?: string;
       language?: string;
       signal?: AbortSignal;
-    } = {},
-  ): Promise<boolean> {
+    },
+  ): Promise<boolean>;
+  async initializeCsrf(baseUrl: string, ...args: unknown[]): Promise<boolean> {
+    const { authHeader, client, language, signal } =
+      this.resolveInitializeCsrfArgs(...args);
+
     signal?.throwIfAborted();
     const sessionsUrl = this.buildSessionsUrl(baseUrl, client, language);
     let sessionPath: string | undefined;
 
     try {
       sessionPath = await this.createSecuritySession(
+        baseUrl,
         sessionsUrl,
         authHeader,
         signal,
       );
       if (!sessionPath) return false;
       if (!(await this.acquireCsrfToken(sessionsUrl, authHeader, signal))) {
+        this.deleteSecuritySessionWithFallback({
+          sessionPath,
+          baseUrl,
+          authHeader,
+          client,
+          language,
+        }).catch(() => undefined);
         return false;
       }
 
@@ -485,6 +568,7 @@ export class SessionManager {
   }
 
   private async createSecuritySession(
+    baseUrl: string,
     sessionsUrl: URL,
     authHeader?: string,
     signal?: AbortSignal,
@@ -511,7 +595,7 @@ export class SessionManager {
 
     const body = await response.text();
     signal?.throwIfAborted();
-    return body.match(/href="([^"]*\/sessions\/[^"]*)"/)?.[1];
+    return this.extractTrustedSessionPath({ baseUrl, body });
   }
 
   private async acquireCsrfToken(
@@ -567,6 +651,12 @@ export class SessionManager {
     client?: string;
     signal?: AbortSignal;
   }): Promise<void> {
+    if (!this.isTrustedSessionPath({ baseUrl, sessionPath })) {
+      this.logger?.warn(
+        'Session: Refusing to delete security session with untrusted path',
+      );
+      return;
+    }
     const deleteUrl = new URL(sessionPath, baseUrl);
     if (client) deleteUrl.searchParams.append('sap-client', client);
     try {
@@ -623,8 +713,14 @@ export class SessionManager {
         );
         return undefined;
       }
-      this.processResponse(response);
-      return this.csrfManager.getCached();
+      // Parse Set-Cookie for the cleanup session, but do not cache the
+      // CSRF token or mark the session active — cleanup must not pollute
+      // shared state that later requests rely on.
+      const setCookieHeader = response.headers.get('set-cookie');
+      if (setCookieHeader) this.cookieStore.parseCookies(setCookieHeader);
+      return this.csrfManager.extractFromHeader(
+        response.headers.get('x-csrf-token'),
+      );
     } catch {
       this.logger?.debug('Session: Failed to fetch cleanup CSRF token');
       return undefined;
@@ -637,21 +733,24 @@ export class SessionManager {
     authHeader,
     client,
     language,
+    signal,
   }: {
     sessionPath: string;
     baseUrl: string;
     authHeader?: string;
     client?: string;
     language?: string;
+    signal?: AbortSignal;
   }): Promise<void> {
-    const token =
-      this.csrfManager.getCached() ??
-      (await this.fetchSecuritySessionCsrfToken({
-        baseUrl,
-        authHeader,
-        client,
-        language,
-      }));
+    // Always fetch a fresh cleanup token; the shared cache may contain a
+    // stale value and cleanup must never pollute shared CSRF/session state.
+    const token = await this.fetchSecuritySessionCsrfToken({
+      baseUrl,
+      authHeader,
+      client,
+      language,
+      signal,
+    });
     if (token) {
       await this.deleteSecuritySession({
         sessionPath,
@@ -659,6 +758,7 @@ export class SessionManager {
         baseUrl,
         authHeader,
         client,
+        signal,
       });
     }
   }
@@ -681,13 +781,9 @@ export class SessionManager {
       signal?: AbortSignal;
     },
   ): boolean {
-    if (!signal?.aborted) {
-      this.logger?.error(
-        `Session: CSRF initialization error: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      return false;
-    }
     if (sessionPath) {
+      // Use a detached timeout for cleanup; the caller signal may already
+      // be aborted and we still want to free the SAP session slot.
       this.deleteSecuritySessionWithFallback({
         sessionPath,
         baseUrl,
@@ -696,7 +792,13 @@ export class SessionManager {
         language,
       }).catch(() => undefined);
     }
-    throw error;
+    if (signal?.aborted) {
+      throw error;
+    }
+    this.logger?.error(
+      `Session: CSRF initialization error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return false;
   }
 
   /**
