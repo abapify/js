@@ -15,6 +15,7 @@ import { resolveClient } from './session-helpers';
 import {
   extractSafeExecutePolicy,
   handleSafeExecuteError,
+  mcpErrorResult,
   resolveObjectUri,
   safeExecuteLimitResult,
 } from './utils';
@@ -208,7 +209,18 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           checkVariant,
         });
         const worklistId = worklistIdFrom(created);
-        const targetUris = await resolveScopeUris(client, args.scope);
+        let targetUris: string[];
+        try {
+          targetUris = await resolveScopeUris(client, args.scope);
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message === 'ATC object is unavailable'
+          ) {
+            return mcpErrorResult(error, 'ATC run');
+          }
+          throw error;
+        }
 
         await client.adt.atc.runs.post(
           { worklistId },
