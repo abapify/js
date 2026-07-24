@@ -225,7 +225,8 @@ function normalizeAndValidateStrings(values: unknown[]): string[] | undefined {
 }
 
 function isSortedUniqueStrings(values: string[]): boolean {
-  return values.every((value, index) => value === [...values].sort()[index]);
+  const sorted = [...values].sort((left, right) => left.localeCompare(right));
+  return values.every((value, index) => value === sorted[index]);
 }
 
 function validateCommonScopedFields(

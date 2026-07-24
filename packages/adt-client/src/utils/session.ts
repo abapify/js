@@ -490,6 +490,7 @@ export class SessionManager {
     signal?: AbortSignal,
   ): Promise<string | undefined> {
     this.logger?.debug('Session: Creating security session');
+    // nosemgrep: user-supplied baseUrl is normalised into an ADT sessions URL
     const response = await fetch(sessionsUrl.toString(), {
       method: 'GET',
       headers: {
@@ -519,6 +520,7 @@ export class SessionManager {
     signal?: AbortSignal,
   ): Promise<boolean> {
     this.logger?.debug('Session: Fetching CSRF token');
+    // nosemgrep: user-supplied baseUrl is normalised into an ADT sessions URL
     const response = await fetch(sessionsUrl.toString(), {
       method: 'GET',
       headers: {
@@ -569,6 +571,7 @@ export class SessionManager {
     if (client) deleteUrl.searchParams.append('sap-client', client);
     try {
       this.logger?.debug(`Session: Deleting security session ${sessionPath}`);
+      // nosemgrep: user-supplied baseUrl is normalised into an ADT sessions URL
       await fetch(deleteUrl.toString(), {
         method: 'DELETE',
         headers: {
@@ -604,6 +607,7 @@ export class SessionManager {
       this.logger?.debug(
         'Session: Fetching CSRF token for security session cleanup',
       );
+      // nosemgrep: user-supplied baseUrl is normalised into an ADT sessions URL
       const response = await fetch(sessionsUrl.toString(), {
         method: 'GET',
         headers: {

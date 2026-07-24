@@ -303,44 +303,47 @@ const safeExecuteCommonKeys = [
   'maxObjects',
 ] as const;
 
-export function parseSafeExecutePolicy(
-  value: unknown,
+function parseAtcSafeExecutePolicy(
+  cloned: Record<string, McpInvocationJsonValue>,
+  common: ReturnType<typeof parseSafeExecuteCommon>,
 ): SafeExecutePolicy | undefined {
-  if (!isPlainObject(value)) return undefined;
-  const cloned = cloneJsonRecord(value);
-  if (!cloned) return undefined;
-  const common = parseSafeExecuteCommon(cloned);
   if (!common) return undefined;
-
   if (
-    cloned.operationId === 'atc_run' &&
-    cloned.check === 'atc' &&
-    hasExactSortedKeys(cloned, [
+    cloned.operationId !== 'atc_run' ||
+    cloned.check !== 'atc' ||
+    !hasExactSortedKeys(cloned, [
       ...safeExecuteCommonKeys,
       'maxPackages',
       'maxVariants',
     ])
   ) {
-    const maxPackages = positiveSafeInteger(cloned.maxPackages);
-    const maxVariants = positiveSafeInteger(cloned.maxVariants);
-    if (maxPackages === undefined || maxVariants === undefined) {
-      return undefined;
-    }
-    return Object.freeze({
-      operationId: 'atc_run',
-      check: 'atc',
-      ...common,
-      maxPackages,
-      maxVariants,
-    });
+    return undefined;
   }
+  const maxPackages = positiveSafeInteger(cloned.maxPackages);
+  const maxVariants = positiveSafeInteger(cloned.maxVariants);
+  if (maxPackages === undefined || maxVariants === undefined) {
+    return undefined;
+  }
+  return Object.freeze({
+    operationId: 'atc_run',
+    check: 'atc',
+    ...common,
+    maxPackages,
+    maxVariants,
+  });
+}
 
+function parseAunitSafeExecutePolicy(
+  cloned: Record<string, McpInvocationJsonValue>,
+  common: ReturnType<typeof parseSafeExecuteCommon>,
+): SafeExecutePolicy | undefined {
+  if (!common) return undefined;
   if (
-    cloned.operationId === 'run_unit_tests' &&
-    cloned.check === 'aunit' &&
-    cloned.effectiveWithCoverage === false &&
-    cloned.effectiveCoverageFormat === null &&
-    hasExactSortedKeys(cloned, [
+    cloned.operationId !== 'run_unit_tests' ||
+    cloned.check !== 'aunit' ||
+    cloned.effectiveWithCoverage !== false ||
+    cloned.effectiveCoverageFormat !== null ||
+    !hasExactSortedKeys(cloned, [
       ...safeExecuteCommonKeys,
       'effectiveWithCoverage',
       'effectiveCoverageFormat',
@@ -348,29 +351,36 @@ export function parseSafeExecutePolicy(
       'maxTestMethods',
     ])
   ) {
-    const maxTestClasses = positiveSafeInteger(cloned.maxTestClasses);
-    const maxTestMethods = positiveSafeInteger(cloned.maxTestMethods);
-    if (maxTestClasses === undefined || maxTestMethods === undefined) {
-      return undefined;
-    }
-    return Object.freeze({
-      operationId: 'run_unit_tests',
-      check: 'aunit',
-      effectiveWithCoverage: false,
-      effectiveCoverageFormat: null,
-      ...common,
-      maxTestClasses,
-      maxTestMethods,
-    });
+    return undefined;
   }
+  const maxTestClasses = positiveSafeInteger(cloned.maxTestClasses);
+  const maxTestMethods = positiveSafeInteger(cloned.maxTestMethods);
+  if (maxTestClasses === undefined || maxTestMethods === undefined) {
+    return undefined;
+  }
+  return Object.freeze({
+    operationId: 'run_unit_tests',
+    check: 'aunit',
+    effectiveWithCoverage: false,
+    effectiveCoverageFormat: null,
+    ...common,
+    maxTestClasses,
+    maxTestMethods,
+  });
+}
 
+function parseCoverageSafeExecutePolicy(
+  cloned: Record<string, McpInvocationJsonValue>,
+  common: ReturnType<typeof parseSafeExecuteCommon>,
+): SafeExecutePolicy | undefined {
+  if (!common) return undefined;
+  const format = cloned.effectiveCoverageFormat;
   if (
-    cloned.operationId === 'run_unit_tests' &&
-    cloned.check === 'coverage' &&
-    cloned.effectiveWithCoverage === true &&
-    (cloned.effectiveCoverageFormat === 'jacoco' ||
-      cloned.effectiveCoverageFormat === 'sonar-generic') &&
-    hasExactSortedKeys(cloned, [
+    cloned.operationId !== 'run_unit_tests' ||
+    cloned.check !== 'coverage' ||
+    cloned.effectiveWithCoverage !== true ||
+    (format !== 'jacoco' && format !== 'sonar-generic') ||
+    !hasExactSortedKeys(cloned, [
       ...safeExecuteCommonKeys,
       'effectiveWithCoverage',
       'effectiveCoverageFormat',
@@ -378,23 +388,37 @@ export function parseSafeExecutePolicy(
       'maxMeasurements',
     ])
   ) {
-    const maxPrograms = positiveSafeInteger(cloned.maxPrograms);
-    const maxMeasurements = positiveSafeInteger(cloned.maxMeasurements);
-    if (maxPrograms === undefined || maxMeasurements === undefined) {
-      return undefined;
-    }
-    return Object.freeze({
-      operationId: 'run_unit_tests',
-      check: 'coverage',
-      effectiveWithCoverage: true,
-      effectiveCoverageFormat: cloned.effectiveCoverageFormat,
-      ...common,
-      maxPrograms,
-      maxMeasurements,
-    });
+    return undefined;
   }
+  const maxPrograms = positiveSafeInteger(cloned.maxPrograms);
+  const maxMeasurements = positiveSafeInteger(cloned.maxMeasurements);
+  if (maxPrograms === undefined || maxMeasurements === undefined) {
+    return undefined;
+  }
+  return Object.freeze({
+    operationId: 'run_unit_tests',
+    check: 'coverage',
+    effectiveWithCoverage: true,
+    effectiveCoverageFormat: format,
+    ...common,
+    maxPrograms,
+    maxMeasurements,
+  });
+}
 
-  return undefined;
+export function parseSafeExecutePolicy(
+  value: unknown,
+): SafeExecutePolicy | undefined {
+  if (!isPlainObject(value)) return undefined;
+  const cloned = cloneJsonRecord(value);
+  if (!cloned) return undefined;
+  const common = parseSafeExecuteCommon(cloned);
+
+  return (
+    parseAtcSafeExecutePolicy(cloned, common) ??
+    parseAunitSafeExecutePolicy(cloned, common) ??
+    parseCoverageSafeExecutePolicy(cloned, common)
+  );
 }
 
 function parseSortedUniqueStrings(
