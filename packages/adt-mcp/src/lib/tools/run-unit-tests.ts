@@ -15,7 +15,8 @@ import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
 import {
-  isKnownAdtHttpFailure,
+  extractSafeExecutePolicy,
+  handleSafeExecuteError,
   resolveObjectUri,
   safeExecuteLimitResult,
 } from './utils';
@@ -352,12 +353,10 @@ export function registerRunUnitTestsTool(
         .describe('Coverage report format when coverage is enabled'),
     },
     async (args, extra) => {
-      const access = ctx.requestAccess?.(extra ?? {});
-      const safePolicy =
-        access?.scoped?.operationClass === 'safe_execute' &&
-        access.scoped.safeExecutePolicy?.operationId === 'run_unit_tests'
-          ? access.scoped.safeExecutePolicy
-          : undefined;
+      const safePolicy = extractSafeExecutePolicy(
+        ctx.requestAccess?.(extra ?? {}),
+        'run_unit_tests',
+      );
       try {
         const normalizedOptions = normalizeUnitTestOptions(args);
         if (!normalizedOptions) {
@@ -430,16 +429,7 @@ export function registerRunUnitTestsTool(
           ],
         };
       } catch (error) {
-        if (safePolicy && !isKnownAdtHttpFailure(error)) throw error;
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text: `Run unit tests failed: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-        };
+        return handleSafeExecuteError(error, safePolicy, 'Run unit tests');
       }
     },
   );

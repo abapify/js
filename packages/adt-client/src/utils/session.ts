@@ -405,9 +405,6 @@ export class SessionManager {
     baseUrl: string;
     sessionPath: string;
   }): boolean {
-    if (sessionPath.startsWith(SessionManager.SESSION_PATH_PREFIX)) {
-      return true;
-    }
     try {
       const parsed = new URL(sessionPath, baseUrl);
       const base = new URL(baseUrl);

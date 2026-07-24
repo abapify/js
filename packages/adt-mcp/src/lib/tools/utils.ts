@@ -2,6 +2,9 @@
  * Shared utilities for MCP tool implementations.
  */
 
+import type { McpRequestAccess } from './scope-catalogue.js';
+import type { SafeExecutePolicy } from '../http/invocation.js';
+
 export interface SearchObject {
   name?: string;
   type?: string;
@@ -224,6 +227,36 @@ export function mcpErrorResult(
     isError: true as const,
     content: [{ type: 'text' as const, text: message }],
   };
+}
+
+export type McpErrorResult = ReturnType<typeof mcpErrorResult>;
+
+/**
+ * Extract the safe-execute policy for a tool when the caller has been granted
+ * a scoped safe-execute grant for this operationId.
+ */
+export function extractSafeExecutePolicy(
+  access: McpRequestAccess | undefined,
+  operationId: string,
+): SafeExecutePolicy | undefined {
+  return access?.scoped?.operationClass === 'safe_execute' &&
+    access.scoped.safeExecutePolicy?.operationId === operationId
+    ? access.scoped.safeExecutePolicy
+    : undefined;
+}
+
+/**
+ * For safe-execute tool handlers, rethrow non-deterministic errors when a safe
+ * policy is active so the outer execution recorder can report outcome_unknown;
+ * return a standard MCP error for known SAP HTTP failures.
+ */
+export function handleSafeExecuteError(
+  error: unknown,
+  safePolicy: SafeExecutePolicy | undefined,
+  toolLabel: string,
+): McpErrorResult {
+  if (safePolicy && !isKnownAdtHttpFailure(error)) throw error;
+  return mcpErrorResult(error, toolLabel);
 }
 
 /**

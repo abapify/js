@@ -13,7 +13,8 @@ import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
 import {
-  isKnownAdtHttpFailure,
+  extractSafeExecutePolicy,
+  handleSafeExecuteError,
   resolveObjectUri,
   safeExecuteLimitResult,
 } from './utils';
@@ -196,12 +197,10 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
       objectUri: z.never().optional(),
     },
     async (args, extra) => {
-      const access = ctx.requestAccess?.(extra ?? {});
-      const safePolicy =
-        access?.scoped?.operationClass === 'safe_execute' &&
-        access.scoped.safeExecutePolicy?.operationId === 'atc_run'
-          ? access.scoped.safeExecutePolicy
-          : undefined;
+      const safePolicy = extractSafeExecutePolicy(
+        ctx.requestAccess?.(extra ?? {}),
+        'atc_run',
+      );
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const checkVariant = await resolveVariant(client, args.variant);
@@ -253,16 +252,7 @@ export function registerAtcRunTool(server: McpServer, ctx: ToolContext): void {
           ],
         };
       } catch (error) {
-        if (safePolicy && !isKnownAdtHttpFailure(error)) throw error;
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text: `ATC run failed: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-        };
+        return handleSafeExecuteError(error, safePolicy, 'ATC run');
       }
     },
   );
