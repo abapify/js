@@ -134,6 +134,28 @@ describe('MCP invocation verifier', () => {
     assert.strictEqual(isMcpInvocationDispatchPolicySupported(verified), false);
   });
 
+  it('verifies and dispatches a signed delegated-assistant read envelope', async () => {
+    const credential = await sign({
+      agentId: 'delegated-assistant',
+      classes: ['server', 'read'],
+      destinationKeys: ['tst-adt'],
+      correlationId: 'delegated-assistant:001',
+      constraint: {
+        kind: 'delegated-assistant-read-v1',
+        threadId: '11111111-1111-4111-8111-111111111111',
+        executionId: '22222222-2222-4222-8222-222222222222',
+        systemSid: 'TST',
+      },
+      limits: {},
+    });
+
+    const verified = await verifier.verify(`Bearer ${credential}`);
+
+    assert.ok(verified);
+    assert.strictEqual(verified.agentId, 'delegated-assistant');
+    assert.strictEqual(isMcpInvocationDispatchPolicySupported(verified), true);
+  });
+
   it('rejects a credential with an invalid ES256 signature', async () => {
     const { privateKey: untrustedPrivateKey } = await generateKeyPair('ES256');
     const credential = await sign({}, { signingKey: untrustedPrivateKey });
