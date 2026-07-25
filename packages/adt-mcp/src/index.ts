@@ -47,8 +47,10 @@ export {
 } from './lib/http/server';
 export {
   createMcpInvocationVerifier,
+  parseDelegatedAssistantReadPolicy,
   parseScopedAdtInvocationPolicy,
   parseSafeExecutePolicy,
+  type DelegatedAssistantReadPolicy,
   type ScopedAdtInvocationPolicy,
   type McpInvocationJsonValue,
   type McpInvocationVerifier,

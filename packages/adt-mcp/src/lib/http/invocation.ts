@@ -33,6 +33,7 @@ const trustedAgentIds = new Set([
   'system-assistant',
   'autonomous-review-agent',
   'adt-execution',
+  'delegated-assistant',
 ]);
 const trustedOperationClasses = new Set(['server', 'read', 'safe_execute']);
 const scopedReadTools = new Set(['get_object', 'get_object_structure']);
@@ -55,7 +56,8 @@ export interface TrustedMcpInvocationClaims {
     | 'ai-review'
     | 'system-assistant'
     | 'autonomous-review-agent'
-    | 'adt-execution';
+    | 'adt-execution'
+    | 'delegated-assistant';
   readonly classes: readonly McpTrustedOperationClass[];
   readonly destinationKeys: readonly string[];
   readonly correlationId: string;
@@ -131,6 +133,12 @@ export interface ScopedAdtInvocationPolicy {
   readonly authorizationToken?: string;
 }
 
+export interface DelegatedAssistantReadPolicy {
+  readonly threadId: string;
+  readonly executionId: string;
+  readonly systemSid: string;
+}
+
 export interface McpInvocationVerifierOptions {
   /** ES256 public key mounted at ADT Server; it cannot issue credentials. */
   publicKey: CryptoKey | KeyObject;
@@ -188,6 +196,33 @@ function hasServerReadClasses(claims: TrustedMcpInvocationClaims): boolean {
   );
 }
 
+export function parseDelegatedAssistantReadPolicy(
+  claims: TrustedMcpInvocationClaims,
+): DelegatedAssistantReadPolicy | undefined {
+  if (
+    claims.agentId !== 'delegated-assistant' ||
+    claims.destinationKeys.length !== 1 ||
+    !hasServerReadClasses(claims) ||
+    Object.keys(claims.limits).length !== 0 ||
+    !hasExactSortedKeys(claims.constraint, [
+      'kind',
+      'threadId',
+      'executionId',
+      'systemSid',
+    ]) ||
+    claims.constraint.kind !== 'delegated-assistant-read-v1'
+  ) {
+    return undefined;
+  }
+
+  const threadId = requiredUuid(claims.constraint.threadId);
+  const executionId = requiredUuid(claims.constraint.executionId);
+  const systemSid = requiredSystemSid(claims.constraint.systemSid);
+  if (!threadId || !executionId || !systemSid) return undefined;
+
+  return Object.freeze({ threadId, executionId, systemSid });
+}
+
 export function isMcpInvocationDispatchPolicySupported(
   claims: TrustedMcpInvocationClaims,
 ): boolean {
@@ -203,6 +238,9 @@ export function isMcpInvocationDispatchPolicySupported(
   }
   if (claims.agentId === 'adt-execution') {
     return parseScopedAdtInvocationPolicy(claims) !== undefined;
+  }
+  if (claims.agentId === 'delegated-assistant') {
+    return parseDelegatedAssistantReadPolicy(claims) !== undefined;
   }
   if (claims.agentId === 'ai-review') {
     return (
