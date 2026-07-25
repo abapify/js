@@ -60,5 +60,5 @@ packages/adt-fixtures/src/mock-server/routes.ts
 ```
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e14-flp.md
 Reference: /tmp/sapcli-ref/sapcli/sap/cli/flp.py.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```

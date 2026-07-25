@@ -68,7 +68,7 @@ bunx nx typecheck && bunx nx lint && bunx nx format:write
 ```
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e15-wb.md
 Reference: /tmp/sapcli-ref/sapcli/sap/cli/wb.py and our existing MCP tools.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Open questions (post-real-SAP sweep, TRL 2025-11)

@@ -91,7 +91,7 @@ Read these files first:
 
 Implement everything in the "Scope" section. Stay strictly within "Out of scope" boundaries.
 Run the full Acceptance block before declaring done.
-Do NOT commit unless explicitly approved by the operator.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 
 If you encounter blockers (missing contract, undecided design choice), document them in
 docs/roadmap/epics/eXX-NAME.md under a new "Open questions" section and stop — don't guess.

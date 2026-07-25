@@ -72,7 +72,7 @@ bunx nx build acds && bunx nx test acds
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e09-acds-parser.md
 Read packages/acds/AGENTS.md and the existing grammar/parser. Refer to SAP CDS DDL spec.
 This is foundation for RAP epics — keep API stable.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Open questions
