@@ -68,7 +68,7 @@ bunx nx typecheck && bunx nx lint && bunx nx format:write
 ```
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e03-badi.md
 Read AGENTS.md + docs/roadmap/README.md first. Reference: /tmp/sapcli-ref/sapcli/sap/cli/badi.py.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Implementation notes (first pass)

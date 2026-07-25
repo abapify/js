@@ -80,7 +80,7 @@ bunx nx typecheck && bunx nx lint && bunx nx format:write
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e13-startrfc.md
 Reads: AGENTS.md, docs/roadmap/README.md.
 Reference: /tmp/sapcli-ref/sapcli/sap/cli/startrfc.py and sap/rfc/.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Open questions

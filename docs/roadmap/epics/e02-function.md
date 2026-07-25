@@ -93,5 +93,5 @@ Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e02-function.md
 
 Read AGENTS.md, docs/roadmap/README.md, then this epic file. Implement Scope strictly.
 Reference: /tmp/sapcli-ref/sapcli/sap/cli/function.py + sap/adt/function.py
-Do NOT commit without explicit user approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```

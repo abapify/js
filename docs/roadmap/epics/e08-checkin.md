@@ -91,7 +91,7 @@ bunx nx typecheck && bunx nx lint && bunx nx format:write
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e08-checkin.md
 Read AGENTS.md, docs/roadmap/README.md, e05-format-plugin-api.md, packages/adk/AGENTS.md.
 Reference: /tmp/sapcli-ref/sapcli/sap/cli/checkin.py.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Open questions

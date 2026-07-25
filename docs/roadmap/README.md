@@ -119,5 +119,7 @@ Otherwise: open https://app.devin.ai/ → New session → paste the **Devin prom
 - Every operation needs an entry in `packages/adt-cli/tests/e2e/parity.<area>.test.ts`.
 - Real SAP fixtures in `@abapify/adt-fixtures` (mark `TODO-synthetic` only when no capture available).
 - abapGit-style filenames everywhere a file path is emitted (use `adtUriToAbapGitPath`).
-- No commits without explicit user approval (per repo `.agents/rules/git/no-auto-commit`).
+- Authorized implementation is committed and pushed as verified atomic slices
+  without a separate confirmation prompt (see
+  `.agents/rules/git/autonomous-delivery`).
 - Run `bunx nx format:write` before signalling done.

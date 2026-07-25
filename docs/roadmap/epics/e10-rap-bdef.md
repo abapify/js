@@ -77,7 +77,7 @@ bunx nx typecheck && bunx nx lint && bunx nx format:write
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e10-rap-bdef.md
 Reads: AGENTS.md, docs/roadmap/README.md, e09-acds-parser.md, packages/adk/AGENTS.md.
 Reference: /tmp/sapcli-ref/sapcli/sap/cli/behaviordefinition.py.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Delivered (2025-PR-103)
