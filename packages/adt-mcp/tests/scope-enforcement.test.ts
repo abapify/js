@@ -80,7 +80,7 @@ test('a read-scoped caller can dispatch a permitted read tool', async () => {
   assert.strictEqual(calls, 1);
 });
 
-test('ATC analysis requires an explicit safe-execution class', async () => {
+test('ATC analysis is permitted by ordinary read authority', async () => {
   const target = new CapturingServer();
   let calls = 0;
   const readServer = destinationModeServer(target as unknown as McpServer, {
@@ -88,42 +88,19 @@ test('ATC analysis requires an explicit safe-execution class', async () => {
   });
   readServer.tool('atc_run', {}, async () => {
     calls++;
-    return { content: [{ type: 'text' as const, text: 'unexpected' }] };
-  });
-
-  const denied = await target.handlers.get('atc_run')!(
-    { destination: 'dev' },
-    { sessionId: 'session-1' },
-  );
-  assert.strictEqual(denied.isError, true);
-  assert.strictEqual(denied.content[0]?.text, 'mcp_scope_denied');
-  assert.strictEqual(calls, 0);
-
-  const permittedTarget = new CapturingServer();
-  const safeExecutionServer = destinationModeServer(
-    permittedTarget as unknown as McpServer,
-    {
-      requestAccess: () => ({
-        classes: ['safe_execute'],
-        destinationKeys: ['dev'],
-      }),
-    },
-  );
-  safeExecutionServer.tool('atc_run', {}, async () => {
-    calls++;
     return { content: [{ type: 'text' as const, text: 'permitted' }] };
   });
 
-  const permitted = await permittedTarget.handlers.get('atc_run')!(
+  const permitted = await target.handlers.get('atc_run')!(
     { destination: 'dev' },
-    { sessionId: 'session-2' },
+    { sessionId: 'session-1' },
   );
   assert.notStrictEqual(permitted.isError, true);
   assert.strictEqual(permitted.content[0]?.text, 'permitted');
   assert.strictEqual(calls, 1);
   assert.strictEqual(
     MCP_TOOL_SCOPE_CATALOGUE.run_unit_tests?.operationClass,
-    'safe_execute',
+    'read',
   );
 });
 
