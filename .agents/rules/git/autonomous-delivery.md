@@ -1,0 +1,26 @@
+---
+trigger: always_on
+description: Commit and push authorized feature work without re-prompting.
+---
+
+# Autonomous Delivery Rule
+
+## Rule
+
+Once the user authorizes implementation, that authorization includes creating
+and pushing verified atomic commits to the scoped feature branch. Do not pause
+to request a second commit or push confirmation.
+
+Before committing and pushing:
+
+1. Inspect the exact staged files and diff.
+2. Run the relevant verification gates and record known blockers.
+3. Use a scoped, public-safe commit message and author identity where required.
+4. Push only the intended feature branch and report the resulting commit/MR.
+
+## Actions that remain gated
+
+- destructive history rewrites or force-pushes;
+- direct protected-branch updates or merges;
+- releases and package publication;
+- expanding the branch, repository, or delivery scope.

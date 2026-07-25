@@ -73,7 +73,7 @@ bunx nx typecheck && bunx nx lint && bunx nx format:write
 ```
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e12-rap-srvb.md
 Reads: AGENTS.md, docs/roadmap/README.md, packages/adt-mcp/src/lib/tools/publish-service-binding.ts.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Status: Landed
