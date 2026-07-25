@@ -82,6 +82,6 @@ Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e01-include.md
 
 Read AGENTS.md, docs/roadmap/README.md, then this epic file. Implement Scope strictly.
 Reference impl at /tmp/sapcli-ref/sapcli/ (clone if missing).
-Do NOT commit without explicit user approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 Run the Acceptance block before declaring done.
 ```

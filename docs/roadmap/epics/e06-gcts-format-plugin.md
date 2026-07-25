@@ -109,7 +109,7 @@ Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e06-gcts-format-plugi
 Read AGENTS.md, docs/roadmap/README.md, e05-format-plugin-api.md, then this file.
 Reference SAP help docs for gCTS file layout — capture and pin locally before coding handlers.
 This epic must NOT introduce gCTS *commands* (those are E07). Only serialization.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Open questions

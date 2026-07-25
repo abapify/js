@@ -110,13 +110,13 @@ All AI agent rules live in `.agents/rules/` (single source of truth).
 
 ### Always On
 
-| Rule                                                                            | Description                                                 |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [`git/no-auto-commit`](rules/git/no-auto-commit.md)                             | Never commit or push without explicit user approval         |
-| [`development/coding-conventions`](rules/development/coding-conventions.md)     | TS strict, ESM only, naming, formatting, import conventions |
-| [`development/file-lifecycle`](rules/development/file-lifecycle.md)             | Generated/downloaded file guardrails                        |
-| [`openspec/project-planning-memory`](rules/openspec/project-planning-memory.md) | OpenSpec workflow and project memory                        |
-| [`verification/after-changes`](rules/verification/after-changes.md)             | Build, typecheck, test, lint, format checklist              |
+| Rule                                                                            | Description                                                  |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`git/autonomous-delivery`](rules/git/autonomous-delivery.md)                   | Commit and push authorized feature work without re-prompting |
+| [`development/coding-conventions`](rules/development/coding-conventions.md)     | TS strict, ESM only, naming, formatting, import conventions  |
+| [`development/file-lifecycle`](rules/development/file-lifecycle.md)             | Generated/downloaded file guardrails                         |
+| [`openspec/project-planning-memory`](rules/openspec/project-planning-memory.md) | OpenSpec workflow and project memory                         |
+| [`verification/after-changes`](rules/verification/after-changes.md)             | Build, typecheck, test, lint, format checklist               |
 
 ### On Demand (model_decision)
 

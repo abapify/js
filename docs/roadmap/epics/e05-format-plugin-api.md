@@ -104,7 +104,7 @@ bunx nx typecheck && bunx nx lint && bunx nx format:write
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e05-format-plugin-api.md
 Read AGENTS.md + docs/roadmap/README.md, then this spec. This epic is foundation for E06/E07/E08;
 breakages will block multiple downstream sessions.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Open questions

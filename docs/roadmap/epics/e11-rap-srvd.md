@@ -64,7 +64,7 @@ packages/adt-plugin-abapgit/tests/filename/adt-uri-to-path.test.ts
 Spec: /mnt/wsl/workspace/ubuntu/adt-cli/docs/roadmap/epics/e11-rap-srvd.md
 Reads: AGENTS.md, docs/roadmap/README.md, e09-acds-parser.md.
 Capture a real SRVD source from any S/4HANA sample app for reference.
-Do NOT commit without approval.
+Commit and push verified changes to the scoped feature branch without a separate confirmation prompt.
 ```
 
 ## Status: Landed
