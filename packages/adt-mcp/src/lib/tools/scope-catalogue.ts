@@ -553,7 +553,8 @@ export function isMcpToolListed(
       operationClass !== access.scoped.operationClass &&
       !(
         (name === 'atc_run' || name === 'run_unit_tests') &&
-        access.scoped.operationClass === 'safe_execute'
+        access.scoped.operationClass === 'safe_execute' &&
+        access.classes.includes('safe_execute')
       )
     ) {
       return false;
