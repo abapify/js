@@ -3,12 +3,21 @@ import { createRestPageCursorService } from './page-cursors.js';
 import { loadOptionalRestBearerAuthorizer } from './rest-auth.js';
 import { createRestAtcDocumentationCapabilityService } from './atc-documentation-capabilities.js';
 import { createRestSourceCapabilityService } from './source-capabilities.js';
+import type { AdtServerOptions } from './server.js';
 
 export interface RestRuntimeSecurityOptions {
   tokenFile?: string;
   sourceSecretFile?: string;
   pageCursorSecretFile?: string;
 }
+
+export type RestRuntimeSecurity = Pick<
+  AdtServerOptions,
+  | 'restAuthorizer'
+  | 'sourceCapabilities'
+  | 'atcDocumentationCapabilities'
+  | 'pageCursors'
+>;
 
 async function readOptionalMountedSecret(
   secretFile: string | undefined,
@@ -25,16 +34,7 @@ async function readOptionalMountedSecret(
  */
 export async function loadRestRuntimeSecurity(
   options: RestRuntimeSecurityOptions,
-): Promise<{
-  restAuthorizer: Awaited<ReturnType<typeof loadOptionalRestBearerAuthorizer>>;
-  sourceCapabilities:
-    | ReturnType<typeof createRestSourceCapabilityService>
-    | undefined;
-  atcDocumentationCapabilities:
-    | ReturnType<typeof createRestAtcDocumentationCapabilityService>
-    | undefined;
-  pageCursors: ReturnType<typeof createRestPageCursorService> | undefined;
-}> {
+): Promise<RestRuntimeSecurity> {
   const restAuthorizer = await loadOptionalRestBearerAuthorizer(
     options.tokenFile,
   );

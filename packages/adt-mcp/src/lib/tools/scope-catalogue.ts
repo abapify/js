@@ -83,13 +83,6 @@ const read = (names: readonly string[]): Record<string, StaticToolScope> =>
 const write = (names: readonly string[]): Record<string, StaticToolScope> =>
   Object.fromEntries(names.map((name) => [name, { operationClass: 'write' }]));
 
-const safeExecute = (
-  names: readonly string[],
-): Record<string, StaticToolScope> =>
-  Object.fromEntries(
-    names.map((name) => [name, { operationClass: 'safe_execute' }]),
-  );
-
 /**
  * Every registered MCP tool has one entry. A mixed-action tool resolves its
  * operation class from validated arguments; the default remains `write`.
@@ -161,10 +154,9 @@ export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
       'cts_search_transports',
       'cts_transport_objects',
       'cts_transport_source_manifest',
+      'atc_run',
+      'run_unit_tests',
     ]),
-    // ATC creates a server-side worklist even though it does not mutate ABAP
-    // repository objects. It therefore needs an explicit execution grant.
-    ...safeExecute(['atc_run', 'run_unit_tests']),
     ...write([
       'activate_object',
       'activate_package',
@@ -266,16 +258,22 @@ export function isMcpToolAllowed(
   arguments_: Record<string, unknown> = {},
 ): boolean {
   const classes = access?.classes;
+  const scopedAnalysis =
+    access?.scoped?.operationClass === 'safe_execute' &&
+    (name === 'atc_run' || name === 'run_unit_tests');
   const classAllowed = Boolean(
     Array.isArray(classes) &&
     classes.every(isMcpOperationClass) &&
-    classes.includes(operationClassForMcpTool(name, arguments_)),
+    (classes.includes(operationClassForMcpTool(name, arguments_)) ||
+      (scopedAnalysis && classes.includes('safe_execute'))),
   );
   if (!classAllowed) return false;
   const scoped = access?.scoped;
   return (
     !scoped ||
-    (scoped.operationClass === operationClassForMcpTool(name, arguments_) &&
+    ((scoped.operationClass === operationClassForMcpTool(name, arguments_) ||
+      ((name === 'atc_run' || name === 'run_unit_tests') &&
+        scoped.operationClass === 'safe_execute')) &&
       scoped.toolNames.includes(name))
   );
 }
@@ -551,7 +549,16 @@ export function isMcpToolListed(
   if (access.scoped) {
     const operationClass =
       'actionClasses' in entry ? undefined : entry.operationClass;
-    if (operationClass !== access.scoped.operationClass) return false;
+    if (
+      operationClass !== access.scoped.operationClass &&
+      !(
+        (name === 'atc_run' || name === 'run_unit_tests') &&
+        access.scoped.operationClass === 'safe_execute' &&
+        access.classes.includes('safe_execute')
+      )
+    ) {
+      return false;
+    }
     if (!access.scoped.toolNames.includes(name)) return false;
     if (operationClass === 'read' && access.scoped.resourceKeys.length === 0) {
       return false;

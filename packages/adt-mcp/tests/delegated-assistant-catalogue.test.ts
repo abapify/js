@@ -23,14 +23,15 @@ test('delegated read envelope projects the complete server-owned read catalogue'
     'get_object',
     'find_references',
     'cts_get_transport',
+    'atc_run',
+    'run_unit_tests',
   ]) {
     assert.ok(listed.includes(readTool), `missing read tool ${readTool}`);
   }
   assert.ok(!listed.includes('lock_object'));
-  assert.ok(!listed.includes('atc_run'));
 });
 
-test('delegated read envelope denies write and safe-execute dispatch', () => {
+test('delegated read envelope permits review checks but denies mutation', () => {
   assert.strictEqual(
     isMcpToolAllowed(access, 'get_object', {
       destination: 'dev',
@@ -48,9 +49,19 @@ test('delegated read envelope denies write and safe-execute dispatch', () => {
   assert.strictEqual(
     isMcpToolAllowed(access, 'atc_run', {
       destination: 'dev',
-      scope: { kind: 'package', packageName: 'ZPACKAGE' },
+      scope: { kind: 'transport_request', trkorr: 'DEVK900001' },
     }),
-    false,
+    true,
+  );
+  assert.strictEqual(
+    isMcpToolAllowed(access, 'run_unit_tests', {
+      destination: 'dev',
+      objectType: 'CLAS',
+      objectName: 'ZCL_SCOPE_TEST',
+      withCoverage: true,
+      coverageFormat: 'sonar-generic',
+    }),
+    true,
   );
   assert.strictEqual(isMcpToolAllowed(access, 'unknown_tool'), false);
 });

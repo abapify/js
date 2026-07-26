@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { loadRestRuntimeSecurity } from '../src/rest-runtime.js';
+import { loadRestRuntimeSecurity } from '../src/index.js';
 
 test('keeps REST disabled when its mounted bearer secret is empty', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'adt-rest-runtime-'));
