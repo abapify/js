@@ -15,8 +15,33 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    name: Validate Sonar token
+    runs-on: ubuntu-latest
+    outputs:
+      valid: ${{ steps.check.outputs.valid }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo '::error::SONAR_TOKEN is not set'
+            exit 1
+          fi
+          code=$(curl -s -o /dev/null -u "$SONAR_TOKEN": -w '%{http_code}' 'https://api.sonarcloud.io/analysis/jres?os=linux&arch=x86_64')
+          if [ "$code" = '200' ]; then
+            echo 'valid=true' >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::SonarCloud token validation failed with HTTP $code"
+            exit 1
+          fi
+
   matrix:
     name: Generate Sonar matrix
+    needs: validate
+    if: needs.validate.outputs.valid == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
@@ -28,8 +53,8 @@ jobs:
 
   sonar:
     name: Sonar (${{ matrix.projectName }})
-    needs: matrix
-    if: needs.matrix.outputs.matrix != ''
+    needs: [validate, matrix]
+    if: needs.validate.outputs.valid == 'true' && needs.matrix.outputs.matrix != ''
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
