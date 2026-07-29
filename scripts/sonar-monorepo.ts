@@ -76,11 +76,15 @@ function sanitizeKeyPart(part: string): string {
   return part.replace(/[^A-Za-z0-9._:-]/g, '_');
 }
 
-function computeKey(
-  root: string,
-  packageName: string | undefined,
-  nxName: string,
-): string {
+function computeKey({
+  root,
+  packageName,
+  nxName,
+}: {
+  root: string;
+  packageName: string | undefined;
+  nxName: string;
+}): string {
   if (root === '.') {
     return `${ORG}_${MONOREPO}_root`;
   }
@@ -98,14 +102,23 @@ function computeKey(
   return `${ORG}_${MONOREPO}_${cleanSuffix}`;
 }
 
-function computeName(nxName: string, packageName: string | undefined): string {
+function computeName({
+  nxName,
+  packageName,
+}: {
+  nxName: string;
+  packageName: string | undefined;
+}): string {
   return packageName ?? nxName;
 }
 
-function determineSources(
-  root: string,
-  sourceRoot: string | null,
-): string | null {
+function determineSources({
+  root,
+  sourceRoot,
+}: {
+  root: string;
+  sourceRoot: string | null;
+}): string | null {
   if (root === '.') {
     const parts: string[] = [];
     if (hasDirFiles(join(ROOT, 'src'))) parts.push('src');
@@ -143,7 +156,7 @@ async function main(): Promise<void> {
   const projects: SonarProject[] = [];
 
   for (const p of details) {
-    const sources = determineSources(p.root, p.sourceRoot);
+    const sources = determineSources(p);
     if (!sources) {
       // eslint-disable-next-line no-console
       console.log(`Skipping ${p.name}: no analyzable source directory`);
@@ -151,8 +164,12 @@ async function main(): Promise<void> {
     }
 
     const packageName = readPackageName(p.root);
-    const projectName = computeName(p.name, packageName);
-    const projectKey = computeKey(p.root, packageName, p.name);
+    const projectName = computeName({ nxName: p.name, packageName });
+    const projectKey = computeKey({
+      root: p.root,
+      packageName,
+      nxName: p.name,
+    });
 
     projects.push({ projectKey, projectName, sources });
   }
