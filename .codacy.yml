@@ -3,3 +3,4 @@ engines:
   opengrep:
     exclude_paths:
       - '.github/workflows/sonar.yml'
+      - 'scripts/sonar-monorepo.ts'
