@@ -1,5 +1,9 @@
 ---
 engines:
+  eslint-8:
+    exclude_paths:
+      - '.github/workflows/sonar.yml'
+      - 'scripts/sonar-monorepo.ts'
   opengrep:
     exclude_paths:
       - '.github/workflows/sonar.yml'
