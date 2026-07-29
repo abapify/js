@@ -177,8 +177,10 @@ async function main(): Promise<void> {
   console.log(`Generated ${projects.length} Sonar projects`);
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
-});
+}
