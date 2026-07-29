@@ -1,0 +1,50 @@
+name: Sonar
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: Generate Sonar matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: matrix
+        run: |
+          printf 'matrix=%s\n' "$(jq -c . sonar-matrix.json)" >> "$GITHUB_OUTPUT"
+
+  sonar:
+    name: Sonar (${{ matrix.projectName }})
+    needs: matrix
+    if: needs.matrix.outputs.matrix != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v8
+        with:
+          args: >
+            -Dsonar.projectKey=${{ matrix.projectKey }}
+            -Dsonar.projectName=${{ matrix.projectName }}
+            -Dsonar.sources=${{ matrix.sources }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
