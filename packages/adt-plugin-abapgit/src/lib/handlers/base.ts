@@ -7,6 +7,10 @@
 
 import type { AdkObject, AdkKind } from '@abapify/adk';
 import { getTypeForKind, getMainType } from '@abapify/adk';
+import {
+  FormatMaterializationError,
+  type FormatSerializeOptions,
+} from '@abapify/adt-plugin';
 import type {
   AbapGitSchema,
   InferAbapGitType,
@@ -77,7 +81,10 @@ export interface ObjectHandler<
   /** Map abapGit file suffix to source key */
   readonly suffixToSourceKey?: Record<string, string>;
   /** Serialize object to files (SAP → Git) */
-  serialize(object: T): Promise<SerializedFile[]>;
+  serialize(
+    object: T,
+    options?: FormatSerializeOptions,
+  ): Promise<SerializedFile[]>;
   /**
    * Map abapGit values to ADK data (Git → SAP)
    * Return type includes name (required) plus any ADK data fields
@@ -269,6 +276,7 @@ export interface HandlerDefinition<
   serialize?(
     object: T,
     ctx: HandlerContext<T, InferAbapGitType<TSchema>>,
+    options?: FormatSerializeOptions,
   ): Promise<SerializedFile[]>;
 }
 
@@ -452,12 +460,47 @@ export function createHandler<
   };
 
   // Default serialize
-  const defaultSerialize = async (object: T): Promise<SerializedFile[]> => {
+  const defaultSerialize = async (
+    object: T,
+    options?: FormatSerializeOptions,
+  ): Promise<SerializedFile[]> => {
     const objectName = ctx.getObjectName(object);
     const files: SerializedFile[] = [];
 
     // Add source files
-    if (definition.getSources) {
+    if (options?.sources !== undefined) {
+      if (!definition.getSource && !definition.getSources) {
+        throw new FormatMaterializationError(
+          'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+          `The ${type} format handler does not serialize source components.`,
+        );
+      }
+      const suffixBySourceKey = new Map<string, string | undefined>([
+        ['main', undefined],
+        ...Object.entries(definition.suffixToSourceKey ?? {}).map(
+          ([suffix, sourceKey]) => [sourceKey, suffix] as const,
+        ),
+      ]);
+      for (const [sourceKey, content] of Object.entries(options.sources).sort(
+        ([left], [right]) => left.localeCompare(right),
+      )) {
+        if (!suffixBySourceKey.has(sourceKey)) {
+          throw new FormatMaterializationError(
+            'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+            `The ${type} format handler cannot map source component "${sourceKey}".`,
+          );
+        }
+        if (content) {
+          files.push(
+            ctx.createAbapFile(
+              objectName,
+              content,
+              suffixBySourceKey.get(sourceKey),
+            ),
+          );
+        }
+      }
+    } else if (definition.getSources) {
       // Multiple source files (e.g., CLAS with includes)
       // Resolve all promises in parallel
       const rawSources = definition.getSources(object);
@@ -510,7 +553,8 @@ export function createHandler<
     schema: definition.schema,
     suffixToSourceKey: definition.suffixToSourceKey,
     serialize: definition.serialize
-      ? (object: T) => definition.serialize!(object, ctx)
+      ? (object: T, options?: FormatSerializeOptions) =>
+          definition.serialize!(object, ctx, options)
       : defaultSerialize,
     fromAbapGit: defaultFromAbapGit,
     setSources: definition.setSources,

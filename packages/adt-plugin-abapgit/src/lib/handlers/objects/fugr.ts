@@ -14,6 +14,7 @@
  */
 
 import { AdkFunctionGroup } from '../adk';
+import { FormatMaterializationError } from '@abapify/adt-plugin';
 import { fugr } from '../../../schemas/generated';
 import { createHandler } from '../base';
 import { formatAbapGitXml } from '../xml-format';
@@ -65,7 +66,13 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
   },
 
   // Custom serialize: generate the full multi-file structure including FMs
-  serialize: async (obj, ctx) => {
+  serialize: async (obj, ctx, options) => {
+    if (options?.sources !== undefined) {
+      throw new FormatMaterializationError(
+        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+        'Explicit source materialization is not supported for FUGR.',
+      );
+    }
     const objectName = ctx.getObjectName(obj); // lowercase
     const nameUpper = obj.name.toUpperCase();
     const files = [];

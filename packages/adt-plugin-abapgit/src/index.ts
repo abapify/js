@@ -51,6 +51,9 @@ export type {
   ImportResult,
   ExportContext,
   ExportResult,
+  FormatMaterializationInput,
+  FormatMaterializationResult,
+  MaterializedFormatFile,
 } from '@abapify/adt-plugin';
 
 // Default export for dynamic loading

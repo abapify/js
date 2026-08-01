@@ -52,9 +52,16 @@ export type {
   FormatHandler,
   FormatHandlerSchema,
   SerializedFile,
+  FormatSerializeOptions,
+  MaterializedFormatFileRole,
+  MaterializedFormatFile,
+  FormatMaterializationInput,
+  FormatMaterializationResult,
+  FormatMaterializationErrorCode,
   ParsedFormatFilename,
 } from './lib/format';
 export {
+  FormatMaterializationError,
   registerFormatPlugin,
   getFormatPlugin,
   requireFormatPlugin,
