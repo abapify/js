@@ -1,9 +1,9 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "dist-tests",
-    "tsBuildInfoFile": "dist-tests/tsconfig.spec.tsbuildinfo",
+    "outDir": "../../dist/out-tsc",
+    "tsBuildInfoFile": "../../dist/out-tsc/tsconfig.spec.tsbuildinfo",
     "types": [
       "node",
       "vitest",
@@ -14,11 +14,5 @@
     "noPropertyAccessFromIndexSignature": true,
     "paths": {}
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
-  "references": [
-    { "path": "../adt-plugin/tsconfig.lib.json" },
-    { "path": "../adt-config/tsconfig.lib.json" },
-    { "path": "../adt-client" },
-    { "path": "../adk/tsconfig.lib.json" }
-  ]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
 }

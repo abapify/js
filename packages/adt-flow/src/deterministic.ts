@@ -18,7 +18,7 @@ function maybeToJson(value: unknown, key: string): unknown | NoToJson {
   if (!isObject(value)) return NO_TO_JSON;
   const toJson = (value as { toJSON?: (key: string) => unknown }).toJSON;
   if (typeof toJson !== 'function') return NO_TO_JSON;
-  return canonicalize(toJson.call(value, key), '', false);
+  return canonicalize(toJson.call(value, key), key, false);
 }
 
 function canonicalize(value: unknown, key = '', invokeToJson = true): unknown {

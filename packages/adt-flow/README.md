@@ -28,18 +28,21 @@ adt flow checkout tr DEVK900001,DEVK900002 --base
 ```
 
 ```typescript
-import { createAdtFlowService } from '@abapify/adt-flow';
+import {
+  createAdtFlowService,
+  createAdtFlowDependencies,
+} from '@abapify/adt-flow';
 import { getFormatPlugin } from '@abapify/adt-plugin';
 
 // Use the format plugin already registered by @abapify/adt-plugin-abapgit
 const registeredFormatPlugin = getFormatPlugin('abapgit');
+if (!registeredFormatPlugin) {
+  throw new Error('abapGit format plugin is not registered.');
+}
 
-const flow = createAdtFlowService({
-  format: registeredFormatPlugin,
-  buildManifest,
-  readSource,
-  loadObject,
-});
+const flow = createAdtFlowService(
+  createAdtFlowDependencies(client, registeredFormatPlugin),
+);
 
 await flow.checkout({
   root: process.cwd(),

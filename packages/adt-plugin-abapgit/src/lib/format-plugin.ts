@@ -25,18 +25,29 @@ import {
 import { parseAbapGitFilename } from './deserializer';
 import { calculatePackageDir, parseFolderLogic } from './folder-logic';
 
+type ParsedFilename = NonNullable<ReturnType<typeof parseAbapGitFilename>>;
+
 function classifyFile(
-  path: string,
+  parsed: ParsedFilename,
   handler: FormatHandler,
 ): { role: 'metadata' } | { role: 'source'; sourceComponent: string } {
-  const parsed = parseAbapGitFilename(path);
-  if (parsed?.extension === 'xml') {
+  if (parsed.extension === 'xml') {
     return { role: 'metadata' };
   }
 
-  const sourceComponent = parsed?.suffix
-    ? (handler.suffixToSourceKey?.[parsed.suffix] ?? parsed.suffix)
-    : 'main';
+  if (!parsed.suffix) {
+    return { role: 'source', sourceComponent: 'main' };
+  }
+
+  if (
+    parsed.type.toLowerCase() === 'fugr' &&
+    parsed.suffix.toLowerCase() === `l${parsed.name.toLowerCase()}top`
+  ) {
+    return { role: 'source', sourceComponent: 'main' };
+  }
+
+  const sourceComponent =
+    handler.suffixToSourceKey?.[parsed.suffix] ?? parsed.suffix;
   return { role: 'source', sourceComponent };
 }
 
@@ -45,12 +56,13 @@ function assertSupportsExplicitSources(
   objectType: string,
   sources?: Readonly<Record<string, string>>,
 ): void {
-  if (sources && !handler.supportsExplicitSources) {
-    throw new FormatMaterializationError(
-      'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-      `abapGit handler for "${objectType}" does not support explicit source selection.`,
-    );
-  }
+  if (!sources) return;
+  if (Object.keys(sources).length === 0) return;
+  if (handler.supportsExplicitSources) return;
+  throw new FormatMaterializationError(
+    'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+    `abapGit handler for "${objectType}" does not support explicit source selection.`,
+  );
 }
 
 async function buildMaterializedFiles(
@@ -64,11 +76,15 @@ async function buildMaterializedFiles(
   });
   return serialized
     .map((file): MaterializedFormatFile => {
+      const parsed = parseAbapGitFilename(file.path);
+      const classification = parsed
+        ? classifyFile(parsed, handler)
+        : { role: 'source' as const, sourceComponent: 'main' };
       const path = posix.join('src', packageDir, file.path);
       return {
         ...file,
         path,
-        ...classifyFile(file.path, handler),
+        ...classification,
       };
     })
     .sort((left, right) =>

@@ -1,4 +1,4 @@
-import { realpath, stat } from 'node:fs/promises';
+import { lstat, realpath } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 function isWithin(root: string, candidate: string): boolean {
@@ -15,10 +15,12 @@ export async function resolveFlowWorkspaceRoot(
 ): Promise<string> {
   if (!isAbsolute(requested))
     throw new Error('workspaceRoot must be absolute.');
-  const candidate = await realpath(resolve(requested));
-  if (!(await stat(candidate)).isDirectory()) {
-    throw new Error('workspaceRoot must resolve to a directory.');
+  const requestedPath = resolve(requested);
+  const requestedStats = await lstat(requestedPath);
+  if (!requestedStats.isDirectory() || requestedStats.isSymbolicLink()) {
+    throw new Error('workspaceRoot must be a real directory (no symlinks).');
   }
+  const candidate = await realpath(requestedPath);
   const allowed = await Promise.all(
     allowedRoots.map((root) => realpath(resolve(root))),
   );

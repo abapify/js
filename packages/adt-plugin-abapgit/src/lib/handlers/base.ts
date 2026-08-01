@@ -218,6 +218,13 @@ export interface HandlerDefinition<
   suffixToSourceKey?: Record<string, string>;
 
   /**
+   * Whether this handler treats an explicit `sources` map as authoritative.
+   * If omitted, the factory infers it from `getSource`/`getSources` or from
+   * the custom `serialize` arity.
+   */
+  supportsExplicitSources?: boolean;
+
+  /**
    * Custom filename for XML file (optional)
    * Default: `${objectName}.${type}.xml`
    *
@@ -571,10 +578,16 @@ export function createHandler<
     : undefined;
 
   // Determine whether this handler can honor an explicit source map.
-  const supportsExplicitSources =
-    definition.getSource !== undefined ||
-    definition.getSources !== undefined ||
+  // Handlers may declare it explicitly; otherwise we fall back to arity.
+  const explicitSupports = definition.supportsExplicitSources;
+  const serializeAcceptsOptions =
+    explicitSupports ??
     (definition.serialize !== undefined && definition.serialize.length >= 3);
+  const supportsExplicitSources =
+    explicitSupports ??
+    (definition.getSource !== undefined ||
+      definition.getSources !== undefined ||
+      serializeAcceptsOptions);
 
   // Create handler object with full type information
   const handler: ObjectHandler<T, TSchema> = {
@@ -584,8 +597,17 @@ export function createHandler<
     suffixToSourceKey: definition.suffixToSourceKey,
     supportsExplicitSources,
     serialize: definition.serialize
-      ? (object: T, options?: FormatSerializeOptions) =>
-          definition.serialize!(object, ctx, options)
+      ? async (object: T, options?: FormatSerializeOptions) => {
+          if (serializeAcceptsOptions) {
+            return await definition.serialize!(object, ctx, options);
+          }
+          return await (
+            definition.serialize as (
+              object: T,
+              ctx: HandlerContext<T, InferAbapGitType<TSchema>>,
+            ) => Promise<SerializedFile[]>
+          )(object, ctx);
+        }
       : defaultSerialize,
     fromAbapGit: defaultFromAbapGit,
     setSources: definition.setSources,

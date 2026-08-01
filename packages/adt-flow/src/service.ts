@@ -163,8 +163,35 @@ function selectedVersion(
       },
     );
   }
-  if (mode === 'base') return entry.base;
+  if (mode === 'base') {
+    if (
+      entry.changeKind !== 'added' &&
+      (entry.base === undefined || entry.base.id === undefined)
+    ) {
+      throw new AdtFlowError(
+        'manifest_inexact',
+        'Source history is missing the required base boundary version.',
+        {
+          object: `${entry.object.type}/${entry.object.name}`,
+          component: entry.component.id,
+          changeKind: entry.changeKind,
+        },
+      );
+    }
+    return entry.base;
+  }
   if (entry.changeKind === 'deleted') return undefined;
+  if (entry.head === undefined || entry.head.id === undefined) {
+    throw new AdtFlowError(
+      'manifest_inexact',
+      'Source history is missing the required head boundary version.',
+      {
+        object: `${entry.object.type}/${entry.object.name}`,
+        component: entry.component.id,
+        changeKind: entry.changeKind,
+      },
+    );
+  }
   return entry.head;
 }
 

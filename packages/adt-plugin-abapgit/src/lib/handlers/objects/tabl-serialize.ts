@@ -21,6 +21,30 @@ import { buildDD02V, buildDD03P } from '../cds-to-abapgit';
 import type { TypeResolver, ResolvedType } from '../cds-to-abapgit';
 import { formatAbapGitXml } from '../xml-format';
 
+const XML_NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+};
+
+function decodeNumericCode(decimal?: string, hex?: string): string {
+  const base = decimal !== undefined ? 10 : 16;
+  const value = decimal !== undefined ? decimal : (hex ?? '');
+  return String.fromCharCode(parseInt(value, base));
+}
+
+function decodeXmlEntities(text: string): string {
+  return text.replace(
+    /&(?:#(\d+)|#x([0-9a-fA-F]+)|([a-zA-Z][a-zA-Z0-9]*));/g,
+    (match, decimal, hex, name) =>
+      decimal !== undefined || hex !== undefined
+        ? decodeNumericCode(decimal, hex)
+        : (XML_NAMED_ENTITIES[name] ?? match),
+  );
+}
+
 /**
  * Strip undefined/empty-string values from an object
  * to avoid emitting empty XML elements
@@ -45,7 +69,7 @@ type TableSettings = Extract<
  */
 function parseSettingsToDD09L(
   settingsXml: string,
-  tableName: string,
+  def: TableDefinition | StructureDefinition,
 ): Record<string, string> | undefined {
   let settings: TableSettings;
   try {
@@ -57,7 +81,7 @@ function parseSettingsToDD09L(
   }
 
   const dd09l: Record<string, string | undefined> = {
-    TABNAME: tableName,
+    TABNAME: def.name.toUpperCase(),
     AS4LOCAL: 'A',
     TABKAT: settings.sizeCategory,
     TABART: settings.dataClassCategory,
@@ -77,20 +101,16 @@ function parseSettingsToDD09L(
 /**
  * Create a TypeResolver that resolves named types via ADT endpoints.
  */
-function resolveDtelResult(dtelXml: string): ResolvedType {
-  const result: ResolvedType = { comptype: 'E' };
-  if (/<dtel:searchHelp>[^<]+<\/dtel:searchHelp>/.test(dtelXml)) {
+function resolveReferencedType(xml: string, comptype: 'E' | 'S'): ResolvedType {
+  const result: ResolvedType = { comptype };
+  if (
+    comptype === 'E' &&
+    /<dtel:searchHelp>[^<]+<\/dtel:searchHelp>/.test(xml)
+  ) {
     result.shlporigin = 'D';
   }
-  const descMatch = dtelXml.match(/adtcore:description="([^"]+)"/);
-  if (descMatch) result.description = descMatch[1];
-  return result;
-}
-
-function resolveStructResult(structXml: string): ResolvedType {
-  const result: ResolvedType = { comptype: 'S' };
-  const descMatch = structXml.match(/adtcore:description="([^"]+)"/);
-  if (descMatch) result.description = descMatch[1];
+  const descMatch = xml.match(/adtcore:description="([^"]+)"/);
+  if (descMatch) result.description = decodeXmlEntities(descMatch[1]);
   return result;
 }
 
@@ -107,7 +127,7 @@ function createAdtTypeResolver(obj: AdkTable | AdkStructure): TypeResolver {
         `/sap/bc/adt/ddic/dataelements/${encodeURIComponent(key)}`,
       );
       if (dtelXml) {
-        const result = resolveDtelResult(dtelXml);
+        const result = resolveReferencedType(dtelXml, 'E');
         cache.set(key, result);
         return result;
       }
@@ -116,7 +136,7 @@ function createAdtTypeResolver(obj: AdkTable | AdkStructure): TypeResolver {
         `/sap/bc/adt/ddic/structures/${encodeURIComponent(key)}`,
       );
       const result = structXml
-        ? resolveStructResult(structXml)
+        ? resolveReferencedType(structXml, 'S')
         : { comptype: 'E' as const };
       cache.set(key, result);
       return result;
@@ -129,7 +149,13 @@ async function resolveCdsSource<T extends AdkTable | AdkStructure>(
   sources: Readonly<Record<string, string>> | undefined,
 ): Promise<{ source: string } | { fallback: true }> {
   if (sources !== undefined) {
-    return { source: sources.main ?? '' };
+    // An explicit source map is authoritative. If it does not contain the
+    // `main` component, we emit metadata only rather than falling back to the
+    // current mutable SAP source.
+    if (sources.main === undefined) {
+      return { fallback: true };
+    }
+    return { source: sources.main };
   }
   try {
     return { source: await obj.getSource() };
@@ -153,8 +179,8 @@ function createFallbackFile<T extends AdkTable | AdkStructure>(
 async function buildTablValues<T extends AdkTable | AdkStructure>(
   obj: T,
   def: TableDefinition | StructureDefinition,
-  lang: string,
 ): Promise<Record<string, unknown>> {
+  const lang = isoToSapLang(obj.language || undefined);
   const dd02v = buildDD02V(def, lang, obj.description ?? '');
   const resolver = createAdtTypeResolver(obj);
   const dd03pEntries = await buildDD03P(
@@ -169,7 +195,7 @@ async function buildTablValues<T extends AdkTable | AdkStructure>(
     try {
       const settingsXml = await (obj as AdkTable).getSettings();
       if (settingsXml) {
-        const dd09l = parseSettingsToDD09L(settingsXml, def.name.toUpperCase());
+        const dd09l = parseSettingsToDD09L(settingsXml, def);
         if (dd09l) values.DD09L = stripEmpty(dd09l);
       }
     } catch {
@@ -186,8 +212,11 @@ async function buildTablValues<T extends AdkTable | AdkStructure>(
   return values;
 }
 
-function buildTablXml(
-  objectName: string,
+function buildTablXml<T extends AdkTable | AdkStructure>(
+  obj: T,
+  ctx: {
+    getObjectName: (obj: T) => string;
+  },
   values: Record<string, unknown>,
 ): string {
   const fullPayload = {
@@ -210,7 +239,6 @@ export async function serializeTabl<T extends AdkTable | AdkStructure>(
   options?: FormatSerializeOptions,
 ): Promise<SerializedFile[]> {
   const objectName = ctx.getObjectName(obj);
-  const lang = isoToSapLang(obj.language || undefined);
 
   const resolved = await resolveCdsSource(
     obj,
@@ -224,8 +252,8 @@ export async function serializeTabl<T extends AdkTable | AdkStructure>(
   }
 
   const def = ast.definitions[0] as TableDefinition | StructureDefinition;
-  const values = await buildTablValues(obj, def, lang);
-  const xml = buildTablXml(objectName, values);
+  const values = await buildTablValues(obj, def);
+  const xml = buildTablXml(obj, ctx, values);
   return [ctx.createFile(`${objectName}.tabl.xml`, xml)];
 }
 

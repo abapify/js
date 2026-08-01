@@ -239,9 +239,7 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
     return [
       buildMainXmlFile(obj, objectName, nameUpper, functions, ctx),
       ...(topFile ? [topFile] : []),
-      ...(hasExplicitSources
-        ? []
-        : buildProgramFiles(objectName, nameUpper, fixpt, ctx)),
+      ...buildProgramFiles(objectName, nameUpper, fixpt, ctx),
       ...(await buildFunctionModuleFiles(obj, fmItems, suppliedSources, ctx)),
     ];
   },
@@ -273,13 +271,9 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
 
     // Collect FM sources — these are sources where the suffix is NOT an include name
     const fmSources: Record<string, string> = {};
+    const mainProgramKey = `sapl${name}`;
     for (const [suffix, content] of Object.entries(sources)) {
-      if (
-        suffix === 'main' ||
-        suffix === topKey ||
-        suffix.startsWith(`l${name}`) ||
-        suffix.startsWith(`sapl${name}`)
-      ) {
+      if (suffix === 'main' || suffix === topKey || suffix === mainProgramKey) {
         continue; // Skip FUGR includes
       }
       // This is an FM source — key is the function name (lowercase)

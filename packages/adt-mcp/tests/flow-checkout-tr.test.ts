@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -39,7 +39,9 @@ const format = {
 } satisfies FormatPlugin;
 
 test('flow_checkout_tr delegates to the shared service inside an allowed root', async () => {
-  const allowed = await mkdtemp(join(tmpdir(), 'adt-flow-mcp-'));
+  const allowed = await realpath(
+    await mkdtemp(join(tmpdir(), 'adt-flow-mcp-')),
+  );
   const target = new CapturingServer();
   let checkoutInput: unknown;
   const ctx = {
@@ -95,8 +97,12 @@ test('flow_checkout_tr delegates to the shared service inside an allowed root', 
 });
 
 test('flow workspace confinement rejects a sibling directory', async () => {
-  const allowed = await mkdtemp(join(tmpdir(), 'adt-flow-allowed-'));
-  const sibling = await mkdtemp(join(tmpdir(), 'adt-flow-sibling-'));
+  const allowed = await realpath(
+    await mkdtemp(join(tmpdir(), 'adt-flow-allowed-')),
+  );
+  const sibling = await realpath(
+    await mkdtemp(join(tmpdir(), 'adt-flow-sibling-')),
+  );
   await assert.rejects(
     resolveFlowWorkspaceRoot(sibling, [allowed]),
     /outside the server-owned roots/u,

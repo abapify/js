@@ -1,7 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import type { Stats } from 'node:fs';
+
 import {
   lstat,
   mkdir,
+  open,
   readFile,
   readlink,
   realpath,
@@ -10,7 +13,7 @@ import {
   rmdir,
   rm,
   stat,
-  writeFile,
+  symlink,
 } from 'node:fs/promises';
 import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 import type { MaterializedFormatFile } from '@abapify/adt-plugin';
@@ -28,10 +31,15 @@ export interface RepositoryPlan {
   moved: Array<{ from: string; to: string }>;
 }
 
+// Empty string, exactly '.', NUL, or backslash make a path unsafe as input.
+const INVALID_RELATIVE_PATH = /^(?:$|\.$)|[\0\\]/;
+
 function isValidRelativeInput(path: string): boolean {
-  if (!path) return false;
-  if (path.includes('\\')) return false;
-  return !isAbsolute(path) && !posix.isAbsolute(path);
+  return (
+    !INVALID_RELATIVE_PATH.test(path) &&
+    !isAbsolute(path) &&
+    !posix.isAbsolute(path)
+  );
 }
 
 function isValidNormalizedPath(normalized: string, original: string): boolean {
@@ -377,8 +385,6 @@ export async function planRepositoryChanges(
   return { writes, removes, unchanged: unchanged.sort(), moved };
 }
 
-let tempSequence = 0;
-
 async function ensureParentDirectories(
   root: string,
   path: string,
@@ -435,27 +441,46 @@ async function atomicWrite(
   await validatePhysicalRoot(root, absolute);
   if (createdDirs) await ensureParentDirectories(root, path, createdDirs);
   await mkdir(dirname(absolute), { recursive: true });
-  const temporary = `${absolute}.adt-flow-${process.pid}-${tempSequence++}.tmp`;
+
+  const temporary = `${absolute}.adt-flow-${randomBytes(16).toString('hex')}.tmp`;
   await validatePhysicalRoot(root, temporary);
+  const handle = await open(temporary, 'wx');
   try {
-    await writeFile(temporary, content);
+    await handle.writeFile(content);
+    await handle.close();
     await rename(temporary, absolute);
-  } finally {
+  } catch (error) {
     await rm(temporary, { force: true });
+    throw error;
   }
 }
+
+type Snapshot =
+  | { kind: 'missing' }
+  | { kind: 'file'; content: Buffer }
+  | { kind: 'symlink'; target: string };
 
 async function captureSnapshots(
   root: string,
   paths: Iterable<string>,
-): Promise<Map<string, Buffer | undefined>> {
-  const snapshots = new Map<string, Buffer | undefined>();
+): Promise<Map<string, Snapshot>> {
+  const snapshots = new Map<string, Snapshot>();
   for (const path of paths) {
-    try {
-      snapshots.set(path, await readFile(absolutePath(root, path)));
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      snapshots.set(path, undefined);
+    const absolute = absolutePath(root, path);
+    const stats = await lstatSafe(absolute);
+    if (!stats) {
+      snapshots.set(path, { kind: 'missing' });
+    } else if (stats.isSymbolicLink()) {
+      snapshots.set(path, {
+        kind: 'symlink',
+        target: await readlink(absolute),
+      });
+    } else if (stats.isFile()) {
+      snapshots.set(path, { kind: 'file', content: await readFile(absolute) });
+    } else {
+      // Directories or other non-file entries cannot be restored; record as
+      // missing so rollback does not try to recreate them.
+      snapshots.set(path, { kind: 'missing' });
     }
   }
   return snapshots;
@@ -463,12 +488,18 @@ async function captureSnapshots(
 
 async function restoreSnapshots(
   root: string,
-  snapshots: ReadonlyMap<string, Buffer | undefined>,
+  snapshots: ReadonlyMap<string, Snapshot>,
 ): Promise<void> {
-  for (const [path, content] of snapshots) {
-    if (content === undefined)
-      await rm(absolutePath(root, path), { force: true });
-    else await atomicWrite(root, path, content);
+  for (const [path, snapshot] of snapshots) {
+    const absolute = absolutePath(root, path);
+    if (snapshot.kind === 'missing') {
+      await rm(absolute, { force: true });
+    } else if (snapshot.kind === 'symlink') {
+      await rm(absolute, { force: true });
+      await symlink(snapshot.target, absolute);
+    } else {
+      await atomicWrite(root, path, snapshot.content);
+    }
   }
 }
 
