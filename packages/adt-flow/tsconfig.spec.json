@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist-tests",
+    "tsBuildInfoFile": "dist-tests/tsconfig.spec.tsbuildinfo",
+    "types": ["node", "vitest/globals"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "references": [{ "path": "./tsconfig.lib.json" }]
+}

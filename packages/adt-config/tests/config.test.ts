@@ -54,6 +54,24 @@ describe('Config Module', () => {
   });
 
   describe('defineConfig', () => {
+    it('preserves typed flow selection and performance settings', () => {
+      const config = defineConfig({
+        flow: {
+          format: { id: 'abapgit', options: { folderLogic: 'prefix' } },
+          include: {
+            objectTypes: ['CLAS', 'INTF'],
+            packages: ['ZPRODUCT'],
+          },
+          concurrency: { metadata: 4, sources: 2 },
+          maxSourceBytes: 1_048_576,
+        },
+      });
+
+      expect(config.flow?.format.id).toBe('abapgit');
+      expect(config.flow?.include?.objectTypes).toEqual(['CLAS', 'INTF']);
+      expect(config.flow?.concurrency?.sources).toBe(2);
+    });
+
     it('should return config as-is', () => {
       const config: AdtConfig = {
         destinations: {

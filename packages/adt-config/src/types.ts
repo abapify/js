@@ -40,8 +40,34 @@ export interface AdtConfig {
   /** Contract generation configuration */
   contracts?: ContractsConfig;
 
+  /** Incremental transport tree materialization. */
+  flow?: FlowConfig;
+
   /** Allow arbitrary plugin-specific config sections */
   [key: string]: unknown;
+}
+
+export interface FlowFormatConfig {
+  id: string;
+  options?: Record<string, string | number | boolean>;
+}
+
+export interface FlowSelectorConfig {
+  objectTypes?: string[];
+  packages?: string[];
+  applicationComponents?: string[];
+}
+
+export interface FlowConcurrencyConfig {
+  metadata?: number;
+  sources?: number;
+}
+
+export interface FlowConfig {
+  format: FlowFormatConfig;
+  include?: FlowSelectorConfig;
+  concurrency?: FlowConcurrencyConfig;
+  maxSourceBytes?: number;
 }
 
 /**

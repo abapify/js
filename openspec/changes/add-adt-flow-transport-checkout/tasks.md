@@ -2,8 +2,8 @@
 
 - [x] 1.1 Confirm `add-exact-source-history` is present on the public upstream baseline.
 - [x] 1.2 Add failing contract tests across `adt-plugin` and the abapGit adapter for pure desired-tree materialization, explicit source overrides, deterministic output, and unsupported capability diagnostics.
-- [ ] 1.3 Add failing `adt-config` schema/type tests for the deterministic `flow` format, selectors, and concurrency bounds.
-- [ ] 1.4 Define versioned transport/object descriptor schemas in `adt-flow` and add parse, normalization, unsafe-name encoding, and forward-version rejection tests.
+- [x] 1.3 Add failing `adt-config` schema/type tests for the deterministic `flow` format, selectors, and concurrency bounds.
+- [x] 1.4 Define versioned transport/object descriptor schemas in `adt-flow` and add parse, normalization, unsafe-name encoding, and forward-version rejection tests.
 
 ## 2. Format materialization boundary
 
@@ -16,19 +16,19 @@
 
 - [ ] 3.1 Scaffold public `@abapify/adt-flow` with service, schemas, command export, build configuration, and only the required public-package dependencies.
 - [ ] 3.2 Implement transport normalization, released-state validation, relevance filtering, and composition of `buildTransportSourceManifest` without duplicating source-history logic.
-- [ ] 3.3 Implement lazy selected-source reads so only changed base/head component bodies are fetched after manifest validation.
-- [ ] 3.4 Implement deterministic `.adt/tr` and `.adt/objects` read/write models with config/format digests, version identities, owned paths, SHA-256 hashes, and deletion tombstones.
-- [ ] 3.5 Implement the exact-repeat head zero-SAP-call fast path and the base/head per-component no-body-read fast path, with tests that assert call counts and zero writes.
-- [ ] 3.6 Prove transport descriptors first appear on successful head checkout, while base writes only present predecessor object descriptors and does not pre-create new-object identities.
-- [ ] 3.7 Add tests proving deletion of `.adt` changes call counts but not the materialized source result.
+- [x] 3.3 Implement lazy selected-source reads so only changed base/head component bodies are fetched after manifest validation.
+- [x] 3.4 Implement deterministic `.adt/tr` and `.adt/objects` read/write models with config/format digests, version identities, owned paths, SHA-256 hashes, and deletion tombstones.
+- [x] 3.5 Implement the exact-repeat head zero-SAP-call fast path and the base/head per-component no-body-read fast path, with tests that assert call counts and zero writes.
+- [x] 3.6 Prove transport descriptors first appear on successful head checkout, while base writes only present predecessor object descriptors and does not pre-create new-object identities.
+- [x] 3.7 Add tests proving deletion of `.adt` changes call counts but not the materialized source result.
 
 ## 4. Safe repository reconciliation
 
-- [ ] 4.1 Implement format-recognizable file discovery and canonical object ownership adoption for repositories without descriptors.
-- [ ] 4.2 Implement desired/current tree planning for create, update, package-path move, deletion, and no-op outcomes.
-- [ ] 4.3 Reject path traversal, portable case collisions, duplicate ownership, unowned destination collisions, and indexed hash divergence before writes.
+- [x] 4.1 Implement format-recognizable file discovery and canonical object ownership adoption for repositories without descriptors.
+- [x] 4.2 Implement desired/current tree planning for create, update, package-path move, deletion, and no-op outcomes.
+- [x] 4.3 Reject path traversal, portable case collisions, duplicate ownership, unowned destination collisions, and indexed hash divergence before writes.
 - [ ] 4.4 Implement staged apply and rollback with fault-injection tests proving failures never report success for a partial tree.
-- [ ] 4.5 Add end-to-end filesystem fixtures proving modified objects are not pseudo-created and first-observed deletions produce file removals.
+- [x] 4.5 Add end-to-end filesystem fixtures proving modified objects are not pseudo-created and first-observed deletions produce file removals.
 
 ## 5. CLI and configuration delivery
 

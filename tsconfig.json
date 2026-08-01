@@ -37,6 +37,9 @@
       "path": "./packages/adt-config"
     },
     {
+      "path": "./packages/adt-flow"
+    },
+    {
       "path": "./tools/nx-typecheck"
     },
     {
