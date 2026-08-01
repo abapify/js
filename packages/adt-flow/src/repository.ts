@@ -24,13 +24,22 @@ export interface RepositoryPlan {
   moved: Array<{ from: string; to: string }>;
 }
 
+function isValidRelativeInput(path: string): boolean {
+  if (!path) return false;
+  if (path.includes('\\')) return false;
+  return !isAbsolute(path) && !posix.isAbsolute(path);
+}
+
+function isValidNormalizedPath(normalized: string, original: string): boolean {
+  return (
+    normalized !== '..' &&
+    !normalized.startsWith('../') &&
+    normalized === original
+  );
+}
+
 export function safeRelativePath(path: string): string {
-  if (
-    !path ||
-    path.includes('\\') ||
-    isAbsolute(path) ||
-    posix.isAbsolute(path)
-  ) {
+  if (!isValidRelativeInput(path)) {
     throw new AdtFlowError(
       'path_invalid',
       'Flow paths must be non-empty repository-relative POSIX paths.',
@@ -38,11 +47,7 @@ export function safeRelativePath(path: string): string {
     );
   }
   const normalized = posix.normalize(path);
-  if (
-    normalized === '..' ||
-    normalized.startsWith('../') ||
-    normalized !== path
-  ) {
+  if (!isValidNormalizedPath(normalized, path)) {
     throw new AdtFlowError(
       'path_invalid',
       'Flow path normalization would escape or change the repository path.',
@@ -69,33 +74,50 @@ export function absolutePath(root: string, relativePath: string): string {
   return absolute;
 }
 
+async function realPathIfExists(absolute: string): Promise<string | undefined> {
+  try {
+    return await realpath(absolute);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+async function realPathOfMissingParent(
+  absolute: string,
+): Promise<string | undefined> {
+  const dir = dirname(absolute);
+  try {
+    const realDir = await realpath(dir);
+    return posix.join(realDir, basename(absolute));
+  } catch (dirError) {
+    if ((dirError as NodeJS.ErrnoException).code === 'ENOENT') {
+      // The path does not exist and its parent is missing, so there is
+      // nothing to escape to yet.
+      return undefined;
+    }
+    throw dirError;
+  }
+}
+
+async function resolveRealPath(absolute: string): Promise<string | undefined> {
+  return (
+    (await realPathIfExists(absolute)) ??
+    (await realPathOfMissingParent(absolute))
+  );
+}
+
 async function validatePhysicalRoot(
   root: string,
   absolute: string,
 ): Promise<void> {
   const realRoot = await realpath(resolve(root));
-  let realPath: string;
-  try {
-    realPath = await realpath(absolute);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      const dir = dirname(absolute);
-      try {
-        const realDir = await realpath(dir);
-        realPath = posix.join(realDir, basename(absolute));
-      } catch (dirError) {
-        if ((dirError as NodeJS.ErrnoException).code === 'ENOENT') {
-          // The path does not exist and its parent is missing, so there is
-          // nothing to escape to yet.
-          return;
-        }
-        throw dirError;
-      }
-    } else {
-      throw error;
-    }
-  }
-  if (realPath !== realRoot && !realPath.startsWith(`${realRoot}${sep}`)) {
+  const realPath = await resolveRealPath(absolute);
+  if (
+    realPath !== undefined &&
+    realPath !== realRoot &&
+    !realPath.startsWith(`${realRoot}${sep}`)
+  ) {
     throw new AdtFlowError(
       'path_invalid',
       'Flow path resolves outside the repository root.',
@@ -104,25 +126,33 @@ async function validatePhysicalRoot(
   }
 }
 
-export async function readText(
-  root: string,
-  path: string,
-): Promise<string | undefined> {
+async function withEnoent<T>(
+  operation: () => Promise<T>,
+  enoentValue: T,
+): Promise<T> {
   try {
-    return await readFile(absolutePath(root, path), 'utf8');
+    return await operation();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return enoentValue;
     throw error;
   }
 }
 
+export async function readText(
+  root: string,
+  path: string,
+): Promise<string | undefined> {
+  return withEnoent(
+    () => readFile(absolutePath(root, path), 'utf8'),
+    undefined,
+  );
+}
+
 async function fileExists(root: string, path: string): Promise<boolean> {
-  try {
-    return (await stat(absolutePath(root, path))).isFile();
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
-    throw error;
-  }
+  return withEnoent(
+    async () => (await stat(absolutePath(root, path))).isFile(),
+    false,
+  );
 }
 
 export async function walkFiles(

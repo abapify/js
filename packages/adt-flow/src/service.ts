@@ -1,5 +1,8 @@
 import { basename } from 'node:path';
-import type { TransportSourceManifestEntry } from '@abapify/adk';
+import type {
+  TransportSourceManifest,
+  TransportSourceManifestEntry,
+} from '@abapify/adk';
 import type { SourceVersionRef } from '@abapify/adt-client';
 import type { FormatPlugin, MaterializedFormatFile } from '@abapify/adt-plugin';
 import { compareStrings, digest, sha256, stableJson } from './deterministic';
@@ -16,6 +19,7 @@ import {
   verifyOwnedHashes,
   walkFiles,
   type DesiredFile,
+  type RepositoryPlan,
 } from './repository';
 import {
   flowConfigSchema,
@@ -32,6 +36,7 @@ import {
   type FlowCheckoutInput,
   type FlowCheckoutResult,
   type FlowObjectIdentity,
+  type FlowObjectModel,
 } from './types';
 
 const TRANSPORT = /^[A-Z0-9]{10}$/;
@@ -397,26 +402,61 @@ interface GroupResult {
   reusedIndexedComponent: boolean;
 }
 
-async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
-  const {
-    root,
-    group,
-    mode,
-    config,
+function emptyGroupResult(): GroupResult {
+  return {
+    desired: [],
+    descriptorPaths: [],
+    ownedPaths: [],
+    reusedIndexedComponent: false,
+  };
+}
+
+function buildTombstoneResult(
+  identity: FlowObjectIdentity,
+  previous: ObjectDescriptor | undefined,
+  configDigest: string,
+  formatDigest: string,
+  descriptorPath: string,
+  ownedPaths: string[],
+): GroupResult {
+  const tombstone = createTombstoneDescriptor(
+    identity,
+    previous,
     configDigest,
     formatDigest,
-    dependencies,
-    limiters,
-    maxSourceBytes,
-    materialize,
-    pending,
-    hasApplicationComponentFilter,
-    calls,
-  } = ctx;
-  const { identity, entries } = group;
-  const descriptorPath = objectDescriptorPath(identity);
+  );
+  return {
+    desired: [
+      {
+        path: descriptorPath,
+        content: stableJson(tombstone),
+        role: 'metadata',
+        owner: identity.canonical,
+      },
+    ],
+    descriptorPaths: [descriptorPath],
+    ownedPaths,
+    reusedIndexedComponent: false,
+  };
+}
 
-  const previous = pending.previous;
+interface GroupSelections {
+  presentSelections: {
+    entry: TransportSourceManifestEntry;
+    version: SourceVersionRef;
+  }[];
+  exactIndexedSelection: boolean;
+  hasDeletions: boolean;
+}
+
+function buildGroupSelections(
+  group: ProcessGroupContext['group'],
+  mode: 'base' | 'head',
+  previous: ObjectDescriptor | undefined,
+  configDigest: string,
+  formatDigest: string,
+): GroupSelections {
+  const { entries } = group;
   const selections = entries.map((entry) => ({
     entry,
     version: selectedVersion(entry, mode),
@@ -444,93 +484,49 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
       ),
     );
 
-  if (presentSelections.length === 0) {
-    if (
-      mode === 'head' &&
-      entries.some((entry) => entry.changeKind === 'deleted')
-    ) {
-      const tombstone = createTombstoneDescriptor(
-        identity,
-        previous,
-        configDigest,
-        formatDigest,
-      );
-      return {
-        desired: [
-          {
-            path: descriptorPath,
-            content: stableJson(tombstone),
-            role: 'metadata',
-            owner: identity.canonical,
-          },
-        ],
-        descriptorPaths: [descriptorPath],
-        ownedPaths: pending.ownedPaths,
-        reusedIndexedComponent: false,
-      };
-    }
-    return {
-      desired: [],
-      descriptorPaths: [],
-      ownedPaths: [],
-      reusedIndexedComponent: false,
-    };
-  }
+  return {
+    presentSelections,
+    exactIndexedSelection,
+    hasDeletions: entries.some((entry) => entry.changeKind === 'deleted'),
+  };
+}
 
-  // When no application-component filter is configured we can reuse the
-  // indexed state without loading metadata.
-  if (!hasApplicationComponentFilter && exactIndexedSelection && previous) {
-    const desired = await reuseIndexedGroup(
-      root,
-      identity,
-      descriptorPath,
-      previous,
-    );
-    return {
-      desired,
-      descriptorPaths: [descriptorPath],
-      ownedPaths: pending.ownedPaths,
-      reusedIndexedComponent: true,
-    };
-  }
-
-  calls.metadata += 1;
-  const model = await limiters.metadata.run(() =>
-    dependencies.loadObject(identity),
+async function reuseGroupIfExact(
+  root: string,
+  identity: FlowObjectIdentity,
+  descriptorPath: string,
+  previous: ObjectDescriptor,
+  ownedPaths: string[],
+): Promise<GroupResult> {
+  const desired = await reuseIndexedGroup(
+    root,
+    identity,
+    descriptorPath,
+    previous,
   );
+  return {
+    desired,
+    descriptorPaths: [descriptorPath],
+    ownedPaths,
+    reusedIndexedComponent: true,
+  };
+}
 
-  if (
-    hasApplicationComponentFilter &&
-    !applicationComponentMatches(
-      model.applicationComponent,
-      config.include?.applicationComponents,
-    )
-  ) {
-    return {
-      desired: [],
-      descriptorPaths: [],
-      ownedPaths: [],
-      reusedIndexedComponent: false,
-    };
-  }
+interface LoadedSources {
+  sources: Record<string, string>;
+  reusedIndexedSource: boolean;
+}
 
-  // With a filter we loaded metadata first; now reuse the indexed state if it
-  // still matches the requested boundary.
-  if (exactIndexedSelection && previous) {
-    const desired = await reuseIndexedGroup(
-      root,
-      identity,
-      descriptorPath,
-      previous,
-    );
-    return {
-      desired,
-      descriptorPaths: [descriptorPath],
-      ownedPaths: pending.ownedPaths,
-      reusedIndexedComponent: true,
-    };
-  }
-
+async function loadObjectSources(
+  root: string,
+  identity: FlowObjectIdentity,
+  presentSelections: GroupSelections['presentSelections'],
+  previous: ObjectDescriptor | undefined,
+  limiters: ProcessGroupContext['limiters'],
+  maxSourceBytes: number,
+  dependencies: ProcessGroupContext['dependencies'],
+  calls: ProcessGroupContext['calls'],
+): Promise<LoadedSources> {
   const sources: Record<string, string> = {};
   let reusedIndexedSource = false;
   await Promise.all(
@@ -552,7 +548,23 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
       );
     }),
   );
+  return { sources, reusedIndexedSource };
+}
 
+async function buildMaterializedResult(
+  root: string,
+  identity: FlowObjectIdentity,
+  presentSelections: GroupSelections['presentSelections'],
+  model: FlowObjectModel,
+  materialize: ProcessGroupContext['materialize'],
+  config: FlowConfig,
+  configDigest: string,
+  formatDigest: string,
+  descriptorPath: string,
+  reusedIndexedSource: boolean,
+  ownedPaths: string[],
+  sources: Record<string, string>,
+): Promise<GroupResult> {
   const materialized = await materialize({
     object: model.object,
     objectType: repositoryType(identity.pgmid, identity.type),
@@ -601,13 +613,485 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
   return {
     desired,
     descriptorPaths: [descriptorPath],
-    ownedPaths: pending.ownedPaths,
+    ownedPaths,
     reusedIndexedComponent: reusedIndexedSource,
   };
 }
 
+async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
+  const {
+    root,
+    group,
+    mode,
+    config,
+    configDigest,
+    formatDigest,
+    dependencies,
+    limiters,
+    maxSourceBytes,
+    materialize,
+    pending,
+    hasApplicationComponentFilter,
+    calls,
+  } = ctx;
+  const { identity } = group;
+  const descriptorPath = objectDescriptorPath(identity);
+  const { previous, ownedPaths } = pending;
+
+  const { presentSelections, exactIndexedSelection, hasDeletions } =
+    buildGroupSelections(group, mode, previous, configDigest, formatDigest);
+
+  if (presentSelections.length === 0) {
+    if (mode === 'head' && hasDeletions) {
+      return buildTombstoneResult(
+        identity,
+        previous,
+        configDigest,
+        formatDigest,
+        descriptorPath,
+        ownedPaths,
+      );
+    }
+    return emptyGroupResult();
+  }
+
+  // When no application-component filter is configured we can reuse the
+  // indexed state without loading metadata.
+  if (!hasApplicationComponentFilter && exactIndexedSelection && previous) {
+    return await reuseGroupIfExact(
+      root,
+      identity,
+      descriptorPath,
+      previous,
+      ownedPaths,
+    );
+  }
+
+  calls.metadata += 1;
+  const model = await limiters.metadata.run(() =>
+    dependencies.loadObject(identity),
+  );
+
+  if (
+    hasApplicationComponentFilter &&
+    !applicationComponentMatches(
+      model.applicationComponent,
+      config.include?.applicationComponents,
+    )
+  ) {
+    return emptyGroupResult();
+  }
+
+  // With a filter we loaded metadata first; now reuse the indexed state if it
+  // still matches the requested boundary.
+  if (exactIndexedSelection && previous) {
+    return await reuseGroupIfExact(
+      root,
+      identity,
+      descriptorPath,
+      previous,
+      ownedPaths,
+    );
+  }
+
+  const { sources, reusedIndexedSource } = await loadObjectSources(
+    root,
+    identity,
+    presentSelections,
+    previous,
+    limiters,
+    maxSourceBytes,
+    dependencies,
+    calls,
+  );
+
+  return buildMaterializedResult(
+    root,
+    identity,
+    presentSelections,
+    model,
+    materialize,
+    config,
+    configDigest,
+    formatDigest,
+    descriptorPath,
+    reusedIndexedSource,
+    ownedPaths,
+    sources,
+  );
+}
+
 export interface AdtFlowService {
   checkout(input: FlowCheckoutInput): Promise<FlowCheckoutResult>;
+}
+
+interface CheckoutContext {
+  root: string;
+  mode: 'base' | 'head';
+  requested: string[];
+  config: FlowConfig;
+  configDigest: string;
+  formatDigest: string;
+  dependencies: FlowCheckoutDependencies;
+  materialize: NonNullable<FormatPlugin['materialize']>;
+  calls: { manifest: number; metadata: number; source: number };
+}
+
+function createCheckoutContext(
+  input: FlowCheckoutInput,
+  dependencies: FlowCheckoutDependencies,
+): CheckoutContext {
+  const parsed = flowConfigSchema.safeParse(input.config);
+  if (!parsed.success) {
+    throw new AdtFlowError(
+      'configuration_invalid',
+      'adt.config.ts contains an invalid flow section.',
+    );
+  }
+  const config = parsed.data;
+  const materialize = dependencies.format.materialize?.bind(
+    dependencies.format,
+  );
+  if (config.format.id !== dependencies.format.id || !materialize) {
+    throw new AdtFlowError(
+      'format_unsupported',
+      'The selected format does not support flow materialization.',
+    );
+  }
+  return {
+    root: input.root,
+    mode: input.mode ?? 'head',
+    requested: normalizeTransports(input.transports),
+    config,
+    configDigest: digest(config),
+    formatDigest: digest({
+      id: dependencies.format.id,
+      options: config.format.options ?? {},
+      supportedTypes: [...dependencies.format.supportedTypes].sort(),
+    }),
+    dependencies,
+    materialize,
+    calls: { manifest: 0, metadata: 0, source: 0 },
+  };
+}
+
+async function tryExactHeadFastPath(
+  ctx: CheckoutContext,
+): Promise<FlowCheckoutResult | undefined> {
+  if (ctx.mode !== 'head') return undefined;
+  const fast = await exactHeadFastPath(
+    ctx.root,
+    ctx.requested,
+    ctx.configDigest,
+    ctx.formatDigest,
+    ctx.dependencies.format,
+  );
+  if (!fast) return undefined;
+  return {
+    mode: ctx.mode,
+    requestedTransports: ctx.requested,
+    scopeTransports: fast.scopeTransports,
+    changed: [],
+    moved: [],
+    removed: [],
+    unchanged: fast.ownedPaths,
+    descriptors: fast.descriptorPaths,
+    sapCalls: ctx.calls,
+    fastPath: 'exact-head',
+  };
+}
+
+interface ManifestContext {
+  manifest: TransportSourceManifest;
+  entries: TransportSourceManifestEntry[];
+  metadataLimiter: Limiter;
+  sourceLimiter: Limiter;
+  maxSourceBytes: number;
+  hasApplicationComponentFilter: boolean;
+  groups: ReturnType<typeof groupEntries>;
+  srcFilesByObject: Map<string, string[]>;
+}
+
+async function buildManifestAndGroups(
+  ctx: CheckoutContext,
+): Promise<ManifestContext> {
+  ctx.calls.manifest += 1;
+  const manifest = await ctx.dependencies.buildManifest(ctx.requested, {
+    ...(ctx.config.include?.objectTypes?.length
+      ? {
+          objectTypes: ctx.config.include.objectTypes.map((type) =>
+            type.toUpperCase(),
+          ),
+        }
+      : {}),
+    concurrency:
+      ctx.config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
+  });
+  const entries = manifest.entries.filter((entry) =>
+    packageMatches(entry.object.packageName, ctx.config.include?.packages),
+  );
+  const metadataLimiter = new Limiter(
+    ctx.config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
+  );
+  const sourceLimiter = new Limiter(
+    ctx.config.concurrency?.sources ?? DEFAULT_SOURCE_CONCURRENCY,
+  );
+  const maxSourceBytes = ctx.config.maxSourceBytes ?? DEFAULT_MAX_SOURCE_BYTES;
+  const hasApplicationComponentFilter =
+    (ctx.config.include?.applicationComponents?.length ?? 0) > 0;
+
+  const allSrcFiles = await walkFiles(ctx.root, 'src');
+  const srcFilesByObject = buildObjectFileIndex(
+    allSrcFiles,
+    ctx.dependencies.format,
+  );
+
+  const groups = groupEntries(entries);
+  for (const group of groups) {
+    for (const entry of group.entries) selectedVersion(entry, ctx.mode);
+  }
+
+  return {
+    manifest,
+    entries,
+    metadataLimiter,
+    sourceLimiter,
+    maxSourceBytes,
+    hasApplicationComponentFilter,
+    groups,
+    srcFilesByObject,
+  };
+}
+
+type PendingOwnership = Map<
+  string,
+  { previous?: ObjectDescriptor; ownedPaths: string[] }
+>;
+
+async function buildPendingOwnership(
+  ctx: CheckoutContext,
+  groups: ManifestContext['groups'],
+  srcFilesByObject: Map<string, string[]>,
+): Promise<PendingOwnership> {
+  const pendingOwnership: PendingOwnership = new Map();
+  await Promise.all(
+    groups.map(async ({ identity }) => {
+      const descriptorPath = objectDescriptorPath(identity);
+      const previous = await readDescriptor(
+        ctx.root,
+        descriptorPath,
+        objectDescriptorSchema,
+      );
+      const owned: string[] = [];
+      if (previous) {
+        previous.ownedFiles = filterOwnedFiles(
+          previous.ownedFiles,
+          identity,
+          ctx.dependencies.format,
+        );
+        if (!(await verifyOwnedHashes(ctx.root, previous.ownedFiles))) {
+          throw new AdtFlowError(
+            'working_tree_diverged',
+            'An indexed file differs from its recorded content hash.',
+            { object: identity.canonical },
+          );
+        }
+        for (const file of previous.ownedFiles) owned.push(file.path);
+        owned.push(descriptorPath);
+      } else {
+        const key = `${repositoryType(identity.pgmid, identity.type)}/${identity.name}`;
+        const files = srcFilesByObject.get(key) ?? [];
+        for (const path of files) owned.push(path);
+      }
+      pendingOwnership.set(identity.canonical, {
+        previous,
+        ownedPaths: owned,
+      });
+    }),
+  );
+  return pendingOwnership;
+}
+
+interface ProcessedGroups {
+  desired: DesiredFile[];
+  descriptorPaths: string[];
+  ownedPaths: Set<string>;
+  ownedOwners: Map<string, string>;
+  reusedIndexedComponent: boolean;
+}
+
+async function processAllGroups(
+  ctx: CheckoutContext,
+  manifestContext: ManifestContext,
+  pendingOwnership: PendingOwnership,
+): Promise<ProcessedGroups> {
+  const {
+    metadataLimiter,
+    sourceLimiter,
+    maxSourceBytes,
+    hasApplicationComponentFilter,
+    groups,
+  } = manifestContext;
+  const desired: DesiredFile[] = [];
+  const ownedPaths = new Set<string>();
+  const ownedOwners = new Map<string, string>();
+  const descriptorPaths: string[] = [];
+  let reusedIndexedComponent = false;
+  await Promise.all(
+    groups.map(async (group) => {
+      const pending = pendingOwnership.get(group.identity.canonical);
+      if (!pending) {
+        throw new AdtFlowError(
+          'configuration_invalid',
+          'Object ownership state is missing for a group.',
+          { object: group.identity.canonical },
+        );
+      }
+      const result = await processGroup({
+        root: ctx.root,
+        group,
+        mode: ctx.mode,
+        config: ctx.config,
+        configDigest: ctx.configDigest,
+        formatDigest: ctx.formatDigest,
+        dependencies: ctx.dependencies,
+        limiters: { metadata: metadataLimiter, source: sourceLimiter },
+        maxSourceBytes,
+        materialize: ctx.materialize,
+        pending,
+        hasApplicationComponentFilter,
+        calls: ctx.calls,
+      });
+      for (const file of result.desired) desired.push(file);
+      for (const path of result.descriptorPaths) descriptorPaths.push(path);
+      for (const path of result.ownedPaths) {
+        ownedPaths.add(path);
+        ownedOwners.set(path, group.identity.canonical);
+      }
+      if (result.reusedIndexedComponent) reusedIndexedComponent = true;
+    }),
+  );
+  return {
+    desired,
+    descriptorPaths,
+    ownedPaths,
+    ownedOwners,
+    reusedIndexedComponent,
+  };
+}
+
+async function addTransportDescriptors(
+  ctx: CheckoutContext,
+  manifest: TransportSourceManifest,
+  descriptorPaths: string[],
+  desired: DesiredFile[],
+  ownedPaths: Set<string>,
+  ownedOwners: Map<string, string>,
+): Promise<void> {
+  const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort(
+    compareStrings,
+  );
+  for (const transport of ctx.requested) {
+    const path = transportDescriptorPath(transport);
+    if ((await readText(ctx.root, path)) !== undefined) {
+      ownedPaths.add(path);
+      ownedOwners.set(path, 'flow-index');
+    }
+    if (ctx.mode === 'head') {
+      const descriptor: TransportDescriptor = {
+        schemaVersion: 1,
+        requestedTransports: ctx.requested,
+        scopeTransports: manifest.scopeTransports,
+        objects: relevantObjectDescriptors,
+        configDigest: ctx.configDigest,
+        formatDigest: ctx.formatDigest,
+      };
+      desired.push({
+        path,
+        content: stableJson(descriptor),
+        role: 'metadata',
+        owner: 'flow-index',
+      });
+      descriptorPaths.push(path);
+    }
+  }
+}
+
+function buildCheckoutResult(
+  ctx: CheckoutContext,
+  manifest: TransportSourceManifest,
+  descriptorPaths: string[],
+  plan: RepositoryPlan,
+  reusedIndexedComponent: boolean,
+): FlowCheckoutResult {
+  const descriptorSet = new Set(descriptorPaths);
+  const sourceMoves = plan.moved.filter(
+    ({ from, to }) => !from.startsWith('.adt/') && !to.startsWith('.adt/'),
+  );
+  const movedFrom = new Set(sourceMoves.map(({ from }) => from));
+  const movedTo = new Set(sourceMoves.map(({ to }) => to));
+  return {
+    mode: ctx.mode,
+    requestedTransports: manifest.requestedTransports,
+    scopeTransports: manifest.scopeTransports,
+    changed: [...plan.writes.keys()]
+      .filter((path) => !descriptorSet.has(path) && !movedTo.has(path))
+      .sort(),
+    moved: sourceMoves,
+    removed: plan.removes
+      .filter((path) => !path.startsWith('.adt/') && !movedFrom.has(path))
+      .sort(),
+    unchanged: plan.unchanged.filter((path) => !descriptorSet.has(path)),
+    descriptors: [...descriptorSet].sort(),
+    sapCalls: ctx.calls,
+    fastPath: reusedIndexedComponent ? 'indexed-components' : 'none',
+  };
+}
+
+async function checkoutFlow(
+  input: FlowCheckoutInput,
+  dependencies: FlowCheckoutDependencies,
+): Promise<FlowCheckoutResult> {
+  const ctx = createCheckoutContext(input, dependencies);
+  const fast = await tryExactHeadFastPath(ctx);
+  if (fast) return fast;
+
+  const manifestContext = await buildManifestAndGroups(ctx);
+  const pendingOwnership = await buildPendingOwnership(
+    ctx,
+    manifestContext.groups,
+    manifestContext.srcFilesByObject,
+  );
+  const processed = await processAllGroups(
+    ctx,
+    manifestContext,
+    pendingOwnership,
+  );
+  await addTransportDescriptors(
+    ctx,
+    manifestContext.manifest,
+    processed.descriptorPaths,
+    processed.desired,
+    processed.ownedPaths,
+    processed.ownedOwners,
+  );
+  processed.desired.sort((left, right) =>
+    compareStrings(left.path, right.path),
+  );
+  const plan = await planRepositoryChanges(
+    ctx.root,
+    processed.desired,
+    processed.ownedPaths,
+    processed.ownedOwners,
+  );
+  await applyRepositoryPlan(ctx.root, plan);
+  return buildCheckoutResult(
+    ctx,
+    manifestContext.manifest,
+    processed.descriptorPaths,
+    plan,
+    processed.reusedIndexedComponent,
+  );
 }
 
 export function createAdtFlowService(
@@ -615,234 +1099,7 @@ export function createAdtFlowService(
 ): AdtFlowService {
   return {
     async checkout(input): Promise<FlowCheckoutResult> {
-      const parsed = flowConfigSchema.safeParse(input.config);
-      if (!parsed.success) {
-        throw new AdtFlowError(
-          'configuration_invalid',
-          'adt.config.ts contains an invalid flow section.',
-        );
-      }
-      const config = parsed.data;
-      const materialize = dependencies.format.materialize?.bind(
-        dependencies.format,
-      );
-      if (config.format.id !== dependencies.format.id || !materialize) {
-        throw new AdtFlowError(
-          'format_unsupported',
-          'The selected format does not support flow materialization.',
-        );
-      }
-      const root = input.root;
-      const mode = input.mode ?? 'head';
-      const requested = normalizeTransports(input.transports);
-      const configDigest = digest(config);
-      const formatDigest = digest({
-        id: dependencies.format.id,
-        options: config.format.options ?? {},
-        supportedTypes: [...dependencies.format.supportedTypes].sort(),
-      });
-      const calls = { manifest: 0, metadata: 0, source: 0 };
-
-      if (mode === 'head') {
-        const fast = await exactHeadFastPath(
-          root,
-          requested,
-          configDigest,
-          formatDigest,
-          dependencies.format,
-        );
-        if (fast) {
-          return {
-            mode,
-            requestedTransports: requested,
-            scopeTransports: fast.scopeTransports,
-            changed: [],
-            moved: [],
-            removed: [],
-            unchanged: fast.ownedPaths,
-            descriptors: fast.descriptorPaths,
-            sapCalls: calls,
-            fastPath: 'exact-head',
-          };
-        }
-      }
-
-      calls.manifest += 1;
-      const manifest = await dependencies.buildManifest(requested, {
-        ...(config.include?.objectTypes?.length
-          ? {
-              objectTypes: config.include.objectTypes.map((type) =>
-                type.toUpperCase(),
-              ),
-            }
-          : {}),
-        concurrency:
-          config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
-      });
-      const entries = manifest.entries.filter((entry) =>
-        packageMatches(entry.object.packageName, config.include?.packages),
-      );
-      const metadataLimiter = new Limiter(
-        config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
-      );
-      const sourceLimiter = new Limiter(
-        config.concurrency?.sources ?? DEFAULT_SOURCE_CONCURRENCY,
-      );
-      const maxSourceBytes = config.maxSourceBytes ?? DEFAULT_MAX_SOURCE_BYTES;
-      const hasApplicationComponentFilter =
-        (config.include?.applicationComponents?.length ?? 0) > 0;
-
-      const allSrcFiles = await walkFiles(root, 'src');
-      const srcFilesByObject = buildObjectFileIndex(
-        allSrcFiles,
-        dependencies.format,
-      );
-
-      const desired: DesiredFile[] = [];
-      const ownedPaths = new Set<string>();
-      const ownedOwners = new Map<string, string>();
-      const descriptorPaths: string[] = [];
-      const groups = groupEntries(entries);
-
-      for (const group of groups) {
-        for (const entry of group.entries) selectedVersion(entry, mode);
-      }
-
-      const pendingOwnership = new Map<
-        string,
-        { previous?: ObjectDescriptor; ownedPaths: string[] }
-      >();
-      await Promise.all(
-        groups.map(async ({ identity }) => {
-          const descriptorPath = objectDescriptorPath(identity);
-          const previous = await readDescriptor(
-            root,
-            descriptorPath,
-            objectDescriptorSchema,
-          );
-          const owned: string[] = [];
-          if (previous) {
-            previous.ownedFiles = filterOwnedFiles(
-              previous.ownedFiles,
-              identity,
-              dependencies.format,
-            );
-            if (!(await verifyOwnedHashes(root, previous.ownedFiles))) {
-              throw new AdtFlowError(
-                'working_tree_diverged',
-                'An indexed file differs from its recorded content hash.',
-                { object: identity.canonical },
-              );
-            }
-            for (const file of previous.ownedFiles) owned.push(file.path);
-            owned.push(descriptorPath);
-          } else {
-            const key = `${repositoryType(identity.pgmid, identity.type)}/${identity.name}`;
-            const files = srcFilesByObject.get(key) ?? [];
-            for (const path of files) owned.push(path);
-          }
-          pendingOwnership.set(identity.canonical, {
-            previous,
-            ownedPaths: owned,
-          });
-        }),
-      );
-
-      let reusedIndexedComponent = false;
-      await Promise.all(
-        groups.map(async (group) => {
-          const pending = pendingOwnership.get(group.identity.canonical);
-          if (!pending) {
-            throw new AdtFlowError(
-              'configuration_invalid',
-              'Object ownership state is missing for a group.',
-              { object: group.identity.canonical },
-            );
-          }
-          const result = await processGroup({
-            root,
-            group,
-            mode,
-            config,
-            configDigest,
-            formatDigest,
-            dependencies,
-            limiters: { metadata: metadataLimiter, source: sourceLimiter },
-            maxSourceBytes,
-            materialize,
-            pending,
-            hasApplicationComponentFilter,
-            calls,
-          });
-          for (const file of result.desired) desired.push(file);
-          for (const path of result.descriptorPaths) descriptorPaths.push(path);
-          for (const path of result.ownedPaths) {
-            ownedPaths.add(path);
-            ownedOwners.set(path, group.identity.canonical);
-          }
-          if (result.reusedIndexedComponent) reusedIndexedComponent = true;
-        }),
-      );
-
-      const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort(
-        compareStrings,
-      );
-      for (const transport of requested) {
-        const path = transportDescriptorPath(transport);
-        if ((await readText(root, path)) !== undefined) {
-          ownedPaths.add(path);
-          ownedOwners.set(path, 'flow-index');
-        }
-        if (mode === 'head') {
-          const descriptor: TransportDescriptor = {
-            schemaVersion: 1,
-            requestedTransports: requested,
-            scopeTransports: manifest.scopeTransports,
-            objects: relevantObjectDescriptors,
-            configDigest,
-            formatDigest,
-          };
-          desired.push({
-            path,
-            content: stableJson(descriptor),
-            role: 'metadata',
-            owner: 'flow-index',
-          });
-          descriptorPaths.push(path);
-        }
-      }
-
-      desired.sort((left, right) => compareStrings(left.path, right.path));
-
-      const plan = await planRepositoryChanges(
-        root,
-        desired,
-        ownedPaths,
-        ownedOwners,
-      );
-      await applyRepositoryPlan(root, plan);
-      const descriptorSet = new Set(descriptorPaths);
-      const sourceMoves = plan.moved.filter(
-        ({ from, to }) => !from.startsWith('.adt/') && !to.startsWith('.adt/'),
-      );
-      const movedFrom = new Set(sourceMoves.map(({ from }) => from));
-      const movedTo = new Set(sourceMoves.map(({ to }) => to));
-      return {
-        mode,
-        requestedTransports: manifest.requestedTransports,
-        scopeTransports: manifest.scopeTransports,
-        changed: [...plan.writes.keys()]
-          .filter((path) => !descriptorSet.has(path) && !movedTo.has(path))
-          .sort(),
-        moved: sourceMoves,
-        removed: plan.removes
-          .filter((path) => !path.startsWith('.adt/') && !movedFrom.has(path))
-          .sort(),
-        unchanged: plan.unchanged.filter((path) => !descriptorSet.has(path)),
-        descriptors: [...descriptorSet].sort(),
-        sapCalls: calls,
-        fastPath: reusedIndexedComponent ? 'indexed-components' : 'none',
-      };
+      return checkoutFlow(input, dependencies);
     },
   };
 }

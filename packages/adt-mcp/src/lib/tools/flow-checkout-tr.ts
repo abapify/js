@@ -106,12 +106,11 @@ export function registerFlowCheckoutTrTool(
           structuredContent: result as unknown as Record<string, unknown>,
         };
       } catch (error) {
-        const code =
-          error instanceof AdtFlowError ? error.code : 'FLOW_CHECKOUT_FAILED';
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Could not materialize the requested transport boundary.';
+        const isFlowError = error instanceof AdtFlowError;
+        const code = isFlowError ? error.code : 'FLOW_CHECKOUT_FAILED';
+        const message = isFlowError
+          ? error.message
+          : 'Could not materialize the requested transport boundary.';
         return {
           isError: true,
           content: [
@@ -121,6 +120,9 @@ export function registerFlowCheckoutTrTool(
                 error: {
                   code,
                   message,
+                  ...(isFlowError && error.details
+                    ? { details: error.details }
+                    : {}),
                 },
               }),
             },

@@ -195,22 +195,15 @@ function normalizeToolArgs(args: unknown[]): {
   if (typeof name !== 'string') {
     throw new TypeError('MCP tools must declare a string name');
   }
-  let description: string | undefined;
-  let inputSchema: unknown;
-  let annotations: RegisteredTool['annotations'] | undefined;
   const handler = args.at(-1);
-  if (typeof args[1] === 'string' && args.length >= 4) {
-    description = args[1];
-    inputSchema = args[2];
-    if (args.length >= 5) {
-      annotations = args[3] as RegisteredTool['annotations'];
-    }
-  } else {
-    inputSchema = args[1];
-    if (args.length >= 4) {
-      annotations = args[2] as RegisteredTool['annotations'];
-    }
-  }
+  const hasDescription = typeof args[1] === 'string' && args.length >= 4;
+  const description = hasDescription ? args[1] : undefined;
+  const inputSchema = args[hasDescription ? 2 : 1];
+  const annotationsIndex = hasDescription ? 3 : 2;
+  const annotations =
+    args.length > annotationsIndex + 1
+      ? (args[annotationsIndex] as RegisteredTool['annotations'])
+      : undefined;
   return { name, description, inputSchema, annotations, handler };
 }
 

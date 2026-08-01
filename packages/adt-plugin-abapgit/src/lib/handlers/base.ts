@@ -459,54 +459,63 @@ export function createHandler<
     },
   };
 
-  // Default serialize
-  const defaultSerialize = async (
-    object: T,
-    options?: FormatSerializeOptions,
-  ): Promise<SerializedFile[]> => {
-    const objectName = ctx.getObjectName(object);
-    const files: SerializedFile[] = [];
+  function resolveXmlFileName(objectName: string, object: T): string {
+    if (definition.xmlFileName) {
+      return typeof definition.xmlFileName === 'function'
+        ? definition.xmlFileName(object, ctx)
+        : definition.xmlFileName;
+    }
+    return `${objectName}.${fileExtension}.xml`;
+  }
 
-    // Add source files
-    if (options?.sources !== undefined) {
-      if (
-        Object.keys(options.sources).length > 0 &&
-        !definition.getSource &&
-        !definition.getSources
-      ) {
+  function buildExplicitSourceFiles(
+    objectName: string,
+    sources: Record<string, string | undefined>,
+  ): SerializedFile[] {
+    if (
+      Object.keys(sources).length > 0 &&
+      !definition.getSource &&
+      !definition.getSources
+    ) {
+      throw new FormatMaterializationError(
+        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+        `The ${type} format handler does not serialize source components.`,
+      );
+    }
+    const suffixBySourceKey = new Map<string, string | undefined>([
+      ['main', undefined],
+      ...Object.entries(definition.suffixToSourceKey ?? {}).map(
+        ([suffix, sourceKey]) => [sourceKey, suffix] as const,
+      ),
+    ]);
+    const files: SerializedFile[] = [];
+    for (const [sourceKey, content] of Object.entries(sources).sort(
+      ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
+    )) {
+      if (!suffixBySourceKey.has(sourceKey)) {
         throw new FormatMaterializationError(
           'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-          `The ${type} format handler does not serialize source components.`,
+          `The ${type} format handler cannot map source component "${sourceKey}".`,
         );
       }
-      const suffixBySourceKey = new Map<string, string | undefined>([
-        ['main', undefined],
-        ...Object.entries(definition.suffixToSourceKey ?? {}).map(
-          ([suffix, sourceKey]) => [sourceKey, suffix] as const,
-        ),
-      ]);
-      for (const [sourceKey, content] of Object.entries(options.sources).sort(
-        ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
-      )) {
-        if (!suffixBySourceKey.has(sourceKey)) {
-          throw new FormatMaterializationError(
-            'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-            `The ${type} format handler cannot map source component "${sourceKey}".`,
-          );
-        }
-        if (content !== undefined) {
-          files.push(
-            ctx.createAbapFile(
-              objectName,
-              content,
-              suffixBySourceKey.get(sourceKey),
-            ),
-          );
-        }
+      if (content !== undefined) {
+        files.push(
+          ctx.createAbapFile(
+            objectName,
+            content,
+            suffixBySourceKey.get(sourceKey),
+          ),
+        );
       }
-    } else if (definition.getSources) {
-      // Multiple source files (e.g., CLAS with includes)
-      // Resolve all promises in parallel
+    }
+    return files;
+  }
+
+  async function buildMutableSourceFiles(
+    object: T,
+    objectName: string,
+  ): Promise<SerializedFile[]> {
+    if (definition.getSources) {
       const rawSources = definition.getSources(object);
       const sources = await Promise.all(
         rawSources.map(async ({ suffix, content }) => ({
@@ -514,33 +523,32 @@ export function createHandler<
           content: await content,
         })),
       );
-      for (const { suffix, content } of sources) {
-        if (content) {
-          files.push(ctx.createAbapFile(objectName, content, suffix));
-        }
-      }
-    } else if (definition.getSource) {
-      // Single source file (e.g., INTF)
+      return sources
+        .filter(({ content }) => content)
+        .map(({ suffix, content }) =>
+          ctx.createAbapFile(objectName, content!, suffix),
+        );
+    }
+    if (definition.getSource) {
       const source = await definition.getSource(object);
-      if (source) {
-        files.push(ctx.createAbapFile(objectName, source));
-      }
+      return source ? [ctx.createAbapFile(objectName, source)] : [];
     }
+    return [];
+  }
 
-    // Add XML metadata file
+  // Default serialize
+  const defaultSerialize = async (
+    object: T,
+    options?: FormatSerializeOptions,
+  ): Promise<SerializedFile[]> => {
+    const objectName = ctx.getObjectName(object);
+    const sourceFiles =
+      options?.sources !== undefined
+        ? buildExplicitSourceFiles(objectName, options.sources)
+        : await buildMutableSourceFiles(object, objectName);
+    const xmlFileName = resolveXmlFileName(objectName, object);
     const xmlContent = ctx.toAbapGitXml(object);
-    let xmlFileName: string;
-    if (definition.xmlFileName) {
-      xmlFileName =
-        typeof definition.xmlFileName === 'function'
-          ? definition.xmlFileName(object, ctx)
-          : definition.xmlFileName;
-    } else {
-      xmlFileName = `${objectName}.${fileExtension}.xml`;
-    }
-    files.push(ctx.createFile(xmlFileName, xmlContent));
-
-    return files;
+    return [...sourceFiles, ctx.createFile(xmlFileName, xmlContent)];
   };
 
   // Default fromAbapGit using definition.fromAbapGit if provided
