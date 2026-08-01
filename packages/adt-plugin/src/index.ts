@@ -53,7 +53,6 @@ export type {
   FormatHandlerSchema,
   SerializedFile,
   FormatSerializeOptions,
-  MaterializedFormatFileRole,
   MaterializedFormatFile,
   FormatMaterializationInput,
   FormatMaterializationResult,

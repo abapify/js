@@ -46,14 +46,19 @@ export interface FormatSerializeOptions {
   sources?: Readonly<Record<string, string>>;
 }
 
-export type MaterializedFormatFileRole = 'source' | 'metadata';
+interface MaterializedFormatSourceFile extends SerializedFile {
+  role: 'source';
+  /** Source-history component id for source files. */
+  sourceComponent: string;
+}
+
+interface MaterializedFormatMetadataFile extends SerializedFile {
+  role: 'metadata';
+}
 
 /** A repository-relative file produced without filesystem mutation. */
-export interface MaterializedFormatFile extends SerializedFile {
-  role: MaterializedFormatFileRole;
-  /** Source-history component id for source files. */
-  sourceComponent?: string;
-}
+export type MaterializedFormatFile =
+  MaterializedFormatSourceFile | MaterializedFormatMetadataFile;
 
 export interface FormatMaterializationInput {
   object: unknown;
@@ -129,6 +134,8 @@ export interface FormatHandler {
   readonly schema: FormatHandlerSchema;
   /** Optional map from abapGit file suffix to source key. */
   readonly suffixToSourceKey?: Record<string, string>;
+  /** Whether this handler treats an explicit `sources` map as authoritative. */
+  readonly supportsExplicitSources?: boolean;
   /** Serialize an ADK object to one or more files. */
   serialize(
     object: unknown,

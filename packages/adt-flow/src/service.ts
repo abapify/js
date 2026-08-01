@@ -314,9 +314,9 @@ function filterOwnedFiles(
   return files.filter((file) => {
     const parsed = format.parseFilename(basename(file.path));
     return (
-      parsed &&
-      parsed.type.toUpperCase() === expectedType &&
-      parsed.name.toUpperCase() === expectedName
+      !parsed ||
+      (parsed.type.toUpperCase() === expectedType &&
+        parsed.name.toUpperCase() === expectedName)
     );
   });
 }
@@ -647,6 +647,11 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
     if (mode === 'head' && hasDeletions) {
       return buildTombstoneResult(ctx, identity, descriptorPath);
     }
+    if (mode === 'base' && ctx.pending.previous) {
+      // The object is added in this transport; base must remove previously
+      // indexed files.
+      return buildTombstoneResult(ctx, identity, descriptorPath);
+    }
     return emptyGroupResult();
   }
 
@@ -867,6 +872,13 @@ async function buildPendingOwnership(
         descriptorPath,
         objectDescriptorSchema,
       );
+      if (previous && previous.identity.canonical !== identity.canonical) {
+        throw new AdtFlowError(
+          'working_tree_diverged',
+          'An indexed descriptor identity does not match the expected object.',
+          { object: identity.canonical },
+        );
+      }
       const owned: string[] = [];
       if (previous) {
         previous.ownedFiles = filterOwnedFiles(
@@ -979,7 +991,20 @@ async function addTransportDescriptors(
   );
   for (const transport of ctx.requested) {
     const path = transportDescriptorPath(transport);
-    if ((await readText(ctx.root, path)) !== undefined) {
+    let existing: TransportDescriptor | undefined;
+    try {
+      existing = await readDescriptor(
+        ctx.root,
+        path,
+        transportDescriptorSchema,
+      );
+    } catch {
+      existing = undefined;
+    }
+    if (
+      existing &&
+      stableJson(existing.requestedTransports) === stableJson(ctx.requested)
+    ) {
       ownedPaths.add(path);
       ownedOwners.set(path, 'flow-index');
     }

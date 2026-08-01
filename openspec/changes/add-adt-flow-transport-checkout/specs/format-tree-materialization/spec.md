@@ -3,8 +3,9 @@
 ### Requirement: Format plugins can materialize a desired object tree
 
 A format plugin that supports flow checkout SHALL expose a pure materialization
-capability that converts an object, explicit source components, package path,
-and format options into a deterministic set of repository-relative files.
+capability that converts an object, object type, explicit source components,
+package path, and format options into a deterministic set of repository-relative
+files.
 
 #### Scenario: Historical source override is supplied
 

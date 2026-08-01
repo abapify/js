@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
@@ -9,7 +7,7 @@ import {
   flowConfigSchema,
   type AdtFlowService,
 } from '@abapify/adt-flow';
-import { type FlowConfig } from '@abapify/adt-config';
+import { loadConfig, type FlowConfig } from '@abapify/adt-config';
 import { getFormatPlugin, type FormatPlugin } from '@abapify/adt-plugin';
 import type { AdtClient } from '@abapify/adt-client';
 import type { ToolContext } from '../types';
@@ -26,30 +24,11 @@ interface FlowMcpDependencies {
 const DEFAULT_DEPENDENCIES: FlowMcpDependencies = {
   async loadFlowConfig(root, context) {
     if (context.flowConfig) return context.flowConfig;
-    const configPath = join(root, 'adt.config.json');
-    let raw: string;
-    try {
-      raw = await readFile(configPath, 'utf8');
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        throw new Error('Flow configuration is unavailable in this context.', {
-          cause: error,
-        });
-      }
-      throw error;
+    const loaded = await loadConfig({ cwd: root });
+    const flowValue = loaded.raw.flow;
+    if (flowValue === undefined) {
+      throw new Error('Flow configuration is unavailable in this context.');
     }
-    let value: unknown;
-    try {
-      value = JSON.parse(raw);
-    } catch (error) {
-      throw new Error('Flow configuration file contains invalid JSON.', {
-        cause: error,
-      });
-    }
-    const flowValue =
-      value !== null && typeof value === 'object' && 'flow' in value
-        ? (value as { flow: unknown }).flow
-        : value;
     try {
       return flowConfigSchema.parse(flowValue);
     } catch (error) {

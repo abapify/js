@@ -18,11 +18,11 @@ the source immediately before it and the source introduced by it.
 - Reconcile desired files with the local tree, including creation, update,
   move, and deletion, without invoking Git or owning branches, commits,
   routing, merge requests, or business workflows.
-- Add deterministic head-commit metadata at `.adt/tr/<TR>.json` and
+- Add deterministic `.adt/tr/<TR>.json` and
   `.adt/objects/<TYPE>/<encoded-name>.<type>.adt.json` descriptors as an optional,
-  committed incremental index. Base checkout does not pre-create the reviewed
-  transport descriptor. Removing `.adt` affects performance, not source
-  selection correctness.
+  committed incremental index. Head checkout writes the reviewed transport
+  descriptor; base checkout writes predecessor object descriptors. Removing
+  `.adt` affects performance, not source selection correctness.
 - Add a pure format-materialization extension to `@abapify/adt-plugin` and an
   abapGit implementation. The MVP supports only abapGit output while keeping
   the boundary open to other formats.
@@ -60,8 +60,8 @@ the source immediately before it and the source introduced by it.
   consumer-specific services, or platform-specific APIs.
 - **Compatibility**: additive APIs and command only. Existing import/export
   commands keep their semantics.
-- **Rollback**: remove the command from `adt.config.ts` and remove the additive
-  package/contracts. Existing repository files remain valid abapGit files;
+- **Rollback**: remove the `flow` section from `adt.config.ts` and remove the
+  additive package/contracts. Existing repository files remain valid abapGit files;
   `.adt` descriptors can be deleted safely.
 
 ## Preconditions and Evidence

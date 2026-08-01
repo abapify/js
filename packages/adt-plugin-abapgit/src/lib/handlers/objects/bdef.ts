@@ -77,12 +77,7 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
 
       // Source: <name>.bdef.abdl. When a source map is supplied it is
       // authoritative; otherwise fall back to the mutable object getter.
-      let source: string | undefined;
-      try {
-        source = await resolveBdefSource(object, options?.sources);
-      } catch {
-        // Source not available — skip
-      }
+      const source = await resolveBdefSource(object, options?.sources);
       if (shouldIncludeSource(source, options?.sources?.main)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.abdl`, source),

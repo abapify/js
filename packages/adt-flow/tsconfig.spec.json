@@ -4,7 +4,13 @@
     "rootDir": ".",
     "outDir": "dist-tests",
     "tsBuildInfoFile": "dist-tests/tsconfig.spec.tsbuildinfo",
-    "types": ["node", "vitest/globals"],
+    "types": [
+      "node",
+      "vitest",
+      "vitest/importMeta",
+      "vite/client",
+      "vitest/globals"
+    ],
     "noEmit": true
   },
   "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],

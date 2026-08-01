@@ -68,8 +68,12 @@ describe('Config Module', () => {
       });
 
       expect(config.flow?.format.id).toBe('abapgit');
+      expect(config.flow?.format.options).toEqual({ folderLogic: 'prefix' });
       expect(config.flow?.include?.objectTypes).toEqual(['CLAS', 'INTF']);
+      expect(config.flow?.include?.packages).toEqual(['ZPRODUCT']);
+      expect(config.flow?.concurrency?.metadata).toBe(4);
       expect(config.flow?.concurrency?.sources).toBe(2);
+      expect(config.flow?.maxSourceBytes).toBe(1_048_576);
     });
 
     it('should return config as-is', () => {

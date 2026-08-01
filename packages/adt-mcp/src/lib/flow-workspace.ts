@@ -1,9 +1,12 @@
 import { realpath, stat } from 'node:fs/promises';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 function isWithin(root: string, candidate: string): boolean {
   const path = relative(root, candidate);
-  return path === '' || (!path.startsWith('..') && !isAbsolute(path));
+  return (
+    path === '' ||
+    (!isAbsolute(path) && !path.split(sep).filter(Boolean).includes('..'))
+  );
 }
 
 export async function resolveFlowWorkspaceRoot(

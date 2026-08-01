@@ -5,6 +5,12 @@ export function compareStrings(left: string, right: string): number {
 }
 
 function canonicalize(value: unknown): unknown {
+  if (value !== null && typeof value === 'object') {
+    const toJson = (value as { toJSON?: () => unknown }).toJSON;
+    if (typeof toJson === 'function') {
+      return canonicalize(toJson.call(value));
+    }
+  }
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(

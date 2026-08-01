@@ -178,6 +178,20 @@
       ]
     },
     {
+      "matching_content_path": "packages/adt-flow/src/repository.ts",
+      "matching_content_path_doc": "Repository path helpers operate on filesystem root and relative path strings by design; a FlowPath value-object refactor is planned to reduce surface area.",
+      "rules": [
+        {
+          "name": "Primitive Obsession",
+          "weight": 0.0
+        },
+        {
+          "name": "String Heavy Function Arguments",
+          "weight": 0.0
+        }
+      ]
+    },
+    {
       "matching_content_path": "packages/adt-mcp/src/lib/tools/*.ts",
       "matching_content_path_doc": "MCP tool registration functions are thin Zod/wiring adapters; thresholds raised while a shared tool-handler refactor is pending.",
       "thresholds": [
@@ -302,20 +316,6 @@
         {
           "name": "file_primitive_obsession_percentage_for_warning",
           "value": 78
-        }
-      ]
-    },
-    {
-      "matching_content_path": "packages/adt-flow/src/repository.ts",
-      "matching_content_path_doc": "Repository path helpers operate on filesystem root and relative path strings by design; a FlowPath value-object refactor is planned to reduce surface area.",
-      "rules": [
-        {
-          "name": "Primitive Obsession",
-          "weight": 0.0
-        },
-        {
-          "name": "String Heavy Function Arguments",
-          "weight": 0.0
         }
       ]
     },

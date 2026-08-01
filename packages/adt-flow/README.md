@@ -29,6 +29,10 @@ adt flow checkout tr DEVK900001,DEVK900002 --base
 
 ```typescript
 import { createAdtFlowService } from '@abapify/adt-flow';
+import { getFormatPlugin } from '@abapify/adt-plugin';
+
+// Use the format plugin already registered by @abapify/adt-plugin-abapgit
+const registeredFormatPlugin = getFormatPlugin('abapgit');
 
 const flow = createAdtFlowService({
   format: registeredFormatPlugin,
@@ -53,7 +57,8 @@ deterministic descriptors under `.adt`, rejects unowned collisions or modified
 indexed files before mutation, and rolls back a failed multi-file apply.
 Branches, commits, routing, and merge requests remain the caller's concern.
 
-`.adt/tr/<transport>.json` is emitted only for head checkout. Object
+`.adt/tr/<transport>.json` is emitted for head checkout, and object
+descriptors under `.adt/objects/` are written for both base and head. Object
 descriptors use `.adt/objects/<TYPE>/<unique-name>.<type>.adt.json`. The index
 stores hashes and immutable version identities, never source bodies or
 credentials. Removing `.adt` only removes the optimization; source selection

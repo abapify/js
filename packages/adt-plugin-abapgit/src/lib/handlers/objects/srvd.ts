@@ -77,12 +77,7 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
 
       // Source: <name>.srvd.asrvd. When a source map is supplied it is
       // authoritative; otherwise fall back to the mutable object getter.
-      let source: string | undefined;
-      try {
-        source = await resolveSrvdSource(object, options?.sources);
-      } catch {
-        // Source not available — skip
-      }
+      const source = await resolveSrvdSource(object, options?.sources);
       if (shouldIncludeSource(source, options?.sources?.main)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.asrvd`, source),

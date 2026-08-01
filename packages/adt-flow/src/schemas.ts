@@ -36,12 +36,23 @@ export const flowConfigSchema = z
   })
   .strict();
 
-export const ownedFileSchema = z.object({
+export const ownedSourceFileSchema = z.object({
   path: z.string().min(1),
   hash: z.string().regex(/^[a-f0-9]{64}$/),
-  role: z.enum(['source', 'metadata']),
-  sourceComponent: z.string().min(1).optional(),
+  role: z.literal('source'),
+  sourceComponent: z.string().min(1),
 });
+
+export const ownedMetadataFileSchema = z.object({
+  path: z.string().min(1),
+  hash: z.string().regex(/^[a-f0-9]{64}$/),
+  role: z.literal('metadata'),
+});
+
+export const ownedFileSchema = z.union([
+  ownedSourceFileSchema,
+  ownedMetadataFileSchema,
+]);
 
 export const sourceSelectionSchema = z.object({
   component: z.string().min(1),
@@ -67,6 +78,16 @@ export const objectDescriptorSchema = z
     formatDigest: z.string().regex(/^[a-f0-9]{64}$/),
   })
   .superRefine((value, ctx) => {
+    const { identity } = value;
+    const expected = `${identity.pgmid}/${identity.type}/${identity.name}`;
+    if (identity.canonical !== expected) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Descriptor canonical identity does not match pgmid/type/name.',
+        path: ['identity', 'canonical'],
+      });
+    }
     if (
       value.state === 'deleted' &&
       (value.selections.length > 0 || value.ownedFiles.length > 0)

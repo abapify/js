@@ -24,6 +24,7 @@ import {
   type StructureDefinition,
 } from '@abapify/acds';
 import { tablesettings, type InferTypedSchema } from '@abapify/adt-schemas';
+import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 import { AdkTable, AdkStructure } from '../adk';
 import { tabl } from '../../../schemas/generated';
 import { createHandler } from '../base';
@@ -169,18 +170,24 @@ async function serializeTabl<T extends AdkTable | AdkStructure>(
       content: string,
     ) => { path: string; content: string };
   },
+  options?: FormatSerializeOptions,
 ): Promise<{ path: string; content: string }[]> {
   const objectName = ctx.getObjectName(obj);
   const lang = isoToSapLang(obj.language || undefined);
 
-  // Fetch CDS source from SAP
+  // Use an explicit historical source when supplied; otherwise fall back to
+  // the mutable object getter.
   let cdsSource: string;
-  try {
-    cdsSource = await obj.getSource();
-  } catch {
-    // Fallback: if source fetch fails, produce minimal DD02V only
-    const xmlContent = ctx.toAbapGitXml(obj);
-    return [ctx.createFile(`${objectName}.tabl.xml`, xmlContent)];
+  if (options?.sources?.main !== undefined) {
+    cdsSource = options.sources.main;
+  } else {
+    try {
+      cdsSource = await obj.getSource();
+    } catch {
+      // Fallback: if source fetch fails, produce minimal DD02V only
+      const xmlContent = ctx.toAbapGitXml(obj);
+      return [ctx.createFile(`${objectName}.tabl.xml`, xmlContent)];
+    }
   }
 
   // Parse CDS source with @abapify/acds
@@ -279,7 +286,7 @@ export const tableHandler = createHandler(AdkTable, {
     },
   }),
 
-  serialize: (obj, ctx) => serializeTabl(obj, ctx),
+  serialize: (obj, ctx, options) => serializeTabl(obj, ctx, options),
   fromAbapGit: fromAbapGitTabl,
 });
 
@@ -298,6 +305,6 @@ export const structureHandler = createHandler(AdkStructure, {
     },
   }),
 
-  serialize: (obj, ctx) => serializeTabl(obj, ctx),
+  serialize: (obj, ctx, options) => serializeTabl(obj, ctx, options),
   fromAbapGit: fromAbapGitTabl,
 });

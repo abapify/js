@@ -1,5 +1,6 @@
 import { posix } from 'node:path';
 import type { TransportSourceManifestObject } from '@abapify/adk';
+import { AdtFlowError } from './types';
 import type { FlowObjectIdentity } from './types';
 
 function normalized(value: string): string {
@@ -41,5 +42,13 @@ export function objectDescriptorPath(identity: FlowObjectIdentity): string {
 }
 
 export function transportDescriptorPath(transport: string): string {
-  return posix.join('.adt', 'tr', `${normalized(transport)}.json`);
+  const normalizedTransport = normalized(transport);
+  if (!/^[A-Z0-9]+$/.test(normalizedTransport)) {
+    throw new AdtFlowError(
+      'invalid_input',
+      'Transport identifier contains invalid characters.',
+      { transport: normalizedTransport },
+    );
+  }
+  return posix.join('.adt', 'tr', `${normalizedTransport}.json`);
 }

@@ -7,6 +7,7 @@ import {
   realpath,
   readdir,
   rename,
+  rmdir,
   rm,
   stat,
   writeFile,
@@ -95,29 +96,35 @@ async function lstatSafe(path: string): Promise<Stats | undefined> {
   }
 }
 
-async function resolveSymlink(
-  current: string,
-  component: string,
+async function resolveSymlinkChain(
+  path: string,
   realRoot: string,
+  seen = new Set<string>(),
 ): Promise<string> {
-  const next = resolve(current, component);
-  const stats = await lstatSafe(next);
-  if (!stats || !stats.isSymbolicLink()) return next;
+  const stats = await lstat(path);
+  if (!stats.isSymbolicLink()) return path;
+  if (seen.has(path)) {
+    throw new AdtFlowError(
+      'path_invalid',
+      'Flow path contains a symlink cycle.',
+      { path },
+    );
+  }
+  seen.add(path);
 
-  const target = await readlink(next);
-  const resolvedTarget = resolve(dirname(next), target);
-  if (!isInsideRoot(realRoot, resolvedTarget)) {
+  const target = await readlink(path);
+  const resolved = resolve(dirname(path), target);
+  if (!isInsideRoot(realRoot, resolved)) {
     throw new AdtFlowError(
       'path_invalid',
       'Flow path resolves outside the repository root.',
-      { path: next },
+      { path },
     );
   }
-  return resolvedTarget;
+  return resolveSymlinkChain(resolved, realRoot, seen);
 }
 
-function ensureDirectory(stats: Stats, isLast: boolean, path: string): void {
-  if (isLast) return;
+function ensureDirectory(stats: Stats, path: string): void {
   if (stats.isDirectory()) return;
   throw new AdtFlowError(
     'path_invalid',
@@ -143,20 +150,23 @@ async function validatePhysicalRoot(
   const realRoot = await realpath(rootResolved);
   const components = rel.split(sep).filter(Boolean);
   let current = realRoot;
-  const lastIndex = components.length - 1;
 
-  for (let i = 0; i <= lastIndex; i++) {
+  for (let i = 0; i < components.length; i++) {
     const component = components[i];
-    current = resolve(current, component);
-    const stats = await lstatSafe(current);
+    const next = resolve(current, component);
+    const stats = await lstatSafe(next);
     if (!stats) return;
 
     if (stats.isSymbolicLink()) {
-      current = await resolveSymlink(dirname(current), component, realRoot);
+      current = await resolveSymlinkChain(next, realRoot);
       continue;
     }
 
-    ensureDirectory(stats, i === lastIndex, current);
+    if (i < components.length - 1) {
+      ensureDirectory(stats, next);
+    }
+
+    current = next;
   }
 }
 
@@ -339,13 +349,61 @@ export async function planRepositoryChanges(
 
 let tempSequence = 0;
 
+async function ensureParentDirectories(
+  root: string,
+  path: string,
+  createdDirs: Set<string>,
+): Promise<void> {
+  const absolute = absolutePath(root, path);
+  const target = dirname(absolute);
+  const rootResolved = resolve(root);
+  const rel = relative(rootResolved, target);
+  if (!rel || rel.startsWith('..')) return;
+
+  const components = rel.split(sep).filter(Boolean);
+  let current = rootResolved;
+  for (const component of components) {
+    current = resolve(current, component);
+    if (await exists(current)) continue;
+    await mkdir(current);
+    createdDirs.add(current);
+  }
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function removeEmptyDirectories(
+  root: string,
+  dirs: Iterable<string>,
+): Promise<void> {
+  const sorted = [...dirs].sort((left, right) => right.length - left.length);
+  for (const dir of sorted) {
+    try {
+      const entries = await readdir(dir);
+      if (entries.length === 0) await rmdir(dir);
+    } catch {
+      // Ignore races and non-empty directories.
+    }
+  }
+}
+
 async function atomicWrite(
   root: string,
   path: string,
   content: string | Buffer,
+  createdDirs?: Set<string>,
 ): Promise<void> {
   const absolute = absolutePath(root, path);
   await validatePhysicalRoot(root, absolute);
+  if (createdDirs) await ensureParentDirectories(root, path, createdDirs);
   await mkdir(dirname(absolute), { recursive: true });
   const temporary = `${absolute}.adt-flow-${process.pid}-${tempSequence++}.tmp`;
   await validatePhysicalRoot(root, temporary);
@@ -392,10 +450,11 @@ export async function applyRepositoryPlan(
     ...plan.writes.keys(),
     ...plan.removes,
   ]);
+  const createdDirs = new Set<string>();
 
   try {
     for (const [path, content] of plan.writes)
-      await atomicWrite(root, path, content);
+      await atomicWrite(root, path, content, createdDirs);
     for (const path of plan.removes) {
       const absolute = absolutePath(root, path);
       await validatePhysicalRoot(root, absolute);
@@ -404,6 +463,7 @@ export async function applyRepositoryPlan(
   } catch (error) {
     try {
       await restoreSnapshots(root, snapshots);
+      await removeEmptyDirectories(root, createdDirs);
     } catch (rollbackError) {
       throw new AdtFlowError(
         'apply_failed',
