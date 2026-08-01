@@ -8,6 +8,7 @@ import {
   objectIdentity,
   transportDescriptorPath,
 } from './identity';
+import { repositoryType } from './adt-client-adapter';
 import {
   applyRepositoryPlan,
   planRepositoryChanges,
@@ -216,6 +217,7 @@ async function exactHeadFastPath(
   transports: readonly string[],
   configDigest: string,
   formatDigest: string,
+  format: FormatPlugin,
 ): Promise<
   | {
       descriptorPaths: string[];
@@ -251,9 +253,16 @@ async function exactHeadFastPath(
     if (
       !descriptor ||
       descriptor.configDigest !== configDigest ||
-      descriptor.formatDigest !== formatDigest ||
-      !(await verifyOwnedHashes(root, descriptor.ownedFiles))
+      descriptor.formatDigest !== formatDigest
     ) {
+      return undefined;
+    }
+    descriptor.ownedFiles = filterOwnedFiles(
+      descriptor.ownedFiles,
+      descriptor.identity,
+      format,
+    );
+    if (!(await verifyOwnedHashes(root, descriptor.ownedFiles))) {
       return undefined;
     }
     ownedPaths.push(...descriptor.ownedFiles.map((file) => file.path));
@@ -280,6 +289,27 @@ function buildObjectFileIndex(
     else index.set(key, [path]);
   }
   return index;
+}
+
+function filterOwnedFiles(
+  files: readonly OwnedFile[],
+  identity: FlowObjectIdentity,
+  format: FormatPlugin,
+): OwnedFile[] {
+  if (!format.parseFilename) return [...files];
+  const expectedType = repositoryType(
+    identity.pgmid,
+    identity.type,
+  ).toUpperCase();
+  const expectedName = identity.name.toUpperCase();
+  return files.filter((file) => {
+    const parsed = format.parseFilename(basename(file.path));
+    return (
+      parsed &&
+      parsed.type.toUpperCase() === expectedType &&
+      parsed.name.toUpperCase() === expectedName
+    );
+  });
 }
 
 function createTombstoneDescriptor(
@@ -525,7 +555,7 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
 
   const materialized = await materialize({
     object: model.object,
-    objectType: identity.type,
+    objectType: repositoryType(identity.pgmid, identity.type),
     packagePath: model.packagePath,
     sources,
     formatOptions: config.format.options,
@@ -619,6 +649,7 @@ export function createAdtFlowService(
           requested,
           configDigest,
           formatDigest,
+          dependencies.format,
         );
         if (fast) {
           return {
@@ -669,6 +700,7 @@ export function createAdtFlowService(
 
       const desired: DesiredFile[] = [];
       const ownedPaths = new Set<string>();
+      const ownedOwners = new Map<string, string>();
       const descriptorPaths: string[] = [];
       const groups = groupEntries(entries);
 
@@ -690,6 +722,11 @@ export function createAdtFlowService(
           );
           const owned: string[] = [];
           if (previous) {
+            previous.ownedFiles = filterOwnedFiles(
+              previous.ownedFiles,
+              identity,
+              dependencies.format,
+            );
             if (!(await verifyOwnedHashes(root, previous.ownedFiles))) {
               throw new AdtFlowError(
                 'working_tree_diverged',
@@ -700,7 +737,7 @@ export function createAdtFlowService(
             for (const file of previous.ownedFiles) owned.push(file.path);
             owned.push(descriptorPath);
           } else {
-            const key = `${identity.type}/${identity.name}`;
+            const key = `${repositoryType(identity.pgmid, identity.type)}/${identity.name}`;
             const files = srcFilesByObject.get(key) ?? [];
             for (const path of files) owned.push(path);
           }
@@ -739,7 +776,10 @@ export function createAdtFlowService(
           });
           for (const file of result.desired) desired.push(file);
           for (const path of result.descriptorPaths) descriptorPaths.push(path);
-          for (const path of result.ownedPaths) ownedPaths.add(path);
+          for (const path of result.ownedPaths) {
+            ownedPaths.add(path);
+            ownedOwners.set(path, group.identity.canonical);
+          }
           if (result.reusedIndexedComponent) reusedIndexedComponent = true;
         }),
       );
@@ -749,7 +789,10 @@ export function createAdtFlowService(
       );
       for (const transport of requested) {
         const path = transportDescriptorPath(transport);
-        if ((await readText(root, path)) !== undefined) ownedPaths.add(path);
+        if ((await readText(root, path)) !== undefined) {
+          ownedPaths.add(path);
+          ownedOwners.set(path, 'flow-index');
+        }
         if (mode === 'head') {
           const descriptor: TransportDescriptor = {
             schemaVersion: 1,
@@ -771,7 +814,12 @@ export function createAdtFlowService(
 
       desired.sort((left, right) => compareStrings(left.path, right.path));
 
-      const plan = await planRepositoryChanges(root, desired, ownedPaths);
+      const plan = await planRepositoryChanges(
+        root,
+        desired,
+        ownedPaths,
+        ownedOwners,
+      );
       await applyRepositoryPlan(root, plan);
       const descriptorSet = new Set(descriptorPaths);
       const sourceMoves = plan.moved.filter(

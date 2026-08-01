@@ -11,7 +11,7 @@ export function objectIdentity(
 ): FlowObjectIdentity {
   const pgmid = normalized(object.pgmid);
   const normalizedType = normalized(object.type);
-  const type = normalizedType.split('/')[0] ?? normalizedType;
+  const type = normalizedType.split('/')[0];
   const name = normalized(object.name);
   return {
     ...object,

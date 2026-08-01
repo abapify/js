@@ -14,7 +14,6 @@
  */
 
 import { AdkFunctionGroup } from '../adk';
-import { FormatMaterializationError } from '@abapify/adt-plugin';
 import { fugr } from '../../../schemas/generated';
 import { createHandler } from '../base';
 import { formatAbapGitXml } from '../xml-format';
@@ -67,15 +66,14 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
 
   // Custom serialize: generate the full multi-file structure including FMs
   serialize: async (obj, ctx, options) => {
-    if (options?.sources !== undefined) {
-      throw new FormatMaterializationError(
-        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-        'Explicit source materialization is not supported for FUGR.',
-      );
-    }
     const objectName = ctx.getObjectName(obj); // lowercase
     const nameUpper = obj.name.toUpperCase();
     const files = [];
+    const suppliedSources = options?.sources;
+    const topKey = `l${objectName}top`;
+    const suppliedTopSource = suppliedSources
+      ? (suppliedSources.main ?? suppliedSources[topKey])
+      : undefined;
 
     // Discover child function modules via object structure
     const fmItems = await discoverFunctionModules(obj);
@@ -110,10 +108,18 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
 
     files.push(ctx.createFile(`${objectName}.fugr.xml`, xmlContent));
 
-    // 2. TOP-include source — the editable source from ADT
+    // 2. TOP-include source — the editable source for this function group.
+    // Prefer explicitly supplied sources (main or l<name>top) over the
+    // mutable object getter so historical transport materialization is exact.
     try {
-      const topSource = await obj.getSource();
-      if (topSource) {
+      const topSource =
+        suppliedTopSource !== undefined
+          ? suppliedTopSource
+          : await obj.getSource();
+      if (
+        topSource !== undefined &&
+        (suppliedTopSource !== undefined || topSource !== '')
+      ) {
         files.push(
           ctx.createFile(
             `${objectName}.fugr.l${objectName}top.abap`,
@@ -151,13 +157,19 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
     // 6. Function module source files (one per FM)
     for (const fm of fmItems) {
       const funcName = fm.name.toLowerCase();
+      const suppliedFmSource = suppliedSources?.[funcName];
       try {
         const source =
-          await obj.client.adt.functions.groups.fmodules.source.main.get(
-            obj.name,
-            fm.name,
-          );
-        if (source) {
+          suppliedFmSource !== undefined
+            ? suppliedFmSource
+            : await obj.client.adt.functions.groups.fmodules.source.main.get(
+                obj.name,
+                fm.name,
+              );
+        if (
+          source !== undefined &&
+          (suppliedFmSource !== undefined || source !== '')
+        ) {
           files.push(
             ctx.createFile(`${objectName}.fugr.${funcName}.abap`, source),
           );
@@ -257,7 +269,7 @@ async function discoverFunctionModules(
     // Also try alternate attribute order
     const regex2 = /adtcore:name="([^"]+)"[^>]*type="FUGR\/FF"/g;
     while ((match = regex2.exec(responseStr)) !== null) {
-      if (!fmNames.some((f) => f.name === match![1])) {
+      if (match?.[1] && !fmNames.some((f) => f.name === match[1])) {
         fmNames.push({ name: match[1] });
       }
     }

@@ -30,11 +30,11 @@ function classifyFile(
   handler: FormatHandler,
 ): Pick<MaterializedFormatFile, 'role' | 'sourceComponent'> {
   const parsed = parseAbapGitFilename(path);
-  if (parsed?.extension !== 'abap') {
+  if (parsed?.extension === 'xml') {
     return { role: 'metadata' };
   }
 
-  const sourceComponent = parsed.suffix
+  const sourceComponent = parsed?.suffix
     ? (handler.suffixToSourceKey?.[parsed.suffix] ?? parsed.suffix)
     : 'main';
   return { role: 'source', sourceComponent };

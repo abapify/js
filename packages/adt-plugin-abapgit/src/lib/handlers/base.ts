@@ -494,7 +494,7 @@ export function createHandler<
             `The ${type} format handler cannot map source component "${sourceKey}".`,
           );
         }
-        if (content) {
+        if (content !== undefined) {
           files.push(
             ctx.createAbapFile(
               objectName,
@@ -522,7 +522,9 @@ export function createHandler<
     } else if (definition.getSource) {
       // Single source file (e.g., INTF)
       const source = await definition.getSource(object);
-      files.push(ctx.createAbapFile(objectName, source));
+      if (source) {
+        files.push(ctx.createAbapFile(objectName, source));
+      }
     }
 
     // Add XML metadata file

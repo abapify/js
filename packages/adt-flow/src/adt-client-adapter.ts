@@ -46,7 +46,7 @@ function text(value: unknown): string | undefined {
     : undefined;
 }
 
-function repositoryType(pgmid: string, type: string): string {
+export function repositoryType(pgmid: string, type: string): string {
   return pgmid.toUpperCase() === 'LIMU' && type.toUpperCase() === 'REPS'
     ? 'PROG'
     : type;

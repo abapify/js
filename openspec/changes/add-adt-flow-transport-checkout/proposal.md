@@ -19,7 +19,7 @@ the source immediately before it and the source introduced by it.
   move, and deletion, without invoking Git or owning branches, commits,
   routing, merge requests, or business workflows.
 - Add deterministic head-commit metadata at `.adt/tr/<TR>.json` and
-  `.adt/objects/<TYPE>/<name>.<type>.adt.json` descriptors as an optional,
+  `.adt/objects/<TYPE>/<encoded-name>.<type>.adt.json` descriptors as an optional,
   committed incremental index. Base checkout does not pre-create the reviewed
   transport descriptor. Removing `.adt` affects performance, not source
   selection correctness.

@@ -35,24 +35,20 @@ export function parseAbapGitFilename(filename: string): {
   suffix?: string;
   extension: string;
 } | null {
-  // Match patterns like: name.type.xml or name.type.suffix.abap
+  // Match patterns like: name.type.xml, name.type.suffix.abap, or
+  // name.type.<other-extension> (e.g. .abdl/.asrvd source files).
   const match = filename.match(/^([^.]+)\.([^.]+)(?:\.([^.]+))?\.(\w+)$/);
   if (!match) return null;
 
   const [, name, type, suffixOrExt, extension] = match;
 
   // If 4 parts, middle is suffix; if 3 parts, no suffix
-  if (extension === 'xml' || extension === 'abap') {
-    return {
-      name: name.toUpperCase(),
-      type: type.toUpperCase(),
-      suffix:
-        suffixOrExt && suffixOrExt !== extension ? suffixOrExt : undefined,
-      extension,
-    };
-  }
-
-  return null;
+  return {
+    name: name.toUpperCase(),
+    type: type.toUpperCase(),
+    suffix: suffixOrExt && suffixOrExt !== extension ? suffixOrExt : undefined,
+    extension,
+  };
 }
 
 /**
@@ -114,7 +110,7 @@ export async function* deserialize(
     // Skip package.devc.xml - packages are not deployed, they must exist in target
     if (xmlPath.endsWith('package.devc.xml')) continue;
 
-    const filename = xmlPath.split('/').pop()!;
+    const filename = xmlPath.slice(xmlPath.lastIndexOf('/') + 1);
     const parsed = parseAbapGitFilename(filename);
 
     if (!parsed) continue;
@@ -135,7 +131,8 @@ export async function* deserialize(
       });
     }
 
-    const obj = objectMap.get(key)!;
+    const obj = objectMap.get(key);
+    if (!obj) continue;
     obj.xmlFile = xmlPath;
   }
 
@@ -143,7 +140,7 @@ export async function* deserialize(
   const abapFiles = await fileTree.glob('**/*.abap');
 
   for (const abapPath of abapFiles) {
-    const filename = abapPath.split('/').pop()!;
+    const filename = abapPath.slice(abapPath.lastIndexOf('/') + 1);
     const parsed = parseAbapGitFilename(filename);
 
     if (!parsed) continue;
@@ -271,8 +268,7 @@ export async function* deserialize(
       if (objFiles.type === 'FUGR' && payload._functions) {
         const fmDescriptors = extractFunctionDescriptors(payload._functions);
         const fmSources = (adkObject as any)._pendingFmSources as
-          | Record<string, string>
-          | undefined;
+          Record<string, string> | undefined;
 
         for (const fm of fmDescriptors) {
           try {

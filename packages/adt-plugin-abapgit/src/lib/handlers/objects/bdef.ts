@@ -19,6 +19,7 @@
 
 import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
+import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 // BDEF is not derived from AdkObject — we cast to the minimal handler shape
 // via the string form of createHandler.
@@ -51,15 +52,27 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
     }),
 
     // Custom serialize — file extension for BDEF source is `.abdl`, not `.abap`.
-    async serialize(object, ctx): Promise<SerializedFile[]> {
+    async serialize(
+      object,
+      ctx,
+      options?: FormatSerializeOptions,
+    ): Promise<SerializedFile[]> {
       const files: SerializedFile[] = [];
       const objectName = ctx.getObjectName(object);
 
-      // Source: <name>.bdef.abdl
-      const source = await (typeof object?.getSource === 'function'
-        ? object.getSource()
-        : Promise.resolve(''));
-      if (source) {
+      // Source: <name>.bdef.abdl. Respect explicitly supplied sources first,
+      // then fall back to the mutable object getter.
+      const suppliedSource = options?.sources?.main;
+      const source =
+        suppliedSource !== undefined
+          ? suppliedSource
+          : await (typeof object?.getSource === 'function'
+              ? object.getSource()
+              : Promise.resolve(''));
+      if (
+        source !== undefined &&
+        (suppliedSource !== undefined || source !== '')
+      ) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.abdl`, source),
         );
@@ -75,7 +88,7 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
     },
 
     setSources: (obj, sources) => {
-      if (sources.main) {
+      if (sources.main !== undefined) {
         (obj as unknown as { _pendingSource: string })._pendingSource =
           sources.main;
       }

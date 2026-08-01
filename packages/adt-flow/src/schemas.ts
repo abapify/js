@@ -4,24 +4,28 @@ const positiveBoundedInt = z.number().int().min(1).max(32);
 
 export const flowConfigSchema = z
   .object({
-    format: z.object({
-      id: z.string().trim().min(1),
-      options: z
-        .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
-        .optional(),
-    }),
+    format: z
+      .object({
+        id: z.string().trim().min(1),
+        options: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+          .optional(),
+      })
+      .strict(),
     include: z
       .object({
         objectTypes: z.array(z.string().trim().min(1)).optional(),
         packages: z.array(z.string().trim().min(1)).optional(),
         applicationComponents: z.array(z.string().trim().min(1)).optional(),
       })
+      .strict()
       .optional(),
     concurrency: z
       .object({
         metadata: positiveBoundedInt.optional(),
         sources: positiveBoundedInt.optional(),
       })
+      .strict()
       .optional(),
     maxSourceBytes: z
       .number()

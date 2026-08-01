@@ -1,6 +1,7 @@
 import {
   mkdir,
   readFile,
+  realpath,
   readdir,
   rename,
   rm,
@@ -68,6 +69,41 @@ export function absolutePath(root: string, relativePath: string): string {
   return absolute;
 }
 
+async function validatePhysicalRoot(
+  root: string,
+  absolute: string,
+): Promise<void> {
+  const realRoot = await realpath(resolve(root));
+  let realPath: string;
+  try {
+    realPath = await realpath(absolute);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      const dir = dirname(absolute);
+      try {
+        const realDir = await realpath(dir);
+        realPath = posix.join(realDir, basename(absolute));
+      } catch (dirError) {
+        if ((dirError as NodeJS.ErrnoException).code === 'ENOENT') {
+          // The path does not exist and its parent is missing, so there is
+          // nothing to escape to yet.
+          return;
+        }
+        throw dirError;
+      }
+    } else {
+      throw error;
+    }
+  }
+  if (realPath !== realRoot && !realPath.startsWith(`${realRoot}${sep}`)) {
+    throw new AdtFlowError(
+      'path_invalid',
+      'Flow path resolves outside the repository root.',
+      { path: absolute },
+    );
+  }
+}
+
 export async function readText(
   root: string,
   path: string,
@@ -106,10 +142,18 @@ export async function walkFiles(
     compareStrings(left.name, right.name),
   )) {
     const child = posix.join(relativeDir, entry.name);
+    if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) files.push(...(await walkFiles(root, child)));
     else if (entry.isFile()) files.push(child);
   }
   return files;
+}
+
+function repositoryType(identity: FlowObjectIdentity): string {
+  return identity.pgmid.toUpperCase() === 'LIMU' &&
+    identity.type.toUpperCase() === 'REPS'
+    ? 'PROG'
+    : identity.type;
 }
 
 export async function discoverObjectFiles(
@@ -120,12 +164,14 @@ export async function discoverObjectFiles(
 ): Promise<string[]> {
   if (!format.parseFilename) return [];
   const matches: string[] = [];
+  const expectedType = repositoryType(identity).toUpperCase();
+  const expectedName = identity.name.toUpperCase();
   const sourceFiles = files ?? (await walkFiles(root, 'src'));
   for (const path of sourceFiles) {
     const parsed = format.parseFilename(basename(path));
     if (
-      parsed?.name.toUpperCase() === identity.name &&
-      parsed.type.toUpperCase() === identity.type
+      parsed?.name.toUpperCase() === expectedName &&
+      parsed.type.toUpperCase() === expectedType
     ) {
       matches.push(path);
     }
@@ -174,20 +220,19 @@ export async function planRepositoryChanges(
   root: string,
   desired: readonly DesiredFile[],
   ownedPaths: ReadonlySet<string>,
+  ownedOwners?: ReadonlyMap<string, string>,
 ): Promise<RepositoryPlan> {
   validateDesiredFiles(desired);
   const desiredByPath = new Map(desired.map((file) => [file.path, file]));
   const existingSourcePaths = await walkFiles(root, 'src');
   const existingByFoldedPath = new Map(
-    existingSourcePaths.map((path) => [path.toLocaleLowerCase('en-US'), path]),
+    existingSourcePaths.map((path) => [path.toLowerCase(), path]),
   );
   const writes = new Map<string, string>();
   const unchanged: string[] = [];
 
   for (const file of desired) {
-    const portableCollision = existingByFoldedPath.get(
-      file.path.toLocaleLowerCase('en-US'),
-    );
+    const portableCollision = existingByFoldedPath.get(file.path.toLowerCase());
     if (portableCollision && portableCollision !== file.path) {
       throw new AdtFlowError(
         'path_collision',
@@ -227,8 +272,14 @@ export async function planRepositoryChanges(
   const moved: Array<{ from: string; to: string }> = [];
   for (const [to, content] of writes) {
     const candidates = removedByHash.get(sha256(content));
-    const from = candidates?.shift();
-    if (from) moved.push({ from, to });
+    const toOwner = desiredByPath.get(to)?.owner;
+    const from = candidates?.find(
+      (candidate) => !ownedOwners || ownedOwners.get(candidate) === toOwner,
+    );
+    if (from) {
+      candidates?.splice(candidates.indexOf(from), 1);
+      moved.push({ from, to });
+    }
   }
 
   return { writes, removes, unchanged: unchanged.sort(), moved };
@@ -243,6 +294,7 @@ async function atomicWrite(
 ): Promise<void> {
   const absolute = absolutePath(root, path);
   await mkdir(dirname(absolute), { recursive: true });
+  await validatePhysicalRoot(root, absolute);
   const temporary = `${absolute}.adt-flow-${process.pid}-${tempSequence++}.tmp`;
   try {
     await writeFile(temporary, content);
