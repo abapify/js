@@ -31,9 +31,11 @@ type BdefSourceObject = { getSource?: () => Promise<string> | string };
 
 async function resolveBdefSource(
   object: BdefSourceObject,
-  suppliedSource: string | undefined,
+  sources: Readonly<Record<string, string | undefined>> | undefined,
 ): Promise<string | undefined> {
-  if (suppliedSource !== undefined) return suppliedSource;
+  if (sources !== undefined) {
+    return sources.main;
+  }
   return typeof object?.getSource === 'function'
     ? await object.getSource()
     : '';
@@ -73,16 +75,15 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
       const files: SerializedFile[] = [];
       const objectName = ctx.getObjectName(object);
 
-      // Source: <name>.bdef.abdl. Respect explicitly supplied sources first,
-      // then fall back to the mutable object getter.
-      const suppliedSource = options?.sources?.main;
+      // Source: <name>.bdef.abdl. When a source map is supplied it is
+      // authoritative; otherwise fall back to the mutable object getter.
       let source: string | undefined;
       try {
-        source = await resolveBdefSource(object, suppliedSource);
+        source = await resolveBdefSource(object, options?.sources);
       } catch {
         // Source not available — skip
       }
-      if (shouldIncludeSource(source, suppliedSource)) {
+      if (shouldIncludeSource(source, options?.sources?.main)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.abdl`, source),
         );

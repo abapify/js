@@ -59,7 +59,9 @@ export interface FlowSelectorConfig {
 }
 
 export interface FlowConcurrencyConfig {
+  /** Positive integer in [1, 32] */
   metadata?: number;
+  /** Positive integer in [1, 32] */
   sources?: number;
 }
 
@@ -67,6 +69,7 @@ export interface FlowConfig {
   format: FlowFormatConfig;
   include?: FlowSelectorConfig;
   concurrency?: FlowConcurrencyConfig;
+  /** Positive integer in [1, 64 MiB] */
   maxSourceBytes?: number;
 }
 

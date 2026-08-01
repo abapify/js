@@ -6,4 +6,5 @@ export default defineConfig({
   entry: ['src/index.ts', 'src/commands/flow.ts'],
   tsconfig: 'tsconfig.lib.json',
   dts: true,
+  exports: false,
 });

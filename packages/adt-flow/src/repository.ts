@@ -17,9 +17,9 @@ import {
   resolve,
   sep,
 } from 'node:path';
-import type { FormatPlugin, MaterializedFormatFile } from '@abapify/adt-plugin';
+import type { MaterializedFormatFile } from '@abapify/adt-plugin';
 import { compareStrings, sha256 } from './deterministic';
-import { AdtFlowError, type FlowObjectIdentity } from './types';
+import { AdtFlowError } from './types';
 
 export interface DesiredFile extends MaterializedFormatFile {
   owner: string;
@@ -150,17 +150,19 @@ export async function readText(
   root: string,
   path: string,
 ): Promise<string | undefined> {
-  return withEnoent(
-    () => readFile(absolutePath(root, path), 'utf8'),
-    undefined,
-  );
+  return withEnoent(async () => {
+    const absolute = absolutePath(root, path);
+    await validatePhysicalRoot(root, absolute);
+    return readFile(absolute, 'utf8');
+  }, undefined);
 }
 
 async function fileExists(root: string, path: string): Promise<boolean> {
-  return withEnoent(
-    async () => (await stat(absolutePath(root, path))).isFile(),
-    false,
-  );
+  return withEnoent(async () => {
+    const absolute = absolutePath(root, path);
+    await validatePhysicalRoot(root, absolute);
+    return (await stat(absolute)).isFile();
+  }, false);
 }
 
 export async function walkFiles(
@@ -168,6 +170,7 @@ export async function walkFiles(
   relativeDir: string,
 ): Promise<string[]> {
   const absoluteDir = absolutePath(root, relativeDir);
+  await validatePhysicalRoot(root, absoluteDir);
   let entries;
   try {
     entries = await readdir(absoluteDir, { withFileTypes: true });
@@ -185,36 +188,6 @@ export async function walkFiles(
     else if (entry.isFile()) files.push(child);
   }
   return files;
-}
-
-function repositoryType(identity: FlowObjectIdentity): string {
-  return identity.pgmid.toUpperCase() === 'LIMU' &&
-    identity.type.toUpperCase() === 'REPS'
-    ? 'PROG'
-    : identity.type;
-}
-
-export async function discoverObjectFiles(
-  root: string,
-  format: FormatPlugin,
-  identity: FlowObjectIdentity,
-  files?: readonly string[],
-): Promise<string[]> {
-  if (!format.parseFilename) return [];
-  const matches: string[] = [];
-  const expectedType = repositoryType(identity).toUpperCase();
-  const expectedName = identity.name.toUpperCase();
-  const sourceFiles = files ?? (await walkFiles(root, 'src'));
-  for (const path of sourceFiles) {
-    const parsed = format.parseFilename(basename(path));
-    if (
-      parsed?.name.toUpperCase() === expectedName &&
-      parsed.type.toUpperCase() === expectedType
-    ) {
-      matches.push(path);
-    }
-  }
-  return matches;
 }
 
 export function validateDesiredFiles(files: readonly DesiredFile[]): void {
@@ -331,9 +304,10 @@ async function atomicWrite(
   content: string | Buffer,
 ): Promise<void> {
   const absolute = absolutePath(root, path);
-  await mkdir(dirname(absolute), { recursive: true });
   await validatePhysicalRoot(root, absolute);
+  await mkdir(dirname(absolute), { recursive: true });
   const temporary = `${absolute}.adt-flow-${process.pid}-${tempSequence++}.tmp`;
+  await validatePhysicalRoot(root, temporary);
   try {
     await writeFile(temporary, content);
     await rename(temporary, absolute);

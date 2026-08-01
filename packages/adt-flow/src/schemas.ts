@@ -49,22 +49,36 @@ export const sourceSelectionSchema = z.object({
   sourceUri: z.string().min(1),
 });
 
-export const objectDescriptorSchema = z.object({
-  schemaVersion: z.literal(1),
-  formatVersion: z.literal(1),
-  identity: z.object({
-    canonical: z.string().min(1),
-    pgmid: z.string().min(1),
-    type: z.string().min(1),
-    name: z.string().min(1),
-  }),
-  state: z.enum(['present', 'deleted']),
-  packagePath: z.array(z.string()),
-  selections: z.array(sourceSelectionSchema),
-  ownedFiles: z.array(ownedFileSchema),
-  configDigest: z.string().regex(/^[a-f0-9]{64}$/),
-  formatDigest: z.string().regex(/^[a-f0-9]{64}$/),
-});
+export const objectDescriptorSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    formatVersion: z.literal(1),
+    identity: z.object({
+      canonical: z.string().min(1),
+      pgmid: z.string().min(1),
+      type: z.string().min(1),
+      name: z.string().min(1),
+    }),
+    state: z.enum(['present', 'deleted']),
+    packagePath: z.array(z.string()),
+    selections: z.array(sourceSelectionSchema),
+    ownedFiles: z.array(ownedFileSchema),
+    configDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    formatDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.state === 'deleted' &&
+      (value.selections.length > 0 || value.ownedFiles.length > 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Deleted descriptors must have empty selections and ownedFiles.',
+        path: ['state'],
+      });
+    }
+  });
 
 export const transportDescriptorSchema = z.object({
   schemaVersion: z.literal(1),

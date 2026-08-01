@@ -46,8 +46,12 @@ const DEFAULT_DEPENDENCIES: FlowMcpDependencies = {
         cause: error,
       });
     }
+    const flowValue =
+      value !== null && typeof value === 'object' && 'flow' in value
+        ? (value as { flow: unknown }).flow
+        : value;
     try {
-      return flowConfigSchema.parse(value);
+      return flowConfigSchema.parse(flowValue);
     } catch (error) {
       throw new Error('Flow configuration is invalid.', { cause: error });
     }

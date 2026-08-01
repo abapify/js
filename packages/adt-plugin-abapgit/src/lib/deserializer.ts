@@ -137,11 +137,16 @@ export async function* deserialize(
     obj.xmlFile = xmlPath;
   }
 
-  // Find source files for each object
-  const abapFiles = await fileTree.glob('**/*.abap');
+  // Find source files for each object (abap + new BDEF/SRVD extensions)
+  const [abapFiles, abdlFiles, asrvdFiles] = await Promise.all([
+    fileTree.glob('**/*.abap'),
+    fileTree.glob('**/*.abdl'),
+    fileTree.glob('**/*.asrvd'),
+  ]);
+  const sourceFiles = [...abapFiles, ...abdlFiles, ...asrvdFiles];
 
-  for (const abapPath of abapFiles) {
-    const filename = abapPath.slice(abapPath.lastIndexOf('/') + 1);
+  for (const sourcePath of sourceFiles) {
+    const filename = sourcePath.slice(sourcePath.lastIndexOf('/') + 1);
     const parsed = parseAbapGitFilename(filename);
 
     if (!parsed) continue;
@@ -150,7 +155,7 @@ export async function* deserialize(
     const obj = objectMap.get(key);
 
     if (obj) {
-      obj.sourceFiles.push({ path: abapPath, suffix: parsed.suffix });
+      obj.sourceFiles.push({ path: sourcePath, suffix: parsed.suffix });
     }
   }
 

@@ -8,6 +8,7 @@ import {
 } from '@abapify/adt-plugin';
 import { createAdtFlowDependencies } from '../adt-client-adapter';
 import { createAdtFlowService, type AdtFlowService } from '../service';
+import { flowConfigSchema } from '../schemas';
 import { AdtFlowError } from '../types';
 
 export interface FlowCommandDependencies {
@@ -37,7 +38,15 @@ function flowConfig(ctx: CliContext): FlowConfig {
       'adt.config.ts must define a flow section.',
     );
   }
-  return value as FlowConfig;
+  try {
+    return flowConfigSchema.parse(value);
+  } catch (error) {
+    throw new AdtFlowError(
+      'configuration_invalid',
+      'Flow configuration is invalid.',
+      { cause: error instanceof Error ? error.message : String(error) },
+    );
+  }
 }
 
 function checkoutTrCommand(

@@ -61,13 +61,14 @@ async function buildTopSourceFile(
   obj: FugrObject,
   objectName: string,
   suppliedTopSource: string | undefined,
+  hasExplicitSources: boolean,
   ctx: FugrContext,
 ): Promise<SerializedFile | undefined> {
   try {
     const topSource =
-      suppliedTopSource !== undefined
-        ? suppliedTopSource
-        : await obj.getSource();
+      suppliedTopSource !== undefined || !hasExplicitSources
+        ? (suppliedTopSource ?? (await obj.getSource()))
+        : undefined;
     if (shouldIncludeSource(topSource, suppliedTopSource)) {
       return ctx.createFile(
         `${objectName}.fugr.l${objectName}top.abap`,
@@ -110,9 +111,13 @@ async function buildFunctionModuleFiles(
 ): Promise<SerializedFile[]> {
   const objectName = ctx.getObjectName(obj);
   const files: SerializedFile[] = [];
+  const hasExplicitSources = suppliedSources !== undefined;
   for (const fm of fmItems) {
     const funcName = fm.name.toLowerCase();
     const suppliedFmSource = suppliedSources?.[funcName];
+    if (hasExplicitSources && suppliedFmSource === undefined) {
+      continue;
+    }
     try {
       const source =
         suppliedFmSource !== undefined
@@ -184,13 +189,32 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
     const objectName = ctx.getObjectName(obj); // lowercase
     const nameUpper = obj.name.toUpperCase();
     const suppliedSources: SourceMap = options?.sources;
+    const hasExplicitSources = suppliedSources !== undefined;
     const topKey = `l${objectName}top`;
     const suppliedTopSource = suppliedSources
       ? (suppliedSources.main ?? suppliedSources[topKey])
       : undefined;
 
-    const fmItems = await discoverFunctionModules(obj);
-    const functions = await serializeFunctions(obj, fmItems);
+    let fmItems: FmDescriptor[];
+    let functions: Record<string, unknown>[];
+    if (hasExplicitSources) {
+      // When the caller supplies sources we can avoid live ADT reads and
+      // derive the function list from the source map keys.
+      fmItems = Object.keys(suppliedSources!)
+        .filter(
+          (key) =>
+            key !== 'main' &&
+            key !== topKey &&
+            key !== `sapl${objectName}` &&
+            !key.startsWith(`l${objectName}`),
+        )
+        .map((name) => ({ name }));
+      functions = fmItems.map((fm) => ({ FUNCNAME: fm.name.toUpperCase() }));
+    } else {
+      fmItems = await discoverFunctionModules(obj);
+      functions = await serializeFunctions(obj, fmItems);
+    }
+
     const data = ctx.getData(obj);
     const fixpt = data.fixPointArithmetic ? 'X' : '';
 
@@ -198,6 +222,7 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
       obj,
       objectName,
       suppliedTopSource,
+      hasExplicitSources,
       ctx,
     );
     return [
