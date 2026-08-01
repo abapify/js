@@ -39,6 +39,8 @@ export interface FlowObjectModel {
   object: unknown;
   packagePath: string[];
   applicationComponent?: string;
+  /** Total SAP metadata calls made while loading this object (including package hierarchy). */
+  metadataCalls?: number;
 }
 
 export interface FlowCheckoutDependencies {

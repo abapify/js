@@ -19,6 +19,7 @@
 
 import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
+import { shouldIncludeSource } from '../source-inclusion';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 // BDEF is not derived from AdkObject — we cast to the minimal handler shape
@@ -36,14 +37,6 @@ async function resolveBdefSource(
   return typeof object?.getSource === 'function'
     ? await object.getSource()
     : '';
-}
-
-function shouldIncludeSource(
-  source: string | undefined,
-  suppliedSource: string | undefined,
-): boolean {
-  if (source === undefined) return false;
-  return suppliedSource !== undefined || source !== '';
 }
 
 export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
@@ -83,7 +76,12 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
       // Source: <name>.bdef.abdl. Respect explicitly supplied sources first,
       // then fall back to the mutable object getter.
       const suppliedSource = options?.sources?.main;
-      const source = await resolveBdefSource(object, suppliedSource);
+      let source: string | undefined;
+      try {
+        source = await resolveBdefSource(object, suppliedSource);
+      } catch {
+        // Source not available — skip
+      }
       if (shouldIncludeSource(source, suppliedSource)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.abdl`, source),

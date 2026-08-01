@@ -20,15 +20,8 @@ import {
   type HandlerContext,
   type SerializedFile,
 } from '../base';
+import { shouldIncludeSource } from '../source-inclusion';
 import { formatAbapGitXml } from '../xml-format';
-
-function shouldIncludeSource(
-  source: string | undefined,
-  suppliedSource: string | undefined,
-): boolean {
-  if (source === undefined) return false;
-  return suppliedSource !== undefined || source !== '';
-}
 
 type FugrObject = InstanceType<typeof AdkFunctionGroup>;
 type FugrContext = HandlerContext<FugrObject>;

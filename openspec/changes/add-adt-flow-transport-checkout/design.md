@@ -110,7 +110,7 @@ implement the same contract without changing flow orchestration.
 
 ### 5. Descriptors are an optional committed cache, not source of truth
 
-Transport descriptors live at `.adt/tr/<TRKORR>.json`. Object descriptors live
+Transport descriptors live at `.adt/tr/<TR>.json`. Object descriptors live
 at `.adt/objects/<TYPE>/<encoded-name>.<type>.adt.json`. Names and types are
 normalized; names unsafe as path segments are reversibly encoded, while the
 canonical `R3TR/<TYPE>/<NAME>` identity is also stored inside the file.

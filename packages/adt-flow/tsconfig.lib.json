@@ -6,6 +6,7 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "declaration": true,
     "composite": true,
+    "forceConsistentCasingInFileNames": true,
     "types": ["node"],
     "lib": ["es2022", "dom"],
     "paths": {}

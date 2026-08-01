@@ -8,7 +8,15 @@ import {
   stat,
   writeFile,
 } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, posix, resolve, sep } from 'node:path';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  posix,
+  resolve,
+  sep,
+} from 'node:path';
 import type { FormatPlugin, MaterializedFormatFile } from '@abapify/adt-plugin';
 import { compareStrings, sha256 } from './deterministic';
 import { AdtFlowError, type FlowObjectIdentity } from './types';
@@ -89,7 +97,7 @@ async function realPathOfMissingParent(
   const dir = dirname(absolute);
   try {
     const realDir = await realpath(dir);
-    return posix.join(realDir, basename(absolute));
+    return join(realDir, basename(absolute));
   } catch (dirError) {
     if ((dirError as NodeJS.ErrnoException).code === 'ENOENT') {
       // The path does not exist and its parent is missing, so there is
@@ -373,8 +381,11 @@ export async function applyRepositoryPlan(
   try {
     for (const [path, content] of plan.writes)
       await atomicWrite(root, path, content);
-    for (const path of plan.removes)
-      await rm(absolutePath(root, path), { force: true });
+    for (const path of plan.removes) {
+      const absolute = absolutePath(root, path);
+      await validatePhysicalRoot(root, absolute);
+      await rm(absolute, { force: true });
+    }
   } catch (error) {
     try {
       await restoreSnapshots(root, snapshots);

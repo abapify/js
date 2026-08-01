@@ -94,6 +94,7 @@ describe('ADT client adapter', () => {
       object,
       packagePath: ['ZROOT', 'ZFEATURE'],
       applicationComponent: 'BC-TEST',
+      metadataCalls: 3,
     });
     expect(get.mock.calls).toEqual([
       ['ZCL_SAMPLE', 'CLAS'],

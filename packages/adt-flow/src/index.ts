@@ -26,6 +26,7 @@ export {
   type FlowCheckoutInput,
   type FlowCheckoutMode,
   type FlowCheckoutResult,
+  type FlowErrorCode,
   type FlowObjectIdentity,
   type FlowObjectModel,
 } from './types';

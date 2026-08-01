@@ -91,10 +91,14 @@ const types = abapGitPlugin.registry.getSupportedTypes();
 ### Pure tree materialization
 
 Flow-style consumers need to calculate repository changes before touching the
-filesystem. A format plugin can expose the optional pure materialization
-capability:
+filesystem. A `FormatPlugin` exposes the optional pure materialization
+capability. Obtain one through `getFormatPlugin` (not `createPlugin`, which
+returns an `AdtPlugin`):
 
 ```typescript
+import { getFormatPlugin } from '@abapify/adt-plugin';
+
+const formatPlugin = getFormatPlugin('abapGit');
 const result = await formatPlugin.materialize?.({
   object: adkObject,
   objectType: 'CLAS',

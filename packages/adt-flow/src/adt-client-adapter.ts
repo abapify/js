@@ -57,66 +57,6 @@ interface PackageFields {
   applicationComponent?: string;
 }
 
-async function loadPackageModel(
-  factory: AdkFactory,
-  name: string,
-): Promise<PackageModel> {
-  const model = factory.get(name, 'DEVC/K');
-  if (!loadable(model)) {
-    throw new AdtFlowError(
-      'object_metadata_unavailable',
-      'ADT returned an unsupported package metadata model.',
-    );
-  }
-  try {
-    await model.load();
-  } catch {
-    throw new AdtFlowError(
-      'sap_operation_failed',
-      'SAP ADT package metadata retrieval failed.',
-    );
-  }
-  return model as PackageModel;
-}
-
-function packageFields(model: PackageModel): PackageFields {
-  return {
-    superPackage: text(model.superPackage?.name),
-    applicationComponent: text(model.applicationComponent?.name),
-  };
-}
-
-async function packageContext(
-  factory: AdkFactory,
-  leafPackage: string,
-): Promise<{ path: string[]; applicationComponent?: string }> {
-  const path: string[] = [];
-  const seen = new Set<string>();
-  let current: string | undefined = leafPackage;
-  let applicationComponent: string | undefined;
-
-  while (current) {
-    if (seen.has(current) || path.length >= 64) {
-      throw new AdtFlowError(
-        'object_metadata_unavailable',
-        'The ADT package hierarchy is cyclic or exceeds the supported depth.',
-      );
-    }
-    seen.add(current);
-    path.unshift(current);
-
-    const model = await loadPackageModel(factory, current);
-    const fields = packageFields(model);
-    applicationComponent ??= fields.applicationComponent;
-    current = fields.superPackage;
-  }
-
-  return {
-    path,
-    ...(applicationComponent ? { applicationComponent } : {}),
-  };
-}
-
 /** Bind the pure flow service ports to one authenticated ADT client. */
 export function createAdtFlowDependencies(
   client: AdtClient,
@@ -124,6 +64,77 @@ export function createAdtFlowDependencies(
   operations: AdtFlowAdapterOperations = DEFAULT_OPERATIONS,
 ): FlowCheckoutDependencies {
   const factory = operations.createFactory(client);
+  const packageCache = new Map<
+    string,
+    Promise<{ path: string[]; applicationComponent?: string; calls: number }>
+  >();
+
+  async function loadPackageModel(name: string): Promise<PackageModel> {
+    const model = factory.get(name, 'DEVC/K');
+    if (!loadable(model)) {
+      throw new AdtFlowError(
+        'object_metadata_unavailable',
+        'ADT returned an unsupported package metadata model.',
+      );
+    }
+    try {
+      await model.load();
+    } catch {
+      throw new AdtFlowError(
+        'sap_operation_failed',
+        'SAP ADT package metadata retrieval failed.',
+      );
+    }
+    return model as PackageModel;
+  }
+
+  function packageFields(model: PackageModel): PackageFields {
+    return {
+      superPackage: text(model.superPackage?.name),
+      applicationComponent: text(model.applicationComponent?.name),
+    };
+  }
+
+  async function packageContext(
+    leafPackage: string,
+  ): Promise<{ path: string[]; applicationComponent?: string; calls: number }> {
+    const cached = packageCache.get(leafPackage);
+    if (cached) return cached;
+
+    const promise = (async () => {
+      const path: string[] = [];
+      const seen = new Set<string>();
+      let current: string | undefined = leafPackage;
+      let applicationComponent: string | undefined;
+      let calls = 0;
+
+      while (current) {
+        if (seen.has(current) || path.length >= 64) {
+          throw new AdtFlowError(
+            'object_metadata_unavailable',
+            'The ADT package hierarchy is cyclic or exceeds the supported depth.',
+          );
+        }
+        seen.add(current);
+        path.unshift(current);
+
+        const model = await loadPackageModel(current);
+        calls += 1;
+        const fields = packageFields(model);
+        applicationComponent ??= fields.applicationComponent;
+        current = fields.superPackage;
+      }
+
+      return {
+        path,
+        ...(applicationComponent ? { applicationComponent } : {}),
+        calls,
+      };
+    })();
+
+    packageCache.set(leafPackage, promise);
+    return promise;
+  }
 
   return {
     format,
@@ -188,10 +199,11 @@ export function createAdtFlowDependencies(
           { object: identity.canonical },
         );
       }
-      const context = await packageContext(factory, packageName);
+      const context = await packageContext(packageName);
       return {
         object: model,
         packagePath: context.path,
+        metadataCalls: context.calls + 1,
         ...(context.applicationComponent
           ? { applicationComponent: context.applicationComponent }
           : {}),

@@ -111,6 +111,7 @@ export function registerFlowCheckoutTrTool(
         const message = isFlowError
           ? error.message
           : 'Could not materialize the requested transport boundary.';
+        const cause = error instanceof Error ? error.message : String(error);
         return {
           isError: true,
           content: [
@@ -120,9 +121,9 @@ export function registerFlowCheckoutTrTool(
                 error: {
                   code,
                   message,
-                  ...(isFlowError && error.details
-                    ? { details: error.details }
-                    : {}),
+                  details: isFlowError
+                    ? (error.details ?? { cause })
+                    : { cause },
                 },
               }),
             },

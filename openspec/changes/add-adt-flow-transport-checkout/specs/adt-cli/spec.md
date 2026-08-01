@@ -26,7 +26,7 @@ plugin system and SHALL delegate behavior to the public `adt-flow` service.
 ### Requirement: CLI and MCP flow checkout remain equivalent
 
 The CLI command and MCP tool SHALL delegate to the same public `adt-flow`
-service and SHALL preserve equivalent arguments, results, and bounded errors.
+service and SHALL preserve equivalent arguments, results, and bounded diagnostics.
 
 #### Scenario: MCP checks out a transport boundary
 

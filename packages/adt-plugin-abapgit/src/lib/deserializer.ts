@@ -36,8 +36,10 @@ export function parseAbapGitFilename(filename: string): {
   extension: string;
 } | null {
   // Match patterns like: name.type.xml, name.type.suffix.abap, or
-  // name.type.<other-extension> (e.g. .abdl/.asrvd source files).
-  const match = filename.match(/^([^.]+)\.([^.]+)(?:\.([^.]+))?\.(\w+)$/);
+  // name.type.<suffix>.abdl/.asrvd source files.
+  const match = filename.match(
+    /^([^.]+)\.([^.]+)(?:\.([^.]+))?\.(xml|abap|abdl|asrvd)$/,
+  );
   if (!match) return null;
 
   const [, name, type, suffixOrExt, extension] = match;

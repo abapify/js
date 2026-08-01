@@ -18,7 +18,11 @@ function canonicalize(value: unknown): unknown {
 }
 
 export function stableJson(value: unknown): string {
-  return `${JSON.stringify(canonicalize(value), null, 2)}\n`;
+  const serialized = JSON.stringify(canonicalize(value), null, 2);
+  if (serialized === undefined) {
+    throw new TypeError('Value cannot be serialized to stable JSON.');
+  }
+  return `${serialized}\n`;
 }
 
 export function sha256(content: string | Buffer): string {

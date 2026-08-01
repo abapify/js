@@ -658,10 +658,10 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
     return await reuseGroupIfExact(ctx, identity, descriptorPath);
   }
 
-  calls.metadata += 1;
   const model = await limiters.metadata.run(() =>
     dependencies.loadObject(identity),
   );
+  calls.metadata += model.metadataCalls ?? 1;
 
   if (
     ctx.hasApplicationComponentFilter &&
