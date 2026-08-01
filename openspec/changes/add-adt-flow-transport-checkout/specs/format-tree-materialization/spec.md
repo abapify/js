@@ -17,7 +17,7 @@ files.
 #### Scenario: Desired tree is calculated
 
 - **WHEN** a format materializer runs successfully
-- **THEN** it returns relative paths, contents, encodings, and semantic roles
+- **THEN** it returns relative paths, contents, and semantic roles
 - **THEN** it performs no filesystem write, deletion, ADT request, or Git operation
 
 ### Requirement: Format paths and ownership are deterministic

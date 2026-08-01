@@ -91,7 +91,12 @@ export const abapgitFormatPlugin: FormatPlugin = {
     // generic `FormatHandler`, so this is just a widening cast.
     const handler = getAbapGitHandler(type) as unknown as
       FormatHandler | undefined;
-    return handler ? { ...handler, supportsExplicitSources: true } : undefined;
+    return handler
+      ? {
+          ...handler,
+          supportsExplicitSources: handler.supportsExplicitSources ?? false,
+        }
+      : undefined;
   },
 
   async materialize(input) {

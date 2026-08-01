@@ -67,16 +67,10 @@ function deriveFmList(suppliedSources: SourceMap, objectName: string): FmList {
   const topKey = `l${objectName}top`;
   const lowerTopKey = topKey;
   const lowerSap = `sapl${objectName}`;
-  const lowerPrefix = `l${objectName}`;
   const fmItems = Object.keys(suppliedSources)
     .filter((key) => {
       const lower = key.toLowerCase();
-      return (
-        lower !== 'main' &&
-        lower !== lowerTopKey &&
-        lower !== lowerSap &&
-        !lower.startsWith(lowerPrefix)
-      );
+      return lower !== 'main' && lower !== lowerTopKey && lower !== lowerSap;
     })
     .map((key) => ({ key, name: key.toLowerCase() }));
   const functions = fmItems.map((fm) => ({

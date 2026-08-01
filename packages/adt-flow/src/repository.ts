@@ -17,9 +17,9 @@ import type { MaterializedFormatFile } from '@abapify/adt-plugin';
 import { compareStrings, sha256 } from './deterministic';
 import { AdtFlowError } from './types';
 
-export interface DesiredFile extends MaterializedFormatFile {
+export type DesiredFile = MaterializedFormatFile & {
   owner: string;
-}
+};
 
 export interface RepositoryPlan {
   writes: Map<string, string>;
@@ -79,12 +79,19 @@ export function absolutePath(root: string, relativePath: string): string {
 }
 
 function pathEscapesRoot(rel: string): boolean {
-  return rel === '' || rel.startsWith('..') || isAbsolute(rel);
+  return (
+    rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)
+  );
 }
 
 function isInsideRoot(realRoot: string, target: string): boolean {
   const rel = relative(realRoot, target);
-  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+  return (
+    rel !== '' &&
+    rel !== '..' &&
+    !rel.startsWith(`..${sep}`) &&
+    !isAbsolute(rel)
+  );
 }
 
 async function lstatSafe(path: string): Promise<Stats | undefined> {
@@ -94,6 +101,11 @@ async function lstatSafe(path: string): Promise<Stats | undefined> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw error;
   }
+}
+
+async function isOwnedSymlink(root: string, path: string): Promise<boolean> {
+  const stats = await lstatSafe(absolutePath(root, path));
+  return stats ? stats.isSymbolicLink() : false;
 }
 
 async function resolveSymlinkChain(
@@ -265,6 +277,18 @@ export function validateDesiredFiles(files: readonly DesiredFile[]): void {
     }
     portable.set(folded, path);
   }
+  const sortedPaths = [...exact.keys()].sort(compareStrings);
+  for (let index = 0; index < sortedPaths.length - 1; index++) {
+    const path = sortedPaths[index];
+    const next = sortedPaths[index + 1];
+    if (next.startsWith(`${path}/`)) {
+      throw new AdtFlowError(
+        'path_collision',
+        'Desired paths contain a parent and child collision.',
+        { path, child: next },
+      );
+    }
+  }
 }
 
 export async function verifyOwnedHashes(
@@ -309,6 +333,12 @@ export async function planRepositoryChanges(
       throw new AdtFlowError(
         'path_collision',
         'A desired path is occupied by an unowned file.',
+        { path: file.path },
+      );
+    } else if (await isOwnedSymlink(root, file.path)) {
+      throw new AdtFlowError(
+        'path_invalid',
+        'Flow cannot write through an owned symlink.',
         { path: file.path },
       );
     } else if (current === file.content) {
@@ -358,7 +388,7 @@ async function ensureParentDirectories(
   const target = dirname(absolute);
   const rootResolved = resolve(root);
   const rel = relative(rootResolved, target);
-  if (!rel || rel.startsWith('..')) return;
+  if (pathEscapesRoot(rel)) return;
 
   const components = rel.split(sep).filter(Boolean);
   let current = rootResolved;

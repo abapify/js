@@ -4,18 +4,10 @@
   "description": "Incremental transport source-tree materialization for ADT",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.mts",
-      "default": "./dist/index.mjs"
-    },
-    "./commands/flow": {
-      "types": "./dist/commands/flow.d.mts",
-      "default": "./dist/commands/flow.mjs"
-    },
+    ".": "./dist/index.mjs",
+    "./commands/flow": "./dist/commands/flow.mjs",
     "./package.json": "./package.json"
   },
   "files": [

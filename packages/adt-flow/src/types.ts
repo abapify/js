@@ -11,13 +11,16 @@ export type FlowCheckoutMode = 'base' | 'head';
 export type FlowErrorCode =
   | 'configuration_invalid'
   | 'format_unsupported'
+  | 'invalid_input'
+  | 'internal_error'
   | 'manifest_inexact'
   | 'object_metadata_unavailable'
   | 'path_invalid'
   | 'path_collision'
   | 'working_tree_diverged'
   | 'sap_operation_failed'
-  | 'apply_failed';
+  | 'apply_failed'
+  | 'workspace_root_changed';
 
 export class AdtFlowError extends Error {
   override readonly name = 'AdtFlowError';

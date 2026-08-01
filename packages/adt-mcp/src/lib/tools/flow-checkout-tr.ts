@@ -27,12 +27,19 @@ const DEFAULT_DEPENDENCIES: FlowMcpDependencies = {
     const loaded = await loadConfig({ cwd: root });
     const flowValue = loaded.raw.flow;
     if (flowValue === undefined) {
-      throw new Error('Flow configuration is unavailable in this context.');
+      throw new AdtFlowError(
+        'configuration_invalid',
+        'Flow configuration is unavailable in this context.',
+      );
     }
     try {
       return flowConfigSchema.parse(flowValue);
     } catch (error) {
-      throw new Error('Flow configuration is invalid.', { cause: error });
+      throw new AdtFlowError(
+        'configuration_invalid',
+        'Flow configuration is invalid.',
+        { cause: String(error) },
+      );
     }
   },
   getFormat: getFormatPlugin,
@@ -72,7 +79,22 @@ export function registerFlowCheckoutTrTool(
         );
         const config = await dependencies.loadFlowConfig(root, ctx);
         const format = dependencies.getFormat(config.format.id);
-        if (!format) throw new Error('Configured format is not registered.');
+        if (!format) {
+          throw new AdtFlowError(
+            'format_unsupported',
+            'Configured format is not registered.',
+          );
+        }
+        const revalidatedRoot = await resolveFlowWorkspaceRoot(
+          args.workspaceRoot,
+          ctx.workspaceRoots,
+        );
+        if (revalidatedRoot !== root) {
+          throw new AdtFlowError(
+            'workspace_root_changed',
+            'Workspace root changed between configuration load and checkout.',
+          );
+        }
         const { client } = await resolveClient(ctx, args, extra ?? {});
         const result = await dependencies
           .createService(client, format)

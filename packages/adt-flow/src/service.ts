@@ -213,11 +213,18 @@ async function cachedSource(
 }
 
 function ownedFile(file: MaterializedFormatFile): OwnedFile {
+  if (file.role === 'source') {
+    return {
+      path: file.path,
+      hash: sha256(file.content),
+      role: 'source',
+      sourceComponent: file.sourceComponent,
+    };
+  }
   return {
     path: file.path,
     hash: sha256(file.content),
-    role: file.role,
-    ...(file.sourceComponent ? { sourceComponent: file.sourceComponent } : {}),
+    role: 'metadata',
   };
 }
 
@@ -253,9 +260,10 @@ async function exactHeadFastPath(
     return undefined;
   }
 
-  const objectPaths = [...new Set(descriptors.flatMap((d) => d.objects))].sort(
-    compareStrings,
-  );
+  const validDescriptors = descriptors as TransportDescriptor[];
+  const objectPaths = [
+    ...new Set(validDescriptors.flatMap((d) => d.objects)),
+  ].sort(compareStrings);
   const ownedPaths: string[] = [];
   for (const path of objectPaths) {
     const descriptor = await readDescriptor(root, path, objectDescriptorSchema);
@@ -264,6 +272,10 @@ async function exactHeadFastPath(
       descriptor.configDigest !== configDigest ||
       descriptor.formatDigest !== formatDigest
     ) {
+      return undefined;
+    }
+    const expectedPath = objectDescriptorPath(descriptor.identity);
+    if (path !== expectedPath) {
       return undefined;
     }
     descriptor.ownedFiles = filterOwnedFiles(
@@ -290,7 +302,7 @@ function buildObjectFileIndex(
   const index = new Map<string, string[]>();
   if (!format.parseFilename) return index;
   for (const path of files) {
-    const parsed = format.parseFilename(basename(path));
+    const parsed = format.parseFilename?.(basename(path));
     if (!parsed) continue;
     const key = `${parsed.type.toUpperCase()}/${parsed.name.toUpperCase()}`;
     const list = index.get(key);
@@ -305,14 +317,15 @@ function filterOwnedFiles(
   identity: FlowObjectIdentity,
   format: FormatPlugin,
 ): OwnedFile[] {
-  if (!format.parseFilename) return [...files];
+  const parseFilename = format.parseFilename;
+  if (!parseFilename) return [...files];
   const expectedType = repositoryType(
     identity.pgmid,
     identity.type,
   ).toUpperCase();
   const expectedName = identity.name.toUpperCase();
   return files.filter((file) => {
-    const parsed = format.parseFilename(basename(file.path));
+    const parsed = parseFilename(basename(file.path));
     return (
       !parsed ||
       (parsed.type.toUpperCase() === expectedType &&
@@ -361,15 +374,22 @@ async function reuseIndexedGroup(
         { object: identity.canonical, path: file.path },
       );
     }
-    desired.push({
-      path: file.path,
-      content,
-      role: file.role,
-      ...(file.sourceComponent
-        ? { sourceComponent: file.sourceComponent }
-        : {}),
-      owner: identity.canonical,
-    });
+    if (file.role === 'source') {
+      desired.push({
+        path: file.path,
+        content,
+        role: 'source',
+        sourceComponent: file.sourceComponent,
+        owner: identity.canonical,
+      });
+    } else {
+      desired.push({
+        path: file.path,
+        content,
+        role: 'metadata',
+        owner: identity.canonical,
+      });
+    }
   }
   desired.push({
     path: descriptorPath,
@@ -451,6 +471,21 @@ interface GroupSelections {
   hasDeletions: boolean;
 }
 
+function indexedPackageMatches(
+  previous: ObjectDescriptor,
+  group: ProcessGroupContext['group'],
+): boolean {
+  const previousPackage = previous.packagePath
+    .at(previous.packagePath.length - 1)
+    ?.trim()
+    .toUpperCase();
+  if (!previousPackage) return true;
+  return group.entries.every(({ object }) => {
+    const packageName = object.packageName?.trim().toUpperCase();
+    return !packageName || packageName === previousPackage;
+  });
+}
+
 function buildGroupSelections(
   group: ProcessGroupContext['group'],
   mode: 'base' | 'head',
@@ -477,6 +512,7 @@ function buildGroupSelections(
     previousDescriptor?.state === 'present' &&
     previousDescriptor.configDigest === configDigest &&
     previousDescriptor.formatDigest === formatDigest &&
+    indexedPackageMatches(previousDescriptor, group) &&
     previousDescriptor.selections.length === presentSelections.length &&
     presentSelections.every(({ entry, version }) =>
       descriptorSelectionMatches(
@@ -644,6 +680,25 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
     );
 
   if (presentSelections.length === 0) {
+    if (ctx.hasApplicationComponentFilter) {
+      const model = await limiters.metadata.run(() =>
+        dependencies.loadObject(identity),
+      );
+      calls.metadata += model.metadataCalls ?? 1;
+      if (
+        !applicationComponentMatches(
+          model.applicationComponent,
+          config.include?.applicationComponents,
+        )
+      ) {
+        return {
+          desired: [],
+          descriptorPaths: [],
+          ownedPaths: pending.ownedPaths,
+          reusedIndexedComponent: false,
+        };
+      }
+    }
     if (mode === 'head' && hasDeletions) {
       return buildTombstoneResult(ctx, identity, descriptorPath);
     }

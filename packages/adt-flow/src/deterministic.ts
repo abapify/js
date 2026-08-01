@@ -4,20 +4,22 @@ export function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function canonicalize(value: unknown): unknown {
-  if (value !== null && typeof value === 'object') {
-    const toJson = (value as { toJSON?: () => unknown }).toJSON;
+function canonicalize(value: unknown, key = '', invokeToJson = true): unknown {
+  if (invokeToJson && value !== null && typeof value === 'object') {
+    const toJson = (value as { toJSON?: (key: string) => unknown }).toJSON;
     if (typeof toJson === 'function') {
-      return canonicalize(toJson.call(value));
+      return canonicalize(toJson.call(value, key), '', false);
     }
   }
-  if (Array.isArray(value)) return value.map(canonicalize);
+  if (Array.isArray(value)) {
+    return value.map((item, index) => canonicalize(item, String(index)));
+  }
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .filter(([, item]) => item !== undefined)
         .sort(([left], [right]) => compareStrings(left, right))
-        .map(([key, item]) => [key, canonicalize(item)]),
+        .map(([entryKey, item]) => [entryKey, canonicalize(item, entryKey)]),
     );
   }
   return value;

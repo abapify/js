@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { safeRelativePath } from './repository';
 
 const positiveBoundedInt = z.number().int().min(1).max(32);
 
@@ -36,18 +37,50 @@ export const flowConfigSchema = z
   })
   .strict();
 
-export const ownedSourceFileSchema = z.object({
-  path: z.string().min(1),
-  hash: z.string().regex(/^[a-f0-9]{64}$/),
-  role: z.literal('source'),
-  sourceComponent: z.string().min(1),
-});
+export const ownedSourceFileSchema = z
+  .object({
+    path: z.string().min(1),
+    hash: z.string().regex(/^[a-f0-9]{64}$/),
+    role: z.literal('source'),
+    sourceComponent: z.string().min(1),
+  })
+  .refine(
+    ({ path }) => {
+      try {
+        safeRelativePath(path);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    {
+      message:
+        'Owned source file path must be a safe repository-relative path.',
+      path: ['path'],
+    },
+  );
 
-export const ownedMetadataFileSchema = z.object({
-  path: z.string().min(1),
-  hash: z.string().regex(/^[a-f0-9]{64}$/),
-  role: z.literal('metadata'),
-});
+export const ownedMetadataFileSchema = z
+  .object({
+    path: z.string().min(1),
+    hash: z.string().regex(/^[a-f0-9]{64}$/),
+    role: z.literal('metadata'),
+  })
+  .refine(
+    ({ path }) => {
+      try {
+        safeRelativePath(path);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    {
+      message:
+        'Owned metadata file path must be a safe repository-relative path.',
+      path: ['path'],
+    },
+  );
 
 export const ownedFileSchema = z.union([
   ownedSourceFileSchema,

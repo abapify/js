@@ -20,7 +20,10 @@
 import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
-import type { FormatSerializeOptions } from '@abapify/adt-plugin';
+import {
+  FormatMaterializationError,
+  type FormatSerializeOptions,
+} from '@abapify/adt-plugin';
 
 // BDEF is not derived from AdkObject — we cast to the minimal handler shape
 // via the string form of createHandler.
@@ -34,6 +37,13 @@ async function resolveBdefSource(
   sources: Readonly<Record<string, string | undefined>> | undefined,
 ): Promise<string | undefined> {
   if (sources !== undefined) {
+    const keys = Object.keys(sources);
+    if (keys.some((key) => key !== 'main')) {
+      throw new FormatMaterializationError(
+        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+        `BDEF only supports the 'main' source component; received ${keys.join(', ')}.`,
+      );
+    }
     return sources.main;
   }
   return typeof object?.getSource === 'function'

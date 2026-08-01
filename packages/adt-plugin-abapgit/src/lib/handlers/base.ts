@@ -80,6 +80,8 @@ export interface ObjectHandler<
   readonly schema: TSchema;
   /** Map abapGit file suffix to source key */
   readonly suffixToSourceKey?: Record<string, string>;
+  /** Whether this handler treats an explicit `sources` map as authoritative. */
+  readonly supportsExplicitSources?: boolean;
   /** Serialize object to files (SAP → Git) */
   serialize(
     object: T,
@@ -568,12 +570,19 @@ export function createHandler<
       }
     : undefined;
 
+  // Determine whether this handler can honor an explicit source map.
+  const supportsExplicitSources =
+    definition.getSource !== undefined ||
+    definition.getSources !== undefined ||
+    (definition.serialize !== undefined && definition.serialize.length >= 3);
+
   // Create handler object with full type information
   const handler: ObjectHandler<T, TSchema> = {
     type,
     fileExtension,
     schema: definition.schema,
     suffixToSourceKey: definition.suffixToSourceKey,
+    supportsExplicitSources,
     serialize: definition.serialize
       ? (object: T, options?: FormatSerializeOptions) =>
           definition.serialize!(object, ctx, options)

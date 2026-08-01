@@ -1,5 +1,5 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "dist-tests",
@@ -11,8 +11,14 @@
       "vite/client",
       "vitest/globals"
     ],
-    "noEmit": true
+    "noPropertyAccessFromIndexSignature": true,
+    "paths": {}
   },
   "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
-  "references": [{ "path": "./tsconfig.lib.json" }]
+  "references": [
+    { "path": "../adt-plugin/tsconfig.lib.json" },
+    { "path": "../adt-config/tsconfig.lib.json" },
+    { "path": "../adt-client" },
+    { "path": "../adk/tsconfig.lib.json" }
+  ]
 }
