@@ -80,7 +80,9 @@ export const abapgitFormatPlugin: FormatPlugin = {
           ...classifyFile(file.path, handler),
         };
       })
-      .sort((left, right) => left.path.localeCompare(right.path));
+      .sort((left, right) =>
+        left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+      );
 
     return { files };
   },

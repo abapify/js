@@ -27,7 +27,8 @@
 - [x] 4.1 Implement format-recognizable file discovery and canonical object ownership adoption for repositories without descriptors.
 - [x] 4.2 Implement desired/current tree planning for create, update, package-path move, deletion, and no-op outcomes.
 - [x] 4.3 Reject path traversal, portable case collisions, duplicate ownership, unowned destination collisions, and indexed hash divergence before writes.
-- [ ] 4.4 Implement staged apply and rollback with fault-injection tests proving failures never report success for a partial tree.
+- [x] 4.4 Implement staged apply and rollback in `applyRepositoryPlan`, snapshotting touched files and restoring them on failure.
+  - [ ] 4.4.1 Add fault-injection tests proving failures never report success for a partial tree.
 - [x] 4.5 Add end-to-end filesystem fixtures proving modified objects are not pseudo-created and first-observed deletions produce file removals.
 
 ## 5. CLI and configuration delivery

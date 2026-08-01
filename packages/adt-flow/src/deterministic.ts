@@ -1,12 +1,16 @@
 import { createHash } from 'node:crypto';
 
+export function compareStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .filter(([, item]) => item !== undefined)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => compareStrings(left, right))
         .map(([key, item]) => [key, canonicalize(item)]),
     );
   }

@@ -1,7 +1,8 @@
+import { basename } from 'node:path';
 import type { TransportSourceManifestEntry } from '@abapify/adk';
 import type { SourceVersionRef } from '@abapify/adt-client';
-import type { MaterializedFormatFile } from '@abapify/adt-plugin';
-import { digest, sha256, stableJson } from './deterministic';
+import type { FormatPlugin, MaterializedFormatFile } from '@abapify/adt-plugin';
+import { compareStrings, digest, sha256, stableJson } from './deterministic';
 import {
   objectDescriptorPath,
   objectIdentity,
@@ -9,10 +10,10 @@ import {
 } from './identity';
 import {
   applyRepositoryPlan,
-  discoverObjectFiles,
   planRepositoryChanges,
   readText,
   verifyOwnedHashes,
+  walkFiles,
   type DesiredFile,
 } from './repository';
 import {
@@ -23,6 +24,7 @@ import {
   type OwnedFile,
   type TransportDescriptor,
 } from './schemas';
+import { FlowConfig } from '@abapify/adt-config';
 import {
   AdtFlowError,
   type FlowCheckoutDependencies,
@@ -43,7 +45,7 @@ class Limiter {
   constructor(private readonly maximum: number) {}
 
   async run<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.active >= this.maximum) {
+    while (this.active >= this.maximum) {
       await new Promise<void>((resolve) => this.waiting.push(resolve));
     }
     this.active += 1;
@@ -164,11 +166,11 @@ function groupEntries(entries: readonly TransportSourceManifestEntry[]): Array<{
     .map((group) => ({
       ...group,
       entries: group.entries.sort((left, right) =>
-        left.component.id.localeCompare(right.component.id),
+        compareStrings(left.component.id, right.component.id),
       ),
     }))
     .sort((left, right) =>
-      left.identity.canonical.localeCompare(right.identity.canonical),
+      compareStrings(left.identity.canonical, right.identity.canonical),
     );
 }
 
@@ -240,9 +242,9 @@ async function exactHeadFastPath(
     return undefined;
   }
 
-  const objectPaths = [
-    ...new Set(descriptors.flatMap((descriptor) => descriptor?.objects ?? [])),
-  ].sort();
+  const objectPaths = [...new Set(descriptors.flatMap((d) => d.objects))].sort(
+    compareStrings,
+  );
   const ownedPaths: string[] = [];
   for (const path of objectPaths) {
     const descriptor = await readDescriptor(root, path, objectDescriptorSchema);
@@ -257,9 +259,320 @@ async function exactHeadFastPath(
     ownedPaths.push(...descriptor.ownedFiles.map((file) => file.path));
   }
   return {
-    descriptorPaths: [...transportPaths, ...objectPaths].sort(),
-    ownedPaths: ownedPaths.sort(),
+    descriptorPaths: [...transportPaths, ...objectPaths].sort(compareStrings),
+    ownedPaths: ownedPaths.sort(compareStrings),
     scopeTransports: descriptors[0]?.scopeTransports ?? [...transports],
+  };
+}
+
+function buildObjectFileIndex(
+  files: string[],
+  format: FormatPlugin,
+): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+  if (!format.parseFilename) return index;
+  for (const path of files) {
+    const parsed = format.parseFilename(basename(path));
+    if (!parsed) continue;
+    const key = `${parsed.type.toUpperCase()}/${parsed.name.toUpperCase()}`;
+    const list = index.get(key);
+    if (list) list.push(path);
+    else index.set(key, [path]);
+  }
+  return index;
+}
+
+function createTombstoneDescriptor(
+  identity: FlowObjectIdentity,
+  previous: ObjectDescriptor | undefined,
+  configDigest: string,
+  formatDigest: string,
+): ObjectDescriptor {
+  return {
+    schemaVersion: 1,
+    formatVersion: 1,
+    identity: {
+      canonical: identity.canonical,
+      pgmid: identity.pgmid,
+      type: identity.type,
+      name: identity.name,
+    },
+    state: 'deleted',
+    packagePath: previous?.packagePath ?? [],
+    selections: [],
+    ownedFiles: [],
+    configDigest,
+    formatDigest,
+  };
+}
+
+async function reuseIndexedGroup(
+  root: string,
+  identity: FlowObjectIdentity,
+  descriptorPath: string,
+  previous: ObjectDescriptor,
+): Promise<DesiredFile[]> {
+  const desired: DesiredFile[] = [];
+  for (const file of previous.ownedFiles) {
+    const content = await readText(root, file.path);
+    if (content === undefined) {
+      throw new AdtFlowError(
+        'working_tree_diverged',
+        'An indexed file is missing from the working tree.',
+        { object: identity.canonical, path: file.path },
+      );
+    }
+    desired.push({
+      path: file.path,
+      content,
+      role: file.role,
+      ...(file.sourceComponent
+        ? { sourceComponent: file.sourceComponent }
+        : {}),
+      owner: identity.canonical,
+    });
+  }
+  desired.push({
+    path: descriptorPath,
+    content: stableJson(previous),
+    role: 'metadata',
+    owner: identity.canonical,
+  });
+  return desired;
+}
+
+interface ProcessGroupContext {
+  root: string;
+  group: {
+    identity: FlowObjectIdentity;
+    entries: TransportSourceManifestEntry[];
+  };
+  mode: 'base' | 'head';
+  config: FlowConfig;
+  configDigest: string;
+  formatDigest: string;
+  dependencies: FlowCheckoutDependencies;
+  limiters: { metadata: Limiter; source: Limiter };
+  maxSourceBytes: number;
+  materialize: NonNullable<FormatPlugin['materialize']>;
+  pending: { previous?: ObjectDescriptor; ownedPaths: string[] };
+  hasApplicationComponentFilter: boolean;
+  calls: { manifest: number; metadata: number; source: number };
+}
+
+interface GroupResult {
+  desired: DesiredFile[];
+  descriptorPaths: string[];
+  ownedPaths: string[];
+  reusedIndexedComponent: boolean;
+}
+
+async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
+  const {
+    root,
+    group,
+    mode,
+    config,
+    configDigest,
+    formatDigest,
+    dependencies,
+    limiters,
+    maxSourceBytes,
+    materialize,
+    pending,
+    hasApplicationComponentFilter,
+    calls,
+  } = ctx;
+  const { identity, entries } = group;
+  const descriptorPath = objectDescriptorPath(identity);
+
+  const previous = pending.previous;
+  const selections = entries.map((entry) => ({
+    entry,
+    version: selectedVersion(entry, mode),
+  }));
+  const presentSelections = selections.filter(
+    (
+      selection,
+    ): selection is {
+      entry: TransportSourceManifestEntry;
+      version: SourceVersionRef;
+    } => selection.version !== undefined,
+  );
+
+  const previousDescriptor = previous;
+  const exactIndexedSelection =
+    previousDescriptor?.state === 'present' &&
+    previousDescriptor.configDigest === configDigest &&
+    previousDescriptor.formatDigest === formatDigest &&
+    previousDescriptor.selections.length === presentSelections.length &&
+    presentSelections.every(({ entry, version }) =>
+      descriptorSelectionMatches(
+        previousDescriptor,
+        entry.component.id,
+        version,
+      ),
+    );
+
+  if (presentSelections.length === 0) {
+    if (
+      mode === 'head' &&
+      entries.some((entry) => entry.changeKind === 'deleted')
+    ) {
+      const tombstone = createTombstoneDescriptor(
+        identity,
+        previous,
+        configDigest,
+        formatDigest,
+      );
+      return {
+        desired: [
+          {
+            path: descriptorPath,
+            content: stableJson(tombstone),
+            role: 'metadata',
+            owner: identity.canonical,
+          },
+        ],
+        descriptorPaths: [descriptorPath],
+        ownedPaths: pending.ownedPaths,
+        reusedIndexedComponent: false,
+      };
+    }
+    return {
+      desired: [],
+      descriptorPaths: [],
+      ownedPaths: [],
+      reusedIndexedComponent: false,
+    };
+  }
+
+  // When no application-component filter is configured we can reuse the
+  // indexed state without loading metadata.
+  if (!hasApplicationComponentFilter && exactIndexedSelection && previous) {
+    const desired = await reuseIndexedGroup(
+      root,
+      identity,
+      descriptorPath,
+      previous,
+    );
+    return {
+      desired,
+      descriptorPaths: [descriptorPath],
+      ownedPaths: pending.ownedPaths,
+      reusedIndexedComponent: true,
+    };
+  }
+
+  calls.metadata += 1;
+  const model = await limiters.metadata.run(() =>
+    dependencies.loadObject(identity),
+  );
+
+  if (
+    hasApplicationComponentFilter &&
+    !applicationComponentMatches(
+      model.applicationComponent,
+      config.include?.applicationComponents,
+    )
+  ) {
+    return {
+      desired: [],
+      descriptorPaths: [],
+      ownedPaths: [],
+      reusedIndexedComponent: false,
+    };
+  }
+
+  // With a filter we loaded metadata first; now reuse the indexed state if it
+  // still matches the requested boundary.
+  if (exactIndexedSelection && previous) {
+    const desired = await reuseIndexedGroup(
+      root,
+      identity,
+      descriptorPath,
+      previous,
+    );
+    return {
+      desired,
+      descriptorPaths: [descriptorPath],
+      ownedPaths: pending.ownedPaths,
+      reusedIndexedComponent: true,
+    };
+  }
+
+  const sources: Record<string, string> = {};
+  let reusedIndexedSource = false;
+  await Promise.all(
+    presentSelections.map(async ({ entry, version }) => {
+      if (
+        previous &&
+        descriptorSelectionMatches(previous, entry.component.id, version)
+      ) {
+        const cached = await cachedSource(root, previous, entry.component.id);
+        if (cached !== undefined) {
+          sources[entry.component.id] = cached;
+          reusedIndexedSource = true;
+          return;
+        }
+      }
+      calls.source += 1;
+      sources[entry.component.id] = await limiters.source.run(() =>
+        dependencies.readSource(version, maxSourceBytes),
+      );
+    }),
+  );
+
+  const materialized = await materialize({
+    object: model.object,
+    objectType: identity.type,
+    packagePath: model.packagePath,
+    sources,
+    formatOptions: config.format.options,
+  });
+  const files = materialized.files.sort((left, right) =>
+    compareStrings(left.path, right.path),
+  );
+  const desired: DesiredFile[] = files.map((file) => ({
+    ...file,
+    owner: identity.canonical,
+  }));
+  const ownedFiles = files
+    .map(ownedFile)
+    .sort((left, right) => compareStrings(left.path, right.path));
+  const descriptor: ObjectDescriptor = {
+    schemaVersion: 1,
+    formatVersion: 1,
+    identity: {
+      canonical: identity.canonical,
+      pgmid: identity.pgmid,
+      type: identity.type,
+      name: identity.name,
+    },
+    state: 'present',
+    packagePath: model.packagePath,
+    selections: presentSelections
+      .map(({ entry, version }) => ({
+        component: entry.component.id,
+        versionId: version.id,
+        sourceUri: version.sourceUri,
+      }))
+      .sort((left, right) => compareStrings(left.component, right.component)),
+    ownedFiles,
+    configDigest,
+    formatDigest,
+  };
+  desired.push({
+    path: descriptorPath,
+    content: stableJson(descriptor),
+    role: 'metadata',
+    owner: identity.canonical,
+  });
+  return {
+    desired,
+    descriptorPaths: [descriptorPath],
+    ownedPaths: pending.ownedPaths,
+    reusedIndexedComponent: reusedIndexedSource,
   };
 }
 
@@ -345,21 +658,28 @@ export function createAdtFlowService(
         config.concurrency?.sources ?? DEFAULT_SOURCE_CONCURRENCY,
       );
       const maxSourceBytes = config.maxSourceBytes ?? DEFAULT_MAX_SOURCE_BYTES;
+      const hasApplicationComponentFilter =
+        (config.include?.applicationComponents?.length ?? 0) > 0;
+
+      const allSrcFiles = await walkFiles(root, 'src');
+      const srcFilesByObject = buildObjectFileIndex(
+        allSrcFiles,
+        dependencies.format,
+      );
+
       const desired: DesiredFile[] = [];
       const ownedPaths = new Set<string>();
       const descriptorPaths: string[] = [];
-      let reusedIndexedComponent = false;
       const groups = groupEntries(entries);
-      const previousByIdentity = new Map<string, ObjectDescriptor>();
 
-      // Validate the complete metadata-only boundary before reading any source
-      // body. A single ambiguous component invalidates the whole checkout.
       for (const group of groups) {
         for (const entry of group.entries) selectedVersion(entry, mode);
       }
 
-      // Validate all indexed ownership before source reads as well. This keeps
-      // a divergence in one object from wasting source calls for another.
+      const pendingOwnership = new Map<
+        string,
+        { previous?: ObjectDescriptor; ownedPaths: string[] }
+      >();
       await Promise.all(
         groups.map(async ({ identity }) => {
           const descriptorPath = objectDescriptorPath(identity);
@@ -368,6 +688,7 @@ export function createAdtFlowService(
             descriptorPath,
             objectDescriptorSchema,
           );
+          const owned: string[] = [];
           if (previous) {
             if (!(await verifyOwnedHashes(root, previous.ownedFiles))) {
               throw new AdtFlowError(
@@ -376,201 +697,56 @@ export function createAdtFlowService(
                 { object: identity.canonical },
               );
             }
-            previousByIdentity.set(identity.canonical, previous);
-            for (const file of previous.ownedFiles) ownedPaths.add(file.path);
-            ownedPaths.add(descriptorPath);
+            for (const file of previous.ownedFiles) owned.push(file.path);
+            owned.push(descriptorPath);
           } else {
-            for (const path of await discoverObjectFiles(
-              root,
-              dependencies.format,
-              identity,
-            )) {
-              ownedPaths.add(path);
-            }
+            const key = `${identity.type}/${identity.name}`;
+            const files = srcFilesByObject.get(key) ?? [];
+            for (const path of files) owned.push(path);
           }
+          pendingOwnership.set(identity.canonical, {
+            previous,
+            ownedPaths: owned,
+          });
         }),
       );
 
+      let reusedIndexedComponent = false;
       await Promise.all(
-        groups.map(async ({ identity, entries: objectEntries }) => {
-          const descriptorPath = objectDescriptorPath(identity);
-          const previous = previousByIdentity.get(identity.canonical);
-
-          const selections = objectEntries.map((entry) => ({
-            entry,
-            version: selectedVersion(entry, mode),
-          }));
-          const presentSelections = selections.filter(
-            (
-              selection,
-            ): selection is {
-              entry: TransportSourceManifestEntry;
-              version: SourceVersionRef;
-            } => selection.version !== undefined,
-          );
-
-          const exactIndexedSelection =
-            previous?.state === 'present' &&
-            previous.configDigest === configDigest &&
-            previous.formatDigest === formatDigest &&
-            previous.selections.length === presentSelections.length &&
-            presentSelections.every(({ entry, version }) =>
-              descriptorSelectionMatches(previous, entry.component.id, version),
+        groups.map(async (group) => {
+          const pending = pendingOwnership.get(group.identity.canonical);
+          if (!pending) {
+            throw new AdtFlowError(
+              'configuration_invalid',
+              'Object ownership state is missing for a group.',
+              { object: group.identity.canonical },
             );
-
-          if (exactIndexedSelection && previous) {
-            for (const file of previous.ownedFiles) {
-              const content = await readText(root, file.path);
-              if (content === undefined) {
-                throw new AdtFlowError(
-                  'working_tree_diverged',
-                  'An indexed file is missing from the working tree.',
-                  { object: identity.canonical, path: file.path },
-                );
-              }
-              desired.push({
-                path: file.path,
-                content,
-                role: file.role,
-                ...(file.sourceComponent
-                  ? { sourceComponent: file.sourceComponent }
-                  : {}),
-                owner: identity.canonical,
-              });
-            }
-            desired.push({
-              path: descriptorPath,
-              content: stableJson(previous),
-              role: 'metadata',
-              owner: identity.canonical,
-            });
-            descriptorPaths.push(descriptorPath);
-            reusedIndexedComponent = true;
-            return;
           }
-
-          if (presentSelections.length === 0) {
-            if (
-              mode === 'head' &&
-              objectEntries.some((entry) => entry.changeKind === 'deleted')
-            ) {
-              const tombstone: ObjectDescriptor = {
-                schemaVersion: 1,
-                formatVersion: 1,
-                identity: {
-                  canonical: identity.canonical,
-                  pgmid: identity.pgmid,
-                  type: identity.type,
-                  name: identity.name,
-                },
-                state: 'deleted',
-                packagePath: previous?.packagePath ?? [],
-                selections: [],
-                ownedFiles: [],
-                configDigest,
-                formatDigest,
-              };
-              desired.push({
-                path: descriptorPath,
-                content: stableJson(tombstone),
-                role: 'metadata',
-                owner: identity.canonical,
-              });
-              descriptorPaths.push(descriptorPath);
-            }
-            return;
-          }
-
-          calls.metadata += 1;
-          const model = await metadataLimiter.run(() =>
-            dependencies.loadObject(identity),
-          );
-          if (
-            !applicationComponentMatches(
-              model.applicationComponent,
-              config.include?.applicationComponents,
-            )
-          ) {
-            return;
-          }
-          const sources: Record<string, string> = {};
-          await Promise.all(
-            presentSelections.map(async ({ entry, version }) => {
-              if (
-                previous &&
-                descriptorSelectionMatches(
-                  previous,
-                  entry.component.id,
-                  version,
-                )
-              ) {
-                const cached = await cachedSource(
-                  root,
-                  previous,
-                  entry.component.id,
-                );
-                if (cached !== undefined) {
-                  sources[entry.component.id] = cached;
-                  reusedIndexedComponent = true;
-                  return;
-                }
-              }
-              calls.source += 1;
-              sources[entry.component.id] = await sourceLimiter.run(() =>
-                dependencies.readSource(version, maxSourceBytes),
-              );
-            }),
-          );
-
-          const materialized = await materialize({
-            object: model.object,
-            objectType: identity.type,
-            packagePath: model.packagePath,
-            sources,
-            formatOptions: config.format.options,
-          });
-          const files = materialized.files.sort((left, right) =>
-            left.path.localeCompare(right.path),
-          );
-          for (const file of files)
-            desired.push({ ...file, owner: identity.canonical });
-          const descriptor: ObjectDescriptor = {
-            schemaVersion: 1,
-            formatVersion: 1,
-            identity: {
-              canonical: identity.canonical,
-              pgmid: identity.pgmid,
-              type: identity.type,
-              name: identity.name,
-            },
-            state: 'present',
-            packagePath: model.packagePath,
-            selections: presentSelections
-              .map(({ entry, version }) => ({
-                component: entry.component.id,
-                versionId: version.id,
-                sourceUri: version.sourceUri,
-              }))
-              .sort((left, right) =>
-                left.component.localeCompare(right.component),
-              ),
-            ownedFiles: files
-              .map(ownedFile)
-              .sort((left, right) => left.path.localeCompare(right.path)),
+          const result = await processGroup({
+            root,
+            group,
+            mode,
+            config,
             configDigest,
             formatDigest,
-          };
-          desired.push({
-            path: descriptorPath,
-            content: stableJson(descriptor),
-            role: 'metadata',
-            owner: identity.canonical,
+            dependencies,
+            limiters: { metadata: metadataLimiter, source: sourceLimiter },
+            maxSourceBytes,
+            materialize,
+            pending,
+            hasApplicationComponentFilter,
+            calls,
           });
-          descriptorPaths.push(descriptorPath);
+          for (const file of result.desired) desired.push(file);
+          for (const path of result.descriptorPaths) descriptorPaths.push(path);
+          for (const path of result.ownedPaths) ownedPaths.add(path);
+          if (result.reusedIndexedComponent) reusedIndexedComponent = true;
         }),
       );
 
-      const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort();
+      const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort(
+        compareStrings,
+      );
       for (const transport of requested) {
         const path = transportDescriptorPath(transport);
         if ((await readText(root, path)) !== undefined) ownedPaths.add(path);
@@ -592,6 +768,8 @@ export function createAdtFlowService(
           descriptorPaths.push(path);
         }
       }
+
+      desired.sort((left, right) => compareStrings(left.path, right.path));
 
       const plan = await planRepositoryChanges(root, desired, ownedPaths);
       await applyRepositoryPlan(root, plan);

@@ -1,22 +1,23 @@
-/** Tool: flow_checkout_tr — reconcile a confined workspace to a TR boundary. */
-import '@abapify/adt-plugin-abapgit';
-import { realpath } from 'node:fs/promises';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
+  AdtFlowError,
   createAdtFlowDependencies,
   createAdtFlowService,
+  flowConfigSchema,
   type AdtFlowService,
 } from '@abapify/adt-flow';
-import { loadConfig, type FlowConfig } from '@abapify/adt-config';
+import { type FlowConfig } from '@abapify/adt-config';
 import { getFormatPlugin, type FormatPlugin } from '@abapify/adt-plugin';
 import type { AdtClient } from '@abapify/adt-client';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
+import { resolveFlowWorkspaceRoot } from '../flow-workspace';
 
-export interface FlowMcpDependencies {
+interface FlowMcpDependencies {
   loadFlowConfig(root: string, context: ToolContext): Promise<FlowConfig>;
   getFormat(id: string): FormatPlugin | undefined;
   createService(client: AdtClient, format: FormatPlugin): AdtFlowService;
@@ -25,35 +26,36 @@ export interface FlowMcpDependencies {
 const DEFAULT_DEPENDENCIES: FlowMcpDependencies = {
   async loadFlowConfig(root, context) {
     if (context.flowConfig) return context.flowConfig;
-    const loaded = await loadConfig({ cwd: root });
-    if (!loaded.raw.flow) throw new Error('Flow configuration is unavailable.');
-    return loaded.raw.flow;
+    const configPath = join(root, 'adt.config.json');
+    let raw: string;
+    try {
+      raw = await readFile(configPath, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error('Flow configuration is unavailable in this context.', {
+          cause: error,
+        });
+      }
+      throw error;
+    }
+    let value: unknown;
+    try {
+      value = JSON.parse(raw);
+    } catch (error) {
+      throw new Error('Flow configuration file contains invalid JSON.', {
+        cause: error,
+      });
+    }
+    try {
+      return flowConfigSchema.parse(value);
+    } catch (error) {
+      throw new Error('Flow configuration is invalid.', { cause: error });
+    }
   },
   getFormat: getFormatPlugin,
   createService: (client, format) =>
     createAdtFlowService(createAdtFlowDependencies(client, format)),
 };
-
-function isWithin(root: string, candidate: string): boolean {
-  const path = relative(root, candidate);
-  return path === '' || (!path.startsWith('..') && !isAbsolute(path));
-}
-
-export async function resolveFlowWorkspaceRoot(
-  requested: string,
-  allowedRoots: readonly string[] = [process.cwd()],
-): Promise<string> {
-  if (!isAbsolute(requested))
-    throw new Error('workspaceRoot must be absolute.');
-  const candidate = await realpath(resolve(requested));
-  const allowed = await Promise.all(
-    allowedRoots.map((root) => realpath(resolve(root))),
-  );
-  if (!allowed.some((root) => isWithin(root, candidate))) {
-    throw new Error('workspaceRoot is outside the server-owned roots.');
-  }
-  return candidate;
-}
 
 export function registerFlowCheckoutTrTool(
   server: McpServer,
@@ -103,7 +105,13 @@ export function registerFlowCheckoutTrTool(
           ],
           structuredContent: result as unknown as Record<string, unknown>,
         };
-      } catch {
+      } catch (error) {
+        const code =
+          error instanceof AdtFlowError ? error.code : 'FLOW_CHECKOUT_FAILED';
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Could not materialize the requested transport boundary.';
         return {
           isError: true,
           content: [
@@ -111,9 +119,8 @@ export function registerFlowCheckoutTrTool(
               type: 'text' as const,
               text: JSON.stringify({
                 error: {
-                  code: 'FLOW_CHECKOUT_FAILED',
-                  message:
-                    'Could not materialize the requested transport boundary.',
+                  code,
+                  message,
                 },
               }),
             },

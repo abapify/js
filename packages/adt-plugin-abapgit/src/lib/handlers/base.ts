@@ -469,7 +469,11 @@ export function createHandler<
 
     // Add source files
     if (options?.sources !== undefined) {
-      if (!definition.getSource && !definition.getSources) {
+      if (
+        Object.keys(options.sources).length > 0 &&
+        !definition.getSource &&
+        !definition.getSources
+      ) {
         throw new FormatMaterializationError(
           'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
           `The ${type} format handler does not serialize source components.`,
@@ -482,7 +486,7 @@ export function createHandler<
         ),
       ]);
       for (const [sourceKey, content] of Object.entries(options.sources).sort(
-        ([left], [right]) => left.localeCompare(right),
+        ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
       )) {
         if (!suffixBySourceKey.has(sourceKey)) {
           throw new FormatMaterializationError(

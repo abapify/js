@@ -433,4 +433,45 @@ describe('transport checkout', () => {
     expect(result.fastPath).toBe('none');
     expect(ports.readSource).toHaveBeenCalledOnce();
   });
+
+  it('does not remove indexed files for objects excluded by application component', async () => {
+    const workspace = await root();
+    const current = manifest('modified', version('before'), version('after'));
+    const ports = dependencies(() => current);
+    const flow = createAdtFlowService(ports);
+
+    await flow.checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config,
+    });
+    const existing = await readFile(
+      join(workspace, 'src/feature/zcl_sample.clas.abap'),
+      'utf8',
+    );
+
+    ports.loadObject.mockImplementation(async () => ({
+      object: { name: 'ZCL_SAMPLE' },
+      packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+      applicationComponent: 'ZOTHER',
+    }));
+    const filtered = await flow.checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config: {
+        ...config,
+        include: { applicationComponents: ['ZAPP'] },
+      },
+    });
+
+    expect(
+      await readFile(
+        join(workspace, 'src/feature/zcl_sample.clas.abap'),
+        'utf8',
+      ),
+    ).toBe(existing);
+    expect(filtered.removed).toEqual([]);
+    expect(filtered.changed).toEqual([]);
+    expect(filtered.sapCalls.metadata).toBeGreaterThanOrEqual(1);
+  });
 });

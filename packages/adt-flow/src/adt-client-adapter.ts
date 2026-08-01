@@ -52,6 +52,40 @@ function repositoryType(pgmid: string, type: string): string {
     : type;
 }
 
+interface PackageFields {
+  superPackage?: string;
+  applicationComponent?: string;
+}
+
+async function loadPackageModel(
+  factory: AdkFactory,
+  name: string,
+): Promise<PackageModel> {
+  const model = factory.get(name, 'DEVC/K');
+  if (!loadable(model)) {
+    throw new AdtFlowError(
+      'object_metadata_unavailable',
+      'ADT returned an unsupported package metadata model.',
+    );
+  }
+  try {
+    await model.load();
+  } catch {
+    throw new AdtFlowError(
+      'sap_operation_failed',
+      'SAP ADT package metadata retrieval failed.',
+    );
+  }
+  return model as PackageModel;
+}
+
+function packageFields(model: PackageModel): PackageFields {
+  return {
+    superPackage: text(model.superPackage?.name),
+    applicationComponent: text(model.applicationComponent?.name),
+  };
+}
+
 async function packageContext(
   factory: AdkFactory,
   leafPackage: string,
@@ -70,24 +104,11 @@ async function packageContext(
     }
     seen.add(current);
     path.unshift(current);
-    const model = factory.get(current, 'DEVC/K');
-    if (!loadable(model)) {
-      throw new AdtFlowError(
-        'object_metadata_unavailable',
-        'ADT returned an unsupported package metadata model.',
-      );
-    }
-    try {
-      await model.load();
-    } catch {
-      throw new AdtFlowError(
-        'sap_operation_failed',
-        'SAP ADT package metadata retrieval failed.',
-      );
-    }
-    const pkg = model as PackageModel;
-    applicationComponent ??= text(pkg.applicationComponent?.name);
-    current = text(pkg.superPackage?.name);
+
+    const model = await loadPackageModel(factory, current);
+    const fields = packageFields(model);
+    applicationComponent ??= fields.applicationComponent;
+    current = fields.superPackage;
   }
 
   return {

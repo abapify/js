@@ -7,10 +7,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AdtClient } from '@abapify/adt-client';
 import type { FormatPlugin } from '@abapify/adt-plugin';
 import type { ToolContext } from '../src/lib/types.js';
-import {
-  registerFlowCheckoutTrTool,
-  resolveFlowWorkspaceRoot,
-} from '../src/lib/tools/flow-checkout-tr.js';
+import { registerFlowCheckoutTrTool } from '../src/lib/tools/flow-checkout-tr.js';
+import { resolveFlowWorkspaceRoot } from '../src/lib/flow-workspace.js';
 
 type ToolResult = {
   isError?: boolean;

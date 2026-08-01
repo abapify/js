@@ -9,7 +9,7 @@ import {
 } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, posix, resolve, sep } from 'node:path';
 import type { FormatPlugin, MaterializedFormatFile } from '@abapify/adt-plugin';
-import { sha256 } from './deterministic';
+import { compareStrings, sha256 } from './deterministic';
 import { AdtFlowError, type FlowObjectIdentity } from './types';
 
 export interface DesiredFile extends MaterializedFormatFile {
@@ -89,7 +89,10 @@ async function fileExists(root: string, path: string): Promise<boolean> {
   }
 }
 
-async function walkFiles(root: string, relativeDir: string): Promise<string[]> {
+export async function walkFiles(
+  root: string,
+  relativeDir: string,
+): Promise<string[]> {
   const absoluteDir = absolutePath(root, relativeDir);
   let entries;
   try {
@@ -100,7 +103,7 @@ async function walkFiles(root: string, relativeDir: string): Promise<string[]> {
   }
   const files: string[] = [];
   for (const entry of entries.sort((left, right) =>
-    left.name.localeCompare(right.name),
+    compareStrings(left.name, right.name),
   )) {
     const child = posix.join(relativeDir, entry.name);
     if (entry.isDirectory()) files.push(...(await walkFiles(root, child)));
@@ -113,10 +116,12 @@ export async function discoverObjectFiles(
   root: string,
   format: FormatPlugin,
   identity: FlowObjectIdentity,
+  files?: readonly string[],
 ): Promise<string[]> {
   if (!format.parseFilename) return [];
   const matches: string[] = [];
-  for (const path of await walkFiles(root, 'src')) {
+  const sourceFiles = files ?? (await walkFiles(root, 'src'));
+  for (const path of sourceFiles) {
     const parsed = format.parseFilename(basename(path));
     if (
       parsed?.name.toUpperCase() === identity.name &&
@@ -247,21 +252,41 @@ async function atomicWrite(
   }
 }
 
+async function captureSnapshots(
+  root: string,
+  paths: Iterable<string>,
+): Promise<Map<string, Buffer | undefined>> {
+  const snapshots = new Map<string, Buffer | undefined>();
+  for (const path of paths) {
+    try {
+      snapshots.set(path, await readFile(absolutePath(root, path)));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      snapshots.set(path, undefined);
+    }
+  }
+  return snapshots;
+}
+
+async function restoreSnapshots(
+  root: string,
+  snapshots: ReadonlyMap<string, Buffer | undefined>,
+): Promise<void> {
+  for (const [path, content] of snapshots) {
+    if (content === undefined)
+      await rm(absolutePath(root, path), { force: true });
+    else await atomicWrite(root, path, content);
+  }
+}
+
 export async function applyRepositoryPlan(
   root: string,
   plan: RepositoryPlan,
 ): Promise<void> {
-  const touched = new Set([...plan.writes.keys(), ...plan.removes]);
-  const snapshots = new Map<string, Buffer | undefined>();
-  for (const path of touched) {
-    try {
-      snapshots.set(path, await readFile(absolutePath(root, path)));
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-        snapshots.set(path, undefined);
-      else throw error;
-    }
-  }
+  const snapshots = await captureSnapshots(root, [
+    ...plan.writes.keys(),
+    ...plan.removes,
+  ]);
 
   try {
     for (const [path, content] of plan.writes)
@@ -270,11 +295,7 @@ export async function applyRepositoryPlan(
       await rm(absolutePath(root, path), { force: true });
   } catch (error) {
     try {
-      for (const [path, content] of snapshots) {
-        if (content === undefined)
-          await rm(absolutePath(root, path), { force: true });
-        else await atomicWrite(root, path, content);
-      }
+      await restoreSnapshots(root, snapshots);
     } catch (rollbackError) {
       throw new AdtFlowError(
         'apply_failed',
