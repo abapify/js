@@ -107,17 +107,17 @@ async function resolveRealPath(absolute: string): Promise<string | undefined> {
   );
 }
 
+function isInsideRoot(realPath: string, realRoot: string): boolean {
+  return realPath === realRoot || realPath.startsWith(`${realRoot}${sep}`);
+}
+
 async function validatePhysicalRoot(
   root: string,
   absolute: string,
 ): Promise<void> {
   const realRoot = await realpath(resolve(root));
   const realPath = await resolveRealPath(absolute);
-  if (
-    realPath !== undefined &&
-    realPath !== realRoot &&
-    !realPath.startsWith(`${realRoot}${sep}`)
-  ) {
+  if (realPath !== undefined && !isInsideRoot(realPath, realRoot)) {
     throw new AdtFlowError(
       'path_invalid',
       'Flow path resolves outside the repository root.',

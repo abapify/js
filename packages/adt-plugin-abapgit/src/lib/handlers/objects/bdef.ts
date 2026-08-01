@@ -26,6 +26,26 @@ import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BdefLike = any;
 
+type BdefSourceObject = { getSource?: () => Promise<string> | string };
+
+async function resolveBdefSource(
+  object: BdefSourceObject,
+  suppliedSource: string | undefined,
+): Promise<string | undefined> {
+  if (suppliedSource !== undefined) return suppliedSource;
+  return typeof object?.getSource === 'function'
+    ? await object.getSource()
+    : '';
+}
+
+function shouldIncludeSource(
+  source: string | undefined,
+  suppliedSource: string | undefined,
+): boolean {
+  if (source === undefined) return false;
+  return suppliedSource !== undefined || source !== '';
+}
+
 export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
   'BDEF',
   {
@@ -63,16 +83,8 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
       // Source: <name>.bdef.abdl. Respect explicitly supplied sources first,
       // then fall back to the mutable object getter.
       const suppliedSource = options?.sources?.main;
-      const source =
-        suppliedSource !== undefined
-          ? suppliedSource
-          : await (typeof object?.getSource === 'function'
-              ? object.getSource()
-              : Promise.resolve(''));
-      if (
-        source !== undefined &&
-        (suppliedSource !== undefined || source !== '')
-      ) {
+      const source = await resolveBdefSource(object, suppliedSource);
+      if (shouldIncludeSource(source, suppliedSource)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.abdl`, source),
         );

@@ -26,6 +26,26 @@ import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SrvdLike = any;
 
+type SrvdSourceObject = { getSource?: () => Promise<string> | string };
+
+async function resolveSrvdSource(
+  object: SrvdSourceObject,
+  suppliedSource: string | undefined,
+): Promise<string | undefined> {
+  if (suppliedSource !== undefined) return suppliedSource;
+  return typeof object?.getSource === 'function'
+    ? await object.getSource()
+    : '';
+}
+
+function shouldIncludeSource(
+  source: string | undefined,
+  suppliedSource: string | undefined,
+): boolean {
+  if (source === undefined) return false;
+  return suppliedSource !== undefined || source !== '';
+}
+
 export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
   'SRVD',
   {
@@ -63,16 +83,8 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       // Source: <name>.srvd.asrvd. Respect explicitly supplied sources first,
       // then fall back to the mutable object getter.
       const suppliedSource = options?.sources?.main;
-      const source =
-        suppliedSource !== undefined
-          ? suppliedSource
-          : await (typeof object?.getSource === 'function'
-              ? object.getSource()
-              : Promise.resolve(''));
-      if (
-        source !== undefined &&
-        (suppliedSource !== undefined || source !== '')
-      ) {
+      const source = await resolveSrvdSource(object, suppliedSource);
+      if (shouldIncludeSource(source, suppliedSource)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.asrvd`, source),
         );

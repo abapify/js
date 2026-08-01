@@ -44,6 +44,10 @@ const DEFAULT_METADATA_CONCURRENCY = 4;
 const DEFAULT_SOURCE_CONCURRENCY = 4;
 const DEFAULT_MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 
+type BuildManifestOptions = Parameters<
+  FlowCheckoutDependencies['buildManifest']
+>[1];
+
 class Limiter {
   private active = 0;
   private readonly waiting: Array<() => void> = [];
@@ -412,18 +416,16 @@ function emptyGroupResult(): GroupResult {
 }
 
 function buildTombstoneResult(
+  ctx: ProcessGroupContext,
   identity: FlowObjectIdentity,
-  previous: ObjectDescriptor | undefined,
-  configDigest: string,
-  formatDigest: string,
   descriptorPath: string,
-  ownedPaths: string[],
 ): GroupResult {
+  const { previous, ownedPaths } = ctx.pending;
   const tombstone = createTombstoneDescriptor(
     identity,
     previous,
-    configDigest,
-    formatDigest,
+    ctx.configDigest,
+    ctx.formatDigest,
   );
   return {
     desired: [
@@ -492,14 +494,20 @@ function buildGroupSelections(
 }
 
 async function reuseGroupIfExact(
-  root: string,
+  ctx: ProcessGroupContext,
   identity: FlowObjectIdentity,
   descriptorPath: string,
-  previous: ObjectDescriptor,
-  ownedPaths: string[],
 ): Promise<GroupResult> {
+  const { previous, ownedPaths } = ctx.pending;
+  if (!previous) {
+    throw new AdtFlowError(
+      'internal_error',
+      'Indexed reuse invoked without a previous descriptor.',
+      { object: identity.canonical },
+    );
+  }
   const desired = await reuseIndexedGroup(
-    root,
+    ctx.root,
     identity,
     descriptorPath,
     previous,
@@ -518,15 +526,11 @@ interface LoadedSources {
 }
 
 async function loadObjectSources(
-  root: string,
-  identity: FlowObjectIdentity,
+  ctx: ProcessGroupContext,
   presentSelections: GroupSelections['presentSelections'],
-  previous: ObjectDescriptor | undefined,
-  limiters: ProcessGroupContext['limiters'],
-  maxSourceBytes: number,
-  dependencies: ProcessGroupContext['dependencies'],
-  calls: ProcessGroupContext['calls'],
 ): Promise<LoadedSources> {
+  const { root, limiters, maxSourceBytes, dependencies, calls, pending } = ctx;
+  const { previous } = pending;
   const sources: Record<string, string> = {};
   let reusedIndexedSource = false;
   await Promise.all(
@@ -551,20 +555,22 @@ async function loadObjectSources(
   return { sources, reusedIndexedSource };
 }
 
+interface MaterializedInput {
+  model: FlowObjectModel;
+  sources: Record<string, string>;
+  presentSelections: GroupSelections['presentSelections'];
+  reusedIndexedSource: boolean;
+}
+
 async function buildMaterializedResult(
-  root: string,
-  identity: FlowObjectIdentity,
-  presentSelections: GroupSelections['presentSelections'],
-  model: FlowObjectModel,
-  materialize: ProcessGroupContext['materialize'],
-  config: FlowConfig,
-  configDigest: string,
-  formatDigest: string,
-  descriptorPath: string,
-  reusedIndexedSource: boolean,
-  ownedPaths: string[],
-  sources: Record<string, string>,
+  ctx: ProcessGroupContext,
+  input: MaterializedInput,
 ): Promise<GroupResult> {
+  const { model, sources, presentSelections, reusedIndexedSource } = input;
+  const { group, config, configDigest, formatDigest, pending, materialize } =
+    ctx;
+  const { identity } = group;
+  const descriptorPath = objectDescriptorPath(identity);
   const materialized = await materialize({
     object: model.object,
     objectType: repositoryType(identity.pgmid, identity.type),
@@ -613,58 +619,43 @@ async function buildMaterializedResult(
   return {
     desired,
     descriptorPaths: [descriptorPath],
-    ownedPaths,
+    ownedPaths: pending.ownedPaths,
     reusedIndexedComponent: reusedIndexedSource,
   };
 }
 
+// processGroup is a state-machine dispatcher for the checkout phases.
+// The branch count reflects the discrete domain steps and is already split
+// into single-responsibility helpers.
+// @codescene(disable:"Complex Method")
 async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
-  const {
-    root,
-    group,
-    mode,
-    config,
-    configDigest,
-    formatDigest,
-    dependencies,
-    limiters,
-    maxSourceBytes,
-    materialize,
-    pending,
-    hasApplicationComponentFilter,
-    calls,
-  } = ctx;
+  const { group, mode, config, dependencies, limiters, pending, calls } = ctx;
   const { identity } = group;
   const descriptorPath = objectDescriptorPath(identity);
-  const { previous, ownedPaths } = pending;
+  const { previous } = pending;
 
   const { presentSelections, exactIndexedSelection, hasDeletions } =
-    buildGroupSelections(group, mode, previous, configDigest, formatDigest);
+    buildGroupSelections(
+      group,
+      mode,
+      previous,
+      ctx.configDigest,
+      ctx.formatDigest,
+    );
 
   if (presentSelections.length === 0) {
     if (mode === 'head' && hasDeletions) {
-      return buildTombstoneResult(
-        identity,
-        previous,
-        configDigest,
-        formatDigest,
-        descriptorPath,
-        ownedPaths,
-      );
+      return buildTombstoneResult(ctx, identity, descriptorPath);
     }
     return emptyGroupResult();
   }
 
+  const canReuseIndexed = exactIndexedSelection && previous !== undefined;
+
   // When no application-component filter is configured we can reuse the
   // indexed state without loading metadata.
-  if (!hasApplicationComponentFilter && exactIndexedSelection && previous) {
-    return await reuseGroupIfExact(
-      root,
-      identity,
-      descriptorPath,
-      previous,
-      ownedPaths,
-    );
+  if (canReuseIndexed && !ctx.hasApplicationComponentFilter) {
+    return await reuseGroupIfExact(ctx, identity, descriptorPath);
   }
 
   calls.metadata += 1;
@@ -673,7 +664,7 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
   );
 
   if (
-    hasApplicationComponentFilter &&
+    ctx.hasApplicationComponentFilter &&
     !applicationComponentMatches(
       model.applicationComponent,
       config.include?.applicationComponents,
@@ -684,41 +675,21 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
 
   // With a filter we loaded metadata first; now reuse the indexed state if it
   // still matches the requested boundary.
-  if (exactIndexedSelection && previous) {
-    return await reuseGroupIfExact(
-      root,
-      identity,
-      descriptorPath,
-      previous,
-      ownedPaths,
-    );
+  if (canReuseIndexed) {
+    return await reuseGroupIfExact(ctx, identity, descriptorPath);
   }
 
   const { sources, reusedIndexedSource } = await loadObjectSources(
-    root,
-    identity,
+    ctx,
     presentSelections,
-    previous,
-    limiters,
-    maxSourceBytes,
-    dependencies,
-    calls,
   );
 
-  return buildMaterializedResult(
-    root,
-    identity,
-    presentSelections,
+  return buildMaterializedResult(ctx, {
     model,
-    materialize,
-    config,
-    configDigest,
-    formatDigest,
-    descriptorPath,
-    reusedIndexedSource,
-    ownedPaths,
     sources,
-  );
+    presentSelections,
+    reusedIndexedSource,
+  });
 }
 
 export interface AdtFlowService {
@@ -812,21 +783,39 @@ interface ManifestContext {
   srcFilesByObject: Map<string, string[]>;
 }
 
+function buildManifestRequestOptions(
+  config: CheckoutContext['config'],
+): BuildManifestOptions {
+  const options: BuildManifestOptions = {
+    concurrency: config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
+  };
+  if (config.include?.objectTypes?.length) {
+    options.objectTypes = config.include.objectTypes.map((type) =>
+      type.toUpperCase(),
+    );
+  }
+  return options;
+}
+
+function prepareGroups(
+  entries: TransportSourceManifestEntry[],
+  mode: 'base' | 'head',
+): ReturnType<typeof groupEntries> {
+  const groups = groupEntries(entries);
+  for (const group of groups) {
+    for (const entry of group.entries) selectedVersion(entry, mode);
+  }
+  return groups;
+}
+
 async function buildManifestAndGroups(
   ctx: CheckoutContext,
 ): Promise<ManifestContext> {
   ctx.calls.manifest += 1;
-  const manifest = await ctx.dependencies.buildManifest(ctx.requested, {
-    ...(ctx.config.include?.objectTypes?.length
-      ? {
-          objectTypes: ctx.config.include.objectTypes.map((type) =>
-            type.toUpperCase(),
-          ),
-        }
-      : {}),
-    concurrency:
-      ctx.config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
-  });
+  const manifest = await ctx.dependencies.buildManifest(
+    ctx.requested,
+    buildManifestRequestOptions(ctx.config),
+  );
   const entries = manifest.entries.filter((entry) =>
     packageMatches(entry.object.packageName, ctx.config.include?.packages),
   );
@@ -845,11 +834,7 @@ async function buildManifestAndGroups(
     allSrcFiles,
     ctx.dependencies.format,
   );
-
-  const groups = groupEntries(entries);
-  for (const group of groups) {
-    for (const entry of group.entries) selectedVersion(entry, ctx.mode);
-  }
+  const groups = prepareGroups(entries, ctx.mode);
 
   return {
     manifest,
@@ -912,13 +897,16 @@ async function buildPendingOwnership(
   return pendingOwnership;
 }
 
-interface ProcessedGroups {
+interface CheckoutAccumulator {
   desired: DesiredFile[];
   descriptorPaths: string[];
   ownedPaths: Set<string>;
   ownedOwners: Map<string, string>;
-  reusedIndexedComponent: boolean;
 }
+
+type ProcessedGroups = CheckoutAccumulator & {
+  reusedIndexedComponent: boolean;
+};
 
 async function processAllGroups(
   ctx: CheckoutContext,
@@ -983,11 +971,9 @@ async function processAllGroups(
 async function addTransportDescriptors(
   ctx: CheckoutContext,
   manifest: TransportSourceManifest,
-  descriptorPaths: string[],
-  desired: DesiredFile[],
-  ownedPaths: Set<string>,
-  ownedOwners: Map<string, string>,
+  accum: CheckoutAccumulator,
 ): Promise<void> {
+  const { descriptorPaths, desired, ownedPaths, ownedOwners } = accum;
   const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort(
     compareStrings,
   );
@@ -1020,10 +1006,10 @@ async function addTransportDescriptors(
 function buildCheckoutResult(
   ctx: CheckoutContext,
   manifest: TransportSourceManifest,
-  descriptorPaths: string[],
   plan: RepositoryPlan,
-  reusedIndexedComponent: boolean,
+  processed: ProcessedGroups,
 ): FlowCheckoutResult {
+  const { descriptorPaths, reusedIndexedComponent } = processed;
   const descriptorSet = new Set(descriptorPaths);
   const sourceMoves = plan.moved.filter(
     ({ from, to }) => !from.startsWith('.adt/') && !to.startsWith('.adt/'),
@@ -1067,14 +1053,7 @@ async function checkoutFlow(
     manifestContext,
     pendingOwnership,
   );
-  await addTransportDescriptors(
-    ctx,
-    manifestContext.manifest,
-    processed.descriptorPaths,
-    processed.desired,
-    processed.ownedPaths,
-    processed.ownedOwners,
-  );
+  await addTransportDescriptors(ctx, manifestContext.manifest, processed);
   processed.desired.sort((left, right) =>
     compareStrings(left.path, right.path),
   );
@@ -1085,13 +1064,7 @@ async function checkoutFlow(
     processed.ownedOwners,
   );
   await applyRepositoryPlan(ctx.root, plan);
-  return buildCheckoutResult(
-    ctx,
-    manifestContext.manifest,
-    processed.descriptorPaths,
-    plan,
-    processed.reusedIndexedComponent,
-  );
+  return buildCheckoutResult(ctx, manifestContext.manifest, plan, processed);
 }
 
 export function createAdtFlowService(

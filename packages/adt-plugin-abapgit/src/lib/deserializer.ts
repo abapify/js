@@ -131,8 +131,7 @@ export async function* deserialize(
       });
     }
 
-    const obj = objectMap.get(key);
-    if (!obj) continue;
+    const obj = objectMap.get(key)!;
     obj.xmlFile = xmlPath;
   }
 

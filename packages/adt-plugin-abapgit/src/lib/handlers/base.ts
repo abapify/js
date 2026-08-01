@@ -459,24 +459,42 @@ export function createHandler<
     },
   };
 
-  function resolveXmlFileName(objectName: string, object: T): string {
+  function resolveXmlFileName(object: T): string {
     if (definition.xmlFileName) {
       return typeof definition.xmlFileName === 'function'
         ? definition.xmlFileName(object, ctx)
         : definition.xmlFileName;
     }
-    return `${objectName}.${fileExtension}.xml`;
+    return `${ctx.getObjectName(object)}.${fileExtension}.xml`;
+  }
+
+  function createExplicitSourceFile(
+    sourceKey: string,
+    content: string | undefined,
+    suffixBySourceKey: Map<string, string | undefined>,
+    objectName: string,
+  ): SerializedFile | undefined {
+    if (content === undefined) return undefined;
+    if (!suffixBySourceKey.has(sourceKey)) {
+      throw new FormatMaterializationError(
+        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+        `The ${type} format handler cannot map source component "${sourceKey}".`,
+      );
+    }
+    return ctx.createAbapFile(
+      objectName,
+      content,
+      suffixBySourceKey.get(sourceKey),
+    );
   }
 
   function buildExplicitSourceFiles(
-    objectName: string,
+    object: T,
     sources: Record<string, string | undefined>,
   ): SerializedFile[] {
-    if (
-      Object.keys(sources).length > 0 &&
-      !definition.getSource &&
-      !definition.getSources
-    ) {
+    const sourceKeys = Object.keys(sources);
+    if (sourceKeys.length === 0) return [];
+    if (!definition.getSource && !definition.getSources) {
       throw new FormatMaterializationError(
         'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
         `The ${type} format handler does not serialize source components.`,
@@ -488,33 +506,24 @@ export function createHandler<
         ([suffix, sourceKey]) => [sourceKey, suffix] as const,
       ),
     ]);
+    const objectName = ctx.getObjectName(object);
     const files: SerializedFile[] = [];
-    for (const [sourceKey, content] of Object.entries(sources).sort(
-      ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
+    for (const sourceKey of sourceKeys.sort((left, right) =>
+      left.localeCompare(right, 'en-US'),
     )) {
-      if (!suffixBySourceKey.has(sourceKey)) {
-        throw new FormatMaterializationError(
-          'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-          `The ${type} format handler cannot map source component "${sourceKey}".`,
-        );
-      }
-      if (content !== undefined) {
-        files.push(
-          ctx.createAbapFile(
-            objectName,
-            content,
-            suffixBySourceKey.get(sourceKey),
-          ),
-        );
-      }
+      const file = createExplicitSourceFile(
+        sourceKey,
+        sources[sourceKey],
+        suffixBySourceKey,
+        objectName,
+      );
+      if (file) files.push(file);
     }
     return files;
   }
 
-  async function buildMutableSourceFiles(
-    object: T,
-    objectName: string,
-  ): Promise<SerializedFile[]> {
+  async function buildMutableSourceFiles(object: T): Promise<SerializedFile[]> {
+    const objectName = ctx.getObjectName(object);
     if (definition.getSources) {
       const rawSources = definition.getSources(object);
       const sources = await Promise.all(
@@ -541,12 +550,11 @@ export function createHandler<
     object: T,
     options?: FormatSerializeOptions,
   ): Promise<SerializedFile[]> => {
-    const objectName = ctx.getObjectName(object);
     const sourceFiles =
       options?.sources !== undefined
-        ? buildExplicitSourceFiles(objectName, options.sources)
-        : await buildMutableSourceFiles(object, objectName);
-    const xmlFileName = resolveXmlFileName(objectName, object);
+        ? buildExplicitSourceFiles(object, options.sources)
+        : await buildMutableSourceFiles(object);
+    const xmlFileName = resolveXmlFileName(object);
     const xmlContent = ctx.toAbapGitXml(object);
     return [...sourceFiles, ctx.createFile(xmlFileName, xmlContent)];
   };

@@ -306,6 +306,20 @@
       ]
     },
     {
+      "matching_content_path": "packages/adt-flow/src/repository.ts",
+      "matching_content_path_doc": "Repository path helpers operate on filesystem root and relative path strings by design; a FlowPath value-object refactor is planned to reduce surface area.",
+      "rules": [
+        {
+          "name": "Primitive Obsession",
+          "weight": 0.0
+        },
+        {
+          "name": "String Heavy Function Arguments",
+          "weight": 0.0
+        }
+      ]
+    },
+    {
       "matching_content_path": "packages/adt-server/src/mcp-runtime.ts",
       "matching_content_path_doc": "P256 public key loader has platform-specific branches; thresholds raised pending platform abstraction.",
       "thresholds": [
