@@ -1,6 +1,9 @@
+import type { Stats } from 'node:fs';
 import {
+  lstat,
   mkdir,
   readFile,
+  readlink,
   realpath,
   readdir,
   rename,
@@ -8,15 +11,7 @@ import {
   stat,
   writeFile,
 } from 'node:fs/promises';
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  posix,
-  resolve,
-  sep,
-} from 'node:path';
+import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 import type { MaterializedFormatFile } from '@abapify/adt-plugin';
 import { compareStrings, sha256 } from './deterministic';
 import { AdtFlowError } from './types';
@@ -82,55 +77,86 @@ export function absolutePath(root: string, relativePath: string): string {
   return absolute;
 }
 
-async function realPathIfExists(absolute: string): Promise<string | undefined> {
+function pathEscapesRoot(rel: string): boolean {
+  return rel === '' || rel.startsWith('..') || isAbsolute(rel);
+}
+
+function isInsideRoot(realRoot: string, target: string): boolean {
+  const rel = relative(realRoot, target);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+async function lstatSafe(path: string): Promise<Stats | undefined> {
   try {
-    return await realpath(absolute);
+    return await lstat(path);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw error;
   }
 }
 
-async function realPathOfMissingParent(
-  absolute: string,
-): Promise<string | undefined> {
-  const dir = dirname(absolute);
-  try {
-    const realDir = await realpath(dir);
-    return join(realDir, basename(absolute));
-  } catch (dirError) {
-    if ((dirError as NodeJS.ErrnoException).code === 'ENOENT') {
-      // The path does not exist and its parent is missing, so there is
-      // nothing to escape to yet.
-      return undefined;
-    }
-    throw dirError;
+async function resolveSymlink(
+  current: string,
+  component: string,
+  realRoot: string,
+): Promise<string> {
+  const next = resolve(current, component);
+  const stats = await lstatSafe(next);
+  if (!stats || !stats.isSymbolicLink()) return next;
+
+  const target = await readlink(next);
+  const resolvedTarget = resolve(dirname(next), target);
+  if (!isInsideRoot(realRoot, resolvedTarget)) {
+    throw new AdtFlowError(
+      'path_invalid',
+      'Flow path resolves outside the repository root.',
+      { path: next },
+    );
   }
+  return resolvedTarget;
 }
 
-async function resolveRealPath(absolute: string): Promise<string | undefined> {
-  return (
-    (await realPathIfExists(absolute)) ??
-    (await realPathOfMissingParent(absolute))
+function ensureDirectory(stats: Stats, isLast: boolean, path: string): void {
+  if (isLast) return;
+  if (stats.isDirectory()) return;
+  throw new AdtFlowError(
+    'path_invalid',
+    'Flow path parent is not a directory.',
+    { path },
   );
-}
-
-function isInsideRoot(realPath: string, realRoot: string): boolean {
-  return realPath === realRoot || realPath.startsWith(`${realRoot}${sep}`);
 }
 
 async function validatePhysicalRoot(
   root: string,
   absolute: string,
 ): Promise<void> {
-  const realRoot = await realpath(resolve(root));
-  const realPath = await resolveRealPath(absolute);
-  if (realPath !== undefined && !isInsideRoot(realPath, realRoot)) {
+  const rootResolved = resolve(root);
+  const rel = relative(rootResolved, absolute);
+  if (pathEscapesRoot(rel)) {
     throw new AdtFlowError(
       'path_invalid',
-      'Flow path resolves outside the repository root.',
+      'Flow path escapes the repository root.',
       { path: absolute },
     );
+  }
+
+  const realRoot = await realpath(rootResolved);
+  const components = rel.split(sep).filter(Boolean);
+  let current = realRoot;
+  const lastIndex = components.length - 1;
+
+  for (let i = 0; i <= lastIndex; i++) {
+    const component = components[i];
+    current = resolve(current, component);
+    const stats = await lstatSafe(current);
+    if (!stats) return;
+
+    if (stats.isSymbolicLink()) {
+      current = await resolveSymlink(dirname(current), component, realRoot);
+      continue;
+    }
+
+    ensureDirectory(stats, i === lastIndex, current);
   }
 }
 
@@ -146,23 +172,38 @@ async function withEnoent<T>(
   }
 }
 
+async function withValidatedPath<T>(
+  root: string,
+  path: string,
+  operation: (absolute: string) => Promise<T>,
+  enoentValue: T,
+): Promise<T> {
+  return withEnoent(async () => {
+    const absolute = absolutePath(root, path);
+    await validatePhysicalRoot(root, absolute);
+    return operation(absolute);
+  }, enoentValue);
+}
+
 export async function readText(
   root: string,
   path: string,
 ): Promise<string | undefined> {
-  return withEnoent(async () => {
-    const absolute = absolutePath(root, path);
-    await validatePhysicalRoot(root, absolute);
-    return readFile(absolute, 'utf8');
-  }, undefined);
+  return withValidatedPath(
+    root,
+    path,
+    (absolute) => readFile(absolute, 'utf8'),
+    undefined,
+  );
 }
 
 async function fileExists(root: string, path: string): Promise<boolean> {
-  return withEnoent(async () => {
-    const absolute = absolutePath(root, path);
-    await validatePhysicalRoot(root, absolute);
-    return (await stat(absolute)).isFile();
-  }, false);
+  return withValidatedPath(
+    root,
+    path,
+    async (absolute) => (await stat(absolute)).isFile(),
+    false,
+  );
 }
 
 export async function walkFiles(

@@ -57,13 +57,40 @@ function buildMainXmlFile(
   return ctx.createFile(`${objectName}.fugr.xml`, xmlContent);
 }
 
+type FmList = {
+  fmItems: FmDescriptor[];
+  functions: Record<string, unknown>[];
+};
+
+function deriveFmList(suppliedSources: SourceMap, objectName: string): FmList {
+  if (!suppliedSources) return { fmItems: [], functions: [] };
+  const topKey = `l${objectName}top`;
+  const fmItems = Object.keys(suppliedSources)
+    .filter(
+      (key) =>
+        key !== 'main' &&
+        key !== topKey &&
+        key !== `sapl${objectName}` &&
+        !key.toLowerCase().startsWith(`l${objectName}`),
+    )
+    .map((key) => ({ key, name: key.toLowerCase() }));
+  const functions = fmItems.map((fm) => ({
+    FUNCNAME: fm.key.toUpperCase(),
+  }));
+  return { fmItems, functions };
+}
+
 async function buildTopSourceFile(
   obj: FugrObject,
   objectName: string,
-  suppliedTopSource: string | undefined,
-  hasExplicitSources: boolean,
+  suppliedSources: SourceMap,
   ctx: FugrContext,
 ): Promise<SerializedFile | undefined> {
+  const hasExplicitSources = suppliedSources !== undefined;
+  const topKey = `l${objectName}top`;
+  const suppliedTopSource = suppliedSources
+    ? (suppliedSources.main ?? suppliedSources[topKey])
+    : undefined;
   try {
     const topSource =
       suppliedTopSource !== undefined || !hasExplicitSources
@@ -113,8 +140,9 @@ async function buildFunctionModuleFiles(
   const files: SerializedFile[] = [];
   const hasExplicitSources = suppliedSources !== undefined;
   for (const fm of fmItems) {
+    const sourceKey = fm.key ?? fm.name;
     const funcName = fm.name.toLowerCase();
-    const suppliedFmSource = suppliedSources?.[funcName];
+    const suppliedFmSource = suppliedSources?.[sourceKey];
     if (hasExplicitSources && suppliedFmSource === undefined) {
       continue;
     }
@@ -190,26 +218,11 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
     const nameUpper = obj.name.toUpperCase();
     const suppliedSources: SourceMap = options?.sources;
     const hasExplicitSources = suppliedSources !== undefined;
-    const topKey = `l${objectName}top`;
-    const suppliedTopSource = suppliedSources
-      ? (suppliedSources.main ?? suppliedSources[topKey])
-      : undefined;
 
     let fmItems: FmDescriptor[];
     let functions: Record<string, unknown>[];
     if (hasExplicitSources) {
-      // When the caller supplies sources we can avoid live ADT reads and
-      // derive the function list from the source map keys.
-      fmItems = Object.keys(suppliedSources!)
-        .filter(
-          (key) =>
-            key !== 'main' &&
-            key !== topKey &&
-            key !== `sapl${objectName}` &&
-            !key.startsWith(`l${objectName}`),
-        )
-        .map((name) => ({ name }));
-      functions = fmItems.map((fm) => ({ FUNCNAME: fm.name.toUpperCase() }));
+      ({ fmItems, functions } = deriveFmList(suppliedSources, objectName));
     } else {
       fmItems = await discoverFunctionModules(obj);
       functions = await serializeFunctions(obj, fmItems);
@@ -221,14 +234,15 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
     const topFile = await buildTopSourceFile(
       obj,
       objectName,
-      suppliedTopSource,
-      hasExplicitSources,
+      suppliedSources,
       ctx,
     );
     return [
       buildMainXmlFile(obj, objectName, nameUpper, functions, ctx),
       ...(topFile ? [topFile] : []),
-      ...buildProgramFiles(objectName, nameUpper, fixpt, ctx),
+      ...(hasExplicitSources
+        ? []
+        : buildProgramFiles(objectName, nameUpper, fixpt, ctx)),
       ...(await buildFunctionModuleFiles(obj, fmItems, suppliedSources, ctx)),
     ];
   },
@@ -293,6 +307,8 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
 interface FmDescriptor {
   name: string;
   type?: string;
+  /** Original source-map key when the list was derived from explicit sources. */
+  key?: string;
 }
 
 /**
