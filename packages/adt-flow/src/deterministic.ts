@@ -4,17 +4,32 @@ export function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+const NO_TO_JSON = Symbol('no toJSON');
+
+type NoToJson = typeof NO_TO_JSON;
+
+function isObject(value: unknown): value is object {
+  if (value === null) return false;
+  if (typeof value !== 'object') return false;
+  return true;
+}
+
+function maybeToJson(value: unknown, key: string): unknown | NoToJson {
+  if (!isObject(value)) return NO_TO_JSON;
+  const toJson = (value as { toJSON?: (key: string) => unknown }).toJSON;
+  if (typeof toJson !== 'function') return NO_TO_JSON;
+  return canonicalize(toJson.call(value, key), '', false);
+}
+
 function canonicalize(value: unknown, key = '', invokeToJson = true): unknown {
-  if (invokeToJson && value !== null && typeof value === 'object') {
-    const toJson = (value as { toJSON?: (key: string) => unknown }).toJSON;
-    if (typeof toJson === 'function') {
-      return canonicalize(toJson.call(value, key), '', false);
-    }
+  if (invokeToJson) {
+    const fromToJson = maybeToJson(value, key);
+    if (fromToJson !== NO_TO_JSON) return fromToJson;
   }
   if (Array.isArray(value)) {
     return value.map((item, index) => canonicalize(item, String(index)));
   }
-  if (value !== null && typeof value === 'object') {
+  if (isObject(value)) {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .filter(([, item]) => item !== undefined)

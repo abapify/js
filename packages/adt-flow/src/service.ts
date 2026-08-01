@@ -138,6 +138,16 @@ function applicationComponentMatches(
   );
 }
 
+function isApplicationComponentExcluded(
+  ctx: ProcessGroupContext,
+  model: FlowObjectModel,
+): boolean {
+  return !applicationComponentMatches(
+    model.applicationComponent,
+    ctx.config.include?.applicationComponents,
+  );
+}
+
 function selectedVersion(
   entry: TransportSourceManifestEntry,
   mode: 'base' | 'head',
@@ -660,62 +670,63 @@ async function buildMaterializedResult(
   };
 }
 
-// processGroup is a state-machine dispatcher for the checkout phases.
-// The branch count reflects the discrete domain steps and is already split
-// into single-responsibility helpers.
-// @codescene(disable:"Complex Method")
+async function handleEmptyGroup(
+  ctx: ProcessGroupContext,
+  descriptorPath: string,
+  hasDeletions: boolean,
+): Promise<GroupResult> {
+  const { group, mode, dependencies, limiters, pending, calls } = ctx;
+  const { identity } = group;
+
+  if (ctx.hasApplicationComponentFilter) {
+    const model = await limiters.metadata.run(() =>
+      dependencies.loadObject(identity),
+    );
+    calls.metadata += model.metadataCalls ?? 1;
+    if (isApplicationComponentExcluded(ctx, model)) {
+      return {
+        desired: [],
+        descriptorPaths: [],
+        ownedPaths: pending.ownedPaths,
+        reusedIndexedComponent: false,
+      };
+    }
+  }
+
+  if (mode === 'head' && hasDeletions) {
+    return buildTombstoneResult(ctx, identity, descriptorPath);
+  }
+
+  if (mode === 'base' && pending.previous) {
+    return buildTombstoneResult(ctx, identity, descriptorPath);
+  }
+
+  return emptyGroupResult();
+}
+
 async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
-  const { group, mode, config, dependencies, limiters, pending, calls } = ctx;
+  const { group, mode, dependencies, limiters, pending, calls } = ctx;
   const { identity } = group;
   const descriptorPath = objectDescriptorPath(identity);
-  const { previous } = pending;
 
   const { presentSelections, exactIndexedSelection, hasDeletions } =
     buildGroupSelections(
       group,
       mode,
-      previous,
+      pending.previous,
       ctx.configDigest,
       ctx.formatDigest,
     );
 
   if (presentSelections.length === 0) {
-    if (ctx.hasApplicationComponentFilter) {
-      const model = await limiters.metadata.run(() =>
-        dependencies.loadObject(identity),
-      );
-      calls.metadata += model.metadataCalls ?? 1;
-      if (
-        !applicationComponentMatches(
-          model.applicationComponent,
-          config.include?.applicationComponents,
-        )
-      ) {
-        return {
-          desired: [],
-          descriptorPaths: [],
-          ownedPaths: pending.ownedPaths,
-          reusedIndexedComponent: false,
-        };
-      }
-    }
-    if (mode === 'head' && hasDeletions) {
-      return buildTombstoneResult(ctx, identity, descriptorPath);
-    }
-    if (mode === 'base' && ctx.pending.previous) {
-      // The object is added in this transport; base must remove previously
-      // indexed files.
-      return buildTombstoneResult(ctx, identity, descriptorPath);
-    }
-    return emptyGroupResult();
+    return handleEmptyGroup(ctx, descriptorPath, hasDeletions);
   }
 
-  const canReuseIndexed = exactIndexedSelection && previous !== undefined;
+  const canReuseIndexed =
+    exactIndexedSelection && pending.previous !== undefined;
 
-  // When no application-component filter is configured we can reuse the
-  // indexed state without loading metadata.
   if (canReuseIndexed && !ctx.hasApplicationComponentFilter) {
-    return await reuseGroupIfExact(ctx, identity, descriptorPath);
+    return reuseGroupIfExact(ctx, identity, descriptorPath);
   }
 
   const model = await limiters.metadata.run(() =>
@@ -723,20 +734,12 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
   );
   calls.metadata += model.metadataCalls ?? 1;
 
-  if (
-    ctx.hasApplicationComponentFilter &&
-    !applicationComponentMatches(
-      model.applicationComponent,
-      config.include?.applicationComponents,
-    )
-  ) {
+  if (isApplicationComponentExcluded(ctx, model)) {
     return emptyGroupResult();
   }
 
-  // With a filter we loaded metadata first; now reuse the indexed state if it
-  // still matches the requested boundary.
   if (canReuseIndexed) {
-    return await reuseGroupIfExact(ctx, identity, descriptorPath);
+    return reuseGroupIfExact(ctx, identity, descriptorPath);
   }
 
   const { sources, reusedIndexedSource } = await loadObjectSources(
