@@ -423,6 +423,20 @@ List ABAP objects contained in a package. Uses `quickSearch` with a `packageName
 
 ### Change & Transport System (CTS)
 
+#### `flow_checkout_tr`
+
+Reconcile an allowed local workspace to an exact transport source boundary.
+The tool delegates to `@abapify/adt-flow`; it does not run Git commands.
+
+| Parameter       | Type       | Default | Description                                     |
+| --------------- | ---------- | ------- | ----------------------------------------------- |
+| `transports`    | `string[]` | ✅      | Non-empty transport scope                       |
+| `base`          | `boolean`  | `false` | Select the version immediately before the scope |
+| `workspaceRoot` | `string`   | ✅      | Absolute directory within a server-owned root   |
+
+The JSON result contains changed, moved, removed, unchanged, descriptor, and
+SAP-call counts. It never contains source bodies or credentials.
+
 #### `cts_list_transports`
 
 List transport requests from the CTS.
@@ -656,6 +670,7 @@ bunx nx test adt-mcp       # tests (runs integration suite)
 | `adt cts tr list`            | `cts_list_transports`           | ✅         |
 | `adt cts tr get`             | `cts_get_transport`             | ✅         |
 | `adt cts tr source-manifest` | `cts_transport_source_manifest` | ✅         |
+| `adt flow checkout tr`       | `flow_checkout_tr`              | ✅         |
 | `adt cts tr delete`          | `cts_delete_transport`          | ✅         |
 | `adt cts tr create`          | `cts_create_transport`          | 🚧 Not yet |
 | `adt cts tr release`         | `cts_release_transport`         | 🚧 Not yet |

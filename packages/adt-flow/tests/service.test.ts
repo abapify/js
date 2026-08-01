@@ -72,6 +72,7 @@ const format: FormatPlugin = {
       : undefined;
   },
   async materialize(input) {
+    expect(this).toBe(format);
     const object = input.object as { name: string };
     const directory = input.packagePath
       .slice(1)
@@ -235,8 +236,9 @@ describe('transport checkout', () => {
     });
 
     expect(result.fastPath).toBe('indexed-components');
-    expect(result.sapCalls.source).toBe(0);
+    expect(result.sapCalls).toEqual({ manifest: 1, metadata: 0, source: 0 });
     expect(ports.readSource).not.toHaveBeenCalled();
+    expect(ports.loadObject).toHaveBeenCalledTimes(1);
     expect(
       await readFile(
         join(workspace, 'src/feature/zcl_sample.clas.abap'),
@@ -394,6 +396,8 @@ describe('transport checkout', () => {
         to: 'src/new/zcl_sample.clas.xml',
       },
     ]);
+    expect(result.changed).toEqual([]);
+    expect(result.removed).toEqual([]);
   });
 
   it('reconstructs the same source tree after the optional index is removed', async () => {

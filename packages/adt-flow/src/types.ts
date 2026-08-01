@@ -16,6 +16,7 @@ export type FlowErrorCode =
   | 'path_invalid'
   | 'path_collision'
   | 'working_tree_diverged'
+  | 'sap_operation_failed'
   | 'apply_failed';
 
 export class AdtFlowError extends Error {

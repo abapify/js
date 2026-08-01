@@ -166,6 +166,7 @@ export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
       'changeset_commit',
       'changeset_rollback',
       'checkin',
+      'flow_checkout_tr',
       'clone_object',
       'create_badi',
       'create_bdef',

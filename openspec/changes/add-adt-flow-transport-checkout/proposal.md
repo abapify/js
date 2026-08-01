@@ -71,9 +71,9 @@ the source immediately before it and the source introduced by it.
   source per component, including deletion diagnostics.
 - Targeted source-history tests pass (34 tests across ADK and CLI services),
   and direct TypeScript checks pass for ADK, plugin, and abapGit packages.
-- Nx commands are presently unavailable in this environment because Nx plugin
-  workers exit before connecting; direct package validation is the temporary
-  fallback and the Nx gate remains mandatory before delivery.
+- Affected Nx test, build, and lint targets run successfully. The full MCP test
+  suite has three failures that reproduce unchanged on the committed baseline;
+  the focused flow MCP tests pass.
 - The exact-source-history prerequisite is present on public upstream.
 - Live release-compatibility claims still require bounded read-only evidence
   from explicitly configured SAP destinations; fixtures alone are insufficient.

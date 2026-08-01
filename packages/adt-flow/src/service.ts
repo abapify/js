@@ -280,7 +280,9 @@ export function createAdtFlowService(
         );
       }
       const config = parsed.data;
-      const materialize = dependencies.format.materialize;
+      const materialize = dependencies.format.materialize?.bind(
+        dependencies.format,
+      );
       if (config.format.id !== dependencies.format.id || !materialize) {
         throw new AdtFlowError(
           'format_unsupported',
@@ -406,6 +408,46 @@ export function createAdtFlowService(
               version: SourceVersionRef;
             } => selection.version !== undefined,
           );
+
+          const exactIndexedSelection =
+            previous?.state === 'present' &&
+            previous.configDigest === configDigest &&
+            previous.formatDigest === formatDigest &&
+            previous.selections.length === presentSelections.length &&
+            presentSelections.every(({ entry, version }) =>
+              descriptorSelectionMatches(previous, entry.component.id, version),
+            );
+
+          if (exactIndexedSelection && previous) {
+            for (const file of previous.ownedFiles) {
+              const content = await readText(root, file.path);
+              if (content === undefined) {
+                throw new AdtFlowError(
+                  'working_tree_diverged',
+                  'An indexed file is missing from the working tree.',
+                  { object: identity.canonical, path: file.path },
+                );
+              }
+              desired.push({
+                path: file.path,
+                content,
+                role: file.role,
+                ...(file.sourceComponent
+                  ? { sourceComponent: file.sourceComponent }
+                  : {}),
+                owner: identity.canonical,
+              });
+            }
+            desired.push({
+              path: descriptorPath,
+              content: stableJson(previous),
+              role: 'metadata',
+              owner: identity.canonical,
+            });
+            descriptorPaths.push(descriptorPath);
+            reusedIndexedComponent = true;
+            return;
+          }
 
           if (presentSelections.length === 0) {
             if (
@@ -554,19 +596,21 @@ export function createAdtFlowService(
       const plan = await planRepositoryChanges(root, desired, ownedPaths);
       await applyRepositoryPlan(root, plan);
       const descriptorSet = new Set(descriptorPaths);
+      const sourceMoves = plan.moved.filter(
+        ({ from, to }) => !from.startsWith('.adt/') && !to.startsWith('.adt/'),
+      );
+      const movedFrom = new Set(sourceMoves.map(({ from }) => from));
+      const movedTo = new Set(sourceMoves.map(({ to }) => to));
       return {
         mode,
         requestedTransports: manifest.requestedTransports,
         scopeTransports: manifest.scopeTransports,
         changed: [...plan.writes.keys()]
-          .filter((path) => !descriptorSet.has(path))
+          .filter((path) => !descriptorSet.has(path) && !movedTo.has(path))
           .sort(),
-        moved: plan.moved.filter(
-          ({ from, to }) =>
-            !from.startsWith('.adt/') && !to.startsWith('.adt/'),
-        ),
+        moved: sourceMoves,
         removed: plan.removes
-          .filter((path) => !path.startsWith('.adt/'))
+          .filter((path) => !path.startsWith('.adt/') && !movedFrom.has(path))
           .sort(),
         unchanged: plan.unchanged.filter((path) => !descriptorSet.has(path)),
         descriptors: [...descriptorSet].sort(),

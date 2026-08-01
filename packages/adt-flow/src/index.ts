@@ -1,4 +1,8 @@
 export { createAdtFlowService, type AdtFlowService } from './service';
+export {
+  createAdtFlowDependencies,
+  type AdtFlowAdapterOperations,
+} from './adt-client-adapter';
 export { digest, sha256, stableJson } from './deterministic';
 export {
   encodeObjectName,

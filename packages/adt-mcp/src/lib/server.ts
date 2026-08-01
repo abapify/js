@@ -56,6 +56,10 @@ export interface McpServerOptions {
   executeWithDeadline?: ToolContext['executeWithDeadline'];
   /** Private ADT broker resolver for signed frozen-source capabilities. */
   resolveFrozenSource: ToolContext['resolveFrozenSource'];
+  /** Filesystem roots available to workspace-mutating flow tools. */
+  workspaceRoots?: readonly string[];
+  /** Optional deployment-owned flow configuration. */
+  flowConfig?: ToolContext['flowConfig'];
 }
 
 /**
@@ -87,6 +91,8 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
     reportExecutionOutcome,
     executeWithDeadline,
     resolveFrozenSource,
+    workspaceRoots,
+    flowConfig,
   } = options ?? {};
 
   const sourceCapabilities = createSourceCapabilityRegistry();
@@ -94,6 +100,8 @@ export function createMcpServer(options?: McpServerOptions): McpServer {
   const ctx: ToolContext = {
     getClient: clientFactory ?? defaultClientFactory,
     sourceCapabilities,
+    ...(workspaceRoots ? { workspaceRoots } : {}),
+    ...(flowConfig ? { flowConfig } : {}),
     ...(registry
       ? {
           registry,

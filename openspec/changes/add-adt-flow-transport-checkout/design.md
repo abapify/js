@@ -28,7 +28,7 @@ out released transports one at a time and commits each result externally.
 **Non-Goals:**
 
 - Git commands, commit creation, branch management, rebasing, routing, merge
-  requests, Jira/business-task mapping, or workflow execution.
+  requests, external work-item mapping, or workflow execution.
 - A persisted plan abstraction or array of heterogeneous flow steps.
 - Replication or rewriting of historical commits.
 - Historical object metadata reconstruction. MVP exactness applies to source
@@ -156,8 +156,9 @@ Otherwise flow rebuilds the metadata-only source manifest. For each component:
 - without an object descriptor, flow may adopt format-recognizable files for
   the same canonical identity, but any unrelated destination collision fails.
 
-Released transport immutability is required for the zero-call fast path.
-Non-released transports are rejected in the MVP.
+The event source supplies released transports. Flow does not add a second
+release-state check: exact selection remains authoritative, and the transport
+descriptor makes the zero-call fast path explicit and deterministic.
 
 ### 7. Reconciliation is Git-independent and fail-before-write
 
@@ -232,8 +233,6 @@ remain ordinary files, and `.adt` can be removed without migration.
 
 ## Open Questions
 
-- Which released-status values are consistent across the supported SAP
-  landscapes and safe for the zero-call immutability assumption?
 - Can application component be resolved with bounded package metadata calls on
   every supported release, or must that selector remain conditional initially?
 - What maximum source-body size should flow accept per component before failing
