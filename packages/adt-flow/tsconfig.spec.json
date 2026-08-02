@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../dist/out-tsc",
+    "tsBuildInfoFile": "../../dist/out-tsc/tsconfig.spec.tsbuildinfo",
+    "types": [
+      "node",
+      "vitest",
+      "vitest/importMeta",
+      "vite/client",
+      "vitest/globals"
+    ],
+    "noPropertyAccessFromIndexSignature": true,
+    "paths": {}
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

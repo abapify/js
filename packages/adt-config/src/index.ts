@@ -27,6 +27,10 @@ export type {
   ContractsConfig,
   ContentTypeMapping,
   EnabledEndpoints,
+  FlowConfig,
+  FlowConcurrencyConfig,
+  FlowFormatConfig,
+  FlowSelectorConfig,
 } from './types';
 export type { LoadedConfig, LoadConfigOptions } from './config-loader';
 

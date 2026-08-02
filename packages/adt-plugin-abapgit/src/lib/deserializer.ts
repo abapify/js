@@ -35,24 +35,22 @@ export function parseAbapGitFilename(filename: string): {
   suffix?: string;
   extension: string;
 } | null {
-  // Match patterns like: name.type.xml or name.type.suffix.abap
-  const match = filename.match(/^([^.]+)\.([^.]+)(?:\.([^.]+))?\.(\w+)$/);
+  // Match patterns like: name.type.xml, name.type.suffix.abap, or
+  // name.type.<suffix>.abdl/.asrvd source files.
+  const match = filename.match(
+    /^([^.]+)\.([^.]+)(?:\.([^.]+))?\.(xml|abap|abdl|asrvd)$/,
+  );
   if (!match) return null;
 
   const [, name, type, suffixOrExt, extension] = match;
 
   // If 4 parts, middle is suffix; if 3 parts, no suffix
-  if (extension === 'xml' || extension === 'abap') {
-    return {
-      name: name.toUpperCase(),
-      type: type.toUpperCase(),
-      suffix:
-        suffixOrExt && suffixOrExt !== extension ? suffixOrExt : undefined,
-      extension,
-    };
-  }
-
-  return null;
+  return {
+    name: name.toUpperCase(),
+    type: type.toUpperCase(),
+    suffix: suffixOrExt && suffixOrExt !== extension ? suffixOrExt : undefined,
+    extension,
+  };
 }
 
 /**
@@ -114,7 +112,7 @@ export async function* deserialize(
     // Skip package.devc.xml - packages are not deployed, they must exist in target
     if (xmlPath.endsWith('package.devc.xml')) continue;
 
-    const filename = xmlPath.split('/').pop()!;
+    const filename = xmlPath.slice(xmlPath.lastIndexOf('/') + 1);
     const parsed = parseAbapGitFilename(filename);
 
     if (!parsed) continue;
@@ -139,11 +137,16 @@ export async function* deserialize(
     obj.xmlFile = xmlPath;
   }
 
-  // Find source files for each object
-  const abapFiles = await fileTree.glob('**/*.abap');
+  // Find source files for each object (abap + new BDEF/SRVD extensions)
+  const [abapFiles, abdlFiles, asrvdFiles] = await Promise.all([
+    fileTree.glob('**/*.abap'),
+    fileTree.glob('**/*.abdl'),
+    fileTree.glob('**/*.asrvd'),
+  ]);
+  const sourceFiles = [...abapFiles, ...abdlFiles, ...asrvdFiles];
 
-  for (const abapPath of abapFiles) {
-    const filename = abapPath.split('/').pop()!;
+  for (const sourcePath of sourceFiles) {
+    const filename = sourcePath.slice(sourcePath.lastIndexOf('/') + 1);
     const parsed = parseAbapGitFilename(filename);
 
     if (!parsed) continue;
@@ -152,7 +155,7 @@ export async function* deserialize(
     const obj = objectMap.get(key);
 
     if (obj) {
-      obj.sourceFiles.push({ path: abapPath, suffix: parsed.suffix });
+      obj.sourceFiles.push({ path: sourcePath, suffix: parsed.suffix });
     }
   }
 
@@ -271,8 +274,7 @@ export async function* deserialize(
       if (objFiles.type === 'FUGR' && payload._functions) {
         const fmDescriptors = extractFunctionDescriptors(payload._functions);
         const fmSources = (adkObject as any)._pendingFmSources as
-          | Record<string, string>
-          | undefined;
+          Record<string, string> | undefined;
 
         for (const fm of fmDescriptors) {
           try {

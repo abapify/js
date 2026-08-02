@@ -93,6 +93,7 @@ type DestinationToolListEntry = {
   name: string;
   description?: string;
   inputSchema: Record<string, unknown>;
+  annotations?: RegisteredTool['annotations'];
 };
 
 const destinationToolInventories = new WeakMap<
@@ -125,6 +126,7 @@ function toolListEntry(
       strictUnions: true,
       pipeStrategy: 'input',
     }) as Record<string, unknown>,
+    ...(tool.annotations ? { annotations: tool.annotations } : {}),
   };
 }
 
@@ -183,6 +185,7 @@ function normalizeToolArgs(args: unknown[]): {
   name: string;
   description: string | undefined;
   inputSchema: unknown;
+  annotations: RegisteredTool['annotations'] | undefined;
   handler: unknown;
 } {
   if (args.length < 3) {
@@ -192,18 +195,16 @@ function normalizeToolArgs(args: unknown[]): {
   if (typeof name !== 'string') {
     throw new TypeError('MCP tools must declare a string name');
   }
-  let description: string | undefined;
-  let inputSchema: unknown;
-  let handler: unknown;
-  if (typeof args[1] === 'string' && args.length >= 4) {
-    description = args[1];
-    inputSchema = args[2];
-    handler = args[3];
-  } else {
-    inputSchema = args[1];
-    handler = args[2];
-  }
-  return { name, description, inputSchema, handler };
+  const handler = args.at(-1);
+  const hasDescription = typeof args[1] === 'string' && args.length >= 4;
+  const description = hasDescription ? args[1] : undefined;
+  const inputSchema = args[hasDescription ? 2 : 1];
+  const annotationsIndex = hasDescription ? 3 : 2;
+  const annotations =
+    args.length > annotationsIndex + 1
+      ? (args[annotationsIndex] as RegisteredTool['annotations'])
+      : undefined;
+  return { name, description, inputSchema, annotations, handler };
 }
 
 function transformToolInput(
@@ -427,6 +428,7 @@ function registerDestinationTool(context: {
     ReturnType<typeof strictCanonicalDestinationSchema> | undefined;
   wrappedHandler: Handler;
   useRegisterTool: boolean;
+  annotations: RegisteredTool['annotations'] | undefined;
 }): unknown {
   const {
     target,
@@ -436,6 +438,7 @@ function registerDestinationTool(context: {
     strictInputSchema,
     wrappedHandler,
     useRegisterTool,
+    annotations,
   } = context;
   if (useRegisterTool) {
     return target.registerTool(
@@ -443,13 +446,16 @@ function registerDestinationTool(context: {
       {
         ...(description !== undefined ? { description } : {}),
         inputSchema: strictInputSchema!,
+        ...(annotations ? { annotations } : {}),
       },
       wrappedHandler as never,
     );
   }
   const processedArgs: unknown[] = [name];
   if (description !== undefined) processedArgs.push(description);
-  processedArgs.push(transformedInputSchema, wrappedHandler);
+  processedArgs.push(transformedInputSchema);
+  if (annotations) processedArgs.push(annotations);
+  processedArgs.push(wrappedHandler);
   return Reflect.apply(target.tool, target, processedArgs);
 }
 
@@ -493,7 +499,7 @@ export function destinationModeServer(
     get(target, property, receiver) {
       if (property !== 'tool') return Reflect.get(target, property, receiver);
       return (...args: unknown[]) => {
-        const { name, description, inputSchema, handler } =
+        const { name, description, inputSchema, annotations, handler } =
           normalizeToolArgs(args);
         assertMcpToolIsClassified(name);
         if (typeof handler !== 'function') {
@@ -515,6 +521,7 @@ export function destinationModeServer(
           strictInputSchema,
           wrappedHandler,
           useRegisterTool,
+          annotations,
         });
         if (!registeredTool) return registeredTool;
         const entry = toolListEntry(name, registeredTool);

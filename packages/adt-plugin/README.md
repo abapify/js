@@ -88,6 +88,34 @@ const types = abapGitPlugin.registry.getSupportedTypes();
 
 ## API
 
+### Pure tree materialization
+
+Flow-style consumers need to calculate repository changes before touching the
+filesystem. A `FormatPlugin` exposes the optional pure materialization
+capability. Obtain one through `requireFormatPlugin` (not `createPlugin`, which
+returns an `AdtPlugin`):
+
+```typescript
+import { requireFormatPlugin } from '@abapify/adt-plugin';
+
+const formatPlugin = requireFormatPlugin('abapGit');
+const result = await formatPlugin.materialize?.({
+  object: adkObject,
+  objectType: 'CLAS',
+  packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+  sources: {
+    main: historicalMainSource,
+    definitions: historicalLocalDefinitions,
+  },
+  formatOptions: { folderLogic: 'prefix' },
+});
+```
+
+When `sources` is present it is authoritative. A handler emits only those
+components and must not read mutable source through the ADK object. The result
+contains deterministic repository-relative files with `source` or `metadata`
+roles; the caller owns validation and filesystem reconciliation.
+
 ### `createPlugin(definition)`
 
 Factory function to create a validated plugin instance.

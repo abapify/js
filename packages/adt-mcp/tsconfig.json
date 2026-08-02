@@ -53,6 +53,12 @@
       "path": "../adt-config"
     },
     {
+      "path": "../adt-flow"
+    },
+    {
+      "path": "../adt-plugin"
+    },
+    {
       "path": "../adt-cli"
     }
   ]

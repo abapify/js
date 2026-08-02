@@ -492,6 +492,22 @@ Delete a transport request.
 
 ---
 
+#### `flow_checkout_tr`
+
+Reconcile an allowed local workspace to an exact transport source boundary.
+The tool delegates to `@abapify/adt-flow`; it does not run Git commands.
+
+| Parameter       | Type     | Default | Description                                     |
+| --------------- | -------- | ------- | ----------------------------------------------- |
+| `transports`    | string[] | ✅      | Non-empty transport scope                       |
+| `workspaceRoot` | string   | ✅      | Absolute directory within a server-owned root   |
+| `base`          | boolean  | `false` | Select the version immediately before the scope |
+
+The JSON result contains changed, moved, removed, unchanged, descriptor, and
+SAP-call counts. It never contains source bodies or credentials.
+
+---
+
 ### ABAP Test Cockpit (ATC)
 
 #### `atc_run`
@@ -659,6 +675,7 @@ bunx nx test adt-mcp       # tests (runs integration suite)
 | `adt cts tr delete`          | `cts_delete_transport`          | ✅         |
 | `adt cts tr create`          | `cts_create_transport`          | 🚧 Not yet |
 | `adt cts tr release`         | `cts_release_transport`         | 🚧 Not yet |
+| `adt flow checkout tr`       | `flow_checkout_tr`              | ✅         |
 | `adt ls`                     | —                               | 🔜 Future  |
 | `adt cts search`             | —                               | 🔜 Future  |
 | `adt import package`         | —                               | 🔜 Future  |

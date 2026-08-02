@@ -3,8 +3,14 @@ export type {
   FormatHandler,
   FormatHandlerSchema,
   SerializedFile,
+  FormatSerializeOptions,
+  MaterializedFormatFile,
+  FormatMaterializationInput,
+  FormatMaterializationResult,
+  FormatMaterializationErrorCode,
   ParsedFormatFilename,
 } from './format-plugin';
+export { FormatMaterializationError } from './format-plugin';
 
 export {
   registerFormatPlugin,

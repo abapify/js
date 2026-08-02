@@ -122,6 +122,7 @@ import { registerGetFlpTileTool } from './get-flp-tile';
 import { registerListSourceVersionsTool } from './list-source-versions';
 import { registerGetSourceVersionTool } from './get-source-version';
 import { registerCtsTransportSourceManifestTool } from './cts-transport-source-manifest';
+import { registerFlowCheckoutTrTool } from './flow-checkout-tr';
 
 export function registerTools(server: McpServer, ctx: ToolContext): void {
   // Session lifecycle tools (HTTP transport only)
@@ -240,4 +241,5 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerListSourceVersionsTool(server, ctx);
   registerGetSourceVersionTool(server, ctx);
   registerCtsTransportSourceManifestTool(server, ctx);
+  registerFlowCheckoutTrTool(server, ctx);
 }
