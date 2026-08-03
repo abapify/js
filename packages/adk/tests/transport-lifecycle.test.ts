@@ -14,7 +14,7 @@ interface LifecycleFixtureOptions {
   applyAddTask?: boolean;
   addTaskNumber?: string;
   rootStatus?: string;
-  omitTaskRootName?: boolean;
+  parsedTaskRootName?: string;
 }
 
 function requestResponse(
@@ -42,12 +42,12 @@ function taskResponse(
   number: string,
   parent: string,
   state: TransportState,
-  omitRootName = false,
+  parsedRootName = number,
 ) {
   return {
     root: {
       object_type: 'T',
-      ...(omitRootName ? {} : { name: number }),
+      name: parsedRootName,
       type: 'RQTQ',
       request: { number: parent },
       task: [
@@ -93,7 +93,7 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
     if (!state) throw new Error(`Unexpected transport ${number}`);
     return number === rootNumber
       ? requestResponse(rootNumber, state, taskDefinitions)
-      : taskResponse(number, rootNumber, state, options.omitTaskRootName);
+      : taskResponse(number, rootNumber, state, options.parsedTaskRootName);
   });
   const release = vi.fn(async (number: string) => {
     const status = options.releaseStatus ?? 'released';
@@ -170,8 +170,10 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
 }
 
 describe('AdkTransportRequest CTS lifecycle', () => {
-  it('uses the child task number when the parsed task root has no name', async () => {
-    const fixture = createLifecycleFixture({ omitTaskRootName: true });
+  it('prefers the child task number over a parsed parent root name', async () => {
+    const fixture = createLifecycleFixture({
+      parsedTaskRootName: 'DEVK900001',
+    });
 
     const task = await AdkTransportRequest.get('DEVK900002', {
       client: fixture.client,
