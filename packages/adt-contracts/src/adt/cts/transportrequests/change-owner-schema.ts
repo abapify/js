@@ -11,6 +11,16 @@ export interface ChangeOwnerBody {
 
 type TransportManagementBody = InferTypedSchema<typeof transportmanagment>;
 
+type ChangeOwnerRoot = ChangeOwnerBody['root'];
+
+function isChangeOwnerRoot(
+  root: TransportManagementBody['root'] | undefined,
+): root is ChangeOwnerRoot {
+  return Boolean(
+    root && root.useraction === 'changeowner' && root.number && root.targetuser,
+  );
+}
+
 /**
  * Narrow request schema for the CTS change-owner action.
  *
@@ -23,16 +33,7 @@ export const changeOwnerBodySchema: Serializable<ChangeOwnerBody> = {
   parse: (raw: string): ChangeOwnerBody => {
     const parsed = transportmanagment.parse(raw);
     const root = parsed?.root;
-    if (!root) {
-      throw new Error('Invalid CTS change-owner body');
-    }
-    if (root.useraction !== 'changeowner') {
-      throw new Error('Invalid CTS change-owner body');
-    }
-    if (!root.number) {
-      throw new Error('Invalid CTS change-owner body');
-    }
-    if (!root.targetuser) {
+    if (!isChangeOwnerRoot(root)) {
       throw new Error('Invalid CTS change-owner body');
     }
     return {
