@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Sanitized real BHF response from:
+  Sanitized SAP ADT response captured from:
   POST /sap/bc/adt/cts/transportrequests/{request}/tasks
 -->
 <tm:root

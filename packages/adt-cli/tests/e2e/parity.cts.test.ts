@@ -186,6 +186,25 @@ describe('parity: cts', () => {
       owner: 'OTHEROWNER',
     });
 
+    const releasedTask = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'release',
+      'DEVK900004',
+      '--skip-check',
+      '--yes',
+      '--json',
+    ]);
+    expect(
+      releasedTask.exitCode,
+      releasedTask.stderr || releasedTask.stdout,
+    ).toBe(0);
+    expect(extractJson(releasedTask)).toMatchObject({
+      status: 'released',
+      transport: 'DEVK900004',
+      releaseAll: false,
+    });
+
     await harness.mock.reset();
     const mcp = await callMcpTool<{
       status: string;
@@ -254,6 +273,21 @@ describe('parity: cts', () => {
     );
   });
 
+  it('rejects a task creation request without the required target user', async () => {
+    await expect(
+      harness.client.fetch(
+        '/sap/bc/adt/cts/transportrequests/DEVK900001/tasks',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/vnd.sap.adt.transportorganizer.v1+xml',
+          },
+          body: '<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm"/>',
+        },
+      ),
+    ).rejects.toThrow(/400/u);
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // 4. Release transport (CLI + MCP parity)
   // ──────────────────────────────────────────────────────────────────────────
@@ -279,6 +313,41 @@ describe('parity: cts', () => {
     expect(mcp.isError).toBe(false);
     expect(mcp.json.status).toBe('released');
     expect(mcp.json.transport).toBe('DEVK900001');
+  });
+
+  it('release-all releases child tasks before their parent request', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'release',
+      'DEVK900001',
+      '--release-all',
+      '--skip-check',
+      '--yes',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(extractJson(cli)).toMatchObject({
+      status: 'released',
+      transport: 'DEVK900001',
+      releaseAll: true,
+    });
+  });
+
+  it('reads an already released sibling task as the task itself', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'release',
+      'DEVK900003',
+      '--yes',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(extractJson(cli)).toEqual({
+      transport: 'DEVK900003',
+      status: 'already_released',
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────────────

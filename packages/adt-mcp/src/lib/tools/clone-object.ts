@@ -12,7 +12,7 @@
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { createLockService } from '@abapify/adt-locks';
+import { createLockService, resolveLockCorrelation } from '@abapify/adt-locks';
 import type { ToolContext } from '../types';
 import {
   createAdtObject,
@@ -94,10 +94,11 @@ async function copySourceToClone(
       objectType: sourceType,
     });
     lockHandle = lockResult.handle;
+    const effectiveTransport = resolveLockCorrelation(lockResult, transport);
 
     const putParams = new URLSearchParams({
       lockHandle,
-      ...(transport ? { corrNr: transport } : {}),
+      ...(effectiveTransport ? { corrNr: effectiveTransport } : {}),
     });
 
     await client.fetch(

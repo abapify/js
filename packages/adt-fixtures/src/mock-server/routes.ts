@@ -35,7 +35,7 @@ function replaceRequestAttribute(
 function replaceTaskAttribute(
   xml: string,
   taskNumber: string,
-  attribute: 'owner',
+  attribute: 'owner' | 'status' | 'status_text',
   value: string,
 ): string {
   return xml.replace(
@@ -93,6 +93,55 @@ function appendTransportTask(
   return xml.replace('</tm:request>', `${taskXml}</tm:request>`);
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function findTaskElement(xml: string, taskNumber: string): string | undefined {
+  return new RegExp(
+    `<tm:task\\b(?=[^>]*\\btm:number=["']${escapeRegex(taskNumber)}["'])[^>]*>[\\s\\S]*?<\\/tm:task>`,
+    'u',
+  ).exec(xml)?.[0];
+}
+
+function createDirectTaskResponse(
+  template: string,
+  parentResponse: string,
+  taskNumber: string,
+): string {
+  const templateParent = extractRequestAttribute(template, 'number');
+  const templateTask = /<tm:task\b[^>]*\btm:number=["']([^"']+)["']/.exec(
+    template,
+  )?.[1];
+  const parentNumber = extractRequestAttribute(parentResponse, 'number');
+  if (!templateParent || !templateTask || !parentNumber) return template;
+
+  const response = template
+    .replaceAll(templateParent, parentNumber)
+    .replaceAll(templateTask, taskNumber);
+  const templateTaskElement = findTaskElement(response, taskNumber);
+  const actualTaskElement = findTaskElement(parentResponse, taskNumber);
+  return templateTaskElement && actualTaskElement
+    ? response.replace(templateTaskElement, actualTaskElement)
+    : response;
+}
+
+function createTransportTaskResponses(
+  parentResponse: string,
+  template: string,
+): Map<string, string> {
+  const taskNumbers = Array.from(
+    parentResponse.matchAll(/<tm:task\b[^>]*\btm:number=["']([^"']+)["']/gu),
+    (match) => match[1],
+  );
+  return new Map(
+    taskNumbers.map((taskNumber) => [
+      taskNumber,
+      createDirectTaskResponse(template, parentResponse, taskNumber),
+    ]),
+  );
+}
+
 /**
  * Preloaded fixture content — populated once at server start.
  * All routes read from this map to avoid async in matchRoute.
@@ -106,6 +155,7 @@ export interface LoadedFixtures {
   transportList: string;
   transportSingle: string;
   transportSingleTask: string;
+  transportTaskResponses: Map<string, string>;
   transportCreate: string;
   transportTaskCreate: string;
   taskCreationMode: 'create' | 'noop';
@@ -366,6 +416,10 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     transportList,
     transportSingle,
     transportSingleTask,
+    transportTaskResponses: createTransportTaskResponses(
+      transportSingle,
+      transportSingleTask,
+    ),
     transportCreate,
     transportTaskCreate,
     taskCreationMode: 'create',
@@ -918,20 +972,57 @@ export function matchRoute(
   // fixture stateful so the lifecycle service's read-back can verify status R.
   if (
     m === 'POST' &&
-    /\/sap\/bc\/adt\/cts\/transportrequests\/\w+\/newreleasejobs$/.test(
+    /\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/newreleasejobs$/.test(
       pathname,
     )
   ) {
-    f.transportSingle = replaceRequestAttribute(
-      f.transportSingle,
-      'status',
-      'R',
+    const requested = decodeURIComponent(
+      /\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/newreleasejobs$/.exec(
+        pathname,
+      )?.[1] ?? '',
     );
-    f.transportSingle = replaceRequestAttribute(
-      f.transportSingle,
-      'status_text',
-      'Released',
-    );
+    const requestNumber = extractRequestAttribute(f.transportSingle, 'number');
+    if (requested === requestNumber) {
+      f.transportSingle = replaceRequestAttribute(
+        f.transportSingle,
+        'status',
+        'R',
+      );
+      f.transportSingle = replaceRequestAttribute(
+        f.transportSingle,
+        'status_text',
+        'Released',
+      );
+      for (const [taskNumber, response] of f.transportTaskResponses) {
+        f.transportTaskResponses.set(
+          taskNumber,
+          replaceRequestAttribute(
+            replaceRequestAttribute(response, 'status', 'R'),
+            'status_text',
+            'Released',
+          ),
+        );
+      }
+    } else if (f.transportTaskResponses.has(requested)) {
+      f.transportSingle = replaceTaskAttribute(
+        replaceTaskAttribute(f.transportSingle, requested, 'status', 'R'),
+        requested,
+        'status_text',
+        'Released',
+      );
+      const response = f.transportTaskResponses.get(requested)!;
+      f.transportTaskResponses.set(
+        requested,
+        replaceTaskAttribute(
+          replaceTaskAttribute(response, requested, 'status', 'R'),
+          requested,
+          'status_text',
+          'Released',
+        ),
+      );
+    } else {
+      return { status: 404, body: '', contentType: 'text/plain' };
+    }
     return {
       status: 200,
       body: f.transportRelease,
@@ -951,7 +1042,10 @@ export function matchRoute(
       return { status: 409, body: '', contentType: 'text/plain' };
     }
 
-    const owner = extractTargetUser(requestBody) ?? 'NEWOWNER';
+    const owner = extractTargetUser(requestBody);
+    if (!owner) {
+      return { status: 400, body: '', contentType: 'text/plain' };
+    }
     const task = nextTransportTaskNumber(f.transportSingle, parent);
     if (f.taskCreationMode === 'create') {
       f.transportSingle = appendTransportTask(
@@ -959,6 +1053,14 @@ export function matchRoute(
         parent,
         task,
         owner,
+      );
+      f.transportTaskResponses.set(
+        task,
+        createDirectTaskResponse(
+          f.transportSingleTask,
+          f.transportSingle,
+          task,
+        ),
       );
     }
     return {
@@ -1002,11 +1104,18 @@ export function matchRoute(
     /^\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/?$/.exec(pathname);
   if (m === 'GET' && transportGetMatch) {
     const requested = decodeURIComponent(transportGetMatch[1]);
-    const taskNumber = /\badtcore:name=["']([^"']+)["']/.exec(
-      f.transportSingleTask,
-    )?.[1];
+    const requestNumber = extractRequestAttribute(f.transportSingle, 'number');
+    const createdRequestNumber = extractRequestAttribute(
+      f.transportCreate,
+      'number',
+    );
     const body =
-      requested === taskNumber ? f.transportSingleTask : f.transportSingle;
+      requested === requestNumber
+        ? f.transportSingle
+        : requested === createdRequestNumber
+          ? f.transportCreate
+          : f.transportTaskResponses.get(requested);
+    if (!body) return { status: 404, body: '', contentType: 'text/plain' };
     return {
       status: 200,
       body,
@@ -1030,32 +1139,46 @@ export function matchRoute(
     const targetUser = extractTargetUser(requestBody);
     if (targetUser) {
       const requested = pathname.split('/').filter(Boolean).at(-1);
-      const taskNumber = /\badtcore:name=["']([^"']+)["']/.exec(
-        f.transportSingleTask,
-      )?.[1];
-      if (requested && requested === taskNumber) {
-        f.transportSingleTask = replaceTaskAttribute(
-          f.transportSingleTask,
+      const requestNumber = extractRequestAttribute(
+        f.transportSingle,
+        'number',
+      );
+      if (requested && f.transportTaskResponses.has(requested)) {
+        f.transportSingle = replaceTaskAttribute(
+          f.transportSingle,
           requested,
           'owner',
           targetUser,
         );
-      } else {
+        f.transportTaskResponses.set(
+          requested,
+          replaceTaskAttribute(
+            f.transportTaskResponses.get(requested)!,
+            requested,
+            'owner',
+            targetUser,
+          ),
+        );
+      } else if (requested === requestNumber) {
         f.transportSingle = replaceRequestAttribute(
           f.transportSingle,
           'owner',
           targetUser,
         );
-        f.transportSingleTask = replaceRequestAttribute(
-          f.transportSingleTask,
-          'owner',
-          targetUser,
-        );
+        for (const [taskNumber, response] of f.transportTaskResponses) {
+          f.transportTaskResponses.set(
+            taskNumber,
+            replaceRequestAttribute(response, 'owner', targetUser),
+          );
+        }
+      } else {
+        return { status: 404, body: '', contentType: 'text/plain' };
       }
     }
+    const requested = pathname.split('/').filter(Boolean).at(-1) ?? '';
     return {
       status: 200,
-      body: f.transportSingle,
+      body: f.transportTaskResponses.get(requested) ?? f.transportSingle,
       contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
     };
   }
