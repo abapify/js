@@ -15,11 +15,12 @@ import { reference } from './reference';
 import { searchconfiguration } from './searchconfiguration';
 import { useraction } from './useraction';
 
-export { useraction } from './useraction';
+export { useraction, changeOwnerBodySchema } from './useraction';
 export type {
   UseractionContract,
   ReassignOptions,
   CreateRequestOptions,
+  ChangeOwnerBody,
 } from './useraction';
 
 /**

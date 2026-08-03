@@ -811,6 +811,9 @@ describe('resolveTransportObjects()', () => {
         object_type: 'T',
         name: 'DEVK901021',
         type: 'RQTQ',
+        request: {
+          number: 'DEVK901020',
+        },
         task: [
           {
             number: 'DEVK901021',
@@ -835,7 +838,7 @@ describe('resolveTransportObjects()', () => {
     expect(result.sourceTransportMap.get('R3TR/TABL/ZTASK_TABLE')).toBe(
       'DEVK901021',
     );
-    expect(result.scopeTransportNumbers).toEqual(['DEVK901021']);
+    expect(result.scopeTransportNumbers).toEqual(['DEVK901021', 'DEVK901020']);
   });
 
   it('preserves ordered first-win provenance across multiple roots', async () => {

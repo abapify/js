@@ -52,3 +52,9 @@
 - [x] 7.4 Run `openspec validate add-adt-flow-transport-checkout --strict` and `git diff --check`.
 - [ ] 7.5 After ADT authentication, perform one smallest read-only released-transport capability probe and one bounded checkout smoke test, recording only identities, counts, statuses, timings, and hashes.
 - [x] 7.6 Verify the public branch contains no consumer-specific issue IDs, system names, product references, credentials, agent attribution, or non-public author email before any public push.
+
+## 8. Follow up on parent-attributed sequential tasks
+
+- [x] 8.1 Add a failing indexed-flow test proving an `added` parent-boundary manifest preserves the prior task state in base mode.
+- [x] 8.2 Reuse the verified present descriptor and owned files as the incremental base without source or mutable-state reads.
+- [x] 8.3 Prove an unindexed format-recognizable tree remains unchanged in base mode and is adopted by head checkout.

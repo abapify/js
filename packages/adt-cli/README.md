@@ -149,6 +149,21 @@ adt get ZCL_MY_CLASS --properties
 adt get ZCL_MY_CLASS -o tmp/class.xml
 ```
 
+#### `adt check <object...> [options]`
+
+Run SAP ADT syntax checks. Existing objects are checked using their inactive
+source by default; select another source explicitly with
+`--source-version active|inactive|new`. The name avoids colliding with the
+root `adt --version` flag.
+
+With `--json`, stdout contains only the report array. SAP error/abort messages
+(`E`/`A`) keep that JSON readable and set a non-zero process exit status.
+
+```bash
+adt check ZCL_MY_CLASS --type CLAS
+adt check ZCL_MY_CLASS --type CLAS --source-version active --json
+```
+
 #### `adt outline <object>`
 
 Show object structure as a tree (methods, attributes, visibility).

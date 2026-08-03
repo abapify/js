@@ -604,6 +604,29 @@ describe('buildTransportSourceManifest', () => {
     expect(readVersionSource).not.toHaveBeenCalled();
   });
 
+  it('matches parent-attributed source history for a directly requested task', async () => {
+    const object = transportObject({
+      name: 'ZTASK_CREATED_CLASS',
+      type: 'CLAS',
+      objectUri: '/sap/bc/adt/oo/classes/ztask_created_class',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution([object], ['DEVK901021'], ['DEVK901021', 'DEVK901020']);
+    const head = version('00001', 0, ['DEVK901020']);
+    const { ctx } = contextWithVersions(vi.fn().mockResolvedValue([head]));
+
+    const result = await buildTransportSourceManifest(['DEVK901021'], {}, ctx);
+
+    expect(result.scopeTransports).toEqual(['DEVK901021', 'DEVK901020']);
+    expect(result.entries[0]).toMatchObject({
+      sourceTransport: 'DEVK901021',
+      changeKind: 'added',
+      exact: true,
+      head,
+    });
+    expect(result.entries[0]?.base).toBeUndefined();
+  });
+
   it('resolves a LIMU REPS transport leaf through the PROG source-history model', async () => {
     const object = transportObject({
       name: 'ZTEST_GCTS_PROGRAM',

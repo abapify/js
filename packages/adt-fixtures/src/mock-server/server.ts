@@ -27,6 +27,8 @@ export type MockAdtServerOptions = CsrfOptions;
 export interface MockAdtServer {
   start(): Promise<{ port: number }>;
   stop(): Promise<void>;
+  /** Restore preloaded fixtures and clear mutable mock state. */
+  reset(): Promise<void>;
   /** Access the lock registry (for test assertions). */
   readonly locks: LockRegistry;
 }
@@ -35,13 +37,14 @@ export function createMockAdtServer(
   options: MockAdtServerOptions = {},
 ): MockAdtServer {
   let server: Server | undefined;
+  let fixtures: Awaited<ReturnType<typeof loadRouteFixtures>> | undefined;
   const locks = new LockRegistry();
   const csrf = createCsrfState({ strictSession: options.strictSession });
 
   return {
     locks,
     async start() {
-      const fixtures = await loadRouteFixtures();
+      fixtures = await loadRouteFixtures();
 
       return new Promise<{ port: number }>((resolve, reject) => {
         server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -57,28 +60,44 @@ export function createMockAdtServer(
             >,
           });
 
-          const route = matchRoute(
-            method,
-            url,
-            fixtures,
-            locks,
-            csrf.sessionId,
-          );
-          if (route) {
-            res.writeHead(route.status, {
-              'Content-Type': route.contentType,
-              ...csrfHeaders,
-              ...(route.headers ?? {}),
-            });
-            res.end(route.body);
-            return;
-          }
-
-          res.writeHead(404, {
-            'Content-Type': 'text/plain',
-            ...csrfHeaders,
+          let requestBody = '';
+          req.setEncoding('utf8');
+          req.on('data', (chunk: string) => {
+            requestBody += chunk;
           });
-          res.end('Not Found');
+          req.on('end', () => {
+            if (!fixtures) {
+              res.writeHead(503, {
+                'Content-Type': 'text/plain',
+                ...csrfHeaders,
+              });
+              res.end('Mock fixtures are not loaded');
+              return;
+            }
+            const route = matchRoute(
+              method,
+              url,
+              fixtures,
+              locks,
+              csrf.sessionId,
+              requestBody,
+            );
+            if (route) {
+              res.writeHead(route.status, {
+                'Content-Type': route.contentType,
+                ...csrfHeaders,
+                ...(route.headers ?? {}),
+              });
+              res.end(route.body);
+              return;
+            }
+
+            res.writeHead(404, {
+              'Content-Type': 'text/plain',
+              ...csrfHeaders,
+            });
+            res.end('Not Found');
+          });
         });
 
         server.listen(0, '127.0.0.1', () => {
@@ -92,6 +111,11 @@ export function createMockAdtServer(
 
         server.on('error', reject);
       });
+    },
+
+    async reset() {
+      fixtures = await loadRouteFixtures();
+      locks.clear();
     },
 
     async stop() {

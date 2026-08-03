@@ -15,7 +15,7 @@
  * tools covered until the harness gains ADK wiring.
  */
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest';
+import { describe, it, beforeAll, beforeEach, afterAll, expect } from 'vitest';
 import {
   startAdtHarness,
   runCliCommand,
@@ -54,6 +54,10 @@ describe('parity: cts', () => {
 
   afterAll(async () => {
     if (harness) await harness.stop();
+  });
+
+  beforeEach(async () => {
+    await harness.mock.reset();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -159,6 +163,10 @@ describe('parity: cts', () => {
       '-y',
     ]);
     expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+
+    // CLI and MCP must execute the same transition from the same initial SAP
+    // state; otherwise the second invocation is correctly idempotent.
+    await harness.mock.reset();
 
     const mcp = await callMcpTool<{ status: string; transport: string }>(
       harness,

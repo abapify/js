@@ -619,6 +619,11 @@ export async function resolveTransportObjects(
       scopeTransportNumbers,
       seenScopeTransportNumbers,
     );
+    addScopeTransportNumber(
+      transport.raw.request?.number ?? '',
+      scopeTransportNumbers,
+      seenScopeTransportNumbers,
+    );
     for (const task of transport.tasks) {
       addScopeTransportNumber(
         task.number,
