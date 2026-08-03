@@ -448,6 +448,44 @@ export class AdkTransportRequest extends AdkObject<
     }
   }
 
+  /** Create and verify a modifiable task under this request. */
+  async addTask(owner: string): Promise<AdkTransportTask> {
+    if (this.itemType !== 'request') {
+      throw new Error(`Transport ${this.number} is a task, not a request`);
+    }
+    if (this.status === 'R') {
+      throw new Error(`Transport ${this.number} is already released`);
+    }
+
+    const existingTasks = new Set(this.tasks.map((task) => task.number));
+    const response =
+      await this.ctx.client.adt.cts.transportrequests.useraction.addTask(
+        this.number,
+        { owner },
+        { root: { targetuser: owner } },
+      );
+
+    const returnedNumber = response.root.number;
+    const verified = await AdkTransportRequest.get(this.number, this.ctx);
+    const created = verified.tasks.find(
+      (task) =>
+        (returnedNumber ? task.number === returnedNumber : true) &&
+        !existingTasks.has(task.number) &&
+        task.owner.toUpperCase() === owner.toUpperCase(),
+    );
+    if (!created) {
+      throw new Error(
+        `Task creation verification failed for ${this.number}: no new task owned by ${owner}`,
+      );
+    }
+    if (created.status !== 'D') {
+      throw new Error(
+        `Task creation verification failed for ${created.number}: expected status D, found ${created.status}`,
+      );
+    }
+    return created;
+  }
+
   // ===========================================================================
   // Static Factory
   // ===========================================================================

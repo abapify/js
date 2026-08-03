@@ -14,6 +14,8 @@ successfully, which makes CI automation unreliable.
 - Use the typed transport update operation for change-owner and confirm the
   resulting owner before reporting success; preserve optional recursion over
   modifiable child tasks.
+- Create child tasks through SAP's typed `newtask` relation and confirm the
+  returned task through parent-request read-back before reporting success.
 - Share CTS lifecycle behavior across SDK, CLI, and MCP surfaces instead of
   duplicating optimistic command logic.
 - Replace the check subcommand's conflicting source `--version` option with a
@@ -25,7 +27,7 @@ successfully, which makes CI automation unreliable.
 
 ### New Capabilities
 
-- `cts-transport-lifecycle`: Verified release and owner-change operations with typed SAP contracts, read-back, and CLI/MCP parity.
+- `cts-transport-lifecycle`: Verified release, owner-change, and task-creation operations with typed SAP contracts, read-back, and CLI/MCP parity.
 - `adt-check-execution`: Deterministic source-version selection and machine-readable error exit behavior for ADT checks.
 
 ### Modified Capabilities

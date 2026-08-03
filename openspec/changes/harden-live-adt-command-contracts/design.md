@@ -15,7 +15,8 @@ services, and MCP wraps the same services rather than duplicating behavior.
 
 **Goals:**
 
-- Make release and change-owner success reflect durable SAP state.
+- Make release, change-owner, and task-creation success reflect durable SAP
+  state.
 - Preserve typed contracts and shared CLI/MCP behavior.
 - Keep recursive owner changes limited to modifiable tasks.
 - Make check source selection unambiguous and CI exit behavior independent of
@@ -23,7 +24,8 @@ services, and MCP wraps the same services rather than duplicating behavior.
 
 **Non-Goals:**
 
-- Transport creation, deletion, import, branch, or merge workflow changes.
+- Root transport-request creation, deletion, import, branch, or merge workflow
+  changes.
 - Release scheduling, retries, background polling, or event delivery.
 - Changing SAP check semantics or suppressing findings.
 - Adding consumer-specific credentials, systems, or workflow identifiers.
@@ -34,7 +36,9 @@ services, and MCP wraps the same services rather than duplicating behavior.
 
 Release uses the transport's `newreleasejobs` collection and its typed release
 report rather than a generic `useraction=release` body. Change-owner uses PUT on
-the transport resource with the typed `changeowner` body rather than POST.
+the transport resource with the typed `changeowner` body rather than POST. Task
+creation follows the request's `newtask` relation at `/{request}/tasks` with a
+typed target-user body.
 
 The alternative of accepting HTTP 200 from the legacy calls is rejected because
 it produced verified no-op responses on a supported SAP system.
@@ -44,7 +48,9 @@ it produced verified no-op responses on a supported SAP system.
 The lifecycle service interprets bounded release diagnostics and reads the
 transport again. Release succeeds only when read-back status is released;
 change-owner succeeds only when read-back owner matches the normalized target.
-The ADK object updates its cached state only after verification.
+Task creation succeeds only when parent read-back contains a new modifiable task
+owned by the normalized target user. The ADK object updates its cached state
+only after verification.
 
 The alternative of trusting only the response payload is rejected because
 endpoint response shapes vary and the observed no-op still returned success.
@@ -87,7 +93,8 @@ complete JSON has been written.
    command names.
 3. Update CLI/MCP adapters and parity tests.
 4. Publish an immutable image from the protected stable mirror and prove the
-   operations against a disposable Workbench transport/task.
+   operations against a disposable Workbench transport/task, including creation of
+   a second task for an incremental change.
 5. Roll back the image pointer if an unsupported SAP release rejects the typed
    operations; never restore optimistic success as a silent fallback.
 

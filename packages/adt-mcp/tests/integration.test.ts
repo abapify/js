@@ -496,6 +496,22 @@ describe('adt-mcp integration tests', () => {
     });
   });
 
+  describe('cts_create_task tool', () => {
+    it('creates and verifies a modifiable task under a request', async () => {
+      const { json } = await callTool('cts_create_task', {
+        ...connArgs(),
+        transport: 'DEVK900001',
+        owner: 'NEWOWNER',
+      });
+      assert.deepStrictEqual(json, {
+        status: 'created',
+        transport: 'DEVK900001',
+        task: 'DEVK900004',
+        owner: 'NEWOWNER',
+      });
+    });
+  });
+
   // ── cts_release_transport ──────────────────────────────────────
 
   describe('cts_release_transport tool', () => {
@@ -1389,6 +1405,7 @@ describe('adt-mcp integration tests', () => {
         'cts_list_transports',
         'cts_get_transport',
         'cts_create_transport',
+        'cts_create_task',
         'cts_release_transport',
         'cts_delete_transport',
         'cts_search_transports',

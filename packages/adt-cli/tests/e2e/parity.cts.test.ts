@@ -151,6 +151,43 @@ describe('parity: cts', () => {
     expect(mcp.json.transport).toMatch(/DEVK\d+/);
   });
 
+  it('create task: CLI `cts tr task create` and MCP `cts_create_task`', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900001',
+      'NEWOWNER',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(extractJson(cli)).toEqual({
+      status: 'created',
+      transport: 'DEVK900001',
+      task: 'DEVK900004',
+      owner: 'NEWOWNER',
+    });
+
+    await harness.mock.reset();
+    const mcp = await callMcpTool<{
+      status: string;
+      transport: string;
+      task: string;
+      owner: string;
+    }>(harness, 'cts_create_task', {
+      transport: 'DEVK900001',
+      owner: 'NEWOWNER',
+    });
+    expect(mcp.isError).toBe(false);
+    expect(mcp.json).toEqual({
+      status: 'created',
+      transport: 'DEVK900001',
+      task: 'DEVK900004',
+      owner: 'NEWOWNER',
+    });
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // 4. Release transport (CLI + MCP parity)
   // ──────────────────────────────────────────────────────────────────────────

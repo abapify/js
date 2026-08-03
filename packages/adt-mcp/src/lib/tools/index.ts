@@ -17,6 +17,7 @@ import { registerGetObjectTool } from './get-object';
 import { registerCtsListTransportsTool } from './cts-list-transports';
 import { registerCtsGetTransportTool } from './cts-get-transport';
 import { registerCtsCreateTransportTool } from './cts-create-transport';
+import { registerCtsCreateTaskTool } from './cts-create-task';
 import { registerCtsReleaseTransportTool } from './cts-release-transport';
 import { registerCtsDeleteTransportTool } from './cts-delete-transport';
 import { registerCtsSearchTransportsTool } from './cts-search-transports';
@@ -141,6 +142,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerCtsListTransportsTool(server, ctx);
   registerCtsGetTransportTool(server, ctx);
   registerCtsCreateTransportTool(server, ctx);
+  registerCtsCreateTaskTool(server, ctx);
   registerCtsReleaseTransportTool(server, ctx);
   registerCtsDeleteTransportTool(server, ctx);
   registerCtsSearchTransportsTool(server, ctx);

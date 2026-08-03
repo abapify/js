@@ -51,6 +51,30 @@ SHALL confirm the resulting owner before reporting success.
 - **THEN** released tasks are not changed
 - **THEN** recursive success is reported only when every attempted change is verified
 
+### Requirement: Transport task creation is verified
+
+The system SHALL create a task through SAP's typed `newtask` operation and
+SHALL confirm the resulting task through parent-request read-back before
+reporting success.
+
+#### Scenario: Modifiable task is created
+
+- **GIVEN** a modifiable transport request and a target SAP user
+- **WHEN** task creation is requested
+- **THEN** the system posts the typed target-user body to the request's task collection
+- **THEN** it reports the new task only when read-back shows a previously absent task owned by the target user with modifiable status
+
+#### Scenario: Task creation response is a no-op
+
+- **WHEN** SAP returns without an explicit error but parent read-back has no matching new task
+- **THEN** the system reports failure
+- **THEN** CLI and MCP surfaces do not emit a created task number
+
+#### Scenario: Parent is not a modifiable request
+
+- **WHEN** task creation targets a released request or an existing task
+- **THEN** the system reports a bounded failure without claiming task creation
+
 ### Requirement: Lifecycle delivery surfaces are equivalent
 
 CLI and MCP lifecycle operations SHALL delegate to the same reusable service and
@@ -58,6 +82,6 @@ SHALL preserve equivalent success and failure semantics.
 
 #### Scenario: CLI and MCP receive the same SAP responses
 
-- **WHEN** CLI and MCP release or reassign the same fixture transport
+- **WHEN** CLI and MCP create a task, release, or reassign the same fixture transport
 - **THEN** their final status and bounded diagnostic are equivalent
 - **THEN** neither surface can convert an unverified HTTP response into success

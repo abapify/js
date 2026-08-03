@@ -36,6 +36,17 @@ function extractTargetUser(requestBody: string): string | undefined {
   return /\btm:targetuser=["']([^"']+)["']/.exec(requestBody)?.[1];
 }
 
+function appendTransportTask(
+  xml: string,
+  parent: string,
+  task: string,
+  owner: string,
+): string {
+  if (xml.includes(`tm:number="${task}"`)) return xml;
+  const taskXml = `<tm:task tm:number="${task}" tm:parent="${parent}" tm:owner="${owner}" tm:desc="Incremental task" tm:type="S" tm:status="D" tm:status_text="Modifiable" tm:uri="/sap/bc/adt/cts/transportrequests/${task}"><tm:long_desc/></tm:task>`;
+  return xml.replace('</tm:request>', `${taskXml}</tm:request>`);
+}
+
 /**
  * Preloaded fixture content — populated once at server start.
  * All routes read from this map to avoid async in matchRoute.
@@ -49,6 +60,7 @@ export interface LoadedFixtures {
   transportList: string;
   transportSingle: string;
   transportCreate: string;
+  transportTaskCreate: string;
   transportRelease: string;
   transportFind: string;
   searchconfigMetadata: string;
@@ -145,6 +157,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     transportList,
     transportSingle,
     transportCreate,
+    transportTaskCreate,
     transportRelease,
     transportFind,
     searchconfigMetadata,
@@ -223,6 +236,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     m.transport.list.load(),
     fixtures.transport.single.load(),
     fixtures.transport.createResponse.load(),
+    fixtures.transport.taskCreateResponse.load(),
     m.transport.release.load(),
     fixtures.transport.find.load(),
     fixtures.transport.searchconfigMetadata.load(),
@@ -302,6 +316,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     transportList,
     transportSingle,
     transportCreate,
+    transportTaskCreate,
     transportRelease,
     transportFind,
     searchconfigMetadata,
@@ -868,6 +883,25 @@ export function matchRoute(
     return {
       status: 200,
       body: f.transportRelease,
+      contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+    };
+  }
+
+  // CTS new task — POST the hypermedia /{request}/tasks relation, then expose
+  // the new modifiable task through the parent request read-back.
+  const taskCreateMatch =
+    /^\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/tasks$/.exec(pathname);
+  if (m === 'POST' && taskCreateMatch) {
+    const owner = extractTargetUser(requestBody) ?? 'NEWOWNER';
+    f.transportSingle = appendTransportTask(
+      f.transportSingle,
+      taskCreateMatch[1],
+      'DEVK900004',
+      owner,
+    );
+    return {
+      status: 200,
+      body: f.transportTaskCreate.replace('NEWOWNER', owner),
       contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
     };
   }

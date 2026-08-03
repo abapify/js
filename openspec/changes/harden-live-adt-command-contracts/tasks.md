@@ -4,12 +4,14 @@
 - [x] 1.2 Implement the typed release-job and change-owner contracts without editing generated schemas.
 - [x] 1.3 Add failing ADK tests for release-report failure, release no-op read-back, owner no-op read-back, and recursive modifiable-task handling.
 - [x] 1.4 Implement verified ADK release and owner-change orchestration and mutate cached state only after postconditions pass.
+- [x] 1.5 Add the typed task-creation contract and verify the new modifiable task through parent-request read-back.
 
 ## 2. CTS delivery parity
 
 - [x] 2.1 Extract structured CTS lifecycle services for command and MCP reuse.
 - [x] 2.2 Update CLI and MCP adapters to delegate to the shared services and preserve equivalent bounded failures.
 - [x] 2.3 Add focused CLI/MCP parity tests for verified release and reassign results.
+- [x] 2.4 Add thin CLI/MCP task-creation adapters and parity coverage through the shared lifecycle service.
 
 ## 3. Check execution
 
@@ -23,3 +25,4 @@
 - [x] 4.1 Run focused package tests, contract tests, lint, typecheck, build, format, and strict OpenSpec validation.
 - [ ] 4.2 Prove release and owner-change behavior against a disposable Workbench request/task and record only non-sensitive identifiers and statuses.
 - [ ] 4.3 Publish the protected stable mirror image and rerun the incremental consumer-sandbox transport checkout proof.
+- [ ] 4.4 Create a second task through the promoted image and verify mixed modification/creation delta behavior in the consumer MR.
