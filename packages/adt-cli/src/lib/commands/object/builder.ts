@@ -52,6 +52,22 @@ export interface ObjectTypeDef<T> {
   getSource?: (obj: T) => Promise<string>;
 }
 
+interface ObjectLockHandle {
+  handle: string;
+  correlationNumber?: string;
+}
+
+/**
+ * SAP may normalize a concrete task to its parent request during LOCK.
+ * Source writes must use the returned correlation number with the lock handle.
+ */
+export function resolveEffectiveTransport(
+  lockHandle: ObjectLockHandle,
+  requestedTransport?: string,
+): string | undefined {
+  return lockHandle.correlationNumber || requestedTransport;
+}
+
 // ============================================================================
 // Helper: read source from file or stdin
 // ============================================================================
@@ -84,7 +100,7 @@ export function buildObjectCrudCommands<
     name: string;
     description: string;
     activate(): Promise<T>;
-    lock(transport?: string): Promise<{ handle: string }>;
+    lock(transport?: string): Promise<ObjectLockHandle>;
     unlock(lockHandle: string): Promise<void>;
     saveMainSource?(
       source: string,
@@ -302,7 +318,10 @@ export function buildObjectCrudCommands<
               }
               await obj.saveMainSource(source, {
                 lockHandle: lockHandle.handle,
-                transport: options.transport,
+                transport: resolveEffectiveTransport(
+                  lockHandle,
+                  options.transport,
+                ),
               });
               progress.done();
 
