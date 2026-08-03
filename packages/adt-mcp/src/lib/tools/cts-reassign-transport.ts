@@ -3,15 +3,23 @@
  *
  * CLI equivalent: `adt cts tr reassign <TR> <new-owner> [--recursive]`
  *
- * Delegates to the shared CLI lifecycle service.
+ * POSTs a changeowner user-action body to
+ *   /sap/bc/adt/cts/transportrequests/{trkorr}
  */
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { CtsTransportLifecycleService } from '@abapify/adt-cli';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
+
+function escapeXmlAttr(value: string): string {
+  return value
+    .replaceAll(/&/g, '&amp;')
+    .replaceAll(/</g, '&lt;')
+    .replaceAll(/>/g, '&gt;')
+    .replaceAll(/"/g, '&quot;');
+}
 
 export function registerCtsReassignTransportTool(
   server: McpServer,
@@ -34,17 +42,42 @@ export function registerCtsReassignTransportTool(
     async (args, extra) => {
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
-        const result = await new CtsTransportLifecycleService(client).reassign({
-          transport: args.transportNumber,
-          newOwner: args.targetUser,
-          recursive: args.recursive,
-        });
+
+        const body =
+          '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" ' +
+          'tm:useraction="changeowner" ' +
+          `tm:targetuser="${escapeXmlAttr(args.targetUser)}"/>`;
+
+        const query = args.recursive ? '?recursive=true' : '';
+
+        await client.fetch(
+          `/sap/bc/adt/cts/transportrequests/${args.transportNumber}${query}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/vnd.sap.adt.transportorganizer.v1+xml',
+              Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+            },
+            body,
+          },
+        );
 
         return {
           content: [
             {
               type: 'text' as const,
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify(
+                {
+                  status: 'reassigned',
+                  transport: args.transportNumber,
+                  newOwner: args.targetUser,
+                  recursive: args.recursive ?? false,
+                },
+                null,
+                2,
+              ),
             },
           ],
         };

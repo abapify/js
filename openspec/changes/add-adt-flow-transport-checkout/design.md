@@ -156,17 +156,6 @@ Otherwise flow rebuilds the metadata-only source manifest. For each component:
 - without an object descriptor, flow may adopt format-recognizable files for
   the same canonical identity, but any unrelated destination collision fails.
 
-Some SAP releases attribute every immutable version created by child tasks to
-their common parent request. A later task can therefore still be reported as
-`added` at the parent provenance boundary even though an earlier released task
-already materialized the object. In base mode, a verified present object
-descriptor is the incremental predecessor and is reused without source reads.
-Without a descriptor, format-recognizable files for the same identity remain
-the caller-provided base and are adopted by the subsequent head checkout. Only
-an object absent from both the index and the repository tree has an absent base.
-The selected head still comes from exact SAP provenance; mutable SAP source is
-never substituted.
-
 The event source supplies released transports. Flow does not add a second
 release-state check: exact selection remains authoritative, and the transport
 descriptor makes the zero-call fast path explicit and deterministic.

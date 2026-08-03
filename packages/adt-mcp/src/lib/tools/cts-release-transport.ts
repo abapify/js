@@ -3,12 +3,11 @@
  *
  * CLI equivalent: `adt cts tr release <transport>`
  *
- * Delegates to the shared CLI lifecycle service.
+ * POSTs a typed transport organizer body to /sap/bc/adt/cts/transportrequests/{trkorr}
  */
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { CtsTransportLifecycleService } from '@abapify/adt-cli';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
 import { resolveClient } from './session-helpers';
@@ -25,24 +24,37 @@ export function registerCtsReleaseTransportTool(
       transport: z
         .string()
         .describe('Transport number to release (e.g. TRLK900001)'),
-      releaseAll: z
-        .boolean()
-        .optional()
-        .describe('Release all modifiable tasks before the request'),
     },
     async (args, extra) => {
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
-        const result = await new CtsTransportLifecycleService(client).release({
-          transport: args.transport,
-          releaseAll: args.releaseAll,
-        });
+        // SAP expects a namespace-prefixed action attribute here.
+        const body =
+          '<?xml version="1.0" encoding="UTF-8"?>' +
+          '<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" tm:useraction="release"/>';
+
+        await client.fetch(
+          `/sap/bc/adt/cts/transportrequests/${args.transport}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/vnd.sap.adt.transportorganizer.v1+xml',
+              Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+            },
+            body,
+          },
+        );
 
         return {
           content: [
             {
               type: 'text' as const,
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify(
+                { status: 'released', transport: args.transport },
+                null,
+                2,
+              ),
             },
           ],
         };

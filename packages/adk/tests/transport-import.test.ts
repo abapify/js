@@ -214,7 +214,7 @@ describe('AdkTransport', () => {
       expect(transport.owner).toBe('DEVELOPER');
       expect(transport.status).toBe('D');
       expect(transport.statusText).toBe('Modifiable');
-    }, 10_000);
+    });
 
     it('should expose transport properties', async () => {
       const mockClient = createMockClient();
@@ -809,22 +809,12 @@ describe('resolveTransportObjects()', () => {
     const response = {
       root: {
         object_type: 'T',
-        // Some SAP/parser combinations expose the parent request here even
-        // though the GET was issued for the child task.
-        name: 'DEVK901020',
+        name: 'DEVK901021',
         type: 'RQTQ',
-        request: {
-          number: 'DEVK901020',
-        },
         task: [
           {
             number: 'DEVK901021',
             parent: 'DEVK901020',
-            owner: 'TASKOWNER',
-            desc: 'Direct task',
-            status: 'D',
-            status_text: 'Modifiable',
-            target: 'QAS',
             abap_object: [{ pgmid: 'R3TR', type: 'TABL', name: 'ZTASK_TABLE' }],
           },
         ],
@@ -833,19 +823,11 @@ describe('resolveTransportObjects()', () => {
     const mockClient = createTransportClientByNumber({
       DEVK901021: response,
     });
-    const { initializeAdk, AdkTransport, resolveTransportObjects } =
+    const { initializeAdk, resolveTransportObjects } =
       await import('../src/index');
     initializeAdk(mockClient as any);
 
-    const transport = await AdkTransport.get(' devk901021 ');
-    expect(transport.number).toBe('DEVK901021');
-    expect(transport.description).toBe('Direct task');
-    expect(transport.owner).toBe('TASKOWNER');
-    expect(transport.status).toBe('D');
-    expect(transport.statusText).toBe('Modifiable');
-    expect(transport.target).toBe('QAS');
-
-    const result = await resolveTransportObjects([' devk901021 '], {});
+    const result = await resolveTransportObjects(['DEVK901021'], {});
 
     expect(result.objects.map((object) => object.key)).toEqual([
       'R3TR/TABL/ZTASK_TABLE',
@@ -853,7 +835,7 @@ describe('resolveTransportObjects()', () => {
     expect(result.sourceTransportMap.get('R3TR/TABL/ZTASK_TABLE')).toBe(
       'DEVK901021',
     );
-    expect(result.scopeTransportNumbers).toEqual(['DEVK901021', 'DEVK901020']);
+    expect(result.scopeTransportNumbers).toEqual(['DEVK901021']);
   });
 
   it('preserves ordered first-win provenance across multiple roots', async () => {

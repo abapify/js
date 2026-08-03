@@ -36,7 +36,6 @@ export {
   AdtLockHandleUnavailableError,
   createLockService,
   parseLockResponse,
-  resolveLockCorrelation,
 } from './service';
 
 // Batch session — acquire/release N locks atomically (best-effort rollback).

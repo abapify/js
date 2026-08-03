@@ -16,7 +16,7 @@
 import type { AdkContext } from './context';
 import type { AdtClient } from './adt';
 import type { AdkKind } from './kinds';
-import { resolveLockCorrelation, type LockHandle } from '@abapify/adt-locks';
+import type { LockHandle } from '@abapify/adt-locks';
 import { toText } from './fetch-utils';
 
 export type { LockHandle } from '@abapify/adt-locks';
@@ -593,10 +593,8 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
       // SAP can resolve a development task to its parent request during LOCK.
       // Subsequent PUTs must use that authoritative CORRNR rather than the
       // caller's task number (TRL rejects the task even with a valid handle).
-      const effectiveTransport = resolveLockCorrelation(
-        this._lockHandle ?? {},
-        transport,
-      );
+      const effectiveTransport =
+        this._lockHandle?.correlationNumber || transport;
 
       // Refresh cached ETags after locking.
       // SAP changes the object's internal version when a lock is acquired,
@@ -1136,18 +1134,14 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
     // Lock if not already locked
     const wasLocked = this.isLocked;
     if (!wasLocked) {
-      await this.lock(transport);
+      await this.lock();
     }
 
     try {
       // Build URL
       const params = new URLSearchParams();
-      const effectiveTransport = resolveLockCorrelation(
-        this._lockHandle ?? {},
-        transport,
-      );
-      if (effectiveTransport) {
-        params.set('corrNr', effectiveTransport);
+      if (transport) {
+        params.set('corrNr', transport);
       }
       if (this._lockHandle) {
         params.set('lockHandle', this._lockHandle.handle);

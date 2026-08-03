@@ -9,7 +9,7 @@
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { createLockService, resolveLockCorrelation } from '@abapify/adt-locks';
+import { createLockService } from '@abapify/adt-locks';
 import {
   detectMethodBoundary,
   lintSource,
@@ -220,12 +220,11 @@ export function registerUpdateSourceTool(
           objectName: args.objectName,
         });
         lockHandle = lock.handle;
-        const effectiveTransport = resolveLockCorrelation(lock, args.transport);
 
         // 2. PUT source code
         const params = new URLSearchParams();
         params.set('lockHandle', lockHandle);
-        if (effectiveTransport) params.set('corrNr', effectiveTransport);
+        if (args.transport) params.set('corrNr', args.transport);
 
         await client.fetch(`${objectUri}/source/main?${params.toString()}`, {
           method: 'PUT',

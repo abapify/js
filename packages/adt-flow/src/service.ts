@@ -725,14 +725,6 @@ async function handleEmptyGroup(
   }
 
   if (mode === 'base' && pending.previous) {
-    const canReuseIncrementalBase =
-      pending.previous.state === 'present' &&
-      pending.previous.configDigest === ctx.configDigest &&
-      pending.previous.formatDigest === ctx.formatDigest &&
-      indexedPackageMatches(pending.previous, group);
-    if (canReuseIncrementalBase) {
-      return reuseGroupIfExact(ctx, identity, descriptorPath);
-    }
     return buildTombstoneResult(ctx, identity, descriptorPath);
   }
 

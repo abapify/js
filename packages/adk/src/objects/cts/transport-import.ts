@@ -61,7 +61,6 @@ interface TransportTaskData {
   desc?: string;
   status?: string;
   status_text?: string;
-  target?: string;
   abap_object?: TransportObjectData | TransportObjectData[];
 }
 
@@ -268,7 +267,6 @@ export class AdkTransport {
   private constructor(
     private readonly ctx: AdkContext,
     private readonly data: TransportData,
-    private readonly requestedNumber: string,
   ) {}
 
   // ===========================================================================
@@ -277,53 +275,32 @@ export class AdkTransport {
 
   /** Transport number */
   get number(): string {
-    if (this.data.object_type === 'T') {
-      const task = asArray(this.data.task).find(
-        (candidate) => candidate.number?.toUpperCase() === this.requestedNumber,
-      );
-      return task?.number ?? this.requestedNumber;
-    }
-    return this.data.request?.number ?? this.data.name ?? this.requestedNumber;
-  }
-
-  private get itemData(): TransportTaskData {
-    if (this.data.object_type === 'T') {
-      const directTasks = asArray(this.data.task);
-      return (
-        directTasks.find(
-          (task) => task.number?.toUpperCase() === this.requestedNumber,
-        ) ??
-        directTasks[0] ??
-        this.data.request ??
-        {}
-      );
-    }
-    return this.data.request ?? {};
+    return this.data.name ?? this.data.request?.number ?? '';
   }
 
   /** Transport description */
   get description(): string {
-    return this.itemData.desc ?? '';
+    return this.data.request?.desc ?? '';
   }
 
   /** Transport owner */
   get owner(): string {
-    return this.itemData.owner ?? '';
+    return this.data.request?.owner ?? '';
   }
 
   /** Transport status (D=Modifiable, R=Released) */
   get status(): string {
-    return this.itemData.status ?? '';
+    return this.data.request?.status ?? '';
   }
 
   /** Transport status text */
   get statusText(): string {
-    return this.itemData.status_text ?? '';
+    return this.data.request?.status_text ?? '';
   }
 
   /** Transport target system */
   get target(): string {
-    return this.itemData.target ?? '';
+    return this.data.request?.target ?? '';
   }
 
   /** Object type (K=Request, T=Task) */
@@ -483,11 +460,9 @@ export class AdkTransport {
    */
   static async get(number: string, ctx?: AdkContext): Promise<AdkTransport> {
     const context = ctx ?? getGlobalContext();
-    const requestedNumber = number.trim().toUpperCase();
-    const response =
-      await context.client.adt.cts.transportrequests.get(requestedNumber);
+    const response = await context.client.adt.cts.transportrequests.get(number);
     // Unwrap the root element from the response
-    return new AdkTransport(context, response.root, requestedNumber);
+    return new AdkTransport(context, response.root);
   }
 
   /**
@@ -641,11 +616,6 @@ export async function resolveTransportObjects(
     const transportNumber = transport.number || requestedNumber;
     addScopeTransportNumber(
       transportNumber,
-      scopeTransportNumbers,
-      seenScopeTransportNumbers,
-    );
-    addScopeTransportNumber(
-      transport.raw.request?.number ?? '',
       scopeTransportNumbers,
       seenScopeTransportNumbers,
     );

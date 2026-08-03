@@ -15,7 +15,7 @@ import { confirm } from '@inquirer/prompts';
 import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
-import { CtsTransportLifecycleService } from '../../../services/cts';
+import { AdkTransportRequest } from '@abapify/adk';
 
 export const ctsReleaseCommand = new Command('release')
   .description('Release transport request')
@@ -37,12 +37,14 @@ export const ctsReleaseCommand = new Command('release')
 
     try {
       const client = await getAdtClientV2();
-      const lifecycle = new CtsTransportLifecycleService(client);
 
+      // Step 1: Get transport via ADK
       progress.step(`🔍 Getting transport ${transport}...`);
-      let summary;
+      // ADK expects (number, ctx?) - ctx is AdkContext with client property
+
+      let tr: AdkTransportRequest;
       try {
-        summary = await lifecycle.getTransport(transport);
+        tr = await AdkTransportRequest.get(transport, { client });
       } catch (_err) {
         console.error(`❌ Transport ${transport} not found or not accessible`);
         process.exit(1);
@@ -51,27 +53,27 @@ export const ctsReleaseCommand = new Command('release')
       progress.done();
 
       // Check if already released
-      if (summary.status === 'R') {
+      if (tr.status === 'R') {
         console.log(`ℹ️  Transport ${transport} is already released`);
         if (options.json) {
           console.log(
             JSON.stringify({ transport, status: 'already_released' }, null, 2),
           );
         }
-        return;
+        process.exit(0);
       }
 
       // Display transport info
       if (!options.json) {
-        console.log(`\n📋 Transport: ${summary.transport}`);
-        console.log(`   Description: ${summary.description || '-'}`);
-        console.log(`   Owner: ${summary.owner || '-'}`);
+        console.log(`\n📋 Transport: ${tr.number}`);
+        console.log(`   Description: ${tr.description || '-'}`);
+        console.log(`   Owner: ${tr.owner || '-'}`);
         console.log(
-          `   Target: ${summary.targetDescription || summary.target || 'LOCAL'}`,
+          `   Target: ${tr.targetDescription || tr.target || 'LOCAL'}`,
         );
-        console.log(`   Status: ${summary.statusText}`);
-        console.log(`   Tasks: ${summary.taskCount}`);
-        console.log(`   Objects: ${summary.objectCount}`);
+        console.log(`   Status: ${tr.statusText}`);
+        console.log(`   Tasks: ${tr.tasks.length}`);
+        console.log(`   Objects: ${tr.objects.length}`);
       }
 
       // Step 2: Pre-release check (not yet implemented - check endpoint not available)
@@ -97,19 +99,41 @@ export const ctsReleaseCommand = new Command('release')
         }
       }
 
+      // Step 4: Release the transport using ADK
       progress.step(`🚀 Releasing transport ${transport}...`);
-      const result = await lifecycle.release({
-        transport,
-        releaseAll: options.releaseAll,
-      });
+
+      let result;
+      if (options.releaseAll) {
+        // Release all tasks first, then the transport
+        result = await tr.releaseAll();
+      } else {
+        // Release transport only (tasks must already be released)
+        result = await tr.release();
+      }
+
       progress.done();
 
+      if (!result.success) {
+        console.error(`❌ Release failed: ${result.message}`);
+        process.exit(1);
+      }
+
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              transport,
+              status: 'released',
+              result,
+            },
+            null,
+            2,
+          ),
+        );
       } else {
         console.log(`\n✅ Transport ${transport} released successfully!`);
         console.log(
-          `   Target: ${summary.targetDescription || summary.target || 'LOCAL'}`,
+          `   Target: ${tr.targetDescription || tr.target || 'LOCAL'}`,
         );
       }
     } catch (error) {

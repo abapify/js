@@ -177,7 +177,6 @@ export const MCP_TOOL_SCOPE_CATALOGUE: Readonly<Record<string, McpToolScope>> =
       'create_srvb',
       'create_srvd',
       'cts_create_transport',
-      'cts_create_task',
       'cts_delete_transport',
       'cts_reassign_transport',
       'cts_release_transport',

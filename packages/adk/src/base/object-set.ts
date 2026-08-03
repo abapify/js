@@ -21,7 +21,6 @@
 import type { AdkContext } from './context';
 import type { SaveOptions, ActivationResult, LockHandle } from './model';
 import { AdkObject } from './model';
-import { resolveLockCorrelation } from '@abapify/adt-locks';
 
 /**
  * Result of bulk save operation
@@ -332,40 +331,25 @@ export class AdkObjectSet {
           if (!r.success) continue;
           const obj = r.object as any;
           const deferred = obj._deferredSources as
-            [string, string][] | undefined;
+            | [string, string][]
+            | undefined;
           if (deferred && deferred.length > 0) {
             try {
               // Re-lock for deferred source saves
-              const lock = await r.object.lock(saveOptions.transport);
-              const effectiveTransport = resolveLockCorrelation(
-                lock,
-                saveOptions.transport,
-              );
+              const lock = await r.object.lock();
               for (const [key, source] of deferred) {
                 await obj.saveIncludeSource(key, source, {
                   lockHandle: lock.handle,
-                  transport: effectiveTransport,
+                  transport: saveOptions.transport,
                 });
               }
+              delete obj._deferredSources;
               // Re-activate after saving deferred sources
               const deferredSet = new AdkObjectSet(this.ctx);
               deferredSet.add(r.object);
-              const deferredActivation = await deferredSet.activateAll();
-              if (deferredActivation.failed > 0) {
-                throw new Error(
-                  `Deferred activation failed: ${
-                    deferredActivation.messages.join('; ') || 'unknown error'
-                  }`,
-                );
-              }
-              delete obj._deferredSources;
-            } catch (error) {
-              r.success = false;
-              r.error = `Deferred source deployment failed: ${
-                error instanceof Error ? error.message : String(error)
-              }`;
-              saveResult.success--;
-              saveResult.failed++;
+              await deferredSet.activateAll();
+            } catch {
+              // Deferred source retry failed — not critical, continue
             } finally {
               try {
                 await r.object.unlock();

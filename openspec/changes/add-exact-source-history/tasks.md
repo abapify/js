@@ -46,9 +46,3 @@
 - [ ] 6.4 Run targeted lint/typecheck and distinguish pre-existing baseline failures from regressions.
 - [ ] 6.5 Run `git diff --check` and inspect generated declarations/exports.
 - [ ] 6.6 After TRL credentials are rotated, run one read-only smoke test and record only counts, identifiers, statuses, and content hashes.
-
-## 7. Follow up on direct-task parent provenance
-
-- [x] 7.1 Add a failing resolver test proving a directly requested task expands scope with the parent request returned by SAP.
-- [x] 7.2 Include the parent request in manifest provenance matching without changing the task's concrete object attribution.
-- [x] 7.3 Verify the task fixture remains exact when immutable source versions are attributed only to the parent request.

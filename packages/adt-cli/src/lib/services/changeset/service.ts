@@ -40,18 +40,17 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import {
-  createLockService,
-  resolveLockCorrelation,
-  type LockService,
-} from '@abapify/adt-locks';
+import { createLockService, type LockService } from '@abapify/adt-locks';
 import type { AdtClient } from '@abapify/adt-client';
 import type { Logger } from '@abapify/adt-client';
 import type { InferTypedSchema } from '@abapify/adt-schemas';
 import { adtcore } from '@abapify/adt-schemas';
 
 export type ChangesetStatus =
-  'open' | 'committing' | 'committed' | 'rolled_back';
+  | 'open'
+  | 'committing'
+  | 'committed'
+  | 'rolled_back';
 
 export interface ChangesetEntry {
   objectUri: string;
@@ -138,12 +137,11 @@ export class ChangesetService {
       objectName: args.objectName,
       objectType: args.objectType,
     });
-    const effectiveTransport = resolveLockCorrelation(lock, args.transport);
 
     try {
       const params = new URLSearchParams();
       params.set('lockHandle', lock.handle);
-      if (effectiveTransport) params.set('corrNr', effectiveTransport);
+      if (args.transport) params.set('corrNr', args.transport);
       await this.client.fetch(
         `${args.objectUri}/source/main?${params.toString()}`,
         {

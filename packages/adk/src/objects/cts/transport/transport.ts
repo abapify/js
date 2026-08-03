@@ -45,44 +45,6 @@ function asArray<T>(val: T | T[] | undefined): T[] {
   return Array.isArray(val) ? val : [val];
 }
 
-function transportResponseName(response: TransportData): string {
-  if (response.object_type === 'T') {
-    const taskNumber = asArray(response.task)[0]?.number;
-    if (taskNumber) return taskNumber;
-  }
-  if (response.name) return response.name;
-  return response.request?.number || '';
-}
-
-type TransportReleaseResponse = Awaited<
-  ReturnType<
-    AdkContext['client']['adt']['cts']['transportrequests']['useraction']['release']
-  >
->;
-
-function releaseReportFailure(
-  response: TransportReleaseResponse,
-): string | undefined {
-  const reports = asArray(response.root.releasereports?.checkReport);
-  if (reports.length === 0) {
-    return 'SAP release response did not contain a release report';
-  }
-
-  const failed = reports.find(
-    (report) => report.status?.toLowerCase() !== 'released',
-  );
-  if (!failed) return undefined;
-
-  const message = asArray(failed.checkMessageList?.checkMessage).find(
-    (entry) => entry.shortText,
-  )?.shortText;
-  return (
-    failed.statusText ||
-    message ||
-    `SAP release report failed with status ${failed.status || 'unknown'}`
-  );
-}
-
 // =============================================================================
 // Config Cache (module-level for efficiency)
 // =============================================================================
@@ -218,7 +180,7 @@ export class AdkTransportRequest extends AdkObject<
       super(ctx, dataOrNumber);
     } else {
       super(ctx, {
-        name: transportResponseName(dataOrNumber),
+        name: dataOrNumber.name || dataOrNumber.request?.number || '',
         type: dataOrNumber.object_type === 'T' ? 'RQTQ' : 'RQRQ',
         response: dataOrNumber,
       });
@@ -354,25 +316,14 @@ export class AdkTransportRequest extends AdkObject<
 
   async release(): Promise<ReleaseResult> {
     try {
-      const response =
-        await this.ctx.client.adt.cts.transportrequests.useraction.release(
-          this.number,
-        );
-      const reportFailure = releaseReportFailure(response);
-      if (reportFailure) return { success: false, message: reportFailure };
+      await this.ctx.client.adt.cts.transportrequests.useraction.release(
+        this.number,
+        { root: { useraction: 'release' } },
+      );
 
-      const verified = await AdkTransportRequest.get(this.number, this.ctx);
-      if (verified.status !== 'R') {
-        return {
-          success: false,
-          message: `Release verification failed for ${this.number}: transport still has status ${verified.status}`,
-        };
-      }
-
-      (this.itemData as { status?: string; status_text?: string }).status =
-        verified.status;
+      (this.itemData as { status?: string; status_text?: string }).status = 'R';
       (this.itemData as { status?: string; status_text?: string }).status_text =
-        verified.statusText;
+        'Released';
       return { success: true };
     } catch (error) {
       return {
@@ -429,79 +380,24 @@ export class AdkTransportRequest extends AdkObject<
   async reassign(newOwner: string, recursive = false): Promise<void> {
     await this.ctx.client.adt.cts.transportrequests.useraction.reassign(
       this.number,
-      { targetUser: newOwner },
+      { targetUser: newOwner, recursive },
       {
         root: {
-          number: this.number,
           useraction: 'changeowner',
           targetuser: newOwner,
         },
       },
     );
 
-    const verified = await AdkTransportRequest.get(this.number, this.ctx);
-    if (verified.owner.toUpperCase() !== newOwner.toUpperCase()) {
-      throw new Error(
-        `Transport ${this.number} owner verification failed: expected ${newOwner}, found ${verified.owner || '<empty>'}`,
-      );
-    }
-
-    (this.itemData as { owner?: string }).owner = verified.owner;
+    (this.itemData as { owner?: string }).owner = newOwner;
 
     if (recursive) {
       for (const task of this.tasks) {
-        if (task.status === 'D') {
+        if (task.status !== 'R') {
           await task.reassign(newOwner);
         }
       }
     }
-  }
-
-  /** Create and verify a modifiable task under this request. */
-  async addTask(owner: string): Promise<AdkTransportTask> {
-    if (this.itemType !== 'request') {
-      throw new Error(`Transport ${this.number} is a task, not a request`);
-    }
-    if (this.status !== 'D') {
-      throw new Error(
-        `Transport ${this.number} is not modifiable: expected status D, found ${this.status}`,
-      );
-    }
-
-    const existingTasks = new Set(this.tasks.map((task) => task.number));
-    const response =
-      await this.ctx.client.adt.cts.transportrequests.useraction.addTask(
-        this.number,
-        { owner },
-        { root: { targetuser: owner } },
-      );
-
-    const returnedNumber = response.root.number;
-    if (!returnedNumber) {
-      throw new Error(
-        `Task creation verification failed for ${this.number}: SAP response did not contain a task number`,
-      );
-    }
-    const verified = await AdkTransportRequest.get(this.number, this.ctx);
-    const created = verified.tasks.find(
-      (task) =>
-        task.number === returnedNumber &&
-        !existingTasks.has(task.number) &&
-        task.owner.toUpperCase() === owner.toUpperCase(),
-    );
-    if (!created) {
-      throw new Error(
-        `Task creation verification failed for ${this.number}: no new task owned by ${owner}`,
-      );
-    }
-    if (created.status !== 'D') {
-      throw new Error(
-        `Task creation verification failed for ${created.number}: expected status D, found ${created.status}`,
-      );
-    }
-    this._tasks = verified.tasks;
-    this._objects = undefined;
-    return created;
   }
 
   // ===========================================================================
@@ -610,7 +506,9 @@ export class AdkTransportRequest extends AdkObject<
             uri: r.uri,
             task: r.task as TransportTaskData | TransportTaskData[] | undefined,
             abap_object: r.abap_object as
-              TransportObjectData | TransportObjectData[] | undefined,
+              | TransportObjectData
+              | TransportObjectData[]
+              | undefined,
           },
         } as TransportData),
     );

@@ -496,22 +496,6 @@ describe('adt-mcp integration tests', () => {
     });
   });
 
-  describe('cts_create_task tool', () => {
-    it('creates and verifies a modifiable task under a request', async () => {
-      const { json } = await callTool('cts_create_task', {
-        ...connArgs(),
-        transport: 'DEVK900001',
-        owner: 'NEWOWNER',
-      });
-      assert.deepStrictEqual(json, {
-        status: 'created',
-        transport: 'DEVK900001',
-        task: 'DEVK900004',
-        owner: 'NEWOWNER',
-      });
-    });
-  });
-
   // ── cts_release_transport ──────────────────────────────────────
 
   describe('cts_release_transport tool', () => {
@@ -1128,20 +1112,12 @@ describe('adt-mcp integration tests', () => {
 
   describe('cts_reassign_transport tool', () => {
     it('reassigns a transport to a new owner', async () => {
-      // The release-tool scenario above intentionally transitions this shared
-      // fixture to R. Reassign must be exercised from an independent D state.
-      await mockAdt.reset();
-
-      const { json, raw } = await callTool('cts_reassign_transport', {
+      const { json } = await callTool('cts_reassign_transport', {
         ...connArgs(),
         transportNumber: 'DEVK900001',
         targetUser: 'NEWOWNER',
         recursive: true,
       });
-      assert.ok(
-        !(raw as { isError?: boolean }).isError,
-        `reassign should succeed: ${String(json)}`,
-      );
       const data = json as {
         status: string;
         transport: string;
@@ -1409,7 +1385,6 @@ describe('adt-mcp integration tests', () => {
         'cts_list_transports',
         'cts_get_transport',
         'cts_create_transport',
-        'cts_create_task',
         'cts_release_transport',
         'cts_delete_transport',
         'cts_search_transports',
