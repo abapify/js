@@ -13,6 +13,7 @@ import {
 } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import {
+  addTaskBodySchema,
   changeOwnerBodySchema,
   useraction,
 } from '../../src/adt/cts/transportrequests/useraction';
@@ -49,6 +50,24 @@ class TransportUseractionScenario extends ContractScenario {
       response: { status: 200, schema: transportmanagmentSingle },
     },
     {
+      name: 'create task under request',
+      contract: () => useraction.addTask('DEVK900001', { owner: 'NEWOWNER' }),
+      method: 'POST',
+      path: '/sap/bc/adt/cts/transportrequests/DEVK900001/tasks',
+      headers: {
+        Accept: CONTENT_TYPE,
+        'Content-Type': CONTENT_TYPE,
+      },
+      body: {
+        schema: addTaskBodySchema,
+      },
+      response: {
+        status: 200,
+        schema: transportmanagment,
+        fixture: fixtures.transport.taskCreateResponse,
+      },
+    },
+    {
       name: 'create transport (newrequest)',
       contract: () =>
         useraction.create({
@@ -75,6 +94,21 @@ class TransportUseractionScenario extends ContractScenario {
 runScenario(new TransportUseractionScenario());
 
 describe('CTS lifecycle request bodies', () => {
+  it('builds an add-task body with the requested owner', () => {
+    const contract = useraction.addTask('DEVK900001', {
+      owner: 'NEWOWNER',
+    });
+
+    expect(contract.body).toBe(addTaskBodySchema);
+    const xml = addTaskBodySchema.build?.({
+      root: { targetuser: 'NEWOWNER' },
+    });
+    expect(xml).toContain('tm:targetuser="NEWOWNER"');
+    expect(addTaskBodySchema.parse?.(xml ?? '')).toEqual({
+      root: { targetuser: 'NEWOWNER' },
+    });
+  });
+
   it('sends release as a body-less new release job', () => {
     const contract = useraction.release('DEVK900001');
 

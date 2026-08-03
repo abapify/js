@@ -11,6 +11,7 @@ interface LifecycleFixtureOptions {
   releaseStatus?: string;
   releaseStatusText?: string;
   applyReassign?: boolean;
+  applyAddTask?: boolean;
 }
 
 function requestResponse(
@@ -115,19 +116,46 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
       );
     },
   );
+  const addTask = vi.fn(
+    async (
+      _number: string,
+      _options: { owner: string },
+      body: { root: { targetuser: string } },
+    ) => {
+      if (options.applyAddTask !== false) {
+        const created = {
+          number: 'DEVK900005',
+          owner: body.root.targetuser,
+          status: 'D',
+        };
+        taskDefinitions.push(created);
+        states.set(created.number, {
+          owner: created.owner,
+          status: created.status,
+        });
+      }
+      return {
+        root: {
+          targetuser: body.root.targetuser,
+          useraction: 'tasks',
+          number: 'DEVK900005',
+        },
+      };
+    },
+  );
 
   const client = {
     adt: {
       cts: {
         transportrequests: {
           get,
-          useraction: { release, reassign },
+          useraction: { release, reassign, addTask },
         },
       },
     },
   } as unknown as AdtClient;
 
-  return { client, get, release, reassign, states, rootNumber };
+  return { client, get, release, reassign, addTask, states, rootNumber };
 }
 
 describe('AdkTransportRequest CTS lifecycle', () => {
@@ -210,5 +238,47 @@ describe('AdkTransportRequest CTS lifecycle', () => {
     expect(fixture.states.get('DEVK900003')?.owner).toBe('OLDUSER');
     expect(fixture.states.get('DEVK900004')?.owner).toBe('OLDUSER');
     expect(transport.owner).toBe('NEWUSER');
+  });
+
+  it('creates a task and returns it only after parent read-back verification', async () => {
+    const fixture = createLifecycleFixture();
+    const transport = await AdkTransportRequest.get(fixture.rootNumber, {
+      client: fixture.client,
+    });
+
+    const created = await transport.addTask('NEWUSER');
+
+    expect(created.number).toBe('DEVK900005');
+    expect(created.owner).toBe('NEWUSER');
+    expect(created.status).toBe('D');
+    expect(fixture.addTask).toHaveBeenCalledWith(
+      fixture.rootNumber,
+      { owner: 'NEWUSER' },
+      { root: { targetuser: 'NEWUSER' } },
+    );
+    expect(fixture.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects task creation when SAP read-back has no matching new task', async () => {
+    const fixture = createLifecycleFixture({ applyAddTask: false });
+    const transport = await AdkTransportRequest.get(fixture.rootNumber, {
+      client: fixture.client,
+    });
+
+    await expect(transport.addTask('NEWUSER')).rejects.toThrow(
+      'no new task owned by NEWUSER',
+    );
+  });
+
+  it('rejects creating a child under a transport task', async () => {
+    const fixture = createLifecycleFixture();
+    const task = await AdkTransportRequest.get('DEVK900002', {
+      client: fixture.client,
+    });
+
+    await expect(task.addTask('NEWUSER')).rejects.toThrow(
+      'is a task, not a request',
+    );
+    expect(fixture.addTask).not.toHaveBeenCalled();
   });
 });

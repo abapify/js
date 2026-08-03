@@ -462,7 +462,21 @@ Create a new transport request.
 | `description` | string         | ✅      | Transport description                |
 | `type`        | `"K"` \| `"W"` | `"K"`   | Workbench (`K`) or Customizing (`W`) |
 
-> 🚧 Not yet implemented — returns a clear error until the underlying client method is available.
+---
+
+#### `cts_create_task`
+
+Create and verify a modifiable task under an existing transport request.
+
+**Parameters:**
+
+| Parameter   | Type   | Description                     |
+| ----------- | ------ | ------------------------------- |
+| `transport` | string | Parent transport request number |
+| `owner`     | string | SAP user who will own the task  |
+
+**Returns:** The parent transport number, created task number, normalized owner,
+and `created` status.
 
 ---
 
@@ -472,13 +486,10 @@ Release a transport request.
 
 **Parameters:**
 
-| Parameter     | Type   | Description      |
-| ------------- | ------ | ---------------- |
-| `transportId` | string | Transport number |
-
-> 🚧 Not yet implemented.
-
----
+| Parameter    | Type    | Description                                 |
+| ------------ | ------- | ------------------------------------------- |
+| `transport`  | string  | Transport number                            |
+| `releaseAll` | boolean | Release modifiable tasks before the request |
 
 #### `cts_delete_transport`
 
@@ -486,9 +497,9 @@ Delete a transport request.
 
 **Parameters:**
 
-| Parameter     | Type   | Description      |
-| ------------- | ------ | ---------------- |
-| `transportId` | string | Transport number |
+| Parameter   | Type   | Description      |
+| ----------- | ------ | ---------------- |
+| `transport` | string | Transport number |
 
 ---
 
@@ -648,35 +659,36 @@ await mock.stop();
 bunx nx build adt-mcp      # build
 bunx nx typecheck adt-mcp  # type check
 bunx nx lint adt-mcp       # lint
-bunx nx test adt-mcp       # tests (runs integration suite)
+cd packages/adt-mcp && node --test --import tsx tests/integration.test.ts
 ```
 
 ---
 
 ## Feature Parity Map
 
-| CLI Command                  | MCP Tool                        | Status     |
-| ---------------------------- | ------------------------------- | ---------- |
-| `adt discovery`              | `discovery`                     | ✅         |
-| `adt info`                   | `system_info`                   | ✅         |
-| `adt search`                 | `search_objects`                | ✅         |
-| `adt get`                    | `get_object`                    | ✅         |
-| `adt source get`             | `get_source`                    | ✅         |
-| `adt source versions`        | `list_source_versions`          | ✅         |
-| `adt source version get`     | `get_source_version`            | ✅         |
-| `adt source put`             | `update_source`                 | ✅         |
-| `adt activate`               | `activate_object`               | ✅         |
-| `adt check`                  | `check_syntax`                  | ✅         |
-| `adt aunit run`              | `run_unit_tests`                | ✅         |
-| `adt atc run`                | `atc_run`                       | ✅         |
-| `adt cts tr list`            | `cts_list_transports`           | ✅         |
-| `adt cts tr get`             | `cts_get_transport`             | ✅         |
-| `adt cts tr source-manifest` | `cts_transport_source_manifest` | ✅         |
-| `adt cts tr delete`          | `cts_delete_transport`          | ✅         |
-| `adt cts tr create`          | `cts_create_transport`          | 🚧 Not yet |
-| `adt cts tr release`         | `cts_release_transport`         | 🚧 Not yet |
-| `adt flow checkout tr`       | `flow_checkout_tr`              | ✅         |
-| `adt ls`                     | —                               | 🔜 Future  |
-| `adt cts search`             | —                               | 🔜 Future  |
-| `adt import package`         | —                               | 🔜 Future  |
-| `adt import transport`       | —                               | 🔜 Future  |
+| CLI Command                  | MCP Tool                        | Status    |
+| ---------------------------- | ------------------------------- | --------- |
+| `adt discovery`              | `discovery`                     | ✅        |
+| `adt info`                   | `system_info`                   | ✅        |
+| `adt search`                 | `search_objects`                | ✅        |
+| `adt get`                    | `get_object`                    | ✅        |
+| `adt source get`             | `get_source`                    | ✅        |
+| `adt source versions`        | `list_source_versions`          | ✅        |
+| `adt source version get`     | `get_source_version`            | ✅        |
+| `adt source put`             | `update_source`                 | ✅        |
+| `adt activate`               | `activate_object`               | ✅        |
+| `adt check`                  | `check_syntax`                  | ✅        |
+| `adt aunit run`              | `run_unit_tests`                | ✅        |
+| `adt atc run`                | `atc_run`                       | ✅        |
+| `adt cts tr list`            | `cts_list_transports`           | ✅        |
+| `adt cts tr get`             | `cts_get_transport`             | ✅        |
+| `adt cts tr task create`     | `cts_create_task`               | ✅        |
+| `adt cts tr source-manifest` | `cts_transport_source_manifest` | ✅        |
+| `adt cts tr delete`          | `cts_delete_transport`          | ✅        |
+| `adt cts tr create`          | `cts_create_transport`          | ✅        |
+| `adt cts tr release`         | `cts_release_transport`         | ✅        |
+| `adt flow checkout tr`       | `flow_checkout_tr`              | ✅        |
+| `adt ls`                     | —                               | 🔜 Future |
+| `adt cts search`             | —                               | 🔜 Future |
+| `adt import package`         | —                               | 🔜 Future |
+| `adt import transport`       | —                               | 🔜 Future |

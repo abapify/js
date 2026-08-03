@@ -203,6 +203,20 @@ Get details for a transport request or task.
 | `-t, --type <type>`        | `K` (Workbench, default) or `W` (Customizing) |
 | `--target <target>`        | Target system (default: `LOCAL`)              |
 
+#### `adt cts tr task create <transport> <owner> [options]`
+
+Create a modifiable task under an existing request and verify the new task by
+reading the parent request back from SAP.
+
+```bash
+adt cts tr task create DEVK900001 DEVELOPER
+adt cts tr task create DEVK900001 DEVELOPER --json
+```
+
+| Option   | Description           |
+| -------- | --------------------- |
+| `--json` | JSON result on stdout |
+
 ### Exact source history
 
 Source-history commands follow immutable links returned by SAP ADT. Listing

@@ -17,6 +17,11 @@ function transport(overrides: Partial<AdkTransportRequest> = {}) {
     release: vi.fn().mockResolvedValue({ success: true }),
     releaseAll: vi.fn().mockResolvedValue({ success: true }),
     reassign: vi.fn().mockResolvedValue(undefined),
+    addTask: vi.fn().mockResolvedValue({
+      number: 'DEVK900004',
+      owner: 'NEWUSER',
+      status: 'D',
+    }),
     ...overrides,
   } as unknown as AdkTransportRequest;
 }
@@ -44,6 +49,18 @@ describe('CtsTransportLifecycleService', () => {
       getTransport: vi.fn().mockResolvedValue(model),
     });
 
+    await expect(
+      service.createTask({
+        transport: 'devk900001',
+        owner: 'newuser',
+      }),
+    ).resolves.toEqual({
+      status: 'created',
+      transport: 'DEVK900001',
+      task: 'DEVK900004',
+      owner: 'NEWUSER',
+    });
+    expect(model.addTask).toHaveBeenCalledWith('NEWUSER');
     await expect(
       service.release({ transport: 'DEVK900001', releaseAll: false }),
     ).resolves.toMatchObject({

@@ -51,6 +51,18 @@ export interface ReassignTransportResult {
   recursive: boolean;
 }
 
+export interface CreateTaskInput {
+  transport: string;
+  owner: string;
+}
+
+export interface CreateTaskResult {
+  status: 'created';
+  transport: string;
+  task: string;
+  owner: string;
+}
+
 export class CtsTransportLifecycleService {
   constructor(
     private readonly client: AdtClient,
@@ -101,6 +113,22 @@ export class CtsTransportLifecycleService {
       transport: model.number,
       releaseAll,
       result,
+    };
+  }
+
+  async createTask(input: CreateTaskInput): Promise<CreateTaskResult> {
+    const transport = input.transport.trim().toUpperCase();
+    const owner = input.owner.trim().toUpperCase();
+    if (!transport || !owner) {
+      throw new Error('Transport and task owner are required');
+    }
+    const model = await this.operations.getTransport(transport, this.client);
+    const task = await model.addTask(owner);
+    return {
+      status: 'created',
+      transport: model.number,
+      task: task.number,
+      owner: task.owner,
     };
   }
 
