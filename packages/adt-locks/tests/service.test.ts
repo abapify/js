@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createLockService } from '../src/service';
+import { createLockService, resolveLockCorrelation } from '../src/service';
 import type { LockStore } from '../src/store';
 import type { LockEntry } from '../src/types';
 import type { LockClient } from '../src/service';
@@ -55,6 +55,23 @@ function createMockStore(): LockStore & {
     }),
   };
 }
+
+describe('resolveLockCorrelation()', () => {
+  it('prefers the authoritative transport returned by SAP LOCK', () => {
+    expect(
+      resolveLockCorrelation(
+        { handle: 'HANDLE_XYZ', correlationNumber: 'DEVK900001' },
+        'DEVK900002',
+      ),
+    ).toBe('DEVK900001');
+  });
+
+  it('falls back to the requested transport when LOCK omits CORRNR', () => {
+    expect(resolveLockCorrelation({ handle: 'HANDLE_XYZ' }, 'DEVK900002')).toBe(
+      'DEVK900002',
+    );
+  });
+});
 
 // ── lock ─────────────────────────────────────────────────────────────
 

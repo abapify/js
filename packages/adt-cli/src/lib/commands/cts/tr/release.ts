@@ -58,7 +58,7 @@ export const ctsReleaseCommand = new Command('release')
             JSON.stringify({ transport, status: 'already_released' }, null, 2),
           );
         }
-        process.exit(0);
+        return;
       }
 
       // Display transport info

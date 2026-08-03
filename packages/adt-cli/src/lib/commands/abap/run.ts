@@ -30,6 +30,7 @@ import { getAdtClientV2, getCliContext } from '../../utils/adt-client-v2';
 import { createProgressReporter } from '../../utils/progress-reporter';
 import { createCliLogger } from '../../utils/logger-config';
 import { AdkClass } from '@abapify/adk';
+import { resolveLockCorrelation } from '@abapify/adt-locks';
 
 function buildClassTemplate(className: string, body: string): string {
   const lower = className.toLowerCase();
@@ -138,7 +139,7 @@ export const abapRunCommand = new Command('run')
           progress.step(`💾 Writing source...`);
           await cls.saveMainSource(classSource, {
             lockHandle: lockHandle.handle,
-            transport: options.transport,
+            transport: resolveLockCorrelation(lockHandle, options.transport),
           });
           progress.done();
         } finally {

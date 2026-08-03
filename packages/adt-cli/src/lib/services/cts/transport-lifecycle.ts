@@ -135,23 +135,25 @@ export class CtsTransportLifecycleService {
   async reassign(
     input: ReassignTransportInput,
   ): Promise<ReassignTransportResult> {
-    const model = await this.operations.getTransport(
-      input.transport,
-      this.client,
-    );
+    const transport = input.transport.trim().toUpperCase();
+    const newOwner = input.newOwner.trim().toUpperCase();
+    if (!transport || !newOwner) {
+      throw new Error('Transport and new owner are required');
+    }
+    const model = await this.operations.getTransport(transport, this.client);
     if (model.status === 'R') {
       throw new Error(`Transport ${model.number} is already released`);
     }
 
     const recursive = input.recursive ?? false;
     const previousOwner = model.owner;
-    await model.reassign(input.newOwner, recursive);
+    await model.reassign(newOwner, recursive);
 
     return {
       status: 'reassigned',
       transport: model.number,
       previousOwner,
-      newOwner: input.newOwner,
+      newOwner: model.owner,
       recursive,
     };
   }
