@@ -15,7 +15,7 @@ import { confirm } from '@inquirer/prompts';
 import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
-import { AdkTransportRequest } from '@abapify/adk';
+import { CtsTransportLifecycleService } from '../../../services/cts';
 
 export const ctsReleaseCommand = new Command('release')
   .description('Release transport request')
@@ -37,14 +37,12 @@ export const ctsReleaseCommand = new Command('release')
 
     try {
       const client = await getAdtClientV2();
+      const lifecycle = new CtsTransportLifecycleService(client);
 
-      // Step 1: Get transport via ADK
       progress.step(`🔍 Getting transport ${transport}...`);
-      // ADK expects (number, ctx?) - ctx is AdkContext with client property
-
-      let tr: AdkTransportRequest;
+      let summary;
       try {
-        tr = await AdkTransportRequest.get(transport, { client });
+        summary = await lifecycle.getTransport(transport);
       } catch (_err) {
         console.error(`❌ Transport ${transport} not found or not accessible`);
         process.exit(1);
@@ -53,7 +51,7 @@ export const ctsReleaseCommand = new Command('release')
       progress.done();
 
       // Check if already released
-      if (tr.status === 'R') {
+      if (summary.status === 'R') {
         console.log(`ℹ️  Transport ${transport} is already released`);
         if (options.json) {
           console.log(
@@ -65,15 +63,15 @@ export const ctsReleaseCommand = new Command('release')
 
       // Display transport info
       if (!options.json) {
-        console.log(`\n📋 Transport: ${tr.number}`);
-        console.log(`   Description: ${tr.description || '-'}`);
-        console.log(`   Owner: ${tr.owner || '-'}`);
+        console.log(`\n📋 Transport: ${summary.transport}`);
+        console.log(`   Description: ${summary.description || '-'}`);
+        console.log(`   Owner: ${summary.owner || '-'}`);
         console.log(
-          `   Target: ${tr.targetDescription || tr.target || 'LOCAL'}`,
+          `   Target: ${summary.targetDescription || summary.target || 'LOCAL'}`,
         );
-        console.log(`   Status: ${tr.statusText}`);
-        console.log(`   Tasks: ${tr.tasks.length}`);
-        console.log(`   Objects: ${tr.objects.length}`);
+        console.log(`   Status: ${summary.statusText}`);
+        console.log(`   Tasks: ${summary.taskCount}`);
+        console.log(`   Objects: ${summary.objectCount}`);
       }
 
       // Step 2: Pre-release check (not yet implemented - check endpoint not available)
@@ -99,41 +97,19 @@ export const ctsReleaseCommand = new Command('release')
         }
       }
 
-      // Step 4: Release the transport using ADK
       progress.step(`🚀 Releasing transport ${transport}...`);
-
-      let result;
-      if (options.releaseAll) {
-        // Release all tasks first, then the transport
-        result = await tr.releaseAll();
-      } else {
-        // Release transport only (tasks must already be released)
-        result = await tr.release();
-      }
-
+      const result = await lifecycle.release({
+        transport,
+        releaseAll: options.releaseAll,
+      });
       progress.done();
 
-      if (!result.success) {
-        console.error(`❌ Release failed: ${result.message}`);
-        process.exit(1);
-      }
-
       if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              transport,
-              status: 'released',
-              result,
-            },
-            null,
-            2,
-          ),
-        );
+        console.log(JSON.stringify(result, null, 2));
       } else {
         console.log(`\n✅ Transport ${transport} released successfully!`);
         console.log(
-          `   Target: ${tr.targetDescription || tr.target || 'LOCAL'}`,
+          `   Target: ${summary.targetDescription || summary.target || 'LOCAL'}`,
         );
       }
     } catch (error) {

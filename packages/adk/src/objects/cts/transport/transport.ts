@@ -45,6 +45,35 @@ function asArray<T>(val: T | T[] | undefined): T[] {
   return Array.isArray(val) ? val : [val];
 }
 
+type TransportReleaseResponse = Awaited<
+  ReturnType<
+    AdkContext['client']['adt']['cts']['transportrequests']['useraction']['release']
+  >
+>;
+
+function releaseReportFailure(
+  response: TransportReleaseResponse,
+): string | undefined {
+  const reports = asArray(response.root.releasereports?.checkReport);
+  if (reports.length === 0) {
+    return 'SAP release response did not contain a release report';
+  }
+
+  const failed = reports.find(
+    (report) => report.status?.toLowerCase() !== 'released',
+  );
+  if (!failed) return undefined;
+
+  const message = asArray(failed.checkMessageList?.checkMessage).find(
+    (entry) => entry.shortText,
+  )?.shortText;
+  return (
+    failed.statusText ||
+    message ||
+    `SAP release report failed with status ${failed.status || 'unknown'}`
+  );
+}
+
 // =============================================================================
 // Config Cache (module-level for efficiency)
 // =============================================================================
@@ -316,14 +345,25 @@ export class AdkTransportRequest extends AdkObject<
 
   async release(): Promise<ReleaseResult> {
     try {
-      await this.ctx.client.adt.cts.transportrequests.useraction.release(
-        this.number,
-        { root: { useraction: 'release' } },
-      );
+      const response =
+        await this.ctx.client.adt.cts.transportrequests.useraction.release(
+          this.number,
+        );
+      const reportFailure = releaseReportFailure(response);
+      if (reportFailure) return { success: false, message: reportFailure };
 
-      (this.itemData as { status?: string; status_text?: string }).status = 'R';
+      const verified = await AdkTransportRequest.get(this.number, this.ctx);
+      if (verified.status !== 'R') {
+        return {
+          success: false,
+          message: `Release verification failed for ${this.number}: transport still has status ${verified.status}`,
+        };
+      }
+
+      (this.itemData as { status?: string; status_text?: string }).status =
+        verified.status;
       (this.itemData as { status?: string; status_text?: string }).status_text =
-        'Released';
+        verified.statusText;
       return { success: true };
     } catch (error) {
       return {
@@ -380,20 +420,28 @@ export class AdkTransportRequest extends AdkObject<
   async reassign(newOwner: string, recursive = false): Promise<void> {
     await this.ctx.client.adt.cts.transportrequests.useraction.reassign(
       this.number,
-      { targetUser: newOwner, recursive },
+      { targetUser: newOwner },
       {
         root: {
+          number: this.number,
           useraction: 'changeowner',
           targetuser: newOwner,
         },
       },
     );
 
-    (this.itemData as { owner?: string }).owner = newOwner;
+    const verified = await AdkTransportRequest.get(this.number, this.ctx);
+    if (verified.owner.toUpperCase() !== newOwner.toUpperCase()) {
+      throw new Error(
+        `Transport ${this.number} owner verification failed: expected ${newOwner}, found ${verified.owner || '<empty>'}`,
+      );
+    }
+
+    (this.itemData as { owner?: string }).owner = verified.owner;
 
     if (recursive) {
       for (const task of this.tasks) {
-        if (task.status !== 'R') {
+        if (task.status === 'D') {
           await task.reassign(newOwner);
         }
       }
@@ -506,9 +554,7 @@ export class AdkTransportRequest extends AdkObject<
             uri: r.uri,
             task: r.task as TransportTaskData | TransportTaskData[] | undefined,
             abap_object: r.abap_object as
-              | TransportObjectData
-              | TransportObjectData[]
-              | undefined,
+              TransportObjectData | TransportObjectData[] | undefined,
           },
         } as TransportData),
     );

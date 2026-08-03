@@ -1112,6 +1112,10 @@ describe('adt-mcp integration tests', () => {
 
   describe('cts_reassign_transport tool', () => {
     it('reassigns a transport to a new owner', async () => {
+      // The release-tool scenario above intentionally transitions this shared
+      // fixture to R. Reassign must be exercised from an independent D state.
+      await mockAdt.reset();
+
       const { json } = await callTool('cts_reassign_transport', {
         ...connArgs(),
         transportNumber: 'DEVK900001',

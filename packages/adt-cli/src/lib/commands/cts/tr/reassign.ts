@@ -15,7 +15,7 @@ import { Command } from 'commander';
 import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
-import { AdkTransportRequest } from '@abapify/adk';
+import { CtsTransportLifecycleService } from '../../../services/cts';
 
 export const ctsReassignCommand = new Command('reassign')
   .description('Change the owner of a transport request')
@@ -45,12 +45,12 @@ export const ctsReassignCommand = new Command('reassign')
 
     try {
       const client = await getAdtClientV2();
+      const lifecycle = new CtsTransportLifecycleService(client);
 
-      // Step 1: Get transport via ADK
       progress.step(`🔍 Getting transport ${transport}...`);
-      let tr: AdkTransportRequest;
+      let summary;
       try {
-        tr = await AdkTransportRequest.get(transport, { client });
+        summary = await lifecycle.getTransport(transport);
       } catch (err) {
         console.error(`❌ Transport ${transport} not found or not accessible`);
         console.error(err instanceof Error ? err.message : String(err));
@@ -59,39 +59,28 @@ export const ctsReassignCommand = new Command('reassign')
       progress.done();
 
       // Check if already released
-      if (tr.status === 'R') {
+      if (summary.status === 'R') {
         console.error(`❌ Transport ${transport} is already released`);
         process.exit(1);
       }
 
-      const previousOwner = tr.owner;
-
-      // Step 2: Reassign
       progress.step(
-        `🔄 Reassigning ${transport} from ${previousOwner} to ${newOwner}${options.recursive ? ' (recursive)' : ''}...`,
+        `🔄 Reassigning ${transport} from ${summary.owner} to ${newOwner}${options.recursive ? ' (recursive)' : ''}...`,
       );
-      await tr.reassign(newOwner, options.recursive);
+      const result = await lifecycle.reassign({
+        transport,
+        newOwner,
+        recursive: options.recursive,
+      });
       progress.done();
 
       if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              transport,
-              previousOwner,
-              newOwner,
-              recursive: options.recursive,
-              status: 'reassigned',
-            },
-            null,
-            2,
-          ),
-        );
+        console.log(JSON.stringify(result, null, 2));
       } else {
         console.log(`✅ Transport ${transport} reassigned successfully`);
-        console.log(`   Previous owner: ${previousOwner}`);
-        console.log(`   New owner:      ${newOwner}`);
-        if (options.recursive) {
+        console.log(`   Previous owner: ${result.previousOwner}`);
+        console.log(`   New owner:      ${result.newOwner}`);
+        if (result.recursive) {
           console.log(`   Tasks: reassigned (modifiable tasks only)`);
         }
       }

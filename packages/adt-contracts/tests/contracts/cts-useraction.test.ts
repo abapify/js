@@ -1,17 +1,21 @@
 /**
  * CTS transportrequests user-action contract scenarios
  *
- * Validates the release / reassign / create endpoints that ADT exposes
- * as POST bodies with `<tm:root tm:useraction="..."/>`.
+ * Validates the release / reassign / create endpoints that ADT exposes.
  */
 
+import { describe, expect, it } from 'vitest';
 import { fixtures } from '@abapify/adt-fixtures';
 import {
   transportUseraction,
+  transportmanagment,
   transportmanagmentSingle,
 } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
-import { useraction } from '../../src/adt/cts/transportrequests/useraction';
+import {
+  changeOwnerBodySchema,
+  useraction,
+} from '../../src/adt/cts/transportrequests/useraction';
 
 const CONTENT_TYPE = 'application/vnd.sap.adt.transportorganizer.v1+xml';
 
@@ -23,30 +27,24 @@ class TransportUseractionScenario extends ContractScenario {
       name: 'release transport',
       contract: () => useraction.release('DEVK900001'),
       method: 'POST',
-      path: '/sap/bc/adt/cts/transportrequests/DEVK900001',
+      path: '/sap/bc/adt/cts/transportrequests/DEVK900001/newreleasejobs',
       headers: {
         Accept: CONTENT_TYPE,
-        'Content-Type': CONTENT_TYPE,
       },
-      body: {
-        schema: transportUseraction,
-        fixture: fixtures.transport.useractionRelease,
-      },
-      response: { status: 200, schema: transportmanagmentSingle },
+      response: { status: 200, schema: transportmanagment },
     },
     {
       name: 'reassign transport (changeowner)',
       contract: () =>
         useraction.reassign('DEVK900001', { targetUser: 'NEWOWNER' }),
-      method: 'POST',
+      method: 'PUT',
       path: '/sap/bc/adt/cts/transportrequests/DEVK900001',
       headers: {
         Accept: CONTENT_TYPE,
         'Content-Type': CONTENT_TYPE,
       },
       body: {
-        schema: transportUseraction,
-        fixture: fixtures.transport.useractionChangeowner,
+        schema: changeOwnerBodySchema,
       },
       response: { status: 200, schema: transportmanagmentSingle },
     },
@@ -75,3 +73,46 @@ class TransportUseractionScenario extends ContractScenario {
 }
 
 runScenario(new TransportUseractionScenario());
+
+describe('CTS lifecycle request bodies', () => {
+  it('sends release as a body-less new release job', () => {
+    const contract = useraction.release('DEVK900001');
+
+    expect(contract.body).toBeUndefined();
+    expect(contract.headers).not.toHaveProperty('Content-Type');
+  });
+
+  it('builds a typed change-owner body with the transport number', () => {
+    const contract = useraction.reassign('DEVK900001', {
+      targetUser: 'NEWOWNER',
+    });
+
+    expect(contract.body).toBe(changeOwnerBodySchema);
+    expect(
+      changeOwnerBodySchema.build?.({
+        root: {
+          number: 'DEVK900001',
+          targetuser: 'NEWOWNER',
+          useraction: 'changeowner',
+        },
+      }),
+    ).toContain('tm:number="DEVK900001"');
+
+    const xml = changeOwnerBodySchema.build?.({
+      root: {
+        number: 'DEVK900001',
+        targetuser: 'NEWOWNER',
+        useraction: 'changeowner',
+      },
+    });
+    expect(xml).toContain('tm:targetuser="NEWOWNER"');
+    expect(xml).toContain('tm:useraction="changeowner"');
+    expect(changeOwnerBodySchema.parse?.(xml ?? '')).toEqual({
+      root: {
+        number: 'DEVK900001',
+        targetuser: 'NEWOWNER',
+        useraction: 'changeowner',
+      },
+    });
+  });
+});

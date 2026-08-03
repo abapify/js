@@ -72,3 +72,23 @@ export {
   type ListObjectVersionsInput,
   type ListObjectVersionsResult,
 } from './lib/services/source-history';
+
+export {
+  CheckService,
+  DEFAULT_CHECK_SOURCE_VERSION,
+  type CheckMessage,
+  type CheckReport,
+  type CheckResult,
+  type CheckServiceInput,
+  type CheckSourceVersion,
+} from './lib/services/check/service';
+
+export {
+  CtsTransportLifecycleService,
+  type CtsTransportLifecycleOperations,
+  type CtsTransportSummary,
+  type ReassignTransportInput,
+  type ReassignTransportResult,
+  type ReleaseTransportInput,
+  type ReleaseTransportResult,
+} from './lib/services/cts';

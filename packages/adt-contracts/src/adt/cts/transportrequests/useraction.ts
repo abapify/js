@@ -1,24 +1,24 @@
 /**
  * /sap/bc/adt/cts/transportrequests - user-action body endpoints
  *
- * SAP ADT uses POST with a `<tm:root tm:useraction="...">` XML body for
- * release / changeowner / newrequest actions. This file exposes typed
- * endpoints that wrap those three operations.
+ * SAP ADT uses distinct lifecycle endpoints for release, changeowner, and
+ * newrequest actions. This file exposes typed contracts for all three.
  *
- *   release       → POST /{trkorr}
- *   changeowner   → POST /{trkorr}    (requires tm:targetuser, optional tm:recursive)
+ *   release       → POST /{trkorr}/newreleasejobs (no body)
+ *   changeowner   → PUT  /{trkorr}    (requires tm:number and tm:targetuser)
  *   newrequest    → POST /            (creates a new transport request)
- *
- * All three share the same namespace and content-type but differ in
- * request shape and URL, so we expose them as separate methods with
- * strongly-typed options while sharing a single schema.
  */
 
 import { http } from '../../../base';
 import {
   transportUseraction,
+  transportmanagment,
   transportmanagmentSingle,
 } from '../../../schemas';
+import { changeOwnerBodySchema } from './change-owner-schema';
+
+export { changeOwnerBodySchema } from './change-owner-schema';
+export type { ChangeOwnerBody } from './change-owner-schema';
 
 /** Options for {@link useraction.reassign} */
 export interface ReassignOptions {
@@ -46,28 +46,20 @@ const CONTENT_TYPE = 'application/vnd.sap.adt.transportorganizer.v1+xml';
 
 export const useraction = {
   /**
-   * POST /{trkorr} with useraction="release"
-   *
-   * Releases the transport or task.
+   * Start and synchronously report a transport/task release job.
    */
   release: (trkorr: string) =>
-    http.post(`/sap/bc/adt/cts/transportrequests/${trkorr}`, {
-      body: transportUseraction,
-      responses: { 200: transportmanagmentSingle },
-      headers: {
-        Accept: CONTENT_TYPE,
-        'Content-Type': CONTENT_TYPE,
-      },
+    http.post(`/sap/bc/adt/cts/transportrequests/${trkorr}/newreleasejobs`, {
+      responses: { 200: transportmanagment },
+      headers: { Accept: CONTENT_TYPE },
     }),
 
   /**
-   * POST /{trkorr} with useraction="changeowner"
-   *
-   * Reassigns ownership of a transport (and optionally all of its tasks).
+   * PUT /{trkorr} with useraction="changeowner".
    */
   reassign: (trkorr: string, _options: ReassignOptions) =>
-    http.post(`/sap/bc/adt/cts/transportrequests/${trkorr}`, {
-      body: transportUseraction,
+    http.put(`/sap/bc/adt/cts/transportrequests/${trkorr}`, {
+      body: changeOwnerBodySchema,
       responses: { 200: transportmanagmentSingle },
       headers: {
         Accept: CONTENT_TYPE,

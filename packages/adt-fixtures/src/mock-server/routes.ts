@@ -17,6 +17,25 @@ export interface RouteResult {
   headers?: Record<string, string>;
 }
 
+function replaceRequestAttribute(
+  xml: string,
+  attribute: 'owner' | 'status' | 'status_text',
+  value: string,
+): string {
+  return xml.replace(/<tm:request\b([^>]*)>/, (tag, attributes: string) => {
+    const matcher = new RegExp(`\\btm:${attribute}="[^"]*"`);
+    const replacement = `tm:${attribute}="${value}"`;
+    const nextAttributes = matcher.test(attributes)
+      ? attributes.replace(matcher, replacement)
+      : `${attributes} ${replacement}`;
+    return `<tm:request${nextAttributes}>`;
+  });
+}
+
+function extractTargetUser(requestBody: string): string | undefined {
+  return /\btm:targetuser=["']([^"']+)["']/.exec(requestBody)?.[1];
+}
+
 /**
  * Preloaded fixture content — populated once at server start.
  * All routes read from this map to avoid async in matchRoute.
@@ -370,6 +389,7 @@ export function matchRoute(
   f: LoadedFixtures,
   locks: LockRegistry,
   _sessionId?: string,
+  requestBody = '',
 ): RouteResult | undefined {
   const m = method.toUpperCase();
   const pathname = url.split('?')[0];
@@ -827,7 +847,32 @@ export function matchRoute(
     };
   }
 
-  // CTS release / reassign / action — POST on a transport request
+  // CTS release — SAP starts a release job without a request body. Keep the
+  // fixture stateful so the lifecycle service's read-back can verify status R.
+  if (
+    m === 'POST' &&
+    /\/sap\/bc\/adt\/cts\/transportrequests\/\w+\/newreleasejobs$/.test(
+      pathname,
+    )
+  ) {
+    f.transportSingle = replaceRequestAttribute(
+      f.transportSingle,
+      'status',
+      'R',
+    );
+    f.transportSingle = replaceRequestAttribute(
+      f.transportSingle,
+      'status_text',
+      'Released',
+    );
+    return {
+      status: 200,
+      body: f.transportRelease,
+      contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+    };
+  }
+
+  // Legacy CTS action — POST on a transport request.
   // (lock/unlock actions are handled further below by the generic _action handler)
   if (
     m === 'POST' &&
@@ -876,6 +921,14 @@ export function matchRoute(
     m === 'PUT' &&
     /\/sap\/bc\/adt\/cts\/transportrequests\/\w+/.test(pathname)
   ) {
+    const targetUser = extractTargetUser(requestBody);
+    if (targetUser) {
+      f.transportSingle = replaceRequestAttribute(
+        f.transportSingle,
+        'owner',
+        targetUser,
+      );
+    }
     return {
       status: 200,
       body: f.transportSingle,
