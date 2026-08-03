@@ -632,12 +632,11 @@ const server = createMcpServer({
 
 ## Testing
 
-Integration tests use Node.js native test runner (`node:test`) and a built-in mock ADT server that needs no SAP system.
+Integration tests use Vitest and a built-in mock ADT server that needs no SAP system.
 
 ```bash
 # Run all integration tests
-cd packages/adt-mcp
-node --test --import tsx tests/integration.test.ts
+bunx vitest run tests/integration.test.ts
 ```
 
 ### Using the mock server in your own tests
@@ -659,7 +658,7 @@ await mock.stop();
 bunx nx build adt-mcp      # build
 bunx nx typecheck adt-mcp  # type check
 bunx nx lint adt-mcp       # lint
-cd packages/adt-mcp && node --test --import tsx tests/integration.test.ts
+bunx nx test adt-mcp       # run integration tests with Vitest
 ```
 
 ---

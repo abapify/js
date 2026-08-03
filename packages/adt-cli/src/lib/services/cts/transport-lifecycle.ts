@@ -1,6 +1,17 @@
 import { AdkTransportRequest, type ReleaseResult } from '@abapify/adk';
 import type { AdtClient } from '@abapify/adt-client';
 
+function normalizeTransportIdentifier(
+  transport: string,
+  errorMessage = 'Transport identifier is required',
+): string {
+  const normalized = transport.trim().toUpperCase();
+  if (!normalized) {
+    throw new Error(errorMessage);
+  }
+  return normalized;
+}
+
 export interface CtsTransportLifecycleOperations {
   getTransport(
     transport: string,
@@ -70,7 +81,11 @@ export class CtsTransportLifecycleService {
   ) {}
 
   async getTransport(transport: string): Promise<CtsTransportSummary> {
-    const model = await this.operations.getTransport(transport, this.client);
+    const normalizedTransport = normalizeTransportIdentifier(transport);
+    const model = await this.operations.getTransport(
+      normalizedTransport,
+      this.client,
+    );
     return {
       transport: model.number,
       status: model.status,
@@ -85,11 +100,9 @@ export class CtsTransportLifecycleService {
   }
 
   async release(input: ReleaseTransportInput): Promise<ReleaseTransportResult> {
-    const model = await this.operations.getTransport(
-      input.transport,
-      this.client,
-    );
+    const transport = normalizeTransportIdentifier(input.transport);
     const releaseAll = input.releaseAll ?? false;
+    const model = await this.operations.getTransport(transport, this.client);
     if (model.status === 'R') {
       return {
         status: 'already_released',
@@ -117,13 +130,26 @@ export class CtsTransportLifecycleService {
   }
 
   async createTask(input: CreateTaskInput): Promise<CreateTaskResult> {
-    const transport = input.transport.trim().toUpperCase();
+    const transport = normalizeTransportIdentifier(
+      input.transport,
+      'Transport and task owner are required',
+    );
     const owner = input.owner.trim().toUpperCase();
-    if (!transport || !owner) {
+    if (!owner) {
       throw new Error('Transport and task owner are required');
     }
     const model = await this.operations.getTransport(transport, this.client);
     const task = await model.addTask(owner);
+    const updatedModel = await this.operations.getTransport(
+      transport,
+      this.client,
+    );
+    const confirmed = updatedModel.tasks.some(
+      (t) => t.number === task.number && t.owner === task.owner,
+    );
+    if (!confirmed) {
+      throw new Error(`no new task owned by ${owner}`);
+    }
     return {
       status: 'created',
       transport: model.number,
@@ -135,9 +161,12 @@ export class CtsTransportLifecycleService {
   async reassign(
     input: ReassignTransportInput,
   ): Promise<ReassignTransportResult> {
-    const transport = input.transport.trim().toUpperCase();
+    const transport = normalizeTransportIdentifier(
+      input.transport,
+      'Transport and new owner are required',
+    );
     const newOwner = input.newOwner.trim().toUpperCase();
-    if (!transport || !newOwner) {
+    if (!newOwner) {
       throw new Error('Transport and new owner are required');
     }
     const model = await this.operations.getTransport(transport, this.client);

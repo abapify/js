@@ -13,9 +13,12 @@ type TransportManagementBody = InferTypedSchema<typeof transportmanagment>;
 export const addTaskBodySchema: Serializable<AddTaskBody> = {
   _infer: undefined as unknown as AddTaskBody,
   parse: (raw: string): AddTaskBody => {
-    const parsed = transportmanagment.parse(raw).root;
-    if (!parsed.targetuser) throw new Error('Invalid CTS add-task body');
-    return { root: { targetuser: parsed.targetuser } };
+    const parsed = transportmanagment.parse(raw);
+    const root = parsed?.root;
+    if (!root || !root.targetuser) {
+      throw new Error('Invalid CTS add-task body');
+    }
+    return { root: { targetuser: root.targetuser } };
   },
   build: (body: AddTaskBody): string =>
     transportmanagment.build(body as unknown as TransportManagementBody),

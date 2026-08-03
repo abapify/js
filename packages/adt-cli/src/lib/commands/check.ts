@@ -14,7 +14,7 @@
  *   adt check --transport DEVK900001          # All objects in transport
  */
 
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import type { AdtClient } from '@abapify/adt-client';
 import { getAdtClientV2 } from '../utils/adt-client-v2';
 import { getObjectUri } from '@abapify/adk';
@@ -155,7 +155,7 @@ const defaultDependencies: CheckCommandDependencies = {
   writeLine: (line) => console.log(line),
   writeError: (line) => console.error(line),
   setExitCode: (code) => {
-    process.exitCode = code;
+    process.exit(code);
   },
 };
 
@@ -176,10 +176,17 @@ export function createCheckCommand(
       '--type <type>',
       'Object type hint for resolving URIs (e.g., CLAS, DOMA)',
     )
-    .option(
-      '--source-version <version>',
-      'Source version to check: active, inactive, new',
-      DEFAULT_CHECK_SOURCE_VERSION,
+    .addOption(
+      new Option('--source-version <version>', 'Source version to check')
+        .choices([
+          'active',
+          'inactive',
+          'workingArea',
+          'new',
+          'partlyActive',
+          'activeWithInactiveVersion',
+        ])
+        .default(DEFAULT_CHECK_SOURCE_VERSION),
     )
     .option('--json', 'Output results as JSON')
     .action(
@@ -216,6 +223,7 @@ export function createCheckCommand(
               dependencies.writeError(
                 `⚠️ No objects found in package ${options.package}`,
               );
+              dependencies.setExitCode(1);
               return;
             }
             checkObjects.push(...pkgObjects);
@@ -272,6 +280,7 @@ export function createCheckCommand(
               dependencies.writeError(
                 `⚠️ No objects found in transport ${options.transport}`,
               );
+              dependencies.setExitCode(1);
               return;
             }
             if (!options.json) {
@@ -287,6 +296,7 @@ export function createCheckCommand(
                 `🔍 Resolving ${objects.length} object(s)...`,
               );
             }
+            let hasResolveErrors = false;
             for (const objectName of objects) {
               try {
                 const resolved = await resolveObjectUri(
@@ -301,10 +311,14 @@ export function createCheckCommand(
                   );
                 }
               } catch (err) {
+                hasResolveErrors = true;
                 dependencies.writeError(
                   `   ❌ ${objectName}: ${err instanceof Error ? err.message : String(err)}`,
                 );
               }
+            }
+            if (hasResolveErrors) {
+              dependencies.setExitCode(1);
             }
           } else {
             dependencies.writeError(

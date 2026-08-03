@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AdtClient } from '@abapify/adt-client';
-import type { AdkTransportRequest } from '@abapify/adk';
+import type { AdkTransportRequest, AdkTransportTask } from '@abapify/adk';
 import { CtsTransportLifecycleService } from './transport-lifecycle';
 
 function transport(overrides: Partial<AdkTransportRequest> = {}) {
-  return {
+  const model = {
     number: 'DEVK900001',
     status: 'D',
     statusText: 'Modifiable',
@@ -17,13 +17,18 @@ function transport(overrides: Partial<AdkTransportRequest> = {}) {
     release: vi.fn().mockResolvedValue({ success: true }),
     releaseAll: vi.fn().mockResolvedValue({ success: true }),
     reassign: vi.fn().mockResolvedValue(undefined),
-    addTask: vi.fn().mockResolvedValue({
-      number: 'DEVK900004',
-      owner: 'NEWUSER',
-      status: 'D',
+    addTask: vi.fn().mockImplementation((owner: string) => {
+      const task = {
+        number: 'DEVK900004',
+        owner,
+        status: 'D',
+      } as AdkTransportTask;
+      model.tasks.push(task);
+      return Promise.resolve(task);
     }),
     ...overrides,
   } as unknown as AdkTransportRequest;
+  return model;
 }
 
 describe('CtsTransportLifecycleService', () => {
@@ -41,6 +46,22 @@ describe('CtsTransportLifecycleService', () => {
     await expect(service.release({ transport: 'DEVK900001' })).rejects.toThrow(
       'Release report failed',
     );
+  });
+
+  it('normalizes padded lowercase release identifiers', async () => {
+    const model = transport();
+    const getTransport = vi.fn().mockResolvedValue(model);
+    const service = new CtsTransportLifecycleService({} as AdtClient, {
+      getTransport,
+    });
+
+    await expect(
+      service.release({ transport: ' devk900001 ' }),
+    ).resolves.toMatchObject({
+      status: 'released',
+      transport: 'DEVK900001',
+    });
+    expect(getTransport).toHaveBeenCalledWith('DEVK900001', expect.anything());
   });
 
   it('returns the same structured lifecycle results to delivery adapters', async () => {

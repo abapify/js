@@ -17,44 +17,92 @@ export interface RouteResult {
   headers?: Record<string, string>;
 }
 
-function replaceRequestAttribute(
-  xml: string,
-  attribute: 'owner' | 'status' | 'status_text',
-  value: string,
-): string {
+interface XmlAttribute {
+  name: string;
+  value: string;
+}
+
+interface TaskAttribute extends XmlAttribute {
+  taskNumber: string;
+}
+
+interface NewTransportTask {
+  parent: string;
+  number: string;
+  owner: string;
+}
+
+interface DirectTaskResponseInput {
+  template: string;
+  parentResponse: string;
+  taskNumber: string;
+}
+
+interface TaskResponsesInput {
+  template: string;
+  parentResponse: string;
+}
+
+function setXmlAttribute(attributes: string, attr: XmlAttribute): string {
+  const prefix = `${attr.name}=`;
+  const start = attributes.indexOf(prefix);
+  if (start !== -1) {
+    const quoteStart = start + prefix.length;
+    const quote = attributes[quoteStart];
+    if (quote === '"' || quote === "'") {
+      const valueEnd = attributes.indexOf(quote, quoteStart + 1);
+      if (valueEnd !== -1) {
+        return (
+          attributes.slice(0, start) +
+          `${attr.name}="${attr.value}"` +
+          attributes.slice(valueEnd + 1)
+        );
+      }
+    }
+  }
+  return `${attributes} ${attr.name}="${attr.value}"`;
+}
+
+function extractXmlAttribute(xml: string, name: string): string | undefined {
+  const prefix = `${name}=`;
+  const start = xml.indexOf(prefix);
+  if (start === -1) return undefined;
+  const quote = xml[start + prefix.length];
+  if (quote !== '"' && quote !== "'") return undefined;
+  const end = xml.indexOf(quote, start + prefix.length + 1);
+  if (end === -1) return undefined;
+  return xml.slice(start + prefix.length + 1, end);
+}
+
+function replaceRequestAttribute(xml: string, attr: XmlAttribute): string {
   return xml.replace(/<tm:request\b([^>]*)>/, (tag, attributes: string) => {
-    const matcher = new RegExp(`\\btm:${attribute}="[^"]*"`);
-    const replacement = `tm:${attribute}="${value}"`;
-    const nextAttributes = matcher.test(attributes)
-      ? attributes.replace(matcher, replacement)
-      : `${attributes} ${replacement}`;
-    return `<tm:request${nextAttributes}>`;
+    return `<tm:request${setXmlAttribute(attributes, {
+      name: `tm:${attr.name}`,
+      value: attr.value,
+    })}>`;
   });
 }
 
-function replaceTaskAttribute(
-  xml: string,
-  taskNumber: string,
-  attribute: 'owner' | 'status' | 'status_text',
-  value: string,
-): string {
-  return xml.replace(
-    new RegExp(
-      `<tm:task\\b(?=[^>]*\\btm:number=["']${taskNumber}["'])([^>]*)>`,
-    ),
-    (tag, attributes: string) => {
-      const matcher = new RegExp(`\\btm:${attribute}="[^"]*"`);
-      const replacement = `tm:${attribute}="${value}"`;
-      const nextAttributes = matcher.test(attributes)
-        ? attributes.replace(matcher, replacement)
-        : `${attributes} ${replacement}`;
-      return `<tm:task${nextAttributes}>`;
-    },
+function replaceTaskAttribute(xml: string, attr: TaskAttribute): string {
+  const needle = `tm:number="${attr.taskNumber}"`;
+  const numberIdx = xml.indexOf(needle);
+  if (numberIdx === -1) return xml;
+  const tagStart = xml.lastIndexOf('<tm:task', numberIdx);
+  if (tagStart === -1) return xml;
+  const tagEnd = xml.indexOf('>', tagStart);
+  if (tagEnd === -1) return xml;
+  const attributes = xml.slice(tagStart + '<tm:task'.length, tagEnd);
+  const newAttributes = setXmlAttribute(attributes, {
+    name: `tm:${attr.name}`,
+    value: attr.value,
+  });
+  return (
+    xml.slice(0, tagStart) + `<tm:task${newAttributes}>` + xml.slice(tagEnd + 1)
   );
 }
 
 function extractTargetUser(requestBody: string): string | undefined {
-  return /\btm:targetuser=["']([^"']+)["']/.exec(requestBody)?.[1];
+  return extractXmlAttribute(requestBody, 'tm:targetuser');
 }
 
 function extractRequestAttribute(
@@ -62,82 +110,92 @@ function extractRequestAttribute(
   attribute: 'number' | 'status',
 ): string | undefined {
   const request = /<tm:request\b([^>]*)>/.exec(xml)?.[1];
-  return request
-    ? new RegExp(`\\btm:${attribute}=["']([^"']+)["']`).exec(request)?.[1]
-    : undefined;
+  return request ? extractXmlAttribute(request, `tm:${attribute}`) : undefined;
+}
+
+interface SplitDigits {
+  prefix: string;
+  digits: string;
+}
+
+function splitTrailingDigits(value: string): SplitDigits | undefined {
+  let i = value.length - 1;
+  while (i >= 0 && value[i] >= '0' && value[i] <= '9') {
+    i--;
+  }
+  if (i === value.length - 1) return undefined;
+  return { prefix: value.slice(0, i + 1), digits: value.slice(i + 1) };
 }
 
 function nextTransportTaskNumber(xml: string, parent: string): string {
-  const parentMatch = /^(.*?)(\d+)$/.exec(parent);
-  if (!parentMatch) return `${parent}_TASK`;
+  const parentSplit = splitTrailingDigits(parent);
+  if (!parentSplit) return `${parent}_TASK`;
 
-  const [, prefix, digits] = parentMatch;
+  const { prefix, digits } = parentSplit;
   const numbers = Array.from(xml.matchAll(/\btm:number=["']([^"']+)["']/g))
-    .map((match) => /^(.*?)(\d+)$/.exec(match[1]))
-    .filter((match): match is RegExpExecArray =>
-      Boolean(match && match[1] === prefix),
+    .map((match) => splitTrailingDigits(match[1]))
+    .filter((split): split is SplitDigits =>
+      Boolean(split && split.prefix === prefix),
     )
-    .map((match) => Number.parseInt(match[2], 10));
+    .map((split) => Number.parseInt(split.digits, 10));
   const next = Math.max(Number.parseInt(digits, 10), ...numbers) + 1;
   return `${prefix}${String(next).padStart(digits.length, '0')}`;
 }
 
-function appendTransportTask(
-  xml: string,
-  parent: string,
-  task: string,
-  owner: string,
-): string {
-  if (xml.includes(`tm:number="${task}"`)) return xml;
-  const taskXml = `<tm:task tm:number="${task}" tm:parent="${parent}" tm:owner="${owner}" tm:desc="Incremental task" tm:type="S" tm:status="D" tm:status_text="Modifiable" tm:uri="/sap/bc/adt/cts/transportrequests/${task}"><tm:long_desc/></tm:task>`;
+function appendTransportTask(xml: string, task: NewTransportTask): string {
+  if (xml.includes(`tm:number="${task.number}"`)) return xml;
+  const taskXml = `<tm:task tm:number="${task.number}" tm:parent="${task.parent}" tm:owner="${task.owner}" tm:desc="Incremental task" tm:type="S" tm:status="D" tm:status_text="Modifiable" tm:uri="/sap/bc/adt/cts/transportrequests/${task.number}"><tm:long_desc/></tm:task>`;
   return xml.replace('</tm:request>', `${taskXml}</tm:request>`);
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-}
-
 function findTaskElement(xml: string, taskNumber: string): string | undefined {
-  return new RegExp(
-    `<tm:task\\b(?=[^>]*\\btm:number=["']${escapeRegex(taskNumber)}["'])[^>]*>[\\s\\S]*?<\\/tm:task>`,
-    'u',
-  ).exec(xml)?.[0];
+  const needle = `tm:number="${taskNumber}"`;
+  const numberIdx = xml.indexOf(needle);
+  if (numberIdx === -1) return undefined;
+  const tagStart = xml.lastIndexOf('<tm:task', numberIdx);
+  if (tagStart === -1) return undefined;
+  const tagEnd = xml.indexOf('>', tagStart);
+  if (tagEnd === -1) return undefined;
+  const closeTag = '</tm:task>';
+  const closeIdx = xml.indexOf(closeTag, tagEnd);
+  if (closeIdx === -1) return undefined;
+  return xml.slice(tagStart, closeIdx + closeTag.length);
 }
 
-function createDirectTaskResponse(
-  template: string,
-  parentResponse: string,
-  taskNumber: string,
-): string {
-  const templateParent = extractRequestAttribute(template, 'number');
+function createDirectTaskResponse(input: DirectTaskResponseInput): string {
+  const templateParent = extractRequestAttribute(input.template, 'number');
   const templateTask = /<tm:task\b[^>]*\btm:number=["']([^"']+)["']/.exec(
-    template,
+    input.template,
   )?.[1];
-  const parentNumber = extractRequestAttribute(parentResponse, 'number');
-  if (!templateParent || !templateTask || !parentNumber) return template;
+  const parentNumber = extractRequestAttribute(input.parentResponse, 'number');
+  if (!templateParent || !templateTask || !parentNumber) return input.template;
 
-  const response = template
+  const response = input.template
     .replaceAll(templateParent, parentNumber)
-    .replaceAll(templateTask, taskNumber);
-  const templateTaskElement = findTaskElement(response, taskNumber);
-  const actualTaskElement = findTaskElement(parentResponse, taskNumber);
+    .replaceAll(templateTask, input.taskNumber);
+  const templateTaskElement = findTaskElement(response, input.taskNumber);
+  const actualTaskElement = findTaskElement(
+    input.parentResponse,
+    input.taskNumber,
+  );
   return templateTaskElement && actualTaskElement
     ? response.replace(templateTaskElement, actualTaskElement)
     : response;
 }
 
 function createTransportTaskResponses(
-  parentResponse: string,
-  template: string,
+  input: TaskResponsesInput,
 ): Map<string, string> {
   const taskNumbers = Array.from(
-    parentResponse.matchAll(/<tm:task\b[^>]*\btm:number=["']([^"']+)["']/gu),
+    input.parentResponse.matchAll(
+      /<tm:task\b[^>]*\btm:number=["']([^"']+)["']/gu,
+    ),
     (match) => match[1],
   );
   return new Map(
     taskNumbers.map((taskNumber) => [
       taskNumber,
-      createDirectTaskResponse(template, parentResponse, taskNumber),
+      createDirectTaskResponse({ ...input, taskNumber }),
     ]),
   );
 }
@@ -416,10 +474,10 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     transportList,
     transportSingle,
     transportSingleTask,
-    transportTaskResponses: createTransportTaskResponses(
-      transportSingle,
-      transportSingleTask,
-    ),
+    transportTaskResponses: createTransportTaskResponses({
+      parentResponse: transportSingle,
+      template: transportSingleTask,
+    }),
     transportCreate,
     transportTaskCreate,
     taskCreationMode: 'create',
@@ -983,41 +1041,75 @@ export function matchRoute(
     );
     const requestNumber = extractRequestAttribute(f.transportSingle, 'number');
     if (requested === requestNumber) {
-      f.transportSingle = replaceRequestAttribute(
-        f.transportSingle,
-        'status',
-        'R',
-      );
-      f.transportSingle = replaceRequestAttribute(
-        f.transportSingle,
-        'status_text',
-        'Released',
-      );
-      for (const [taskNumber, response] of f.transportTaskResponses) {
-        f.transportTaskResponses.set(
+      f.transportSingle = replaceRequestAttribute(f.transportSingle, {
+        name: 'status',
+        value: 'R',
+      });
+      f.transportSingle = replaceRequestAttribute(f.transportSingle, {
+        name: 'status_text',
+        value: 'Released',
+      });
+      const taskNumbers = [...f.transportTaskResponses.keys()];
+      for (const taskNumber of taskNumbers) {
+        f.transportSingle = replaceTaskAttribute(f.transportSingle, {
           taskNumber,
-          replaceRequestAttribute(
-            replaceRequestAttribute(response, 'status', 'R'),
-            'status_text',
-            'Released',
-          ),
-        );
+          name: 'status',
+          value: 'R',
+        });
+        f.transportSingle = replaceTaskAttribute(f.transportSingle, {
+          taskNumber,
+          name: 'status_text',
+          value: 'Released',
+        });
+      }
+      for (const [taskNumber, response] of [...f.transportTaskResponses]) {
+        let updated = replaceRequestAttribute(response, {
+          name: 'status',
+          value: 'R',
+        });
+        updated = replaceRequestAttribute(updated, {
+          name: 'status_text',
+          value: 'Released',
+        });
+        updated = replaceTaskAttribute(updated, {
+          taskNumber,
+          name: 'status',
+          value: 'R',
+        });
+        updated = replaceTaskAttribute(updated, {
+          taskNumber,
+          name: 'status_text',
+          value: 'Released',
+        });
+        f.transportTaskResponses.set(taskNumber, updated);
       }
     } else if (f.transportTaskResponses.has(requested)) {
       f.transportSingle = replaceTaskAttribute(
-        replaceTaskAttribute(f.transportSingle, requested, 'status', 'R'),
-        requested,
-        'status_text',
-        'Released',
+        replaceTaskAttribute(f.transportSingle, {
+          taskNumber: requested,
+          name: 'status',
+          value: 'R',
+        }),
+        {
+          taskNumber: requested,
+          name: 'status_text',
+          value: 'Released',
+        },
       );
       const response = f.transportTaskResponses.get(requested)!;
       f.transportTaskResponses.set(
         requested,
         replaceTaskAttribute(
-          replaceTaskAttribute(response, requested, 'status', 'R'),
-          requested,
-          'status_text',
-          'Released',
+          replaceTaskAttribute(response, {
+            taskNumber: requested,
+            name: 'status',
+            value: 'R',
+          }),
+          {
+            taskNumber: requested,
+            name: 'status_text',
+            value: 'Released',
+          },
         ),
       );
     } else {
@@ -1048,19 +1140,18 @@ export function matchRoute(
     }
     const task = nextTransportTaskNumber(f.transportSingle, parent);
     if (f.taskCreationMode === 'create') {
-      f.transportSingle = appendTransportTask(
-        f.transportSingle,
+      f.transportSingle = appendTransportTask(f.transportSingle, {
         parent,
-        task,
+        number: task,
         owner,
-      );
+      });
       f.transportTaskResponses.set(
         task,
-        createDirectTaskResponse(
-          f.transportSingleTask,
-          f.transportSingle,
-          task,
-        ),
+        createDirectTaskResponse({
+          template: f.transportSingleTask,
+          parentResponse: f.transportSingle,
+          taskNumber: task,
+        }),
       );
     }
     return {
@@ -1137,45 +1228,55 @@ export function matchRoute(
     /\/sap\/bc\/adt\/cts\/transportrequests\/\w+/.test(pathname)
   ) {
     const targetUser = extractTargetUser(requestBody);
+    const requested = pathname.split('/').filter(Boolean).at(-1) ?? '';
     if (targetUser) {
-      const requested = pathname.split('/').filter(Boolean).at(-1);
       const requestNumber = extractRequestAttribute(
         f.transportSingle,
         'number',
       );
       if (requested && f.transportTaskResponses.has(requested)) {
-        f.transportSingle = replaceTaskAttribute(
-          f.transportSingle,
-          requested,
-          'owner',
-          targetUser,
-        );
+        f.transportSingle = replaceTaskAttribute(f.transportSingle, {
+          taskNumber: requested,
+          name: 'owner',
+          value: targetUser,
+        });
         f.transportTaskResponses.set(
           requested,
-          replaceTaskAttribute(
-            f.transportTaskResponses.get(requested)!,
-            requested,
-            'owner',
-            targetUser,
-          ),
+          replaceTaskAttribute(f.transportTaskResponses.get(requested)!, {
+            taskNumber: requested,
+            name: 'owner',
+            value: targetUser,
+          }),
         );
       } else if (requested === requestNumber) {
-        f.transportSingle = replaceRequestAttribute(
-          f.transportSingle,
-          'owner',
-          targetUser,
-        );
-        for (const [taskNumber, response] of f.transportTaskResponses) {
-          f.transportTaskResponses.set(
+        f.transportSingle = replaceRequestAttribute(f.transportSingle, {
+          name: 'owner',
+          value: targetUser,
+        });
+        const taskNumbers = [...f.transportTaskResponses.keys()];
+        for (const taskNumber of taskNumbers) {
+          f.transportSingle = replaceTaskAttribute(f.transportSingle, {
             taskNumber,
-            replaceRequestAttribute(response, 'owner', targetUser),
-          );
+            name: 'owner',
+            value: targetUser,
+          });
+        }
+        for (const [taskNumber, response] of [...f.transportTaskResponses]) {
+          let updated = replaceRequestAttribute(response, {
+            name: 'owner',
+            value: targetUser,
+          });
+          updated = replaceTaskAttribute(updated, {
+            taskNumber,
+            name: 'owner',
+            value: targetUser,
+          });
+          f.transportTaskResponses.set(taskNumber, updated);
         }
       } else {
         return { status: 404, body: '', contentType: 'text/plain' };
       }
     }
-    const requested = pathname.split('/').filter(Boolean).at(-1) ?? '';
     return {
       status: 200,
       body: f.transportTaskResponses.get(requested) ?? f.transportSingle,

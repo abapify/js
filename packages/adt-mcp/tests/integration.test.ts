@@ -7,7 +7,7 @@
  * A lightweight mock ADT HTTP server provides fixture responses.
  */
 
-import { describe, it, before, after } from 'node:test';
+import { describe, it, beforeAll, afterAll } from 'vitest';
 import assert from 'node:assert';
 import { randomBytes } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -58,7 +58,7 @@ function connArgs(): Record<string, string> {
 }
 
 describe('adt-mcp integration tests', () => {
-  before(async () => {
+  beforeAll(async () => {
     // 1. Start mock ADT backend
     mockAdt = createMockAdtServer();
     const info = await mockAdt.start();
@@ -93,7 +93,7 @@ describe('adt-mcp integration tests', () => {
     await client.connect(clientTransport);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await client.close();
     await mockAdt.stop();
   });

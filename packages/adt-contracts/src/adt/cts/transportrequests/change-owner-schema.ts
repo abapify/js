@@ -21,18 +21,24 @@ type TransportManagementBody = InferTypedSchema<typeof transportmanagment>;
 export const changeOwnerBodySchema: Serializable<ChangeOwnerBody> = {
   _infer: undefined as unknown as ChangeOwnerBody,
   parse: (raw: string): ChangeOwnerBody => {
-    const parsed = transportmanagment.parse(raw).root;
-    if (
-      parsed.useraction !== 'changeowner' ||
-      !parsed.number ||
-      !parsed.targetuser
-    ) {
+    const parsed = transportmanagment.parse(raw);
+    const root = parsed?.root;
+    if (!root) {
+      throw new Error('Invalid CTS change-owner body');
+    }
+    if (root.useraction !== 'changeowner') {
+      throw new Error('Invalid CTS change-owner body');
+    }
+    if (!root.number) {
+      throw new Error('Invalid CTS change-owner body');
+    }
+    if (!root.targetuser) {
       throw new Error('Invalid CTS change-owner body');
     }
     return {
       root: {
-        number: parsed.number,
-        targetuser: parsed.targetuser,
+        number: root.number,
+        targetuser: root.targetuser,
         useraction: 'changeowner',
       },
     };

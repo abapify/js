@@ -55,6 +55,7 @@ const mcpTools = [
   'mcp/tools/create_package',
   'mcp/tools/create_srvb',
   'mcp/tools/create_srvd',
+  'mcp/tools/cts_create_task',
   'mcp/tools/cts_create_transport',
   'mcp/tools/cts_delete_transport',
   'mcp/tools/cts_get_transport',

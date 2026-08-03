@@ -334,6 +334,12 @@ describe('transport checkout', () => {
         'utf8',
       ),
     ).toBe('repository base\n');
+    expect(
+      await readFile(
+        join(workspace, 'src/feature/zcl_sample.clas.xml'),
+        'utf8',
+      ),
+    ).toBe('<CLASS NAME="ZCL_SAMPLE"/>\n');
     await expect(
       readFile(
         join(workspace, '.adt/objects/CLAS/zcl_sample.clas.adt.json'),

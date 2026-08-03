@@ -54,6 +54,46 @@ function buildCheckObjectList(
   };
 }
 
+function normalizeCheckMessages(
+  rawMessages: unknown,
+): CheckMessage[] | undefined {
+  if (!rawMessages) return undefined;
+  return Array.isArray(rawMessages)
+    ? rawMessages
+    : [rawMessages as CheckMessage];
+}
+
+function normalizeReport(entry: unknown): CheckReport {
+  const report = (entry ?? {}) as Record<string, unknown>;
+  const messageList = report.checkMessageList as
+    { checkMessage?: CheckMessage | CheckMessage[] } | undefined;
+  const messages = normalizeCheckMessages(messageList?.checkMessage);
+
+  return {
+    reporter: report.reporter as string | undefined,
+    triggeringUri: report.triggeringUri as string | undefined,
+    status: report.status as string | undefined,
+    statusText: report.statusText as string | undefined,
+    checkMessageList: messages ? { checkMessage: messages } : undefined,
+  };
+}
+
+function detectSeverities(
+  reports: CheckReport[],
+): Pick<CheckResult, 'hasErrors' | 'hasWarnings'> {
+  let hasErrors = false;
+  let hasWarnings = false;
+  for (const report of reports) {
+    for (const message of report.checkMessageList?.checkMessage ?? []) {
+      const severity =
+        typeof message.type === 'string' ? message.type : message.category;
+      if (severity === 'E' || severity === 'A') hasErrors = true;
+      if (severity === 'W') hasWarnings = true;
+    }
+  }
+  return { hasErrors, hasWarnings };
+}
+
 function extractReports(response: unknown): CheckResult {
   const root = (response ?? {}) as Record<string, unknown>;
   const reportsBlock = (root.checkRunReports ?? root) as Record<
@@ -67,38 +107,8 @@ function extractReports(response: unknown): CheckResult {
       ? [rawReports]
       : [];
 
-  const reports: CheckReport[] = reportEntries.map((entry) => {
-    const report = entry as Record<string, unknown>;
-    const messageList = report.checkMessageList as
-      { checkMessage?: CheckMessage | CheckMessage[] } | undefined;
-    const rawMessages = messageList?.checkMessage;
-    const messages = rawMessages
-      ? Array.isArray(rawMessages)
-        ? rawMessages
-        : [rawMessages]
-      : undefined;
-
-    return {
-      reporter: report.reporter as string | undefined,
-      triggeringUri: report.triggeringUri as string | undefined,
-      status: report.status as string | undefined,
-      statusText: report.statusText as string | undefined,
-      checkMessageList: messages ? { checkMessage: messages } : undefined,
-    };
-  });
-
-  let hasErrors = false;
-  let hasWarnings = false;
-  for (const report of reports) {
-    for (const message of report.checkMessageList?.checkMessage ?? []) {
-      const severity =
-        typeof message.type === 'string' ? message.type : message.category;
-      if (severity === 'E' || severity === 'A') hasErrors = true;
-      if (severity === 'W') hasWarnings = true;
-    }
-  }
-
-  return { reports, hasErrors, hasWarnings };
+  const reports = reportEntries.map(normalizeReport);
+  return { reports, ...detectSeverities(reports) };
 }
 
 export class CheckService {

@@ -697,46 +697,79 @@ async function buildMaterializedResult(
   };
 }
 
+async function maybeSkipByAppComponent(
+  ctx: ProcessGroupContext,
+): Promise<GroupResult | undefined> {
+  if (!ctx.hasApplicationComponentFilter) return undefined;
+
+  const { group, dependencies, limiters, pending, calls } = ctx;
+  const model = await limiters.metadata.run(() =>
+    dependencies.loadObject(group.identity),
+  );
+  calls.metadata += model.metadataCalls ?? 1;
+  if (isApplicationComponentExcluded(ctx, model)) {
+    return {
+      desired: [],
+      descriptorPaths: [],
+      ownedPaths: pending.ownedPaths,
+      reusedIndexedComponent: false,
+    };
+  }
+  return undefined;
+}
+
+function canReuseIncrementalBase(
+  previous: ObjectDescriptor,
+  ctx: ProcessGroupContext,
+): boolean {
+  if (previous.state !== 'present') return false;
+  if (previous.configDigest !== ctx.configDigest) return false;
+  if (previous.formatDigest !== ctx.formatDigest) return false;
+  return indexedPackageMatches(previous, ctx.group);
+}
+
+async function handleBaseEmptyGroup(
+  ctx: ProcessGroupContext,
+  identity: FlowObjectIdentity,
+  descriptorPath: string,
+): Promise<GroupResult> {
+  const previous = ctx.pending.previous!;
+  if (canReuseIncrementalBase(previous, ctx)) {
+    return await reuseGroupIfExact(ctx, identity, descriptorPath);
+  }
+  return buildTombstoneResult(ctx, identity, descriptorPath);
+}
+
+async function resolveEmptyGroup(
+  ctx: ProcessGroupContext,
+  identity: FlowObjectIdentity,
+  descriptorPath: string,
+  hasDeletions: boolean,
+): Promise<GroupResult> {
+  const { mode, pending } = ctx;
+  if (mode === 'head' && hasDeletions) {
+    return buildTombstoneResult(ctx, identity, descriptorPath);
+  }
+  if (mode === 'base' && pending.previous) {
+    return handleBaseEmptyGroup(ctx, identity, descriptorPath);
+  }
+  return emptyGroupResult();
+}
+
 async function handleEmptyGroup(
   ctx: ProcessGroupContext,
   descriptorPath: string,
   hasDeletions: boolean,
 ): Promise<GroupResult> {
-  const { group, mode, dependencies, limiters, pending, calls } = ctx;
-  const { identity } = group;
+  const appComponentResult = await maybeSkipByAppComponent(ctx);
+  if (appComponentResult) return appComponentResult;
 
-  if (ctx.hasApplicationComponentFilter) {
-    const model = await limiters.metadata.run(() =>
-      dependencies.loadObject(identity),
-    );
-    calls.metadata += model.metadataCalls ?? 1;
-    if (isApplicationComponentExcluded(ctx, model)) {
-      return {
-        desired: [],
-        descriptorPaths: [],
-        ownedPaths: pending.ownedPaths,
-        reusedIndexedComponent: false,
-      };
-    }
-  }
-
-  if (mode === 'head' && hasDeletions) {
-    return buildTombstoneResult(ctx, identity, descriptorPath);
-  }
-
-  if (mode === 'base' && pending.previous) {
-    const canReuseIncrementalBase =
-      pending.previous.state === 'present' &&
-      pending.previous.configDigest === ctx.configDigest &&
-      pending.previous.formatDigest === ctx.formatDigest &&
-      indexedPackageMatches(pending.previous, group);
-    if (canReuseIncrementalBase) {
-      return reuseGroupIfExact(ctx, identity, descriptorPath);
-    }
-    return buildTombstoneResult(ctx, identity, descriptorPath);
-  }
-
-  return emptyGroupResult();
+  return resolveEmptyGroup(
+    ctx,
+    ctx.group.identity,
+    descriptorPath,
+    hasDeletions,
+  );
 }
 
 async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
