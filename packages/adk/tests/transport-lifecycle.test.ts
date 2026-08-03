@@ -14,6 +14,7 @@ interface LifecycleFixtureOptions {
   applyAddTask?: boolean;
   addTaskNumber?: string;
   rootStatus?: string;
+  omitTaskRootName?: boolean;
 }
 
 function requestResponse(
@@ -37,11 +38,16 @@ function requestResponse(
   };
 }
 
-function taskResponse(number: string, parent: string, state: TransportState) {
+function taskResponse(
+  number: string,
+  parent: string,
+  state: TransportState,
+  omitRootName = false,
+) {
   return {
     root: {
       object_type: 'T',
-      name: number,
+      ...(omitRootName ? {} : { name: number }),
       type: 'RQTQ',
       request: { number: parent },
       task: [
@@ -87,7 +93,7 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
     if (!state) throw new Error(`Unexpected transport ${number}`);
     return number === rootNumber
       ? requestResponse(rootNumber, state, taskDefinitions)
-      : taskResponse(number, rootNumber, state);
+      : taskResponse(number, rootNumber, state, options.omitTaskRootName);
   });
   const release = vi.fn(async (number: string) => {
     const status = options.releaseStatus ?? 'released';
@@ -164,6 +170,18 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
 }
 
 describe('AdkTransportRequest CTS lifecycle', () => {
+  it('uses the child task number when the parsed task root has no name', async () => {
+    const fixture = createLifecycleFixture({ omitTaskRootName: true });
+
+    const task = await AdkTransportRequest.get('DEVK900002', {
+      client: fixture.client,
+    });
+
+    expect(task.number).toBe('DEVK900002');
+    await expect(task.release()).resolves.toEqual({ success: true });
+    expect(fixture.release).toHaveBeenCalledWith('DEVK900002');
+  });
+
   it('updates cached release state only after a released read-back', async () => {
     const fixture = createLifecycleFixture();
     const transport = await AdkTransportRequest.get(fixture.rootNumber, {

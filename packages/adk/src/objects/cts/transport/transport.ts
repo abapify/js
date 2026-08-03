@@ -45,6 +45,15 @@ function asArray<T>(val: T | T[] | undefined): T[] {
   return Array.isArray(val) ? val : [val];
 }
 
+function transportResponseName(response: TransportData): string {
+  if (response.name) return response.name;
+  if (response.object_type === 'T') {
+    const taskNumber = asArray(response.task)[0]?.number;
+    if (taskNumber) return taskNumber;
+  }
+  return response.request?.number || '';
+}
+
 type TransportReleaseResponse = Awaited<
   ReturnType<
     AdkContext['client']['adt']['cts']['transportrequests']['useraction']['release']
@@ -209,7 +218,7 @@ export class AdkTransportRequest extends AdkObject<
       super(ctx, dataOrNumber);
     } else {
       super(ctx, {
-        name: dataOrNumber.name || dataOrNumber.request?.number || '',
+        name: transportResponseName(dataOrNumber),
         type: dataOrNumber.object_type === 'T' ? 'RQTQ' : 'RQRQ',
         response: dataOrNumber,
       });

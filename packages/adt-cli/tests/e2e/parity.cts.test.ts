@@ -239,7 +239,9 @@ describe('parity: cts', () => {
       '--json',
     ]);
     expect(invalidCli.exitCode).toBe(1);
-    expect(invalidCli.stderr).toContain('is a task, not a request');
+    expect(invalidCli.stderr).toContain(
+      'Transport DEVK900002 is a task, not a request',
+    );
 
     await harness.mock.reset();
     const invalidMcp = await callMcpTool(harness, 'cts_create_task', {
@@ -247,7 +249,9 @@ describe('parity: cts', () => {
       owner: 'NEWOWNER',
     });
     expect(invalidMcp.isError).toBe(true);
-    expect(String(invalidMcp.json)).toContain('is a task, not a request');
+    expect(String(invalidMcp.json)).toContain(
+      'Transport DEVK900002 is a task, not a request',
+    );
   });
 
   // ──────────────────────────────────────────────────────────────────────────
