@@ -1132,12 +1132,16 @@ describe('adt-mcp integration tests', () => {
       // fixture to R. Reassign must be exercised from an independent D state.
       await mockAdt.reset();
 
-      const { json } = await callTool('cts_reassign_transport', {
+      const { json, raw } = await callTool('cts_reassign_transport', {
         ...connArgs(),
         transportNumber: 'DEVK900001',
         targetUser: 'NEWOWNER',
         recursive: true,
       });
+      assert.ok(
+        !(raw as { isError?: boolean }).isError,
+        `reassign should succeed: ${String(json)}`,
+      );
       const data = json as {
         status: string;
         transport: string;

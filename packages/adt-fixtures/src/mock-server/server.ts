@@ -29,6 +29,8 @@ export interface MockAdtServer {
   stop(): Promise<void>;
   /** Restore preloaded fixtures and clear mutable mock state. */
   reset(): Promise<void>;
+  /** Configure task creation for verified no-op regression tests. */
+  setTaskCreationMode(mode: 'create' | 'noop'): void;
   /** Access the lock registry (for test assertions). */
   readonly locks: LockRegistry;
 }
@@ -116,6 +118,11 @@ export function createMockAdtServer(
     async reset() {
       fixtures = await loadRouteFixtures();
       locks.clear();
+    },
+
+    setTaskCreationMode(mode) {
+      if (!fixtures) throw new Error('Mock fixtures are not loaded');
+      fixtures.taskCreationMode = mode;
     },
 
     async stop() {

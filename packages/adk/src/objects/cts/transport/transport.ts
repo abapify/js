@@ -453,8 +453,10 @@ export class AdkTransportRequest extends AdkObject<
     if (this.itemType !== 'request') {
       throw new Error(`Transport ${this.number} is a task, not a request`);
     }
-    if (this.status === 'R') {
-      throw new Error(`Transport ${this.number} is already released`);
+    if (this.status !== 'D') {
+      throw new Error(
+        `Transport ${this.number} is not modifiable: expected status D, found ${this.status}`,
+      );
     }
 
     const existingTasks = new Set(this.tasks.map((task) => task.number));
@@ -466,10 +468,15 @@ export class AdkTransportRequest extends AdkObject<
       );
 
     const returnedNumber = response.root.number;
+    if (!returnedNumber) {
+      throw new Error(
+        `Task creation verification failed for ${this.number}: SAP response did not contain a task number`,
+      );
+    }
     const verified = await AdkTransportRequest.get(this.number, this.ctx);
     const created = verified.tasks.find(
       (task) =>
-        (returnedNumber ? task.number === returnedNumber : true) &&
+        task.number === returnedNumber &&
         !existingTasks.has(task.number) &&
         task.owner.toUpperCase() === owner.toUpperCase(),
     );
@@ -483,6 +490,8 @@ export class AdkTransportRequest extends AdkObject<
         `Task creation verification failed for ${created.number}: expected status D, found ${created.status}`,
       );
     }
+    this._tasks = verified.tasks;
+    this._objects = undefined;
     return created;
   }
 

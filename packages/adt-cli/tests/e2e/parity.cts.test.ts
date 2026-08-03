@@ -169,6 +169,23 @@ describe('parity: cts', () => {
       owner: 'NEWOWNER',
     });
 
+    const secondCli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900001',
+      'OTHEROWNER',
+      '--json',
+    ]);
+    expect(secondCli.exitCode, secondCli.stderr || secondCli.stdout).toBe(0);
+    expect(extractJson(secondCli)).toEqual({
+      status: 'created',
+      transport: 'DEVK900001',
+      task: 'DEVK900005',
+      owner: 'OTHEROWNER',
+    });
+
     await harness.mock.reset();
     const mcp = await callMcpTool<{
       status: string;
@@ -186,6 +203,51 @@ describe('parity: cts', () => {
       task: 'DEVK900004',
       owner: 'NEWOWNER',
     });
+  });
+
+  it('task creation failures remain failures through CLI and MCP', async () => {
+    harness.mock.setTaskCreationMode('noop');
+    const noopCli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900001',
+      'NEWOWNER',
+      '--json',
+    ]);
+    expect(noopCli.exitCode).toBe(1);
+    expect(noopCli.stderr).toContain('no new task owned by NEWOWNER');
+
+    await harness.mock.reset();
+    harness.mock.setTaskCreationMode('noop');
+    const noopMcp = await callMcpTool(harness, 'cts_create_task', {
+      transport: 'DEVK900001',
+      owner: 'NEWOWNER',
+    });
+    expect(noopMcp.isError).toBe(true);
+    expect(String(noopMcp.json)).toContain('no new task owned by NEWOWNER');
+
+    await harness.mock.reset();
+    const invalidCli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900002',
+      'NEWOWNER',
+      '--json',
+    ]);
+    expect(invalidCli.exitCode).toBe(1);
+    expect(invalidCli.stderr).toContain('is a task, not a request');
+
+    await harness.mock.reset();
+    const invalidMcp = await callMcpTool(harness, 'cts_create_task', {
+      transport: 'DEVK900002',
+      owner: 'NEWOWNER',
+    });
+    expect(invalidMcp.isError).toBe(true);
+    expect(String(invalidMcp.json)).toContain('is a task, not a request');
   });
 
   // ──────────────────────────────────────────────────────────────────────────
