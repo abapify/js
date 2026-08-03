@@ -32,8 +32,54 @@ function replaceRequestAttribute(
   });
 }
 
+function replaceTaskAttribute(
+  xml: string,
+  taskNumber: string,
+  attribute: 'owner',
+  value: string,
+): string {
+  return xml.replace(
+    new RegExp(
+      `<tm:task\\b(?=[^>]*\\btm:number=["']${taskNumber}["'])([^>]*)>`,
+    ),
+    (tag, attributes: string) => {
+      const matcher = new RegExp(`\\btm:${attribute}="[^"]*"`);
+      const replacement = `tm:${attribute}="${value}"`;
+      const nextAttributes = matcher.test(attributes)
+        ? attributes.replace(matcher, replacement)
+        : `${attributes} ${replacement}`;
+      return `<tm:task${nextAttributes}>`;
+    },
+  );
+}
+
 function extractTargetUser(requestBody: string): string | undefined {
   return /\btm:targetuser=["']([^"']+)["']/.exec(requestBody)?.[1];
+}
+
+function extractRequestAttribute(
+  xml: string,
+  attribute: 'number' | 'status',
+): string | undefined {
+  const request = /<tm:request\b([^>]*)>/.exec(xml)?.[1];
+  return request
+    ? new RegExp(`\\btm:${attribute}=["']([^"']+)["']`).exec(request)?.[1]
+    : undefined;
+}
+
+function nextTransportTaskNumber(xml: string, parent: string): string {
+  const parentMatch = /^(.*?)(\d+)$/.exec(parent);
+  if (!parentMatch) return `${parent}_TASK`;
+
+  const [, prefix, digits] = parentMatch;
+  const numbers = Array.from(xml.matchAll(/\btm:number=["']([^"']+)["']/g))
+    .map((match) => /^(.*?)(\d+)$/.exec(match[1]))
+    .filter((match): match is RegExpExecArray =>
+      Boolean(match && match[1] === prefix),
+    )
+    .map((match) => Number.parseInt(match[2], 10));
+  const next = Math.max(Number.parseInt(digits, 10), ...numbers) + 1;
+  return `${prefix}${String(next).padStart(digits.length, '0')}`;
 }
 
 function appendTransportTask(
@@ -59,8 +105,10 @@ export interface LoadedFixtures {
   grep: string;
   transportList: string;
   transportSingle: string;
+  transportSingleTask: string;
   transportCreate: string;
   transportTaskCreate: string;
+  taskCreationMode: 'create' | 'noop';
   transportRelease: string;
   transportFind: string;
   searchconfigMetadata: string;
@@ -156,6 +204,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     grep,
     transportList,
     transportSingle,
+    transportSingleTask,
     transportCreate,
     transportTaskCreate,
     transportRelease,
@@ -235,6 +284,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     m.grep.load(),
     m.transport.list.load(),
     fixtures.transport.single.load(),
+    fixtures.transport.singleTask.load(),
     fixtures.transport.createResponse.load(),
     fixtures.transport.taskCreateResponse.load(),
     m.transport.release.load(),
@@ -315,8 +365,10 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     grep,
     transportList,
     transportSingle,
+    transportSingleTask,
     transportCreate,
     transportTaskCreate,
+    taskCreationMode: 'create',
     transportRelease,
     transportFind,
     searchconfigMetadata,
@@ -892,16 +944,28 @@ export function matchRoute(
   const taskCreateMatch =
     /^\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/tasks$/.exec(pathname);
   if (m === 'POST' && taskCreateMatch) {
+    const parent = decodeURIComponent(taskCreateMatch[1]);
+    const requestNumber = extractRequestAttribute(f.transportSingle, 'number');
+    const requestStatus = extractRequestAttribute(f.transportSingle, 'status');
+    if (parent !== requestNumber || requestStatus !== 'D') {
+      return { status: 409, body: '', contentType: 'text/plain' };
+    }
+
     const owner = extractTargetUser(requestBody) ?? 'NEWOWNER';
-    f.transportSingle = appendTransportTask(
-      f.transportSingle,
-      taskCreateMatch[1],
-      'DEVK900004',
-      owner,
-    );
+    const task = nextTransportTaskNumber(f.transportSingle, parent);
+    if (f.taskCreationMode === 'create') {
+      f.transportSingle = appendTransportTask(
+        f.transportSingle,
+        parent,
+        task,
+        owner,
+      );
+    }
     return {
       status: 200,
-      body: f.transportTaskCreate.replace('NEWOWNER', owner),
+      body: f.transportTaskCreate
+        .replaceAll('DEVK900004', task)
+        .replaceAll('NEWOWNER', owner),
       contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
     };
   }
@@ -933,11 +997,19 @@ export function matchRoute(
     };
   }
 
-  // CTS get single
-  if (m === 'GET' && /\/sap\/bc\/adt\/cts\/transportrequests\/\w+/.test(url)) {
+  // CTS get request or task. SAP returns a distinct shape for child tasks.
+  const transportGetMatch =
+    /^\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/?$/.exec(pathname);
+  if (m === 'GET' && transportGetMatch) {
+    const requested = decodeURIComponent(transportGetMatch[1]);
+    const taskNumber = /\badtcore:name=["']([^"']+)["']/.exec(
+      f.transportSingleTask,
+    )?.[1];
+    const body =
+      requested === taskNumber ? f.transportSingleTask : f.transportSingle;
     return {
       status: 200,
-      body: f.transportSingle,
+      body,
       contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
     };
   }
@@ -957,11 +1029,29 @@ export function matchRoute(
   ) {
     const targetUser = extractTargetUser(requestBody);
     if (targetUser) {
-      f.transportSingle = replaceRequestAttribute(
-        f.transportSingle,
-        'owner',
-        targetUser,
-      );
+      const requested = pathname.split('/').filter(Boolean).at(-1);
+      const taskNumber = /\badtcore:name=["']([^"']+)["']/.exec(
+        f.transportSingleTask,
+      )?.[1];
+      if (requested && requested === taskNumber) {
+        f.transportSingleTask = replaceTaskAttribute(
+          f.transportSingleTask,
+          requested,
+          'owner',
+          targetUser,
+        );
+      } else {
+        f.transportSingle = replaceRequestAttribute(
+          f.transportSingle,
+          'owner',
+          targetUser,
+        );
+        f.transportSingleTask = replaceRequestAttribute(
+          f.transportSingleTask,
+          'owner',
+          targetUser,
+        );
+      }
     }
     return {
       status: 200,

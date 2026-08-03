@@ -12,6 +12,8 @@ interface LifecycleFixtureOptions {
   releaseStatusText?: string;
   applyReassign?: boolean;
   applyAddTask?: boolean;
+  addTaskNumber?: string;
+  rootStatus?: string;
 }
 
 function requestResponse(
@@ -73,7 +75,7 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
     { number: 'DEVK900004', owner: 'OLDUSER', status: 'N' },
   ];
   const states = new Map<string, TransportState>([
-    [rootNumber, { owner: 'OLDUSER', status: 'D' }],
+    [rootNumber, { owner: 'OLDUSER', status: options.rootStatus ?? 'D' }],
     ...taskDefinitions.map(
       (task) =>
         [task.number, { owner: task.owner, status: task.status }] as const,
@@ -138,7 +140,10 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
         root: {
           targetuser: body.root.targetuser,
           useraction: 'tasks',
-          number: 'DEVK900005',
+          number:
+            options.addTaskNumber === ''
+              ? undefined
+              : (options.addTaskNumber ?? 'DEVK900005'),
         },
       };
     },
@@ -257,6 +262,12 @@ describe('AdkTransportRequest CTS lifecycle', () => {
       { root: { targetuser: 'NEWUSER' } },
     );
     expect(fixture.get).toHaveBeenCalledTimes(2);
+    expect(transport.tasks.map((task) => task.number)).toContain('DEVK900005');
+
+    await expect(transport.releaseAll()).resolves.toEqual({ success: true });
+    expect(fixture.release.mock.calls.map(([number]) => number)).toContain(
+      'DEVK900005',
+    );
   });
 
   it('rejects task creation when SAP read-back has no matching new task', async () => {
@@ -280,5 +291,29 @@ describe('AdkTransportRequest CTS lifecycle', () => {
       'is a task, not a request',
     );
     expect(fixture.addTask).not.toHaveBeenCalled();
+  });
+
+  it('rejects task creation for a non-modifiable request', async () => {
+    const fixture = createLifecycleFixture({ rootStatus: 'N' });
+    const transport = await AdkTransportRequest.get(fixture.rootNumber, {
+      client: fixture.client,
+    });
+
+    await expect(transport.addTask('NEWUSER')).rejects.toThrow(
+      'expected status D, found N',
+    );
+    expect(fixture.addTask).not.toHaveBeenCalled();
+  });
+
+  it('requires SAP to return the created task number', async () => {
+    const fixture = createLifecycleFixture({ addTaskNumber: '' });
+    const transport = await AdkTransportRequest.get(fixture.rootNumber, {
+      client: fixture.client,
+    });
+
+    await expect(transport.addTask('NEWUSER')).rejects.toThrow(
+      'SAP response did not contain a task number',
+    );
+    expect(fixture.get).toHaveBeenCalledTimes(1);
   });
 });
