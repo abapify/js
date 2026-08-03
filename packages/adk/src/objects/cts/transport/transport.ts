@@ -46,11 +46,11 @@ function asArray<T>(val: T | T[] | undefined): T[] {
 }
 
 function transportResponseName(response: TransportData): string {
-  if (response.name) return response.name;
   if (response.object_type === 'T') {
     const taskNumber = asArray(response.task)[0]?.number;
     if (taskNumber) return taskNumber;
   }
+  if (response.name) return response.name;
   return response.request?.number || '';
 }
 
