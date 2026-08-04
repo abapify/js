@@ -205,6 +205,68 @@ describe('transport checkout', () => {
     expect(ports.loadObject).not.toHaveBeenCalled();
   });
 
+  it('expands a managed transport descriptor for a cumulative task scope', async () => {
+    const workspace = await root();
+    let current = manifest(
+      'added',
+      undefined,
+      version('task-one'),
+      'DEVK900001',
+    );
+    const ports = dependencies(() => current);
+    const flow = createAdtFlowService(ports);
+    await flow.checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config,
+    });
+
+    current = {
+      ...manifest('added', undefined, version('task-two'), 'DEVK900002'),
+      requestedTransports: ['DEVK900001', 'DEVK900002'],
+      scopeTransports: ['DEVK900001', 'DEVK900002'],
+    };
+
+    await expect(
+      flow.checkout({
+        root: workspace,
+        transports: ['DEVK900001', 'DEVK900002'],
+        config,
+      }),
+    ).resolves.toMatchObject({
+      requestedTransports: ['DEVK900001', 'DEVK900002'],
+    });
+    for (const transport of ['DEVK900001', 'DEVK900002']) {
+      expect(
+        JSON.parse(
+          await readFile(join(workspace, `.adt/tr/${transport}.json`), 'utf8'),
+        ).requestedTransports,
+      ).toEqual(['DEVK900001', 'DEVK900002']);
+    }
+  });
+
+  it('does not overwrite an unrecognized file at a transport descriptor path', async () => {
+    const workspace = await root();
+    await mkdir(join(workspace, '.adt/tr'), { recursive: true });
+    const descriptorPath = join(workspace, '.adt/tr/DEVK900001.json');
+    await writeFile(descriptorPath, 'user content\n');
+    const flow = createAdtFlowService(
+      dependencies(() => manifest('added', undefined, version('task-one'))),
+    );
+
+    await expect(
+      flow.checkout({
+        root: workspace,
+        transports: ['DEVK900001'],
+        config,
+      }),
+    ).rejects.toMatchObject({
+      code: 'configuration_invalid',
+      details: { path: '.adt/tr/DEVK900001.json' },
+    });
+    expect(await readFile(descriptorPath, 'utf8')).toBe('user content\n');
+  });
+
   it('reuses an indexed component as the base of the next transport', async () => {
     const workspace = await root();
     let current = manifest(
