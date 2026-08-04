@@ -6,13 +6,9 @@
  * counts, etc.). All tests run against the shared in-process mock ADT
  * server wired by the harness. No real SAP calls.
  *
- * Several CTS CLI commands (get, create, release, reassign, set) build on
- * `@abapify/adk` (e.g. `AdkTransportRequest`). The e2e harness does NOT
- * call `initializeAdk(client)`, so those CLI paths cannot be exercised
- * end-to-end here. We still assert the MCP side (which uses the v2 client
- * services / raw contracts directly) and mark the CLI-parity assertions as
- * `it.todo` with the specific gap noted. MCP-only smoke tests keep the
- * tools covered until the harness gains ADK wiring.
+ * Several CTS CLI commands build on `@abapify/adk` (for example,
+ * `AdkTransportRequest`). The e2e harness initializes the complete ADK
+ * context so lock-dependent CLI paths are covered alongside MCP paths.
  */
 
 import { describe, it, beforeAll, beforeEach, afterAll, expect } from 'vitest';
@@ -402,22 +398,23 @@ describe('parity: cts', () => {
 
   // ──────────────────────────────────────────────────────────────────────────
   // 7. Update transport
-  //
-  // CLI `cts tr set` calls `AdkTransportRequest.get(transport, { client })`,
-  // building a *custom* AdkContext that contains only `client` (no
-  // `lockService`). `tr.update(...)` then tries to lock the request and
-  // fails with "Lock not available: no lockService in context".
-  // The global ADK context (populated by the harness via `initializeAdk`)
-  // has a lockService but is NOT consulted once a custom ctx is passed.
-  //
-  // Fixing this properly requires editing `cts/tr/set.ts` (or the
-  // equivalent in `release`, `reassign`, `delete`) to either drop the
-  // custom ctx or merge in the global context's lockService — both of
-  // which are out of scope for this task.
   // ──────────────────────────────────────────────────────────────────────────
-  it.todo(
-    'update transport: CLI parity blocked — `cts tr set` passes a custom ADK context without lockService, bypassing the global context set up by the harness',
-  );
+  it('update transport: CLI `cts tr set` uses the initialized lock service', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'set',
+      'DEVK900001',
+      '--description',
+      'Updated text',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(extractJson(cli)).toMatchObject({
+      status: 'updated',
+      transport: 'DEVK900001',
+    });
+  });
 
   it('update transport (MCP only): `cts_update_transport`', async () => {
     const mcp = await callMcpTool<{
