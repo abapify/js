@@ -47,6 +47,18 @@ export interface UnlockOptions {
 }
 
 /**
+ * Resolve the CTS correlation for a write performed under a SAP editor lock.
+ * SAP's LOCK response is authoritative because it may normalize a child task
+ * to the request that actually owns the object lock.
+ */
+export function resolveLockCorrelation(
+  handle: Pick<LockHandle, 'correlationNumber'>,
+  requestedTransport?: string,
+): string | undefined {
+  return handle.correlationNumber || requestedTransport;
+}
+
+/**
  * SAP does not expose an ADT operation that returns the handle of an
  * existing CTS/editor lock. A caller can only unlock a handle it persisted
  * when it acquired that lock.

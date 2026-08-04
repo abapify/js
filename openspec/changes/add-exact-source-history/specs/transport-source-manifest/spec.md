@@ -18,6 +18,14 @@ The ADK SHALL resolve a transport request or ordered transport set into one mani
 - **THEN** each object preserves its concrete request or task source identity
 - **THEN** history matching uses the expanded scope containing the root and its tasks
 
+#### Scenario: Direct task history is attributed to its parent request
+
+- **GIVEN** a directly requested task exposes its parent request in CTS metadata
+- **GIVEN** SAP source history attributes the task's immutable versions to that parent request
+- **WHEN** a transport source manifest is built for the task
+- **THEN** the object preserves the requested task as its concrete source identity
+- **THEN** history matching uses a scope containing both the task and its parent request
+
 ### Requirement: Exact base and head selection is deterministic
 
 For a component with contiguous in-scope history, the manifest SHALL select the newest in-scope version as head and the version immediately older than the oldest in-scope version as base.

@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { getAdtClientV2, getCliContext } from '../../utils/adt-client-v2';
 import { createProgressReporter } from '../../utils/progress-reporter';
 import { createCliLogger } from '../../utils/logger-config';
+import { resolveLockCorrelation } from '@abapify/adt-locks';
 
 // ============================================================================
 // Types
@@ -52,6 +53,143 @@ export interface ObjectTypeDef<T> {
   getSource?: (obj: T) => Promise<string>;
 }
 
+interface CreateReadbackOperations<
+  T extends { name: string; description: string; package: string },
+> {
+  create(
+    name: string,
+    description: string,
+    packageName: string,
+    options?: { transport?: string },
+  ): Promise<T>;
+  get(name: string): Promise<T>;
+}
+
+function isAmbiguousCreateFailure(error: unknown): boolean {
+  const status =
+    typeof error === 'object' && error !== null
+      ? (error as { status?: unknown }).status
+      : undefined;
+  if (typeof status === 'number' && status >= 500) return true;
+  return error instanceof Error && error.name === 'AdkPostCreateLockError';
+}
+
+/**
+ * Reconcile a POST whose response failed after SAP may already have committed.
+ * Only an exact name/description/package read-back is accepted as recovery.
+ */
+export async function createWithReadbackRecovery<
+  T extends { name: string; description: string; package: string },
+>(
+  operations: CreateReadbackOperations<T>,
+  name: string,
+  description: string,
+  packageName: string,
+  transport?: string,
+): Promise<{ object: T; recovered: boolean }> {
+  const normalizedName = name.toUpperCase();
+  const normalizedPackage = packageName.toUpperCase();
+  try {
+    return {
+      object: await operations.create(
+        normalizedName,
+        description,
+        normalizedPackage,
+        transport ? { transport } : undefined,
+      ),
+      recovered: false,
+    };
+  } catch (error) {
+    if (!isAmbiguousCreateFailure(error)) throw error;
+
+    let recovered: T;
+    try {
+      recovered = await operations.get(normalizedName);
+    } catch {
+      throw error;
+    }
+
+    const matches =
+      recovered.name.toUpperCase() === normalizedName &&
+      recovered.description.trim() === description.trim() &&
+      recovered.package.toUpperCase() === normalizedPackage;
+    if (!matches) throw error;
+
+    return { object: recovered, recovered: true };
+  }
+}
+
+interface ObjectLockHandle {
+  handle: string;
+  correlationNumber?: string;
+}
+
+/**
+ * SAP may normalize a concrete task to its parent request during LOCK.
+ * Source writes must use the returned correlation number with the lock handle.
+ */
+export function resolveEffectiveTransport(
+  lockHandle: ObjectLockHandle,
+  requestedTransport?: string,
+): string | undefined {
+  return resolveLockCorrelation(lockHandle, requestedTransport);
+}
+
+interface SourceLifecycleObject<T = unknown> {
+  saveMainSource(
+    source: string,
+    options?: { lockHandle?: string; transport?: string },
+  ): Promise<void>;
+  unlock(lockHandle: string): Promise<void>;
+  activate(): Promise<T>;
+}
+
+interface PersistSourceOptions {
+  lockHandle: ObjectLockHandle;
+  requestedTransport?: string;
+  activate: boolean;
+  beforeActivate?: () => void;
+}
+
+/** Save under the editor lock, release it, and only then activate. */
+export async function persistSourceWithReleasedLock<T>(
+  object: SourceLifecycleObject<T>,
+  source: string,
+  options: PersistSourceOptions,
+): Promise<void> {
+  let saveError: unknown;
+  try {
+    await object.saveMainSource(source, {
+      lockHandle: options.lockHandle.handle,
+      transport: resolveEffectiveTransport(
+        options.lockHandle,
+        options.requestedTransport,
+      ),
+    });
+  } catch (error) {
+    saveError = error;
+  }
+
+  try {
+    await object.unlock(options.lockHandle.handle);
+  } catch (unlockError) {
+    if (saveError) {
+      throw new AggregateError(
+        [saveError, unlockError],
+        'Source write and lock release both failed',
+        { cause: unlockError },
+      );
+    }
+    throw unlockError;
+  }
+  if (saveError) throw saveError;
+
+  if (options.activate) {
+    options.beforeActivate?.();
+    await object.activate();
+  }
+}
+
 // ============================================================================
 // Helper: read source from file or stdin
 // ============================================================================
@@ -83,8 +221,9 @@ export function buildObjectCrudCommands<
   T extends {
     name: string;
     description: string;
+    package: string;
     activate(): Promise<T>;
-    lock(transport?: string): Promise<{ handle: string }>;
+    lock(transport?: string): Promise<ObjectLockHandle>;
     unlock(lockHandle: string): Promise<void>;
     saveMainSource?(
       source: string,
@@ -159,11 +298,12 @@ export function buildObjectCrudCommands<
           }
 
           progress.step(`📝 Creating ${def.label} ${name.toUpperCase()}...`);
-          const obj = await def.create(
+          const { object: obj, recovered } = await createWithReadbackRecovery(
+            def,
             name,
             description,
             pkg,
-            options.transport ? { transport: options.transport } : undefined,
+            options.transport,
           );
           progress.done();
 
@@ -174,6 +314,7 @@ export function buildObjectCrudCommands<
                   name: obj.name,
                   description: obj.description,
                   status: 'created',
+                  ...(recovered ? { recovered: true } : {}),
                 },
                 null,
                 2,
@@ -182,6 +323,11 @@ export function buildObjectCrudCommands<
           } else {
             console.log(`✅ ${def.label} ${obj.name} created`);
             console.log(`   Description: ${obj.description}`);
+            if (recovered) {
+              console.log(
+                '   Confirmed by read-back after an ambiguous response',
+              );
+            }
           }
         } catch (error) {
           const message =
@@ -291,29 +437,25 @@ export function buildObjectCrudCommands<
             const obj = await def.get(name.toUpperCase());
             progress.done();
 
+            if (!obj.saveMainSource) {
+              throw new Error(`${def.label} does not support source writes`);
+            }
+
             progress.step(`🔒 Locking ${name.toUpperCase()}...`);
             const lockHandle = await obj.lock(options.transport);
             progress.done();
 
-            try {
-              progress.step(`💾 Writing source to ${name.toUpperCase()}...`);
-              if (!obj.saveMainSource) {
-                throw new Error(`${def.label} does not support source writes`);
-              }
-              await obj.saveMainSource(source, {
-                lockHandle: lockHandle.handle,
-                transport: options.transport,
-              });
-              progress.done();
-
-              if (options.activate) {
-                progress.step(`⚡ Activating ${name.toUpperCase()}...`);
-                await obj.activate();
+            progress.step(`💾 Writing source to ${name.toUpperCase()}...`);
+            await persistSourceWithReleasedLock(obj, source, {
+              lockHandle,
+              requestedTransport: options.transport,
+              activate: options.activate,
+              beforeActivate: () => {
                 progress.done();
-              }
-            } finally {
-              await obj.unlock(lockHandle.handle);
-            }
+                progress.step(`⚡ Activating ${name.toUpperCase()}...`);
+              },
+            });
+            progress.done();
 
             console.log(
               `✅ ${def.label} ${obj.name} written${options.activate ? ' and activated' : ''}`,

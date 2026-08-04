@@ -40,6 +40,26 @@ appropriate side of the transport boundary.
 - **WHEN** head is checked out
 - **THEN** the selected source files are present
 
+#### Scenario: A later task changes an object first created in the same parent request
+
+- **GIVEN** SAP attributes source versions from multiple child tasks to their common parent request
+- **GIVEN** an earlier released task left a verified present object descriptor and owned files
+- **WHEN** the later task base is checked out and its exact manifest is `added` at the parent boundary
+- **THEN** the indexed object state is preserved as the incremental base
+- **THEN** no mutable SAP source or selected source body is read for that base
+- **WHEN** the later task head is checked out
+- **THEN** the exact selected head replaces the indexed source as a modification
+
+#### Scenario: Existing recognizable files have no descriptor
+
+- **GIVEN** an exact `added` manifest and format-recognizable files for the same object identity
+- **GIVEN** no object descriptor exists
+- **WHEN** base is checked out
+- **THEN** the recognizable files remain unchanged as the caller-provided base
+- **THEN** no object descriptor is created for the base
+- **WHEN** head is checked out
+- **THEN** the exact selected head is materialized and the files are adopted into the index
+
 #### Scenario: Transport deletes an object
 
 - **GIVEN** CTS marks an object deleted and a recoverable predecessor exists
@@ -100,6 +120,7 @@ Checkout SHALL maintain deterministic transport and object descriptors under
 - **THEN** predecessor object descriptors are updated only for objects present in that base
 - **THEN** `.adt/tr/<TR>.json` is not created for the reviewed transport
 - **THEN** a newly created object's absent base does not pre-create its object descriptor
+- **THEN** a verified present descriptor from an earlier incremental task is preserved when SAP exposes only parent-request provenance
 
 #### Scenario: Exact released head checkout is repeated
 

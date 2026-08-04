@@ -18,6 +18,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 import { AdkFunctionModule } from '@abapify/adk';
+import { resolveLockCorrelation } from '@abapify/adt-locks';
 import { getAdtClientV2, getCliContext } from '../../utils/adt-client-v2';
 import { createProgressReporter } from '../../utils/progress-reporter';
 import { createCliLogger } from '../../utils/logger-config';
@@ -229,6 +230,10 @@ functionModuleCommand.addCommand(
         progress.step(`🔒 Locking ${name.toUpperCase()}...`);
         const lockHandle = await fm.lock(options.transport);
         progress.done();
+        const effectiveTransport = resolveLockCorrelation(
+          lockHandle,
+          options.transport,
+        );
 
         try {
           progress.step(`💾 Writing source to ${name.toUpperCase()}...`);
@@ -237,19 +242,19 @@ functionModuleCommand.addCommand(
             fm.name,
             {
               lockHandle: lockHandle.handle,
-              ...(options.transport ? { corrNr: options.transport } : {}),
+              ...(effectiveTransport ? { corrNr: effectiveTransport } : {}),
             },
             source,
           );
           progress.done();
-
-          if (options.activate) {
-            progress.step(`⚡ Activating ${name.toUpperCase()}...`);
-            await fm.activate();
-            progress.done();
-          }
         } finally {
           await fm.unlock();
+        }
+
+        if (options.activate) {
+          progress.step(`⚡ Activating ${name.toUpperCase()}...`);
+          await fm.activate();
+          progress.done();
         }
 
         console.log(

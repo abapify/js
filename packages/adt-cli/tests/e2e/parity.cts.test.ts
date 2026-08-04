@@ -15,7 +15,7 @@
  * tools covered until the harness gains ADK wiring.
  */
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest';
+import { describe, it, beforeAll, beforeEach, afterAll, expect } from 'vitest';
 import {
   startAdtHarness,
   runCliCommand,
@@ -54,6 +54,10 @@ describe('parity: cts', () => {
 
   afterAll(async () => {
     if (harness) await harness.stop();
+  });
+
+  beforeEach(async () => {
+    await harness.mock.reset();
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -147,6 +151,143 @@ describe('parity: cts', () => {
     expect(mcp.json.transport).toMatch(/DEVK\d+/);
   });
 
+  it('create task: CLI `cts tr task create` and MCP `cts_create_task`', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900001',
+      'NEWOWNER',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(extractJson(cli)).toEqual({
+      status: 'created',
+      transport: 'DEVK900001',
+      task: 'DEVK900004',
+      owner: 'NEWOWNER',
+    });
+
+    const secondCli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900001',
+      'OTHEROWNER',
+      '--json',
+    ]);
+    expect(secondCli.exitCode, secondCli.stderr || secondCli.stdout).toBe(0);
+    expect(extractJson(secondCli)).toEqual({
+      status: 'created',
+      transport: 'DEVK900001',
+      task: 'DEVK900005',
+      owner: 'OTHEROWNER',
+    });
+
+    const releasedTask = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'release',
+      'DEVK900004',
+      '--skip-check',
+      '--yes',
+      '--json',
+    ]);
+    expect(
+      releasedTask.exitCode,
+      releasedTask.stderr || releasedTask.stdout,
+    ).toBe(0);
+    expect(extractJson(releasedTask)).toMatchObject({
+      status: 'released',
+      transport: 'DEVK900004',
+      releaseAll: false,
+    });
+
+    await harness.mock.reset();
+    const mcp = await callMcpTool<{
+      status: string;
+      transport: string;
+      task: string;
+      owner: string;
+    }>(harness, 'cts_create_task', {
+      transport: 'DEVK900001',
+      owner: 'NEWOWNER',
+    });
+    expect(mcp.isError).toBe(false);
+    expect(mcp.json).toEqual({
+      status: 'created',
+      transport: 'DEVK900001',
+      task: 'DEVK900004',
+      owner: 'NEWOWNER',
+    });
+  });
+
+  it('task creation failures remain failures through CLI and MCP', async () => {
+    harness.mock.setTaskCreationMode('noop');
+    const noopCli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900001',
+      'NEWOWNER',
+      '--json',
+    ]);
+    expect(noopCli.exitCode).toBe(1);
+    expect(noopCli.stderr).toContain('no new task owned by NEWOWNER');
+
+    await harness.mock.reset();
+    harness.mock.setTaskCreationMode('noop');
+    const noopMcp = await callMcpTool(harness, 'cts_create_task', {
+      transport: 'DEVK900001',
+      owner: 'NEWOWNER',
+    });
+    expect(noopMcp.isError).toBe(true);
+    expect(String(noopMcp.json)).toContain('no new task owned by NEWOWNER');
+
+    await harness.mock.reset();
+    const invalidCli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'task',
+      'create',
+      'DEVK900002',
+      'NEWOWNER',
+      '--json',
+    ]);
+    expect(invalidCli.exitCode).toBe(1);
+    expect(invalidCli.stderr).toContain(
+      'Transport DEVK900002 is a task, not a request',
+    );
+
+    await harness.mock.reset();
+    const invalidMcp = await callMcpTool(harness, 'cts_create_task', {
+      transport: 'DEVK900002',
+      owner: 'NEWOWNER',
+    });
+    expect(invalidMcp.isError).toBe(true);
+    expect(String(invalidMcp.json)).toContain(
+      'Transport DEVK900002 is a task, not a request',
+    );
+  });
+
+  it('rejects a task creation request without the required target user', async () => {
+    await expect(
+      harness.client.fetch(
+        '/sap/bc/adt/cts/transportrequests/DEVK900001/tasks',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/vnd.sap.adt.transportorganizer.v1+xml',
+          },
+          body: '<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm"/>',
+        },
+      ),
+    ).rejects.toThrow(/400/u);
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // 4. Release transport (CLI + MCP parity)
   // ──────────────────────────────────────────────────────────────────────────
@@ -160,6 +301,10 @@ describe('parity: cts', () => {
     ]);
     expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
 
+    // CLI and MCP must execute the same transition from the same initial SAP
+    // state; otherwise the second invocation is correctly idempotent.
+    await harness.mock.reset();
+
     const mcp = await callMcpTool<{ status: string; transport: string }>(
       harness,
       'cts_release_transport',
@@ -168,6 +313,41 @@ describe('parity: cts', () => {
     expect(mcp.isError).toBe(false);
     expect(mcp.json.status).toBe('released');
     expect(mcp.json.transport).toBe('DEVK900001');
+  });
+
+  it('release-all releases child tasks before their parent request', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'release',
+      'DEVK900001',
+      '--release-all',
+      '--skip-check',
+      '--yes',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(extractJson(cli)).toMatchObject({
+      status: 'released',
+      transport: 'DEVK900001',
+      releaseAll: true,
+    });
+  });
+
+  it('reads an already released sibling task as the task itself', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'release',
+      'DEVK900003',
+      '--yes',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(extractJson(cli)).toEqual({
+      transport: 'DEVK900003',
+      status: 'already_released',
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────────────

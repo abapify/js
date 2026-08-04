@@ -149,6 +149,21 @@ adt get ZCL_MY_CLASS --properties
 adt get ZCL_MY_CLASS -o tmp/class.xml
 ```
 
+#### `adt check <object...> [options]`
+
+Run SAP ADT syntax checks. Existing objects are checked using their inactive
+source by default; select another source explicitly with
+`--source-version active|inactive|new`. The name avoids colliding with the
+root `adt --version` flag.
+
+With `--json`, stdout contains only the report array. SAP error/abort messages
+(`E`/`A`) keep that JSON readable and set a non-zero process exit status.
+
+```bash
+adt check ZCL_MY_CLASS --type CLAS
+adt check ZCL_MY_CLASS --type CLAS --source-version active --json
+```
+
 #### `adt outline <object>`
 
 Show object structure as a tree (methods, attributes, visibility).
@@ -187,6 +202,20 @@ Get details for a transport request or task.
 | `-d, --description <desc>` | Description (required)                        |
 | `-t, --type <type>`        | `K` (Workbench, default) or `W` (Customizing) |
 | `--target <target>`        | Target system (default: `LOCAL`)              |
+
+#### `adt cts tr task create <transport> <owner> [options]`
+
+Create a modifiable task under an existing request and verify the new task by
+reading the parent request back from SAP.
+
+```bash
+adt cts tr task create DEVK900001 DEVELOPER
+adt cts tr task create DEVK900001 DEVELOPER --json
+```
+
+| Option   | Description           |
+| -------- | --------------------- |
+| `--json` | JSON result on stdout |
 
 ### Exact source history
 

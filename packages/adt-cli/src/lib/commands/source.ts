@@ -18,7 +18,7 @@ import {
   toMetadataOnlySourceVersionListing,
   type ListObjectVersionsResult,
 } from '../services/source-history';
-import { createLockService } from '@abapify/adt-locks';
+import { createLockService, resolveLockCorrelation } from '@abapify/adt-locks';
 import { getObjectUri } from '@abapify/adk';
 import {
   detectMethodBoundary,
@@ -435,6 +435,10 @@ const putSourceCommand = new Command('put')
           objectName,
         });
         lockHandle = lock.handle;
+        const effectiveTransport = resolveLockCorrelation(
+          lock,
+          options.transport,
+        );
 
         try {
           if (!options.json) console.log(`🔄 Writing source to ${uri}...`);
@@ -445,7 +449,7 @@ const putSourceCommand = new Command('put')
               contract.objectName,
               {
                 lockHandle,
-                ...(options.transport ? { corrNr: options.transport } : {}),
+                ...(effectiveTransport ? { corrNr: effectiveTransport } : {}),
               },
               sourceToWrite,
             );
@@ -453,7 +457,7 @@ const putSourceCommand = new Command('put')
             // TODO: generic fallback — remove once all object types have
             // typed source contracts.
             const params = new URLSearchParams({ lockHandle });
-            if (options.transport) params.set('corrNr', options.transport);
+            if (effectiveTransport) params.set('corrNr', effectiveTransport);
             await client.fetch(`${uri}/source/main?${params.toString()}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'text/plain' },
