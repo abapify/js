@@ -18,7 +18,7 @@ export function registerGetBadiTool(server: McpServer, ctx: ToolContext): void {
       badiName: z
         .string()
         .describe(
-          'BAdI name — definition (e.g. CTS_REQUEST_CHECK), implementation, or ENHO container',
+          'BAdI name — definition, implementation (SXCI/XI), or ENHO container',
         ),
       includeSource: z
         .boolean()

@@ -1,6 +1,7 @@
 /**
  * BAdI commands — ENHO CRUD + metadata (`adt badi`) and unified read (`adt get badi`).
  *
+<<<<<<< HEAD
  * ENHO/XHH (enhancement implementation):
  *   adt badi ZE_MY_BADI_IMPL
  *   adt badi ZE_MY_BADI_IMPL --implementations
@@ -11,6 +12,14 @@
  * Classic SXSD/SXCI (read-only via get):
  *   adt get badi CTS_REQUEST_CHECK --json
  *   adt get badi CTS_REQUEST_CHECK --implementations --json
+=======
+ *   adt get badi MOCK_CTS_REQUEST_CHECK --json
+ *   adt get badi MOCK_CTS_REQUEST_CHECK --implementations --json
+ *   adt get badi ZE_MOCK_CLASSIC_BADI_IMPL --json
+ *   adt get badi ZE_MOCK_BADI                 # ENHO/XHH source
+ *
+ * Mutating operations (create, write, delete) belong under deploy/checkin.
+>>>>>>> c3132ed3 (chore(badi): sanitize examples and fixture comments for upstream PR)
  */
 
 import { AdkBadi } from '@abapify/adk';
