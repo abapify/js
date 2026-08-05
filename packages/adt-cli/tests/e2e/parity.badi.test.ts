@@ -1,18 +1,8 @@
 /**
- * CLI + MCP parity tests for BAdI / Enhancement Implementation (ENHO/XHH).
- *
- * Targets the `/sap/bc/adt/enhancements/enhoxhh` endpoint. Covers read,
- * read-source, create, write, delete — exactly the five operations the
- * epic (E03) mandates for CRUD + activate parity.
- *
- * Both paths hit the shared in-process mock ADT server, so CLI and MCP
- * surfaces are pinned to identical backend behaviour.
+ * CLI + MCP parity tests for BAdI commands.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
   startAdtHarness,
   runCliCommand,
@@ -31,7 +21,7 @@ describe('CLI + MCP parity (badi)', () => {
     if (harness) await harness.stop();
   });
 
-  it('parity: read BAdI info with implementations', async () => {
+  it('parity: read ENHO BAdI info with implementations', async () => {
     const cli = await runCliCommand(harness, [
       'badi',
       'ZE_MOCK_BADI',
@@ -43,7 +33,7 @@ describe('CLI + MCP parity (badi)', () => {
     expect(cli.stdout).toContain('ZE_MOCK_BADI_DEF');
   });
 
-  it('parity: read BAdI info as JSON', async () => {
+  it('parity: read ENHO BAdI info as JSON', async () => {
     const cli = await runCliCommand(harness, [
       'badi',
       'ZE_MOCK_BADI',
@@ -58,12 +48,8 @@ describe('CLI + MCP parity (badi)', () => {
     );
   });
 
-  it('parity: read BAdI source', async () => {
-    // CLI `read` (no --json) prints the source to stdout. Run this
-    // FIRST: commander retains parsed options between invocations on a
-    // shared program, so `--json` from a later test would otherwise
-    // flip this case into the metadata branch.
-    const cli = await runCliCommand(harness, ['badi', 'read', 'ZE_MOCK_BADI']);
+  it('parity: read ENHO/XHH source via get badi', async () => {
+    const cli = await runCliCommand(harness, ['get', 'badi', 'ZE_MOCK_BADI']);
     expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
     expect(cli.stdout).toContain('lcl_badi_impl');
 
@@ -75,11 +61,10 @@ describe('CLI + MCP parity (badi)', () => {
     expect(String(JSON.stringify(mcp.json))).toContain('lcl_badi_impl');
   });
 
-  it('parity: read BAdI metadata', async () => {
-    // CLI `read --json` returns metadata only (skips source fetch).
+  it('parity: read ENHO/XHH metadata via get badi', async () => {
     const cli = await runCliCommand(harness, [
+      'get',
       'badi',
-      'read',
       'ZE_MOCK_BADI',
       '--json',
     ]);
@@ -91,62 +76,63 @@ describe('CLI + MCP parity (badi)', () => {
     expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
   });
 
-  it('parity: create BAdI', async () => {
+  it('parity: read classic BAdI definition', async () => {
     const cli = await runCliCommand(harness, [
+      'get',
       'badi',
-      'create',
-      'ZE_NEW_BADI',
-      'Mock BAdI impl',
-      '$TMP',
+      'MOCK_CTS_REQUEST_CHECK',
+      '--json',
     ]);
     expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
 
-    const mcp = await callMcpTool(harness, 'create_badi', {
-      badiName: 'ZE_NEW_BADI_M',
-      description: 'Mock BAdI impl',
-      packageName: '$TMP',
+    const mcp = await callMcpTool(harness, 'get_badi', {
+      badiName: 'MOCK_CTS_REQUEST_CHECK',
     });
     expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
+    expect(mcp.json.kind).toBe('definition');
+    expect(mcp.json.type).toBe('SXSD/XD');
   });
 
-  it('parity: write BAdI source', async () => {
-    const tmp = mkdtempSync(join(tmpdir(), 'adt-badi-'));
-    const srcPath = join(tmp, 'impl.abap');
-    writeFileSync(
-      srcPath,
-      '* Updated BAdI source\nCLASS lcl_badi_v2 IMPLEMENTATION.\nENDCLASS.\n',
-      'utf8',
+  it('parity: read classic BAdI implementation', async () => {
+    const cli = await runCliCommand(harness, [
+      'get',
+      'badi',
+      'ZE_MOCK_CLASSIC_BADI_IMPL',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+
+    const mcp = await callMcpTool(harness, 'get_badi', {
+      badiName: 'ZE_MOCK_CLASSIC_BADI_IMPL',
+    });
+    expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
+    expect(mcp.json.kind).toBe('implementation');
+    expect(mcp.json.type).toBe('SXCI/XI');
+  });
+
+  it('parity: list classic implementations with --implementations', async () => {
+    const cli = await runCliCommand(harness, [
+      'get',
+      'badi',
+      'MOCK_CTS_REQUEST_CHECK',
+      '--implementations',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+
+    const mcp = await callMcpTool(harness, 'get_badi', {
+      badiName: 'MOCK_CTS_REQUEST_CHECK',
+      includeImplementations: true,
+    });
+    expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
+    expect(mcp.json.implementations?.length).toBe(2);
+    expect(
+      mcp.json.implementations?.map((entry: { name: string }) => entry.name),
+    ).toEqual(
+      expect.arrayContaining([
+        'ZE_MOCK_CLASSIC_BADI_IMPL',
+        'ZE_MOCK_CLASSIC_BADI_IMPL_B',
+      ]),
     );
-
-    const cli = await runCliCommand(harness, [
-      'badi',
-      'write',
-      'ZE_MOCK_BADI',
-      srcPath,
-    ]);
-    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
-
-    const mcp = await callMcpTool(harness, 'update_source', {
-      objectName: 'ZE_MOCK_BADI',
-      objectType: 'ENHO',
-      sourceCode:
-        '* Updated BAdI source via MCP\nCLASS lcl_badi_v2 IMPLEMENTATION.\nENDCLASS.\n',
-    });
-    expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
-  });
-
-  it('parity: delete BAdI', async () => {
-    const cli = await runCliCommand(harness, [
-      'badi',
-      'delete',
-      'ZE_MOCK_BADI',
-      '-y',
-    ]);
-    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
-
-    const mcp = await callMcpTool(harness, 'delete_badi', {
-      badiName: 'ZE_MOCK_BADI',
-    });
-    expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
   });
 });

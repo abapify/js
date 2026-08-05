@@ -65,7 +65,7 @@ import { createDatapreviewCommand } from './commands/datapreview';
 import { createAbapCommand } from './commands/abap';
 import { ddlCommand, dclCommand } from './commands/cds';
 import { bdefCommand } from './commands/bdef';
-import { badiCommand } from './commands/badi';
+import { badiCommand, getBadiCommand } from './commands/badi';
 import { srvdCommand } from './commands/srvd';
 import { srvbCommand } from './commands/srvb';
 import { createCheckoutCommand } from './commands/checkout';
@@ -222,6 +222,7 @@ export async function createCLI(options?: {
 
   // Get subcommands for specific object types (legacy: adt get package <name>)
   getCommand.addCommand(packageGetCommand);
+  getCommand.addCommand(getBadiCommand);
 
   // Package commands (adt package create/list/delete/activate/stat/get)
   program.addCommand(createPackageCommand());
