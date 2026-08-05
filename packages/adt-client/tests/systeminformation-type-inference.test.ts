@@ -12,7 +12,7 @@ import type { SystemInformationJson } from '../src/adt/core/http/systeminformati
 
 describe('System Information Type Inference', () => {
   it('should infer SystemInformationJson response type from contract', async () => {
-    const _client = createAdtClient({
+    const client = createAdtClient({
       baseUrl: 'https://example.com',
       username: 'test',
       password: 'test',
@@ -22,7 +22,9 @@ describe('System Information Type Inference', () => {
 
     // Type test: Extract the return type of getSystemInformation
     type SystemInfoType = Awaited<
-      ReturnType<typeof client.core.http.systeminformation.getSystemInformation>
+      ReturnType<
+        typeof client.adt.core.http.systeminformation.getSystemInformation
+      >
     >;
 
     // CRITICAL: This must compile without errors
@@ -50,11 +52,11 @@ describe('System Information Type Inference', () => {
     // This will fail at runtime (no real server), but MUST compile
     try {
       const sysInfo =
-        await client.core.http.systeminformation.getSystemInformation();
+        await client.adt.core.http.systeminformation.getSystemInformation();
 
       // These property accesses should be type-safe
       const _systemId: string | undefined = sysInfo.systemID;
-      const client: string | undefined = sysInfo.client;
+      const _client: string | undefined = sysInfo.client;
       const _userName: string | undefined = sysInfo.userName;
       const _language: string | undefined = sysInfo.language;
 
@@ -79,7 +81,7 @@ describe('System Information Type Inference', () => {
 
     try {
       const sysInfo =
-        await client.core.http.systeminformation.getSystemInformation();
+        await client.adt.core.http.systeminformation.getSystemInformation();
 
       // These should all compile - proving the type is inferred correctly
       // If type inference fails, these would be type errors

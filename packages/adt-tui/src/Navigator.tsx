@@ -137,7 +137,7 @@ function NavigatorInner({ systemName }: { systemName?: string }) {
     );
   }
 
-  if (!current && !loading) {
+  if (!current) {
     return <UrlPrompt onSubmit={navigate} />;
   }
 

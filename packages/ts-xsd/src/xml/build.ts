@@ -349,7 +349,7 @@ function buildElement(
           if (!subName) continue;
 
           const value = data[subName];
-          if (value !== undefined) {
+          if (value != null) {
             const typeName = substitute.element.type
               ? stripNsPrefix(substitute.element.type)
               : undefined;
@@ -373,7 +373,7 @@ function buildElement(
     if (!resolved) continue;
 
     const value = data[resolved.dataKey];
-    if (value !== undefined) {
+    if (value != null) {
       buildFieldWithTagName(
         doc,
         node,
@@ -440,8 +440,7 @@ function resolveElementInfo(
           ? stripNsPrefix(refElement.element.type)
           : undefined,
         inlineComplexType: refElement.element.complexType as
-          | ComplexTypeLike
-          | undefined,
+          ComplexTypeLike | undefined,
         elementSchema: refElement.schema,
         form: undefined, // Refs always use their prefix
       };
@@ -477,8 +476,6 @@ function buildField(
   rootSchema: SchemaLike,
   prefix: string | undefined,
 ): void {
-  if (value === undefined || value === null) return;
-
   // Search for nested complexType
   const nestedType = typeName ? findComplexType(typeName, schema) : undefined;
 
@@ -550,8 +547,6 @@ function buildFieldWithTagName(
   prefix: string | undefined,
   elementForm: string | undefined,
 ): void {
-  if (value === undefined || value === null) return;
-
   // First check for inline complexType, then search for named type
   let nestedType: { ct: ComplexTypeLike; schema: SchemaLike } | undefined;
   if (inlineComplexType) {
