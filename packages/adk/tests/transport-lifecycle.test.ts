@@ -10,6 +10,7 @@ interface TransportState {
 interface LifecycleFixtureOptions {
   releaseStatus?: string;
   releaseStatusText?: string;
+  releaseMessage?: string;
   applyReassign?: boolean;
   applyAddTask?: boolean;
   addTaskNumber?: string;
@@ -63,11 +64,19 @@ function taskResponse(
   };
 }
 
-function releaseResponse(status: string, statusText: string) {
+function releaseResponse(status: string, statusText: string, message?: string) {
   return {
     root: {
       releasereports: {
-        checkReport: [{ status, statusText }],
+        checkReport: [
+          {
+            status,
+            statusText,
+            ...(message
+              ? { checkMessageList: { checkMessage: [{ shortText: message }] } }
+              : {}),
+          },
+        ],
       },
     },
   };
@@ -105,6 +114,7 @@ function createLifecycleFixture(options: LifecycleFixtureOptions = {}) {
       status,
       options.releaseStatusText ??
         (status === 'released' ? 'Released' : 'Release failed'),
+      options.releaseMessage,
     );
   });
   const reassign = vi.fn(
@@ -202,7 +212,8 @@ describe('AdkTransportRequest CTS lifecycle', () => {
   it('surfaces a failed release report instead of reporting success', async () => {
     const fixture = createLifecycleFixture({
       releaseStatus: 'abortrelapifail',
-      releaseStatusText: 'Task is unclassified and cannot be released',
+      releaseStatusText: 'Release failed. See Problems view',
+      releaseMessage: 'Task is unclassified and cannot be released',
     });
     const transport = await AdkTransportRequest.get(fixture.rootNumber, {
       client: fixture.client,

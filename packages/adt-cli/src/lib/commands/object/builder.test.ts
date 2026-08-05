@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createWithReadbackRecovery,
+  deleteWithReleasedLock,
   persistSourceWithReleasedLock,
   resolveEffectiveTransport,
 } from './builder';
@@ -19,6 +20,54 @@ describe('resolveEffectiveTransport', () => {
     expect(resolveEffectiveTransport({ handle: 'lock-1' }, 'DEVK900002')).toBe(
       'DEVK900002',
     );
+  });
+});
+
+describe('deleteWithReleasedLock', () => {
+  it('deletes with the SAP lock handle and authoritative correlation', async () => {
+    const calls: string[] = [];
+    const object = {
+      lock: vi.fn(async () => {
+        calls.push('lock');
+        return {
+          handle: 'lock-1',
+          correlationNumber: 'DEVK900001',
+        };
+      }),
+      unlock: vi.fn(async () => {
+        calls.push('unlock');
+      }),
+    };
+    const deleteObject = vi.fn(async () => {
+      calls.push('delete');
+    });
+
+    await deleteWithReleasedLock(object, deleteObject, 'DEVK900002');
+
+    expect(calls).toEqual(['lock', 'delete', 'unlock']);
+    expect(deleteObject).toHaveBeenCalledWith({
+      lockHandle: 'lock-1',
+      transport: 'DEVK900001',
+    });
+    expect(object.unlock).toHaveBeenCalledWith('lock-1');
+  });
+
+  it('unlocks and preserves a failed delete', async () => {
+    const deleteError = new Error('delete failed');
+    const object = {
+      lock: vi.fn().mockResolvedValue({ handle: 'lock-1' }),
+      unlock: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(
+      deleteWithReleasedLock(
+        object,
+        vi.fn().mockRejectedValue(deleteError),
+        'DEVK900002',
+      ),
+    ).rejects.toBe(deleteError);
+    expect(object.unlock).toHaveBeenCalledTimes(1);
+    expect(object.unlock).toHaveBeenCalledWith('lock-1');
   });
 });
 
