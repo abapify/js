@@ -1,0 +1,36 @@
+{
+  "name": "@abapify/adt-flow",
+  "version": "0.4.1",
+  "description": "Incremental transport source-tree materialization for ADT",
+  "license": "MIT",
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./commands/flow": "./dist/commands/flow.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "dependencies": {
+    "@abapify/adk": "0.4.1",
+    "@abapify/adt-client": "0.4.1",
+    "@abapify/adt-config": "0.4.1",
+    "@abapify/adt-plugin": "0.4.1",
+    "zod": "^4.4.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abapify/adt-cli.git",
+    "directory": "packages/adt-flow"
+  },
+  "homepage": "https://github.com/abapify/adt-cli/tree/main/packages/adt-flow#readme",
+  "bugs": {
+    "url": "https://github.com/abapify/adt-cli/issues"
+  }
+}

@@ -375,6 +375,52 @@ const objectMetadataCapability = z
   })
   .strict();
 
+/** Canonical BAdI metadata (classic vit/wb or ENHO/XHH). */
+export const badiResponse = z
+  .object({
+    kind: z.enum(['definition', 'implementation', 'enhancement']),
+    name: z.string().trim().min(1).max(128),
+    type: z.string().trim().min(1).max(64),
+    description: z.string().max(1_024).optional(),
+    language: z.string().trim().min(1).max(16).optional(),
+    version: z.string().trim().min(1).max(64).optional(),
+    packageName: z.string().trim().min(1).max(128).optional(),
+    packageUri: z
+      .string()
+      .max(8 * 1024)
+      .optional(),
+    responsible: z.string().max(256).optional(),
+    masterLanguage: z.string().trim().min(1).max(16).optional(),
+    masterSystem: z.string().trim().min(1).max(32).optional(),
+    implementations: z
+      .array(
+        z
+          .object({
+            kind: z.literal('implementation'),
+            name: z.string().trim().min(1).max(128),
+            type: z.string().trim().min(1).max(64),
+            description: z.string().max(1_024).optional(),
+            language: z.string().trim().min(1).max(16).optional(),
+            version: z.string().trim().min(1).max(64).optional(),
+            packageName: z.string().trim().min(1).max(128).optional(),
+            packageUri: z
+              .string()
+              .max(8 * 1024)
+              .optional(),
+            responsible: z.string().max(256).optional(),
+            masterLanguage: z.string().trim().min(1).max(16).optional(),
+            masterSystem: z.string().trim().min(1).max(32).optional(),
+          })
+          .strict(),
+      )
+      .max(5_000)
+      .optional(),
+  })
+  .strict();
+
+/** @deprecated Use badiResponse */
+export const classicBadiResponse = badiResponse.omit({ kind: true });
+
 /** Safe metadata projection. Raw ADT links remain broker-local. */
 export const objectMetadataResponse = z
   .object({

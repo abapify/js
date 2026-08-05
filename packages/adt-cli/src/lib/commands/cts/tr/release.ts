@@ -15,7 +15,20 @@ import { confirm } from '@inquirer/prompts';
 import { getAdtClientV2, getCliContext } from '../../../utils/adt-client-v2';
 import { createProgressReporter } from '../../../utils/progress-reporter';
 import { createCliLogger } from '../../../utils/logger-config';
-import { AdkTransportRequest } from '@abapify/adk';
+import { CtsTransportLifecycleService } from '../../../services/cts';
+import type { Logger } from '@abapify/logger';
+
+const writeLine = (line: string) => {
+  process.stdout.write(`${line}\n`);
+};
+
+const writeError = (line: string) => {
+  process.stderr.write(`${line}\n`);
+};
+
+interface CommandWithLogger extends Command {
+  logger?: Logger;
+}
 
 export const ctsReleaseCommand = new Command('release')
   .description('Release transport request')
@@ -24,122 +37,103 @@ export const ctsReleaseCommand = new Command('release')
   .option('--release-all', 'Release all tasks first, then the transport')
   .option('-y, --yes', 'Skip confirmation prompt')
   .option('--json', 'Output result as JSON')
-  .action(async function (this: Command, transport: string, options) {
+  .action(async function (this: CommandWithLogger, transport: string, options) {
     const globalOpts = this.optsWithGlobals?.() ?? {};
     const ctx = getCliContext();
     const verboseFlag = globalOpts.verbose ?? ctx.verbose ?? false;
     const compact = !verboseFlag;
     const logger =
-      (this as any).logger ??
-      ctx.logger ??
-      createCliLogger({ verbose: verboseFlag });
+      this.logger ?? ctx.logger ?? createCliLogger({ verbose: verboseFlag });
     const progress = createProgressReporter({ compact, logger });
 
     try {
-      const client = await getAdtClientV2();
+      const client = await getAdtClientV2({
+        logger,
+        enableLogging: true,
+      });
+      const lifecycle = new CtsTransportLifecycleService(client);
 
-      // Step 1: Get transport via ADK
       progress.step(`🔍 Getting transport ${transport}...`);
-      // ADK expects (number, ctx?) - ctx is AdkContext with client property
-
-      let tr: AdkTransportRequest;
+      let summary;
       try {
-        tr = await AdkTransportRequest.get(transport, { client });
+        summary = await lifecycle.getTransport(transport);
       } catch (_err) {
-        console.error(`❌ Transport ${transport} not found or not accessible`);
+        progress.done();
+        writeError(`❌ Transport ${transport} not found or not accessible`);
         process.exit(1);
       }
 
       progress.done();
 
       // Check if already released
-      if (tr.status === 'R') {
-        console.log(`ℹ️  Transport ${transport} is already released`);
+      if (summary.status === 'R') {
         if (options.json) {
-          console.log(
-            JSON.stringify({ transport, status: 'already_released' }, null, 2),
+          progress.clear();
+          writeLine(
+            JSON.stringify(
+              { transport: summary.transport, status: 'already_released' },
+              null,
+              2,
+            ),
           );
+        } else {
+          writeLine(`ℹ️  Transport ${summary.transport} is already released`);
         }
-        process.exit(0);
+        return;
       }
 
       // Display transport info
       if (!options.json) {
-        console.log(`\n📋 Transport: ${tr.number}`);
-        console.log(`   Description: ${tr.description || '-'}`);
-        console.log(`   Owner: ${tr.owner || '-'}`);
-        console.log(
-          `   Target: ${tr.targetDescription || tr.target || 'LOCAL'}`,
+        writeLine(`\n📋 Transport: ${summary.transport}`);
+        writeLine(`   Description: ${summary.description || '-'}`);
+        writeLine(`   Owner: ${summary.owner || '-'}`);
+        writeLine(
+          `   Target: ${summary.targetDescription || summary.target || 'LOCAL'}`,
         );
-        console.log(`   Status: ${tr.statusText}`);
-        console.log(`   Tasks: ${tr.tasks.length}`);
-        console.log(`   Objects: ${tr.objects.length}`);
+        writeLine(`   Status: ${summary.statusText}`);
+        writeLine(`   Tasks: ${summary.taskCount}`);
+        writeLine(`   Objects: ${summary.objectCount}`);
       }
 
       // Step 2: Pre-release check (not yet implemented - check endpoint not available)
-      if (!options.skipCheck) {
-        // For now, just warn that checks are not implemented
-        if (!options.json) {
-          console.log(
-            '\n💡 Pre-release checks not yet implemented (use --skip-check to suppress)',
-          );
-        }
+      if (!options.skipCheck && !options.json) {
+        writeLine(
+          '\n💡 Pre-release checks not yet implemented (use --skip-check to suppress)',
+        );
       }
 
       // Step 3: Confirm release
       if (!options.yes && !options.json) {
         const shouldRelease = await confirm({
-          message: `Release transport ${transport}?`,
+          message: `Release transport ${summary.transport}?`,
           default: true,
         });
 
         if (!shouldRelease) {
-          console.log('\n❌ Release cancelled');
+          writeLine('\n❌ Release cancelled');
           process.exit(0);
         }
       }
 
-      // Step 4: Release the transport using ADK
-      progress.step(`🚀 Releasing transport ${transport}...`);
-
-      let result;
-      if (options.releaseAll) {
-        // Release all tasks first, then the transport
-        result = await tr.releaseAll();
-      } else {
-        // Release transport only (tasks must already be released)
-        result = await tr.release();
-      }
-
+      progress.step(`🚀 Releasing transport ${summary.transport}...`);
+      const result = await lifecycle.release({
+        transport: summary.transport,
+        releaseAll: options.releaseAll,
+      });
       progress.done();
 
-      if (!result.success) {
-        console.error(`❌ Release failed: ${result.message}`);
-        process.exit(1);
-      }
-
       if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              transport,
-              status: 'released',
-              result,
-            },
-            null,
-            2,
-          ),
-        );
+        writeLine(JSON.stringify(result, null, 2));
       } else {
-        console.log(`\n✅ Transport ${transport} released successfully!`);
-        console.log(
-          `   Target: ${tr.targetDescription || tr.target || 'LOCAL'}`,
+        writeLine(`\n✅ Transport ${result.transport} released successfully!`);
+        writeLine(
+          `   Target: ${summary.targetDescription || summary.target || 'LOCAL'}`,
         );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      progress.done(`❌ Release failed: ${message}`);
-      console.error('❌ Release failed:', message);
+      progress.done();
+      writeError(`❌ Release failed: ${message}`);
       process.exit(1);
     }
   });

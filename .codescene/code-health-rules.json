@@ -152,6 +152,10 @@
           "weight": 0.0
         },
         {
+          "name": "Brain Method",
+          "weight": 0.0
+        },
+        {
           "name": "Code Duplication",
           "weight": 0.0
         },
@@ -160,7 +164,15 @@
           "weight": 0.0
         },
         {
+          "name": "Number of Functions in a Single Module",
+          "weight": 0.0
+        },
+        {
           "name": "Overall Code Complexity",
+          "weight": 0.0
+        },
+        {
+          "name": "Overall Function Size",
           "weight": 0.0
         },
         {
@@ -173,6 +185,32 @@
         },
         {
           "name": "Deep, Nested Complexity",
+          "weight": 0.0
+        },
+        {
+          "name": "Primitive Obsession",
+          "weight": 0.0
+        },
+        {
+          "name": "String Heavy Function Arguments",
+          "weight": 0.0
+        },
+        {
+          "name": "Excess Number of Function Arguments",
+          "weight": 0.0
+        }
+      ]
+    },
+    {
+      "matching_content_path": "packages/adt-flow/src/repository.ts",
+      "matching_content_path_doc": "Repository path helpers operate on filesystem root and relative path strings by design; a FlowPath value-object refactor is planned to reduce surface area.",
+      "rules": [
+        {
+          "name": "Primitive Obsession",
+          "weight": 0.0
+        },
+        {
+          "name": "String Heavy Function Arguments",
           "weight": 0.0
         }
       ]

@@ -1,3 +1,5 @@
+import type { FormatOptionValue } from '../../types';
+
 /**
  * FormatPlugin — interface for serialization-format plugins (abapGit, gCTS, AFF, …).
  *
@@ -31,6 +33,59 @@ export interface SerializedFile {
   content: string;
   /** Optional encoding (default: utf-8). */
   encoding?: BufferEncoding;
+}
+
+/** Source contents selected independently from mutable object getters. */
+export interface FormatSerializeOptions {
+  /**
+   * Source component id to content.
+   *
+   * When present, this record is authoritative: handlers MUST NOT read source
+   * through the object model and MUST emit only the supplied components.
+   */
+  sources?: Readonly<Record<string, string>>;
+}
+
+interface MaterializedFormatSourceFile extends SerializedFile {
+  role: 'source';
+  /** Source-history component id for source files. */
+  sourceComponent: string;
+}
+
+interface MaterializedFormatMetadataFile extends SerializedFile {
+  role: 'metadata';
+}
+
+/** A repository-relative file produced without filesystem mutation. */
+export type MaterializedFormatFile =
+  MaterializedFormatSourceFile | MaterializedFormatMetadataFile;
+
+export interface FormatMaterializationInput {
+  object: unknown;
+  objectType: string;
+  packagePath: readonly string[];
+  sources?: Readonly<Record<string, string>>;
+  formatOptions?: Readonly<Record<string, FormatOptionValue>>;
+}
+
+export interface FormatMaterializationResult {
+  files: MaterializedFormatFile[];
+}
+
+export type FormatMaterializationErrorCode =
+  | 'FORMAT_MATERIALIZATION_UNSUPPORTED'
+  | 'FORMAT_OBJECT_TYPE_UNSUPPORTED'
+  | 'FORMAT_SOURCE_COMPONENT_UNSUPPORTED';
+
+export class FormatMaterializationError extends Error {
+  override readonly name = 'FormatMaterializationError';
+
+  constructor(
+    readonly code: FormatMaterializationErrorCode,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 /**
@@ -79,8 +134,13 @@ export interface FormatHandler {
   readonly schema: FormatHandlerSchema;
   /** Optional map from abapGit file suffix to source key. */
   readonly suffixToSourceKey?: Record<string, string>;
+  /** Whether this handler treats an explicit `sources` map as authoritative. */
+  readonly supportsExplicitSources?: boolean;
   /** Serialize an ADK object to one or more files. */
-  serialize(object: unknown): Promise<SerializedFile[]>;
+  serialize(
+    object: unknown,
+    options?: FormatSerializeOptions,
+  ): Promise<SerializedFile[]>;
   /**
    * Map format-specific XML values back to ADK data. Present only on
    * handlers that support bidirectional (git → SAP) workflows.
@@ -102,6 +162,13 @@ export interface FormatPlugin {
   readonly supportedTypes: ReadonlyArray<string>;
   /** Look up the handler for a given ABAP object type. */
   getHandler(type: string): FormatHandler | undefined;
+  /**
+   * Produce the desired repository files for one object without ADT,
+   * filesystem, or Git side effects.
+   */
+  materialize?(
+    input: FormatMaterializationInput,
+  ): Promise<FormatMaterializationResult>;
   /** Parse a format-specific filename, if the format defines one. */
   parseFilename?(filename: string): ParsedFormatFilename | undefined;
 }

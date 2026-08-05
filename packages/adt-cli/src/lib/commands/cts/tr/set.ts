@@ -43,7 +43,7 @@ export const ctsSetCommand = new Command('set')
         process.exit(1);
       }
 
-      const client = await getAdtClientV2();
+      await getAdtClientV2();
 
       // Build update options
       let updateOptions: { description?: string; target?: string };
@@ -73,8 +73,9 @@ export const ctsSetCommand = new Command('set')
 
       // Get transport via ADK
       progress.step(`🔍 Getting transport ${transport}...`);
-      // ADK expects (number, ctx?) - ctx is AdkContext with client property
-      const tr = await AdkTransportRequest.get(transport, { client });
+      // getAdtClientV2() initializes the complete global ADK context,
+      // including the lock service required by update().
+      const tr = await AdkTransportRequest.get(transport);
       progress.done();
 
       // Update using ADK (handles lock/unlock automatically)

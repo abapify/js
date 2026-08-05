@@ -17,6 +17,189 @@ export interface RouteResult {
   headers?: Record<string, string>;
 }
 
+interface XmlAttribute {
+  name: string;
+  value: string;
+}
+
+interface TaskAttribute extends XmlAttribute {
+  taskNumber: string;
+}
+
+interface NewTransportTask {
+  parent: string;
+  number: string;
+  owner: string;
+}
+
+interface DirectTaskResponseInput {
+  template: string;
+  parentResponse: string;
+  taskNumber: string;
+}
+
+interface TaskResponsesInput {
+  template: string;
+  parentResponse: string;
+}
+
+function setXmlAttribute(attributes: string, attr: XmlAttribute): string {
+  const prefix = `${attr.name}=`;
+  const start = attributes.indexOf(prefix);
+  if (start !== -1) {
+    const quoteStart = start + prefix.length;
+    const quote = attributes[quoteStart];
+    if (quote === '"' || quote === "'") {
+      const valueEnd = attributes.indexOf(quote, quoteStart + 1);
+      if (valueEnd !== -1) {
+        return (
+          attributes.slice(0, start) +
+          `${attr.name}="${attr.value}"` +
+          attributes.slice(valueEnd + 1)
+        );
+      }
+    }
+  }
+  return `${attributes} ${attr.name}="${attr.value}"`;
+}
+
+function extractXmlAttribute(xml: string, name: string): string | undefined {
+  const prefix = `${name}=`;
+  const start = xml.indexOf(prefix);
+  if (start === -1) return undefined;
+  const quote = xml[start + prefix.length];
+  if (quote !== '"' && quote !== "'") return undefined;
+  const end = xml.indexOf(quote, start + prefix.length + 1);
+  if (end === -1) return undefined;
+  return xml.slice(start + prefix.length + 1, end);
+}
+
+function replaceRequestAttribute(xml: string, attr: XmlAttribute): string {
+  return xml.replace(/<tm:request\b([^>]*)>/, (tag, attributes: string) => {
+    return `<tm:request${setXmlAttribute(attributes, {
+      name: `tm:${attr.name}`,
+      value: attr.value,
+    })}>`;
+  });
+}
+
+function replaceTaskAttribute(xml: string, attr: TaskAttribute): string {
+  const needle = `tm:number="${attr.taskNumber}"`;
+  const numberIdx = xml.indexOf(needle);
+  if (numberIdx === -1) return xml;
+  const tagStart = xml.lastIndexOf('<tm:task', numberIdx);
+  if (tagStart === -1) return xml;
+  const tagEnd = xml.indexOf('>', tagStart);
+  if (tagEnd === -1) return xml;
+  const attributes = xml.slice(tagStart + '<tm:task'.length, tagEnd);
+  const newAttributes = setXmlAttribute(attributes, {
+    name: `tm:${attr.name}`,
+    value: attr.value,
+  });
+  return (
+    xml.slice(0, tagStart) + `<tm:task${newAttributes}>` + xml.slice(tagEnd + 1)
+  );
+}
+
+function extractTargetUser(requestBody: string): string | undefined {
+  return extractXmlAttribute(requestBody, 'tm:targetuser');
+}
+
+function extractRequestAttribute(
+  xml: string,
+  attribute: 'number' | 'status',
+): string | undefined {
+  const request = /<tm:request\b([^>]*)>/.exec(xml)?.[1];
+  return request ? extractXmlAttribute(request, `tm:${attribute}`) : undefined;
+}
+
+interface SplitDigits {
+  prefix: string;
+  digits: string;
+}
+
+function splitTrailingDigits(value: string): SplitDigits | undefined {
+  let i = value.length - 1;
+  while (i >= 0 && value[i] >= '0' && value[i] <= '9') {
+    i--;
+  }
+  if (i === value.length - 1) return undefined;
+  return { prefix: value.slice(0, i + 1), digits: value.slice(i + 1) };
+}
+
+function nextTransportTaskNumber(xml: string, parent: string): string {
+  const parentSplit = splitTrailingDigits(parent);
+  if (!parentSplit) return `${parent}_TASK`;
+
+  const { prefix, digits } = parentSplit;
+  const numbers = Array.from(xml.matchAll(/\btm:number=["']([^"']+)["']/g))
+    .map((match) => splitTrailingDigits(match[1]))
+    .filter((split): split is SplitDigits =>
+      Boolean(split && split.prefix === prefix),
+    )
+    .map((split) => Number.parseInt(split.digits, 10));
+  const next = Math.max(Number.parseInt(digits, 10), ...numbers) + 1;
+  return `${prefix}${String(next).padStart(digits.length, '0')}`;
+}
+
+function appendTransportTask(xml: string, task: NewTransportTask): string {
+  if (xml.includes(`tm:number="${task.number}"`)) return xml;
+  const taskXml = `<tm:task tm:number="${task.number}" tm:parent="${task.parent}" tm:owner="${task.owner}" tm:desc="Incremental task" tm:type="S" tm:status="D" tm:status_text="Modifiable" tm:uri="/sap/bc/adt/cts/transportrequests/${task.number}"><tm:long_desc/></tm:task>`;
+  return xml.replace('</tm:request>', `${taskXml}</tm:request>`);
+}
+
+function findTaskElement(xml: string, taskNumber: string): string | undefined {
+  const needle = `tm:number="${taskNumber}"`;
+  const numberIdx = xml.indexOf(needle);
+  if (numberIdx === -1) return undefined;
+  const tagStart = xml.lastIndexOf('<tm:task', numberIdx);
+  if (tagStart === -1) return undefined;
+  const tagEnd = xml.indexOf('>', tagStart);
+  if (tagEnd === -1) return undefined;
+  const closeTag = '</tm:task>';
+  const closeIdx = xml.indexOf(closeTag, tagEnd);
+  if (closeIdx === -1) return undefined;
+  return xml.slice(tagStart, closeIdx + closeTag.length);
+}
+
+function createDirectTaskResponse(input: DirectTaskResponseInput): string {
+  const templateParent = extractRequestAttribute(input.template, 'number');
+  const templateTask = /<tm:task\b[^>]*\btm:number=["']([^"']+)["']/.exec(
+    input.template,
+  )?.[1];
+  const parentNumber = extractRequestAttribute(input.parentResponse, 'number');
+  if (!templateParent || !templateTask || !parentNumber) return input.template;
+
+  const response = input.template
+    .replaceAll(templateParent, parentNumber)
+    .replaceAll(templateTask, input.taskNumber);
+  const templateTaskElement = findTaskElement(response, input.taskNumber);
+  const actualTaskElement = findTaskElement(
+    input.parentResponse,
+    input.taskNumber,
+  );
+  return templateTaskElement && actualTaskElement
+    ? response.replace(templateTaskElement, actualTaskElement)
+    : response;
+}
+
+function createTransportTaskResponses(
+  input: TaskResponsesInput,
+): Map<string, string> {
+  const taskNumbers = Array.from(
+    input.parentResponse.matchAll(
+      /<tm:task\b[^>]*\btm:number=["']([^"']+)["']/gu,
+    ),
+    (match) => match[1],
+  );
+  return new Map(
+    taskNumbers.map((taskNumber) => [
+      taskNumber,
+      createDirectTaskResponse({ ...input, taskNumber }),
+    ]),
+  );
+}
+
 /**
  * Preloaded fixture content — populated once at server start.
  * All routes read from this map to avoid async in matchRoute.
@@ -29,7 +212,11 @@ export interface LoadedFixtures {
   grep: string;
   transportList: string;
   transportSingle: string;
+  transportSingleTask: string;
+  transportTaskResponses: Map<string, string>;
   transportCreate: string;
+  transportTaskCreate: string;
+  taskCreationMode: 'create' | 'noop';
   transportRelease: string;
   transportFind: string;
   searchconfigMetadata: string;
@@ -98,6 +285,13 @@ export interface LoadedFixtures {
   // BAdI / Enhancement Implementation (ENHO/XHH)
   badiSingle: string;
   badiSource: string;
+  // BAdI / Enhancement Implementation metadata (ENHO/XHB)
+  badiInfoSingle: string;
+  // vit/wb Basic Object Properties (classic BAdI SXSD/SXCI)
+  vitWbSxsdxdSingle: string;
+  vitWbSxcixiSingle: string;
+  vitWbSxcixiSingleB: string;
+  badiImplementationsSearch: string;
   // SRVD (RAP service definition)
   srvdSingle: string;
   srvdSource: string;
@@ -125,7 +319,9 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     grep,
     transportList,
     transportSingle,
+    transportSingleTask,
     transportCreate,
+    transportTaskCreate,
     transportRelease,
     transportFind,
     searchconfigMetadata,
@@ -187,6 +383,11 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     bdefSource,
     badiSingle,
     badiSource,
+    badiInfoSingle,
+    vitWbSxsdxdSingle,
+    vitWbSxcixiSingle,
+    vitWbSxcixiSingleB,
+    badiImplementationsSearch,
     srvdSingle,
     srvdSource,
     srvbSingle,
@@ -203,7 +404,9 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     m.grep.load(),
     m.transport.list.load(),
     fixtures.transport.single.load(),
+    fixtures.transport.singleTask.load(),
     fixtures.transport.createResponse.load(),
+    fixtures.transport.taskCreateResponse.load(),
     m.transport.release.load(),
     fixtures.transport.find.load(),
     fixtures.transport.searchconfigMetadata.load(),
@@ -265,6 +468,11 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     fixtures.bo.bdef.source.load(),
     fixtures.enhancements.enhoxhh.single.load(),
     fixtures.enhancements.enhoxhh.source.load(),
+    fixtures.enhancements.enhoxhb.single.load(),
+    fixtures.vit.wb.sxsdxdSingle.load(),
+    fixtures.vit.wb.sxcixiSingle.load(),
+    fixtures.vit.wb.sxcixiSingleB.load(),
+    fixtures.badi.implementationsSearch.load(),
     fixtures.ddic.srvd.single.load(),
     fixtures.ddic.srvd.source.load(),
     fixtures.businessservices.bindings.single.load(),
@@ -282,7 +490,14 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     grep,
     transportList,
     transportSingle,
+    transportSingleTask,
+    transportTaskResponses: createTransportTaskResponses({
+      parentResponse: transportSingle,
+      template: transportSingleTask,
+    }),
     transportCreate,
+    transportTaskCreate,
+    taskCreationMode: 'create',
     transportRelease,
     transportFind,
     searchconfigMetadata,
@@ -344,6 +559,11 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     bdefSource,
     badiSingle,
     badiSource,
+    badiInfoSingle,
+    vitWbSxsdxdSingle,
+    vitWbSxcixiSingle,
+    vitWbSxcixiSingleB,
+    badiImplementationsSearch,
     srvdSingle,
     srvdSource,
     srvbSingle,
@@ -370,6 +590,7 @@ export function matchRoute(
   f: LoadedFixtures,
   locks: LockRegistry,
   _sessionId?: string,
+  requestBody = '',
 ): RouteResult | undefined {
   const m = method.toUpperCase();
   const pathname = url.split('?')[0];
@@ -413,6 +634,20 @@ export function matchRoute(
     m === 'GET' &&
     url.startsWith('/sap/bc/adt/repository/informationsystem/search')
   ) {
+    const query =
+      new URL(url, 'http://mock').searchParams.get('query')?.toUpperCase() ??
+      '';
+    if (
+      query.includes('MOCK_CTS') ||
+      query.includes('CTS_REQUEST') ||
+      query.includes('REQUEST_CHECK')
+    ) {
+      return {
+        status: 200,
+        body: f.badiImplementationsSearch,
+        contentType: 'application/json',
+      };
+    }
     return { status: 200, body: f.search, contentType: 'application/json' };
   }
 
@@ -501,7 +736,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.domains.v2+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/domains')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/domains') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/domains/')) {
@@ -522,7 +761,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.dataelements.v2+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/dataelements')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/dataelements') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/dataelements/')) {
@@ -549,7 +792,11 @@ export function matchRoute(
       contentType: 'application/xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/structures')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/structures') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/structures/')) {
@@ -559,7 +806,11 @@ export function matchRoute(
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   // DDIC tables POST/DELETE/PUT
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/tables')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/tables') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/tables/')) {
@@ -583,7 +834,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.ddl.source.v2+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/ddl/sources')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/ddl/sources') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/ddl/sources/')) {
@@ -610,7 +865,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.acm.dcl.source.v1+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/acm/dcl/sources')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/acm/dcl/sources') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/acm/dcl/sources/')) {
@@ -655,6 +914,19 @@ export function matchRoute(
     return { status: 204, body: '', contentType: 'text/plain' };
   }
 
+  // ── BAdI / Enhancement Implementation metadata (ENHO/XHB) ──────
+  // Endpoint: /sap/bc/adt/enhancements/enhoxhb/{name}
+  if (
+    m === 'GET' &&
+    /^\/sap\/bc\/adt\/enhancements\/enhoxhb\/[^/?]+/.test(pathname)
+  ) {
+    return {
+      status: 200,
+      body: f.badiInfoSingle,
+      contentType: 'application/vnd.sap.adt.enh.enhoxhb.v4+xml',
+    };
+  }
+
   // ── BAdI / Enhancement Implementation (ENHO/XHH) ───────────────
   // Endpoint: /sap/bc/adt/enhancements/enhoxhh/{name}
   //           /sap/bc/adt/enhancements/enhoxhh/{name}/source/main
@@ -688,6 +960,36 @@ export function matchRoute(
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/enhancements/enhoxhh/')) {
     return { status: 204, body: '', contentType: 'text/plain' };
+  }
+
+  // ── vit/wb Basic Object Properties (classic BAdI SXSD/SXCI) ─────
+  // Endpoint: /sap/bc/adt/vit/wb/object_type/{type}/object_name/{name}
+  if (
+    m === 'GET' &&
+    /^\/sap\/bc\/adt\/vit\/wb\/object_type\/sxsdxd\/object_name\//.test(
+      pathname,
+    )
+  ) {
+    return {
+      status: 200,
+      body: f.vitWbSxsdxdSingle,
+      contentType: 'application/vnd.sap.adt.basic.object.properties+xml',
+    };
+  }
+  if (
+    m === 'GET' &&
+    /^\/sap\/bc\/adt\/vit\/wb\/object_type\/sxcixi\/object_name\//.test(
+      pathname,
+    )
+  ) {
+    const body = pathname.includes('ze_mock_classic_badi_impl_b')
+      ? f.vitWbSxcixiSingleB
+      : f.vitWbSxcixiSingle;
+    return {
+      status: 200,
+      body,
+      contentType: 'application/vnd.sap.adt.basic.object.properties+xml',
+    };
   }
 
   // ── SRVD (RAP service definition) ──────────────────────────────
@@ -827,7 +1129,144 @@ export function matchRoute(
     };
   }
 
-  // CTS release / reassign / action — POST on a transport request
+  // CTS release — SAP starts a release job without a request body. Keep the
+  // fixture stateful so the lifecycle service's read-back can verify status R.
+  if (
+    m === 'POST' &&
+    /\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/newreleasejobs$/.test(
+      pathname,
+    )
+  ) {
+    const requested = decodeURIComponent(
+      /\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/newreleasejobs$/.exec(
+        pathname,
+      )?.[1] ?? '',
+    );
+    const requestNumber = extractRequestAttribute(f.transportSingle, 'number');
+    if (requested === requestNumber) {
+      f.transportSingle = replaceRequestAttribute(f.transportSingle, {
+        name: 'status',
+        value: 'R',
+      });
+      f.transportSingle = replaceRequestAttribute(f.transportSingle, {
+        name: 'status_text',
+        value: 'Released',
+      });
+      const taskNumbers = [...f.transportTaskResponses.keys()];
+      for (const taskNumber of taskNumbers) {
+        f.transportSingle = replaceTaskAttribute(f.transportSingle, {
+          taskNumber,
+          name: 'status',
+          value: 'R',
+        });
+        f.transportSingle = replaceTaskAttribute(f.transportSingle, {
+          taskNumber,
+          name: 'status_text',
+          value: 'Released',
+        });
+      }
+      for (const [taskNumber, response] of [...f.transportTaskResponses]) {
+        let updated = replaceRequestAttribute(response, {
+          name: 'status',
+          value: 'R',
+        });
+        updated = replaceRequestAttribute(updated, {
+          name: 'status_text',
+          value: 'Released',
+        });
+        updated = replaceTaskAttribute(updated, {
+          taskNumber,
+          name: 'status',
+          value: 'R',
+        });
+        updated = replaceTaskAttribute(updated, {
+          taskNumber,
+          name: 'status_text',
+          value: 'Released',
+        });
+        f.transportTaskResponses.set(taskNumber, updated);
+      }
+    } else if (f.transportTaskResponses.has(requested)) {
+      f.transportSingle = replaceTaskAttribute(
+        replaceTaskAttribute(f.transportSingle, {
+          taskNumber: requested,
+          name: 'status',
+          value: 'R',
+        }),
+        {
+          taskNumber: requested,
+          name: 'status_text',
+          value: 'Released',
+        },
+      );
+      const response = f.transportTaskResponses.get(requested)!;
+      f.transportTaskResponses.set(
+        requested,
+        replaceTaskAttribute(
+          replaceTaskAttribute(response, {
+            taskNumber: requested,
+            name: 'status',
+            value: 'R',
+          }),
+          {
+            taskNumber: requested,
+            name: 'status_text',
+            value: 'Released',
+          },
+        ),
+      );
+    } else {
+      return { status: 404, body: '', contentType: 'text/plain' };
+    }
+    return {
+      status: 200,
+      body: f.transportRelease,
+      contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+    };
+  }
+
+  // CTS new task — POST the hypermedia /{request}/tasks relation, then expose
+  // the new modifiable task through the parent request read-back.
+  const taskCreateMatch =
+    /^\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/tasks$/.exec(pathname);
+  if (m === 'POST' && taskCreateMatch) {
+    const parent = decodeURIComponent(taskCreateMatch[1]);
+    const requestNumber = extractRequestAttribute(f.transportSingle, 'number');
+    const requestStatus = extractRequestAttribute(f.transportSingle, 'status');
+    if (parent !== requestNumber || requestStatus !== 'D') {
+      return { status: 409, body: '', contentType: 'text/plain' };
+    }
+
+    const owner = extractTargetUser(requestBody);
+    if (!owner) {
+      return { status: 400, body: '', contentType: 'text/plain' };
+    }
+    const task = nextTransportTaskNumber(f.transportSingle, parent);
+    if (f.taskCreationMode === 'create') {
+      f.transportSingle = appendTransportTask(f.transportSingle, {
+        parent,
+        number: task,
+        owner,
+      });
+      f.transportTaskResponses.set(
+        task,
+        createDirectTaskResponse({
+          template: f.transportSingleTask,
+          parentResponse: f.transportSingle,
+          taskNumber: task,
+        }),
+      );
+    }
+    return {
+      status: 200,
+      body: f.transportTaskCreate
+        .replaceAll('DEVK900004', task)
+        .replaceAll('NEWOWNER', owner),
+      contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+    };
+  }
+
+  // Legacy CTS action — POST on a transport request.
   // (lock/unlock actions are handled further below by the generic _action handler)
   if (
     m === 'POST' &&
@@ -854,11 +1293,26 @@ export function matchRoute(
     };
   }
 
-  // CTS get single
-  if (m === 'GET' && /\/sap\/bc\/adt\/cts\/transportrequests\/\w+/.test(url)) {
+  // CTS get request or task. SAP returns a distinct shape for child tasks.
+  const transportGetMatch =
+    /^\/sap\/bc\/adt\/cts\/transportrequests\/([^/]+)\/?$/.exec(pathname);
+  if (m === 'GET' && transportGetMatch) {
+    const requested = decodeURIComponent(transportGetMatch[1]);
+    const requestNumber = extractRequestAttribute(f.transportSingle, 'number');
+    const createdRequestNumber = extractRequestAttribute(
+      f.transportCreate,
+      'number',
+    );
+    const body =
+      requested === requestNumber
+        ? f.transportSingle
+        : requested === createdRequestNumber
+          ? f.transportCreate
+          : f.transportTaskResponses.get(requested);
+    if (!body) return { status: 404, body: '', contentType: 'text/plain' };
     return {
       status: 200,
-      body: f.transportSingle,
+      body,
       contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
     };
   }
@@ -876,9 +1330,59 @@ export function matchRoute(
     m === 'PUT' &&
     /\/sap\/bc\/adt\/cts\/transportrequests\/\w+/.test(pathname)
   ) {
+    const targetUser = extractTargetUser(requestBody);
+    const requested = pathname.split('/').filter(Boolean).at(-1) ?? '';
+    if (targetUser) {
+      const requestNumber = extractRequestAttribute(
+        f.transportSingle,
+        'number',
+      );
+      if (requested && f.transportTaskResponses.has(requested)) {
+        f.transportSingle = replaceTaskAttribute(f.transportSingle, {
+          taskNumber: requested,
+          name: 'owner',
+          value: targetUser,
+        });
+        f.transportTaskResponses.set(
+          requested,
+          replaceTaskAttribute(f.transportTaskResponses.get(requested)!, {
+            taskNumber: requested,
+            name: 'owner',
+            value: targetUser,
+          }),
+        );
+      } else if (requested === requestNumber) {
+        f.transportSingle = replaceRequestAttribute(f.transportSingle, {
+          name: 'owner',
+          value: targetUser,
+        });
+        const taskNumbers = [...f.transportTaskResponses.keys()];
+        for (const taskNumber of taskNumbers) {
+          f.transportSingle = replaceTaskAttribute(f.transportSingle, {
+            taskNumber,
+            name: 'owner',
+            value: targetUser,
+          });
+        }
+        for (const [taskNumber, response] of [...f.transportTaskResponses]) {
+          let updated = replaceRequestAttribute(response, {
+            name: 'owner',
+            value: targetUser,
+          });
+          updated = replaceTaskAttribute(updated, {
+            taskNumber,
+            name: 'owner',
+            value: targetUser,
+          });
+          f.transportTaskResponses.set(taskNumber, updated);
+        }
+      } else {
+        return { status: 404, body: '', contentType: 'text/plain' };
+      }
+    }
     return {
       status: 200,
-      body: f.transportSingle,
+      body: f.transportTaskResponses.get(requested) ?? f.transportSingle,
       contentType: 'application/vnd.sap.adt.transportorganizer.v1+xml',
     };
   }

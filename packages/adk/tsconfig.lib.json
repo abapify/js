@@ -20,6 +20,9 @@
       "path": "../adt-locks/tsconfig.lib.json"
     },
     {
+      "path": "../adt-contracts"
+    },
+    {
       "path": "../adt-client"
     }
   ]

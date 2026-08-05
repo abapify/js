@@ -12,6 +12,7 @@ import type {
 import type { McpRequestAccess } from './tools/scope-catalogue.js';
 import type { SafeExecutePolicy } from './http/invocation.js';
 import type { createSourceCapabilityRegistry } from './source-capabilities.js';
+import type { FlowConfig } from '@abapify/adt-config';
 
 /**
  * Connection parameters that every tool receives.
@@ -101,4 +102,8 @@ export interface ToolContext {
   }) => Promise<{ sourceUri: string }>;
   /** Opaque, short-lived source capabilities issued by this MCP server. */
   sourceCapabilities?: ReturnType<typeof createSourceCapabilityRegistry>;
+  /** Server-owned roots within which filesystem-mutating flow tools may act. */
+  workspaceRoots?: readonly string[];
+  /** Optional server-owned flow config; otherwise workspace config is loaded. */
+  flowConfig?: FlowConfig;
 }

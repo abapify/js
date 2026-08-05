@@ -18,7 +18,7 @@
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { createLockService } from '@abapify/adt-locks';
+import { createLockService, resolveLockCorrelation } from '@abapify/adt-locks';
 import { initializeAdk } from '@abapify/adk';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
@@ -143,10 +143,11 @@ export function registerRunAbapTool(server: McpServer, ctx: ToolContext): void {
           objectType: 'CLAS',
         });
         lockHandle = lock.handle;
+        const effectiveTransport = resolveLockCorrelation(lock, transport);
 
         const params = new URLSearchParams();
         params.set('lockHandle', lockHandle);
-        if (transport) params.set('corrNr', transport);
+        if (effectiveTransport) params.set('corrNr', effectiveTransport);
 
         await client.fetch(`${classUri}/source/main?${params.toString()}`, {
           method: 'PUT',

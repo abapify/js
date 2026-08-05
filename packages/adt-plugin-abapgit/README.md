@@ -4,6 +4,30 @@
 
 abapGit format plugin for ADT — serializes ABAP objects to Git-compatible XML/ABAP files.
 
+## Pure materialization
+
+The registered `abapgitFormatPlugin` can produce a desired object tree without
+filesystem, ADT, or Git side effects. Explicit source components override
+mutable ADK source getters, while existing XSD-backed handlers continue to
+produce metadata:
+
+```typescript
+const { files } = await abapgitFormatPlugin.materialize({
+  object: adkClass,
+  objectType: 'CLAS',
+  packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+  sources: {
+    main: selectedMainSource,
+    definitions: selectedLocalDefinitions,
+  },
+  formatOptions: { folderLogic: 'prefix' },
+});
+```
+
+Paths are rooted below `src/`, ordered deterministically, and annotated with
+their semantic role and source-component identity. Existing filesystem import
+and Git-to-SAP export APIs remain unchanged.
+
 ## Architecture Overview
 
 ```

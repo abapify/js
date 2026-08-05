@@ -15,8 +15,155 @@
 
 import { AdkFunctionGroup } from '../adk';
 import { fugr } from '../../../schemas/generated';
-import { createHandler } from '../base';
+import {
+  createHandler,
+  type HandlerContext,
+  type SerializedFile,
+} from '../base';
+import { shouldIncludeSource } from '../source-inclusion';
 import { formatAbapGitXml } from '../xml-format';
+
+type FugrObject = InstanceType<typeof AdkFunctionGroup>;
+type FugrContext = HandlerContext<FugrObject>;
+type SourceMap = Readonly<Record<string, string>> | undefined;
+
+function buildMainXmlFile(
+  obj: FugrObject,
+  objectName: string,
+  nameUpper: string,
+  functions: Record<string, unknown>[],
+  ctx: FugrContext,
+): SerializedFile {
+  const values: Record<string, unknown> = {
+    AREAT: obj.description ?? '',
+    INCLUDES: {
+      SOBJ_NAME: [`L${nameUpper}TOP`, `SAPL${nameUpper}`],
+    },
+  };
+  if (functions.length > 0) {
+    values.FUNCTIONS = { item: functions };
+  }
+  const fullPayload = {
+    abapGit: {
+      abap: { version: '1.0', values },
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_FUGR',
+      serializer_version: 'v1.0.0',
+    },
+  };
+  const xmlContent = formatAbapGitXml(
+    fugr.build(fullPayload, { pretty: true }),
+  );
+  return ctx.createFile(`${objectName}.fugr.xml`, xmlContent);
+}
+
+type FmList = {
+  fmItems: FmDescriptor[];
+  functions: Record<string, unknown>[];
+};
+
+function deriveFmList(suppliedSources: SourceMap, objectName: string): FmList {
+  if (!suppliedSources) return { fmItems: [], functions: [] };
+  const topKey = `l${objectName}top`;
+  const lowerTopKey = topKey;
+  const lowerSap = `sapl${objectName}`;
+  const fmItems = Object.keys(suppliedSources)
+    .filter((key) => {
+      const lower = key.toLowerCase();
+      return lower !== 'main' && lower !== lowerTopKey && lower !== lowerSap;
+    })
+    .map((key) => ({ key, name: key.toLowerCase() }));
+  const functions = fmItems.map((fm) => ({
+    FUNCNAME: fm.key.toUpperCase(),
+  }));
+  return { fmItems, functions };
+}
+
+async function buildTopSourceFile(
+  obj: FugrObject,
+  objectName: string,
+  suppliedSources: SourceMap,
+  ctx: FugrContext,
+): Promise<SerializedFile | undefined> {
+  const hasExplicitSources = suppliedSources !== undefined;
+  const topKey = `l${objectName}top`;
+  const suppliedTopSource = suppliedSources
+    ? (suppliedSources.main ?? suppliedSources[topKey])
+    : undefined;
+  try {
+    const topSource =
+      suppliedTopSource !== undefined || !hasExplicitSources
+        ? (suppliedTopSource ?? (await obj.getSource()))
+        : undefined;
+    if (shouldIncludeSource(topSource, suppliedTopSource)) {
+      return ctx.createFile(
+        `${objectName}.fugr.l${objectName}top.abap`,
+        topSource,
+      );
+    }
+  } catch {
+    // Source not available — skip
+  }
+  return undefined;
+}
+
+function buildProgramFiles(
+  objectName: string,
+  nameUpper: string,
+  fixpt: string,
+  ctx: FugrContext,
+): SerializedFile[] {
+  return [
+    ctx.createFile(
+      `${objectName}.fugr.l${objectName}top.xml`,
+      buildProgdirXml(`L${nameUpper}TOP`, 'I', fixpt),
+    ),
+    ctx.createFile(
+      `${objectName}.fugr.sapl${objectName}.abap`,
+      buildMainProgramSource(nameUpper),
+    ),
+    ctx.createFile(
+      `${objectName}.fugr.sapl${objectName}.xml`,
+      buildProgdirXml(`SAPL${nameUpper}`, 'F', fixpt),
+    ),
+  ];
+}
+
+async function buildFunctionModuleFiles(
+  obj: FugrObject,
+  fmItems: FmDescriptor[],
+  suppliedSources: SourceMap,
+  ctx: FugrContext,
+): Promise<SerializedFile[]> {
+  const objectName = ctx.getObjectName(obj);
+  const files: SerializedFile[] = [];
+  const hasExplicitSources = suppliedSources !== undefined;
+  for (const fm of fmItems) {
+    const sourceKey = fm.key ?? fm.name;
+    const funcName = fm.name.toLowerCase();
+    const suppliedFmSource = suppliedSources?.[sourceKey];
+    if (hasExplicitSources && suppliedFmSource === undefined) {
+      continue;
+    }
+    try {
+      const source =
+        suppliedFmSource !== undefined
+          ? suppliedFmSource
+          : await obj.client.adt.functions.groups.fmodules.source.main.get(
+              obj.name,
+              fm.name,
+            );
+      if (shouldIncludeSource(source, suppliedFmSource)) {
+        files.push(
+          ctx.createFile(`${objectName}.fugr.${funcName}.abap`, source),
+        );
+      }
+    } catch {
+      // Source not available — skip
+    }
+  }
+  return files;
+}
 
 /**
  * Map ADT processingType to abapGit REMOTE_CALL flag
@@ -64,103 +211,37 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
     };
   },
 
-  // Custom serialize: generate the full multi-file structure including FMs
-  serialize: async (obj, ctx) => {
+  // Custom serialize: generate the full multi-file structure including FMs.
+  serialize: async (obj, ctx, options) => {
     const objectName = ctx.getObjectName(obj); // lowercase
     const nameUpper = obj.name.toUpperCase();
-    const files = [];
+    const suppliedSources: SourceMap = options?.sources;
+    const hasExplicitSources = suppliedSources !== undefined;
 
-    // Discover child function modules via object structure
-    const fmItems = await discoverFunctionModules(obj);
-
-    // Build FUNCTIONS array for main XML
-    const functions = await serializeFunctions(obj, fmItems);
-
-    // 1. Main XML metadata (AREAT + INCLUDES + FUNCTIONS)
-    // Build values manually to include FUNCTIONS
-    const values: Record<string, unknown> = {
-      AREAT: obj.description ?? '',
-      INCLUDES: {
-        SOBJ_NAME: [`L${nameUpper}TOP`, `SAPL${nameUpper}`],
-      },
-    };
-    if (functions.length > 0) {
-      values.FUNCTIONS = { item: functions };
+    let fmItems: FmDescriptor[];
+    let functions: Record<string, unknown>[];
+    if (hasExplicitSources) {
+      ({ fmItems, functions } = deriveFmList(suppliedSources, objectName));
+    } else {
+      fmItems = await discoverFunctionModules(obj);
+      functions = await serializeFunctions(obj, fmItems);
     }
 
-    // Build full payload and generate XML via schema
-    const fullPayload = {
-      abapGit: {
-        abap: { version: '1.0', values },
-        version: 'v1.0.0',
-        serializer: 'LCL_OBJECT_FUGR',
-        serializer_version: 'v1.0.0',
-      },
-    };
-    let xmlContent = fugr.build(fullPayload, { pretty: true });
-
-    xmlContent = formatAbapGitXml(xmlContent);
-
-    files.push(ctx.createFile(`${objectName}.fugr.xml`, xmlContent));
-
-    // 2. TOP-include source — the editable source from ADT
-    try {
-      const topSource = await obj.getSource();
-      if (topSource) {
-        files.push(
-          ctx.createFile(
-            `${objectName}.fugr.l${objectName}top.abap`,
-            topSource,
-          ),
-        );
-      }
-    } catch {
-      // Source not available — skip
-    }
-
-    // 3. TOP-include PROGDIR metadata (best-effort defaults)
     const data = ctx.getData(obj);
     const fixpt = data.fixPointArithmetic ? 'X' : '';
-    files.push(
-      ctx.createFile(
-        `${objectName}.fugr.l${objectName}top.xml`,
-        buildProgdirXml(`L${nameUpper}TOP`, 'I', fixpt),
-      ),
+
+    const topFile = await buildTopSourceFile(
+      obj,
+      objectName,
+      suppliedSources,
+      ctx,
     );
-
-    // 4. Main program source (system-generated INCLUDE template)
-    files.push(
-      ctx.createFile(
-        `${objectName}.fugr.sapl${objectName}.abap`,
-        buildMainProgramSource(nameUpper),
-      ),
-      // 5. Main program PROGDIR metadata
-      ctx.createFile(
-        `${objectName}.fugr.sapl${objectName}.xml`,
-        buildProgdirXml(`SAPL${nameUpper}`, 'F', fixpt),
-      ),
-    );
-
-    // 6. Function module source files (one per FM)
-    for (const fm of fmItems) {
-      const funcName = fm.name.toLowerCase();
-      try {
-        const source =
-          await obj.client.adt.functions.groups.fmodules.source.main.get(
-            obj.name,
-            fm.name,
-          );
-        if (source) {
-          files.push(
-            ctx.createFile(`${objectName}.fugr.${funcName}.abap`, source),
-          );
-        }
-      } catch {
-        // Source not available — skip
-      }
-    }
-
-    return files;
+    return [
+      buildMainXmlFile(obj, objectName, nameUpper, functions, ctx),
+      ...(topFile ? [topFile] : []),
+      ...buildProgramFiles(objectName, nameUpper, fixpt, ctx),
+      ...(await buildFunctionModuleFiles(obj, fmItems, suppliedSources, ctx)),
+    ];
   },
 
   // Git → SAP: Map abapGit values to ADK data
@@ -190,13 +271,9 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
 
     // Collect FM sources — these are sources where the suffix is NOT an include name
     const fmSources: Record<string, string> = {};
+    const mainProgramKey = `sapl${name}`;
     for (const [suffix, content] of Object.entries(sources)) {
-      if (
-        suffix === 'main' ||
-        suffix === topKey ||
-        suffix.startsWith(`l${name}`) ||
-        suffix.startsWith(`sapl${name}`)
-      ) {
+      if (suffix === 'main' || suffix === topKey || suffix === mainProgramKey) {
         continue; // Skip FUGR includes
       }
       // This is an FM source — key is the function name (lowercase)
@@ -223,6 +300,8 @@ export const functionGroupHandler = createHandler(AdkFunctionGroup, {
 interface FmDescriptor {
   name: string;
   type?: string;
+  /** Original source-map key when the list was derived from explicit sources. */
+  key?: string;
 }
 
 /**
@@ -250,7 +329,7 @@ async function discoverFunctionModules(
     // Also try alternate attribute order
     const regex2 = /adtcore:name="([^"]+)"[^>]*type="FUGR\/FF"/g;
     while ((match = regex2.exec(responseStr)) !== null) {
-      if (!fmNames.some((f) => f.name === match![1])) {
+      if (match?.[1] && !fmNames.some((f) => f.name === match[1])) {
         fmNames.push({ name: match[1] });
       }
     }
