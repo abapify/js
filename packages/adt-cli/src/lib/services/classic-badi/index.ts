@@ -1,4 +1,4 @@
-/** @deprecated Import from ./badi instead */
+/** @deprecated Import from ../badi instead */
 export {
   BadiService,
   ClassicBadiService,

@@ -6,7 +6,7 @@
  * - `BadiService` — auto-detect kind and read classic SXSD/SXCI or ENHO/XHH.
  */
 import type { AdtClient } from '@abapify/adt-client';
-import type { AdtClientType } from '@abapify/adt-contracts';
+
 import type { BasicObjectPropertiesResponse } from '@abapify/adt-contracts';
 import { DOMParser } from '@xmldom/xmldom';
 
@@ -164,6 +164,8 @@ export type BadiMetadata = {
   responsible?: string;
   masterLanguage?: string;
   masterSystem?: string;
+  /** When SAP supplies a container reference, it can be used to validate lineage. */
+  containerRef?: { name?: string; type?: string };
 };
 
 export type BadiReadResult = BadiMetadata & {
@@ -177,12 +179,7 @@ export type BadiReadResult = BadiMetadata & {
 /** @deprecated Use BadiMetadata */
 export type ClassicBadiMetadata = Omit<BadiMetadata, 'kind'>;
 
-const BADI_REPOSITORY_TYPES = new Set([
-  'SXSD/XD',
-  'SXCI/XI',
-  'ENHO/XHH',
-  'ENHO/XHB',
-]);
+const BADI_REPOSITORY_TYPES = new Set(['SXSD/XD', 'SXCI/XI', 'ENHO/XHH']);
 
 function isNotFound(error: unknown): boolean {
   return (
@@ -229,14 +226,14 @@ export function normalizeClassicBadiMetadata(
   response: BasicObjectPropertiesResponse,
   kind: 'definition' | 'implementation',
 ): BadiMetadata {
-  const main = response.mainObject;
-  if (!main) {
+  if (!('mainObject' in response) || !response.mainObject) {
     throw new Error('BAdI response missing mainObject');
   }
+  const main = response.mainObject;
   return {
     kind,
-    name: main.name.toUpperCase(),
-    type: main.type,
+    name: (main.name ?? '').toUpperCase(),
+    type: main.type ?? '',
     description: main.description,
     language: main.language,
     version: main.version,
@@ -245,6 +242,9 @@ export function normalizeClassicBadiMetadata(
     responsible: main.responsible,
     masterLanguage: main.masterLanguage,
     masterSystem: main.masterSystem,
+    containerRef: main.containerRef
+      ? { name: main.containerRef.name, type: main.containerRef.type }
+      : undefined,
   };
 }
 
@@ -264,133 +264,309 @@ function searchQueriesForDefinition(definitionName: string): string[] {
   return [...queries];
 }
 
+interface ServiceContext {
+  readonly client: AdtClient;
+  readonly normalized: string;
+}
+
+interface ReadContext extends ServiceContext {
+  readonly options?: {
+    includeSource?: boolean;
+    includeImplementations?: boolean;
+  };
+}
+
+async function resolveBySearch({
+  client,
+  normalized,
+}: ServiceContext): Promise<BadiKind | undefined> {
+  const search =
+    await client.adt.repository.informationsystem.search.quickSearch({
+      query: normalized,
+      maxResults: 20,
+    });
+  const matches = extractSearchObjects(search).filter(
+    (obj) =>
+      obj.name?.toUpperCase() === normalized &&
+      obj.type &&
+      BADI_REPOSITORY_TYPES.has(obj.type.toUpperCase()),
+  );
+  if (matches.length === 1) {
+    return badiKindFromType(matches[0].type!);
+  }
+  if (matches.length > 1) {
+    throw new Error(
+      `Ambiguous BAdI name ${normalized}: ${matches.map((m) => m.type).join(', ')}`,
+    );
+  }
+  return undefined;
+}
+
+async function runProbe({
+  client,
+  normalized,
+  kind,
+  expectedType,
+}: ServiceContext & { kind: BadiKind; expectedType: string }): Promise<
+  BadiKind | undefined
+> {
+  const response =
+    kind === 'definition'
+      ? await client.adt.vit.wb.objectProperties.getDefinition(normalized)
+      : await client.adt.vit.wb.objectProperties.getImplementation(normalized);
+  if (!('mainObject' in response) || !response.mainObject) {
+    return undefined;
+  }
+  const main = response.mainObject;
+  if (
+    main.type?.toUpperCase() === expectedType &&
+    main.name?.toUpperCase() === normalized
+  ) {
+    return kind;
+  }
+  return undefined;
+}
+
+async function resolveEnhancement({
+  client,
+  normalized,
+}: ServiceContext): Promise<BadiKind | undefined> {
+  try {
+    await getBadiInfo(client, normalized);
+    return 'enhancement';
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+    return undefined;
+  }
+}
+
+async function resolveKind(ctx: ServiceContext): Promise<BadiKind> {
+  const bySearch = await resolveBySearch(ctx);
+  if (bySearch) return bySearch;
+
+  const definition = await runProbe({
+    ...ctx,
+    kind: 'definition',
+    expectedType: 'SXSD/XD',
+  });
+  if (definition) return definition;
+
+  const implementation = await runProbe({
+    ...ctx,
+    kind: 'implementation',
+    expectedType: 'SXCI/XI',
+  });
+  if (implementation) return implementation;
+
+  const enhancement = await resolveEnhancement(ctx);
+  if (enhancement) return enhancement;
+
+  throw new Error(`BAdI object not found: ${ctx.normalized}`);
+}
+
+async function readDefinition({
+  client,
+  normalized,
+}: ServiceContext): Promise<BadiMetadata> {
+  const response =
+    await client.adt.vit.wb.objectProperties.getDefinition(normalized);
+  return normalizeClassicBadiMetadata(response, 'definition');
+}
+
+async function readImplementation({
+  client,
+  normalized,
+}: ServiceContext): Promise<BadiMetadata> {
+  const response =
+    await client.adt.vit.wb.objectProperties.getImplementation(normalized);
+  return normalizeClassicBadiMetadata(response, 'implementation');
+}
+
+async function readEnhancement({
+  client,
+  normalized,
+  options,
+}: ReadContext): Promise<BadiReadResult> {
+  const lower = normalized.toLowerCase();
+  const info = await getBadiInfo(client, normalized);
+  const source = options?.includeSource
+    ? String(await client.adt.enhancements.enhoxhh.source.main.get(lower))
+    : undefined;
+  return {
+    kind: 'enhancement',
+    name: info.name.toUpperCase(),
+    type: info.type,
+    description: info.description,
+    version: info.version,
+    packageName: info.package,
+    responsible: info.responsible,
+    enhancement: info,
+    source,
+  };
+}
+
+async function getBadi(ctx: ReadContext): Promise<BadiReadResult> {
+  const kind = await resolveKind(ctx);
+  switch (kind) {
+    case 'definition': {
+      const definition = await readDefinition(ctx);
+      if (!ctx.options?.includeImplementations) {
+        return definition;
+      }
+      const implementations = await listImplementations(ctx);
+      return { ...definition, implementations };
+    }
+    case 'implementation':
+      return readImplementation(ctx);
+    case 'enhancement':
+      return readEnhancement(ctx);
+    default:
+      throw new Error(`Unsupported BAdI kind: ${kind satisfies never}`);
+  }
+}
+
+interface SearchCandidateContext extends ServiceContext {
+  readonly query: string;
+  readonly objectType?: 'SXCI';
+  readonly seen: Set<string>;
+}
+
+function candidateNames(
+  search: unknown,
+  normalized: string,
+  seen: Set<string>,
+): string[] {
+  const names: string[] = [];
+  for (const obj of extractSearchObjects(search)) {
+    if (obj.type?.toUpperCase() !== 'SXCI/XI') continue;
+    const implName = obj.name?.toUpperCase();
+    if (!implName) continue;
+    if (implName === normalized) continue;
+    if (seen.has(implName)) continue;
+    seen.add(implName);
+    names.push(implName);
+  }
+  return names;
+}
+
+async function tryReadImplementation({
+  client,
+  definitionName,
+  implName,
+}: {
+  client: AdtClient;
+  definitionName: string;
+  implName: string;
+}): Promise<BadiMetadata | undefined> {
+  try {
+    const impl = await readImplementation({ client, normalized: implName });
+    const containerName = impl.containerRef?.name?.toUpperCase();
+    if (containerName && containerName !== definitionName) {
+      return undefined;
+    }
+    return impl;
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+    return undefined;
+  }
+}
+
+async function collectSearchCandidates({
+  client,
+  normalized,
+  query,
+  objectType,
+  seen,
+}: SearchCandidateContext): Promise<BadiMetadata[]> {
+  const params: { query: string; maxResults: number; objectType?: 'SXCI' } = {
+    query,
+    maxResults: 100,
+  };
+  if (objectType) {
+    params.objectType = objectType;
+  }
+  const search =
+    await client.adt.repository.informationsystem.search.quickSearch(params);
+
+  const names = candidateNames(search, normalized, seen);
+  const found: BadiMetadata[] = [];
+  for (const implName of names) {
+    const impl = await tryReadImplementation({
+      client,
+      definitionName: normalized,
+      implName,
+    });
+    if (impl) found.push(impl);
+  }
+  return found;
+}
+
+async function listImplementations({
+  client,
+  normalized,
+}: ServiceContext): Promise<BadiMetadata[]> {
+  await readDefinition({ client, normalized });
+
+  const queries = searchQueriesForDefinition(normalized);
+  const seen = new Set<string>();
+  const all: BadiMetadata[] = [];
+
+  for (const query of queries) {
+    all.push(
+      ...(await collectSearchCandidates({
+        client,
+        normalized,
+        query,
+        seen,
+      })),
+    );
+    all.push(
+      ...(await collectSearchCandidates({
+        client,
+        normalized,
+        query,
+        objectType: 'SXCI',
+        seen,
+      })),
+    );
+  }
+
+  return all.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export class BadiService {
-  constructor(private readonly client: AdtClientType) {}
+  constructor(private readonly client: AdtClient) {}
 
   async resolveKind(name: string): Promise<BadiKind> {
-    const normalized = name.trim().toUpperCase();
-
-    const search =
-      await this.client.adt.repository.informationsystem.search.quickSearch({
-        query: normalized,
-        maxResults: 20,
-      });
-    const matches = extractSearchObjects(search).filter(
-      (obj) =>
-        obj.name?.toUpperCase() === normalized &&
-        obj.type &&
-        BADI_REPOSITORY_TYPES.has(obj.type.toUpperCase()),
-    );
-    if (matches.length === 1) {
-      return badiKindFromType(matches[0].type!);
-    }
-    if (matches.length > 1) {
-      throw new Error(
-        `Ambiguous BAdI name ${normalized}: ${matches.map((m) => m.type).join(', ')}`,
-      );
-    }
-
-    const probes: Array<{
-      kind: BadiKind;
-      expectedType: string;
-      run: () => Promise<BasicObjectPropertiesResponse>;
-    }> = [
-      {
-        kind: 'definition',
-        expectedType: 'SXSD/XD',
-        run: () => this.client.adt.vit.wb.objectProperties.getDefinition(name),
-      },
-      {
-        kind: 'implementation',
-        expectedType: 'SXCI/XI',
-        run: () =>
-          this.client.adt.vit.wb.objectProperties.getImplementation(name),
-      },
-    ];
-
-    for (const probe of probes) {
-      try {
-        const response = await probe.run();
-        const main = response.mainObject;
-        if (
-          main?.type?.toUpperCase() === probe.expectedType &&
-          main.name?.toUpperCase() === normalized
-        ) {
-          return probe.kind;
-        }
-      } catch (error) {
-        if (!isNotFound(error)) throw error;
-      }
-    }
-
-    try {
-      await getBadiInfo(this.client as unknown as AdtClient, normalized);
-      return 'enhancement';
-    } catch (error) {
-      if (!isNotFound(error)) throw error;
-    }
-
-    throw new Error(`BAdI object not found: ${normalized}`);
+    return resolveKind({
+      client: this.client,
+      normalized: name.trim().toUpperCase(),
+    });
   }
 
   async get(
     name: string,
     options?: { includeSource?: boolean; includeImplementations?: boolean },
   ): Promise<BadiReadResult> {
-    const kind = await this.resolveKind(name);
-    switch (kind) {
-      case 'definition': {
-        const response =
-          await this.client.adt.vit.wb.objectProperties.getDefinition(name);
-        const definition = normalizeClassicBadiMetadata(response, 'definition');
-        if (!options?.includeImplementations) {
-          return definition;
-        }
-        const implementations = await this.listImplementations(name);
-        return { ...definition, implementations };
-      }
-      case 'implementation': {
-        const response =
-          await this.client.adt.vit.wb.objectProperties.getImplementation(name);
-        return normalizeClassicBadiMetadata(response, 'implementation');
-      }
-      case 'enhancement': {
-        const normalized = name.trim().toUpperCase();
-        const lower = normalized.toLowerCase();
-        const info = await getBadiInfo(
-          this.client as unknown as AdtClient,
-          normalized,
-        );
-        const source = options?.includeSource
-          ? String(
-              await this.client.adt.enhancements.enhoxhh.source.main.get(lower),
-            )
-          : undefined;
-        return {
-          kind: 'enhancement',
-          name: info.name.toUpperCase(),
-          type: info.type,
-          description: info.description,
-          version: info.version,
-          packageName: info.package,
-          responsible: info.responsible,
-          enhancement: info,
-          source,
-        };
-      }
-    }
+    return getBadi({
+      client: this.client,
+      normalized: name.trim().toUpperCase(),
+      options,
+    });
   }
 
   async getDefinition(name: string): Promise<BadiMetadata> {
-    const response =
-      await this.client.adt.vit.wb.objectProperties.getDefinition(name);
-    return normalizeClassicBadiMetadata(response, 'definition');
+    return readDefinition({
+      client: this.client,
+      normalized: name.trim().toUpperCase(),
+    });
   }
 
   async getImplementation(name: string): Promise<BadiMetadata> {
-    const response =
-      await this.client.adt.vit.wb.objectProperties.getImplementation(name);
-    return normalizeClassicBadiMetadata(response, 'implementation');
+    return readImplementation({
+      client: this.client,
+      normalized: name.trim().toUpperCase(),
+    });
   }
 
   /**
@@ -399,40 +575,10 @@ export class BadiService {
    * state requires SXC_ATTR (not exposed on all systems).
    */
   async listImplementations(definitionName: string): Promise<BadiMetadata[]> {
-    const normalized = definitionName.trim().toUpperCase();
-    await this.getDefinition(normalized);
-
-    const queries = searchQueriesForDefinition(normalized);
-    const seen = new Set<string>();
-    const implementations: BadiMetadata[] = [];
-
-    for (const query of queries) {
-      for (const objectType of [undefined, 'SXCI'] as const) {
-        const search =
-          await this.client.adt.repository.informationsystem.search.quickSearch(
-            {
-              query,
-              maxResults: 500,
-              ...(objectType ? { objectType } : {}),
-            },
-          );
-        for (const obj of extractSearchObjects(search)) {
-          if (obj.type?.toUpperCase() !== 'SXCI/XI') continue;
-          const implName = obj.name?.toUpperCase();
-          if (!implName || implName === normalized || seen.has(implName)) {
-            continue;
-          }
-          seen.add(implName);
-          try {
-            implementations.push(await this.getImplementation(implName));
-          } catch {
-            /* skip entries that cannot be read via vit/wb */
-          }
-        }
-      }
-    }
-
-    return implementations.sort((a, b) => a.name.localeCompare(b.name));
+    return listImplementations({
+      client: this.client,
+      normalized: definitionName.trim().toUpperCase(),
+    });
   }
 }
 

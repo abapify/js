@@ -10,6 +10,14 @@ import { getGlobalContext } from '../../../base/global-context';
 import type { AdkContext } from '../../../base/context';
 import type { BasicObjectPropertiesResponse } from '@abapify/adt-contracts';
 
+function isNotFound(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { status?: unknown }).status === 404
+  );
+}
+
 export class AdkClassicBadiDefinition {
   static readonly kind = 'ClassicBadiDefinition' as const;
   readonly kind = AdkClassicBadiDefinition.kind;
@@ -46,7 +54,8 @@ export class AdkClassicBadiDefinition {
     try {
       await AdkClassicBadiDefinition.get(name, ctx);
       return true;
-    } catch {
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
       return false;
     }
   }
@@ -88,7 +97,8 @@ export class AdkClassicBadiImplementation {
     try {
       await AdkClassicBadiImplementation.get(name, ctx);
       return true;
-    } catch {
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
       return false;
     }
   }

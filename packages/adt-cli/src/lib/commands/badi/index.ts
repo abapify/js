@@ -1,25 +1,12 @@
 /**
  * BAdI commands — ENHO CRUD + metadata (`adt badi`) and unified read (`adt get badi`).
  *
-<<<<<<< HEAD
- * ENHO/XHH (enhancement implementation):
- *   adt badi ZE_MY_BADI_IMPL
- *   adt badi ZE_MY_BADI_IMPL --implementations
- *   adt badi ZE_MY_BADI_IMPL --json
- *   adt badi create ZE_MY_BADI_IMPL "My BAdI impl" ZMYPKG
- *   adt badi read   ZE_MY_BADI_IMPL
- *
- * Classic SXSD/SXCI (read-only via get):
- *   adt get badi CTS_REQUEST_CHECK --json
- *   adt get badi CTS_REQUEST_CHECK --implementations --json
-=======
  *   adt get badi MOCK_CTS_REQUEST_CHECK --json
  *   adt get badi MOCK_CTS_REQUEST_CHECK --implementations --json
  *   adt get badi ZE_MOCK_CLASSIC_BADI_IMPL --json
  *   adt get badi ZE_MOCK_BADI                 # ENHO/XHH source
  *
  * Mutating operations (create, write, delete) belong under deploy/checkin.
->>>>>>> c3132ed3 (chore(badi): sanitize examples and fixture comments for upstream PR)
  */
 
 import { AdkBadi } from '@abapify/adk';
@@ -167,7 +154,16 @@ export const getBadiCommand = new Command('badi')
     name: string,
     options: { json?: boolean; implementations?: boolean },
   ) {
-    const globalOpts = this.optsWithGlobals?.() ?? {};
+    const globalOpts = (this.optsWithGlobals?.() ?? {}) as {
+      json?: boolean;
+      implementations?: boolean;
+      verbose?: boolean;
+    };
+    const opts = {
+      json: options.json ?? globalOpts.json ?? false,
+      implementations:
+        options.implementations ?? globalOpts.implementations ?? false,
+    };
     const ctx = getCliContext();
     const verboseFlag = globalOpts.verbose ?? ctx.verbose ?? false;
     const logger =
@@ -183,21 +179,25 @@ export const getBadiCommand = new Command('badi')
       const client = await getAdtClientV2();
       const service = new BadiService(client);
 
-      progress.step(`🔍 Loading ${name.toUpperCase()}...`);
+      if (!opts.json) {
+        progress.step(`🔍 Loading ${name.toUpperCase()}...`);
+      }
       const result = await service.get(name, {
-        includeSource: !options.json,
-        includeImplementations: options.implementations,
+        includeSource: !opts.json,
+        includeImplementations: opts.implementations,
       });
-      progress.done();
+      if (!opts.json) {
+        progress.done();
+      }
 
-      if (options.implementations && result.kind !== 'definition') {
+      if (opts.implementations && result.kind !== 'definition') {
         console.error(
           '❌ --implementations is only valid for classic BAdI definitions (SXSD/XD)',
         );
         process.exit(1);
       }
 
-      if (options.json) {
+      if (opts.json) {
         console.log(JSON.stringify(result, null, 2));
         return;
       }
@@ -205,7 +205,9 @@ export const getBadiCommand = new Command('badi')
       printHumanResult(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      progress.done(`❌ ${message}`);
+      if (!opts.json) {
+        progress.done(`❌ ${message}`);
+      }
       console.error(`❌ Get BAdI failed:`, message);
       process.exit(1);
     }
