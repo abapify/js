@@ -71,3 +71,52 @@ test('serializes generated path, query and JSON body inputs', async () => {
     JSON.stringify({ sourceCapability: 'opaque-capability', maxBytes: 64 }),
   );
 });
+
+test('passes isolated optional abort signals to parameterized and parameterless calls', async () => {
+  const requests: RequestInit[] = [];
+  const parameterizedController = new AbortController();
+  const parameterlessController = new AbortController();
+  const client = createAdtServerClient({
+    baseUrl: 'http://adt-server.test',
+    fetch: async (_input, init) => {
+      requests.push(init ?? {});
+      return new Response(JSON.stringify({ data: [], truncated: false }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+
+  await client.getPackageTree(
+    { destination: 'dev', root: 'ZROOT' },
+    { signal: parameterizedController.signal },
+  );
+  await client.listDestinations({ signal: parameterlessController.signal });
+
+  assert.strictEqual(requests[0]?.signal, parameterizedController.signal);
+  assert.strictEqual(requests[1]?.signal, parameterlessController.signal);
+  assert.notStrictEqual(requests[0]?.signal, requests[1]?.signal);
+});
+
+test('aborts a generated request with its caller-provided signal', async () => {
+  const controller = new AbortController();
+  let observedSignal: AbortSignal | undefined;
+  const client = createAdtServerClient({
+    baseUrl: 'http://adt-server.test',
+    fetch: async (_input, init) => {
+      observedSignal = init?.signal ?? undefined;
+      return await new Promise<Response>((_resolve, reject) => {
+        observedSignal?.addEventListener('abort', () => {
+          reject(observedSignal?.reason);
+        });
+      });
+    },
+  });
+
+  const request = client.listDestinations({ signal: controller.signal });
+  controller.abort(new Error('caller cancelled'));
+
+  await assert.rejects(request, /caller cancelled/u);
+  assert.strictEqual(observedSignal, controller.signal);
+  assert.strictEqual(observedSignal?.aborted, true);
+});
