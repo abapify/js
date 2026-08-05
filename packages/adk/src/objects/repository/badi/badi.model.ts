@@ -26,6 +26,8 @@ export class AdkBadi {
 
   readonly name: string;
   protected readonly ctx: AdkContext;
+  private _description?: string;
+  private _package?: string;
 
   constructor(ctx: AdkContext, name: string) {
     this.ctx = ctx;
@@ -37,9 +39,14 @@ export class AdkBadi {
     return `/sap/bc/adt/enhancements/enhoxhh/${encodeURIComponent(this.name.toLowerCase())}`;
   }
 
-  /** Placeholder description — real metadata arrives via GET/objectstructure. */
+  /** Description from the ENHO metadata, falling back to the object name. */
   get description(): string {
-    return this.name;
+    return this._description || this.name;
+  }
+
+  /** Package name from the ENHO metadata. */
+  get package(): string {
+    return this._package || '';
   }
 
   private get contract(): any {
@@ -49,7 +56,11 @@ export class AdkBadi {
   // ─── Metadata ──────────────────────────────────────────────────────────────
 
   async getMetadata(): Promise<unknown> {
-    return await this.contract.get(this.name);
+    const data = (await this.contract.get(this.name)) as any;
+    const impl = data?.enhancementImplementation ?? data;
+    this._description = impl?.description ?? '';
+    this._package = impl?.packageRef?.name ?? '';
+    return data;
   }
 
   // ─── Source ────────────────────────────────────────────────────────────────
