@@ -736,7 +736,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.domains.v2+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/domains')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/domains') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/domains/')) {
@@ -757,7 +761,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.dataelements.v2+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/dataelements')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/dataelements') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/dataelements/')) {
@@ -784,7 +792,11 @@ export function matchRoute(
       contentType: 'application/xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/structures')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/structures') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/structures/')) {
@@ -794,7 +806,11 @@ export function matchRoute(
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   // DDIC tables POST/DELETE/PUT
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/tables')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/tables') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/tables/')) {
@@ -818,7 +834,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.ddl.source.v2+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/ddic/ddl/sources')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/ddic/ddl/sources') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/ddic/ddl/sources/')) {
@@ -845,7 +865,11 @@ export function matchRoute(
       contentType: 'application/vnd.sap.adt.acm.dcl.source.v1+xml',
     };
   }
-  if (m === 'POST' && url.startsWith('/sap/bc/adt/acm/dcl/sources')) {
+  if (
+    m === 'POST' &&
+    url.startsWith('/sap/bc/adt/acm/dcl/sources') &&
+    !url.includes('_action=')
+  ) {
     return { status: 200, body: '', contentType: 'text/plain' };
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/acm/dcl/sources/')) {

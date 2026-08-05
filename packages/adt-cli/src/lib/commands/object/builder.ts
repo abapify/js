@@ -153,7 +153,7 @@ interface PersistSourceOptions {
 
 interface DeleteLifecycleObject {
   lock(transport?: string): Promise<ObjectLockHandle>;
-  unlock(): Promise<void>;
+  unlock(lockHandle: string): Promise<void>;
 }
 
 /** Delete under an editor lock and release that lock on every outcome. */
@@ -177,7 +177,7 @@ export async function deleteWithReleasedLock(
   }
 
   try {
-    await object.unlock();
+    await object.unlock(lockHandle.handle);
   } catch (unlockError) {
     if (deleteError) {
       throw new AggregateError(

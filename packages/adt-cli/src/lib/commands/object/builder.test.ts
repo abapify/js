@@ -49,6 +49,7 @@ describe('deleteWithReleasedLock', () => {
       lockHandle: 'lock-1',
       transport: 'DEVK900001',
     });
+    expect(object.unlock).toHaveBeenCalledWith('lock-1');
   });
 
   it('unlocks and preserves a failed delete', async () => {
@@ -66,6 +67,7 @@ describe('deleteWithReleasedLock', () => {
       ),
     ).rejects.toBe(deleteError);
     expect(object.unlock).toHaveBeenCalledTimes(1);
+    expect(object.unlock).toHaveBeenCalledWith('lock-1');
   });
 });
 
