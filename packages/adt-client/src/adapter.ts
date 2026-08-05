@@ -377,9 +377,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
         const safeHeaders = {
           ...headers,
           // Mask sensitive headers for security
-          ...(headers.Authorization
-            ? { Authorization: headers.Authorization.substring(0, 10) + '***' }
-            : {}),
+          ...(headers.Authorization ? { Authorization: '***' } : {}),
           ...(headers.Cookie ? { Cookie: '***' } : {}),
           ...(headers['x-csrf-token'] ? { 'x-csrf-token': '***' } : {}),
         };
