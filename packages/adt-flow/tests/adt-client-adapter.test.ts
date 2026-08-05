@@ -69,7 +69,7 @@ describe('ADT client adapter', () => {
     expect(read).toHaveBeenCalledWith('/sap/bc/adt/source/v1', 1024);
   });
 
-  it('excludes CORR/RELE metadata from source manifests', async () => {
+  it('defaults the manifest selector to repository pgmids R3TR and LIMU', async () => {
     const buildManifest = vi.fn(async () => manifest);
     const adtClient = client();
     const dependencies = createAdtFlowDependencies(adtClient, format, {

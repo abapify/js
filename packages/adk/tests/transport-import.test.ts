@@ -517,6 +517,39 @@ describe('AdkTransport.getObjectsBySelector()', () => {
   });
 });
 
+describe('matchesSelector()', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('excludes CORR/RELE metadata while matching R3TR and LIMU repository pgmids', async () => {
+    const { matchesSelector, AdkTransportObjectRef } =
+      await import('../src/index');
+
+    const r3tr = new AdkTransportObjectRef({} as any, {
+      pgmid: 'R3TR',
+      type: 'CLAS',
+      name: 'ZCL_TEST',
+    });
+    const limu = new AdkTransportObjectRef({} as any, {
+      pgmid: 'LIMU',
+      type: 'REPS',
+      name: 'ZREPS',
+    });
+    const corrRele = new AdkTransportObjectRef({} as any, {
+      pgmid: 'CORR',
+      type: 'RELE',
+      name: 'S0DK954871',
+    });
+
+    const selector = { pgmid: ['R3TR', 'LIMU'] };
+
+    expect(matchesSelector(r3tr, selector)).toBe(true);
+    expect(matchesSelector(limu, selector)).toBe(true);
+    expect(matchesSelector(corrRele, selector)).toBe(false);
+  });
+});
+
 describe('MergedTransportView', () => {
   beforeEach(() => {
     vi.resetModules();
