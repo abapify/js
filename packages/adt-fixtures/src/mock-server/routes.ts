@@ -285,6 +285,13 @@ export interface LoadedFixtures {
   // BAdI / Enhancement Implementation (ENHO/XHH)
   badiSingle: string;
   badiSource: string;
+  // BAdI / Enhancement Implementation metadata (ENHO/XHB)
+  badiInfoSingle: string;
+  // vit/wb Basic Object Properties (classic BAdI SXSD/SXCI)
+  vitWbSxsdxdSingle: string;
+  vitWbSxcixiSingle: string;
+  vitWbSxcixiSingleB: string;
+  badiImplementationsSearch: string;
   // SRVD (RAP service definition)
   srvdSingle: string;
   srvdSource: string;
@@ -376,6 +383,11 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     bdefSource,
     badiSingle,
     badiSource,
+    badiInfoSingle,
+    vitWbSxsdxdSingle,
+    vitWbSxcixiSingle,
+    vitWbSxcixiSingleB,
+    badiImplementationsSearch,
     srvdSingle,
     srvdSource,
     srvbSingle,
@@ -456,6 +468,11 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     fixtures.bo.bdef.source.load(),
     fixtures.enhancements.enhoxhh.single.load(),
     fixtures.enhancements.enhoxhh.source.load(),
+    fixtures.enhancements.enhoxhb.single.load(),
+    fixtures.vit.wb.sxsdxdSingle.load(),
+    fixtures.vit.wb.sxcixiSingle.load(),
+    fixtures.vit.wb.sxcixiSingleB.load(),
+    fixtures.badi.implementationsSearch.load(),
     fixtures.ddic.srvd.single.load(),
     fixtures.ddic.srvd.source.load(),
     fixtures.businessservices.bindings.single.load(),
@@ -542,6 +559,11 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     bdefSource,
     badiSingle,
     badiSource,
+    badiInfoSingle,
+    vitWbSxsdxdSingle,
+    vitWbSxcixiSingle,
+    vitWbSxcixiSingleB,
+    badiImplementationsSearch,
     srvdSingle,
     srvdSource,
     srvbSingle,
@@ -612,6 +634,20 @@ export function matchRoute(
     m === 'GET' &&
     url.startsWith('/sap/bc/adt/repository/informationsystem/search')
   ) {
+    const query =
+      new URL(url, 'http://mock').searchParams.get('query')?.toUpperCase() ??
+      '';
+    if (
+      query.includes('MOCK_CTS') ||
+      query.includes('CTS_REQUEST') ||
+      query.includes('REQUEST_CHECK')
+    ) {
+      return {
+        status: 200,
+        body: f.badiImplementationsSearch,
+        contentType: 'application/json',
+      };
+    }
     return { status: 200, body: f.search, contentType: 'application/json' };
   }
 
@@ -854,6 +890,19 @@ export function matchRoute(
     return { status: 204, body: '', contentType: 'text/plain' };
   }
 
+  // ── BAdI / Enhancement Implementation metadata (ENHO/XHB) ──────
+  // Endpoint: /sap/bc/adt/enhancements/enhoxhb/{name}
+  if (
+    m === 'GET' &&
+    /^\/sap\/bc\/adt\/enhancements\/enhoxhb\/[^/?]+/.test(pathname)
+  ) {
+    return {
+      status: 200,
+      body: f.badiInfoSingle,
+      contentType: 'application/vnd.sap.adt.enh.enhoxhb.v4+xml',
+    };
+  }
+
   // ── BAdI / Enhancement Implementation (ENHO/XHH) ───────────────
   // Endpoint: /sap/bc/adt/enhancements/enhoxhh/{name}
   //           /sap/bc/adt/enhancements/enhoxhh/{name}/source/main
@@ -887,6 +936,36 @@ export function matchRoute(
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/enhancements/enhoxhh/')) {
     return { status: 204, body: '', contentType: 'text/plain' };
+  }
+
+  // ── vit/wb Basic Object Properties (classic BAdI SXSD/SXCI) ─────
+  // Endpoint: /sap/bc/adt/vit/wb/object_type/{type}/object_name/{name}
+  if (
+    m === 'GET' &&
+    /^\/sap\/bc\/adt\/vit\/wb\/object_type\/sxsdxd\/object_name\//.test(
+      pathname,
+    )
+  ) {
+    return {
+      status: 200,
+      body: f.vitWbSxsdxdSingle,
+      contentType: 'application/vnd.sap.adt.basic.object.properties+xml',
+    };
+  }
+  if (
+    m === 'GET' &&
+    /^\/sap\/bc\/adt\/vit\/wb\/object_type\/sxcixi\/object_name\//.test(
+      pathname,
+    )
+  ) {
+    const body = pathname.includes('ze_mock_classic_badi_impl_b')
+      ? f.vitWbSxcixiSingleB
+      : f.vitWbSxcixiSingle;
+    return {
+      status: 200,
+      body,
+      contentType: 'application/vnd.sap.adt.basic.object.properties+xml',
+    };
   }
 
   // ── SRVD (RAP service definition) ──────────────────────────────

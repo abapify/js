@@ -83,6 +83,12 @@ export interface AdtServerOperations {
     objectType: string,
     objectName: string,
   ): Promise<unknown>;
+  /** Unified BAdI read — classic SXSD/SXCI (vit/wb) or ENHO/XHH. */
+  getBadi?(
+    destination: string,
+    badiName: string,
+    options?: { includeImplementations?: boolean },
+  ): Promise<unknown>;
   /** Public metadata-only history; immutable source locators remain local. */
   getObjectSourceHistory?(
     destination: string,

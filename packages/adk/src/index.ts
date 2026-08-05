@@ -145,6 +145,10 @@ export { AdkDdlSource, AdkDclSource } from './objects/cds';
 // RAP types and classes
 export { AdkBehaviorDefinition } from './objects/repository/bdef';
 export { AdkBadi } from './objects/repository/badi';
+export {
+  AdkClassicBadiDefinition,
+  AdkClassicBadiImplementation,
+} from './objects/repository/classic-badi';
 export { AdkServiceDefinition } from './objects/repository/srvd';
 export { AdkServiceBinding } from './objects/repository/srvb';
 

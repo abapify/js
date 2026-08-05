@@ -8,7 +8,7 @@ import {
   SourceVersionTooLargeError,
   type AdtClient,
 } from '@abapify/adt-client';
-import { ExactSourceHistoryService } from '@abapify/adt-cli';
+import { ExactSourceHistoryService, BadiService } from '@abapify/adt-cli';
 import type {
   DestinationContextFactory,
   DestinationLeaseProvider,
@@ -1277,6 +1277,21 @@ export function createHttpBrokerOperations(
           );
         },
       );
+    },
+    async getBadi(destination, badiName, options) {
+      return await withClient(destination, 'get_badi', async (client) => {
+        const {
+          enhancement: _enhancement,
+          source: _source,
+          ...metadata
+        } = await new BadiService(client).get({
+          name: badiName,
+          options: {
+            includeImplementations: options?.includeImplementations,
+          },
+        });
+        return metadata;
+      });
     },
     async getObjectSourceHistory(destination, objectType, objectName) {
       return await withClient(

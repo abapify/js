@@ -86,6 +86,19 @@ export const registry = {
       single: 'enhancements/enhoxhh/single.xml',
       source: 'enhancements/enhoxhh/source.abap',
     },
+    enhoxhb: {
+      single: 'enhancements/enhoxhb/single.xml',
+    },
+  },
+  badi: {
+    implementationsSearch: 'badi/implementations-search.json',
+  },
+  vit: {
+    wb: {
+      sxsdxdSingle: 'vit/wb/sxsdxd-single.xml',
+      sxcixiSingle: 'vit/wb/sxcixi-single.xml',
+      sxcixiSingleB: 'vit/wb/sxcixi-single-b.xml',
+    },
   },
   businessservices: {
     bindings: {

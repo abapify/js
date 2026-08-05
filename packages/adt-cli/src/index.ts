@@ -94,3 +94,18 @@ export {
   type ReleaseTransportInput,
   type ReleaseTransportResult,
 } from './lib/services/cts';
+
+// BAdI — ENHO metadata (enhoxhb) and unified read (classic vit/wb + ENHO)
+export {
+  getBadiInfo,
+  parseEnhancementImplementation,
+  BadiService,
+  ClassicBadiService,
+  normalizeClassicBadiMetadata,
+  type BadiInfo,
+  type BadiImplementation,
+  type BadiKind,
+  type BadiMetadata,
+  type BadiReadResult,
+  type ClassicBadiMetadata,
+} from './lib/services/badi';
