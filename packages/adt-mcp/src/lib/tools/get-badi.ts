@@ -1,11 +1,9 @@
 /**
- * Tool: get_badi – fetch BAdI / Enhancement Implementation (ENHO/XHH)
- * metadata, optionally including the source payload that lists
- * the BAdI implementations.
+ * Tool: get_badi – read-only BAdI information for any flavour.
  */
 
 import { z } from 'zod';
-import { getBadiInfo } from '@abapify/adt-cli';
+import { BadiService } from '@abapify/adt-cli';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
@@ -14,26 +12,45 @@ import { resolveClient } from './session-helpers';
 export function registerGetBadiTool(server: McpServer, ctx: ToolContext): void {
   server.tool(
     'get_badi',
-    'Fetch Enhancement Implementation (ENHO/XHH — BAdI container) metadata, optionally including the source payload with its BAdI implementations.',
+    'Read BAdI information (classic SXSD/SXCI definition or implementation, or ENHO/XHH). Kind is auto-detected. Use includeImplementations on a definition to list its classic implementations.',
     {
       ...sessionOrConnectionShape,
       badiName: z
         .string()
-        .describe('Enhancement Implementation name (e.g. ZE_MY_BADI_IMPL)'),
+        .describe(
+          'BAdI name — definition, implementation (SXCI/XI), or ENHO container',
+        ),
       includeSource: z
         .boolean()
         .optional()
-        .describe('Include source text listing the BAdI implementations'),
+        .describe('Include ENHO/XHH source text when kind is enhancement'),
+      includeImplementations: z
+        .boolean()
+        .optional()
+        .describe(
+          'When badiName is a classic definition (SXSD/XD), include its SXCI/XI implementations',
+        ),
     },
     async (args, extra) => {
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
-        const info = await getBadiInfo(client, args.badiName);
-        const result: Record<string, unknown> = { info };
-        if (args.includeSource) {
-          result.source = await client.adt.enhancements.enhoxhh.source.main.get(
-            args.badiName.toLowerCase(),
-          );
+        const result = await new BadiService(client).get({
+          name: args.badiName,
+          options: {
+            includeSource: args.includeSource,
+            includeImplementations: args.includeImplementations,
+          },
+        });
+        if (args.includeImplementations && result.kind !== 'definition') {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text' as const,
+                text: 'includeImplementations is only valid for classic BAdI definitions (SXSD/XD)',
+              },
+            ],
+          };
         }
         return {
           content: [

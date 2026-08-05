@@ -1,34 +1,24 @@
 /**
- * adt badi — BAdI / Enhancement Implementation (ENHO/XHH) commands
+ * BAdI commands — ENHO CRUD + metadata (`adt badi`) and unified read (`adt get badi`).
  *
- * Enhancement Implementations are RAP-era containers for BAdI
- * implementations. Full CRUD + activation exposed at
- * `/sap/bc/adt/enhancements/enhoxhh`. Source (the BAdI payload) is
- * served as text via `/source/main`.
+ *   adt get badi MOCK_CTS_REQUEST_CHECK --json
+ *   adt get badi MOCK_CTS_REQUEST_CHECK --implementations --json
+ *   adt get badi ZE_MOCK_CLASSIC_BADI_IMPL --json
+ *   adt get badi ZE_MOCK_BADI                 # ENHO/XHH source
  *
- * BAdI implementation metadata (the list of implementations, their
- * active/default flags and implementing classes) is exposed by SAP at
- * `/sap/bc/adt/enhancements/enhoxhb/{name}` and is surfaced by the
- * default `adt badi <name>` command with the `--implementations` flag.
- *
- * Usage:
- *   adt badi ZE_MY_BADI_IMPL
- *   adt badi ZE_MY_BADI_IMPL --implementations
- *   adt badi ZE_MY_BADI_IMPL --json
- *   adt badi create ZE_MY_BADI_IMPL "My BAdI impl" ZMYPKG
- *   adt badi read   ZE_MY_BADI_IMPL
- *   adt badi write  ZE_MY_BADI_IMPL impl.abap --transport DEVK900001
- *   adt badi activate ZE_MY_BADI_IMPL
- *   adt badi delete ZE_MY_BADI_IMPL --transport DEVK900001
- *
- * References:
- *   - sapcli: `sap/cli/badi.py` (list, set-active)
- *   - ARC-1: `src/adt/client.ts` `getEnhancementImplementation`
+ * Mutating operations (create, write, delete) belong under deploy/checkin.
  */
 
 import { AdkBadi } from '@abapify/adk';
-import { getAdtClientV2 } from '../../utils/adt-client-v2';
-import { getBadiInfo } from '../../services/badi';
+import { Command } from 'commander';
+import { getAdtClientV2, getCliContext } from '../../utils/adt-client-v2';
+import { createProgressReporter } from '../../utils/progress-reporter';
+import { createCliLogger } from '../../utils/logger-config';
+import {
+  BadiService,
+  getBadiInfo,
+  type BadiReadResult,
+} from '../../services/badi';
 import { buildObjectCrudCommands } from '../object/builder';
 
 const badiCommand = buildObjectCrudCommands({
@@ -65,7 +55,10 @@ badiCommand
 
       try {
         const adtClient = await getAdtClientV2();
-        const info = await getBadiInfo(adtClient, normalizedName);
+        const info = await getBadiInfo({
+          client: adtClient,
+          name: normalizedName,
+        });
 
         if (options.json) {
           console.log(JSON.stringify(info, null, 2));
@@ -125,5 +118,105 @@ badiCommand
       }
     },
   );
+
+function printHumanResult(result: BadiReadResult): void {
+  console.log(`Kind:        ${result.kind}`);
+  console.log(`Name:        ${result.name}`);
+  console.log(`Type:        ${result.type}`);
+  if (result.description) console.log(`Description: ${result.description}`);
+  if (result.packageName) console.log(`Package:     ${result.packageName}`);
+  if (result.version) console.log(`Version:     ${result.version}`);
+
+  if (result.implementations?.length) {
+    console.log('');
+    console.log(`Implementations (${result.implementations.length}):`);
+    for (const impl of result.implementations) {
+      const suffix = impl.description ? ` — ${impl.description}` : '';
+      console.log(`  ${impl.name}${suffix}`);
+    }
+  }
+}
+
+export const getBadiCommand = new Command('badi')
+  .argument('<name>', 'BAdI definition, implementation, or ENHO name')
+  .description(
+    'Get BAdI metadata; use --implementations on a definition to list classic implementations',
+  )
+  .option('--json', 'Output as JSON')
+  .option(
+    '--implementations',
+    'When reading a classic definition (SXSD/XD), include its SXCI/XI implementations',
+  )
+  .action(async function (
+    this: Command,
+    name: string,
+    options: { json?: boolean; implementations?: boolean },
+  ) {
+    const globalOpts = (this.optsWithGlobals?.() ?? {}) as {
+      json?: boolean;
+      implementations?: boolean;
+      verbose?: boolean;
+    };
+    const opts = {
+      json: options.json ?? globalOpts.json ?? false,
+      implementations:
+        options.implementations ?? globalOpts.implementations ?? false,
+    };
+    const ctx = getCliContext();
+    const verboseFlag = globalOpts.verbose ?? ctx.verbose ?? false;
+    const logger =
+      (this as any).logger ??
+      ctx.logger ??
+      createCliLogger({ verbose: verboseFlag });
+    const progress = createProgressReporter({
+      compact: !verboseFlag,
+      logger,
+    });
+
+    try {
+      const client = await getAdtClientV2();
+      const service = new BadiService(client);
+
+      if (!opts.json) {
+        progress.step(`🔍 Loading ${name.toUpperCase()}...`);
+      }
+      const result = await service.get({
+        name,
+        options: {
+          includeSource: !opts.json,
+          includeImplementations: opts.implementations,
+        },
+      });
+      if (!opts.json) {
+        progress.done();
+      }
+
+      if (opts.implementations && result.kind !== 'definition') {
+        console.error(
+          '❌ --implementations is only valid for classic BAdI definitions (SXSD/XD)',
+        );
+        process.exit(1);
+      }
+
+      if (opts.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      if (result.source) {
+        process.stdout.write(result.source);
+        return;
+      }
+
+      printHumanResult(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!opts.json) {
+        progress.done(`❌ ${message}`);
+      }
+      console.error(`❌ Get BAdI failed:`, message);
+      process.exit(1);
+    }
+  });
 
 export { badiCommand };
