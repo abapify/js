@@ -991,7 +991,7 @@ export abstract class AdkObject<K extends AdkKind = AdkKind, D = any> {
         v == null ||
         v === '' ||
         (Array.isArray(v) && v.length === 0) ||
-        (typeof v === 'object' && v !== null && Object.keys(v).length === 0);
+        (typeof v === 'object' && Object.keys(v).length === 0);
 
       const isSubsetMatch = (local: unknown, sap: unknown): boolean => {
         if (local === sap) return true;
