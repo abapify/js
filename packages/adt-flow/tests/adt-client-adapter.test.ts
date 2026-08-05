@@ -60,10 +60,35 @@ describe('ADT client adapter', () => {
 
     expect(buildManifest).toHaveBeenCalledWith(
       ['DEVK900001'],
-      { selector: { type: ['CLAS'] }, concurrency: 3 },
+      {
+        selector: { pgmid: ['R3TR', 'LIMU'], type: ['CLAS'] },
+        concurrency: 3,
+      },
       { client: adtClient },
     );
     expect(read).toHaveBeenCalledWith('/sap/bc/adt/source/v1', 1024);
+  });
+
+  it('defaults the manifest selector to repository pgmids R3TR and LIMU', async () => {
+    const buildManifest = vi.fn(async () => manifest);
+    const adtClient = client();
+    const dependencies = createAdtFlowDependencies(adtClient, format, {
+      buildManifest,
+      createFactory: vi.fn(() => ({ get: vi.fn() }) as unknown as AdkFactory),
+    });
+
+    await expect(
+      dependencies.buildManifest(['DEVK900001'], { concurrency: 3 }),
+    ).resolves.toBe(manifest);
+
+    expect(buildManifest).toHaveBeenCalledWith(
+      ['DEVK900001'],
+      {
+        selector: { pgmid: ['R3TR', 'LIMU'] },
+        concurrency: 3,
+      },
+      { client: adtClient },
+    );
   });
 
   it('loads the object and resolves its package path and application component', async () => {

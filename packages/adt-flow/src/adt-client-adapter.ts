@@ -2,6 +2,7 @@ import {
   buildTransportSourceManifest,
   createAdk,
   type AdkFactory,
+  type TransportObjectSelector,
   type TransportSourceManifest,
 } from '@abapify/adk';
 import type { AdtClient, SourceVersionRef } from '@abapify/adt-client';
@@ -21,7 +22,7 @@ interface PackageModel extends LoadableModel {
 export interface AdtFlowAdapterOperations {
   buildManifest(
     transports: string[],
-    options: { selector?: { type?: string[] }; concurrency: number },
+    options: { selector?: TransportObjectSelector; concurrency: number },
     context: { client: AdtClient },
   ): Promise<TransportSourceManifest>;
   createFactory(client: AdtClient): AdkFactory;
@@ -144,9 +145,12 @@ export function createAdtFlowDependencies(
         return await operations.buildManifest(
           transports,
           {
-            ...(options.objectTypes?.length
-              ? { selector: { type: options.objectTypes } }
-              : {}),
+            selector: {
+              pgmid: ['R3TR', 'LIMU'],
+              ...(options.objectTypes?.length
+                ? { type: options.objectTypes }
+                : {}),
+            },
             concurrency: options.concurrency,
           },
           { client },
