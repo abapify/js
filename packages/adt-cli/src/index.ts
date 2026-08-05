@@ -94,3 +94,11 @@ export {
   type ReleaseTransportInput,
   type ReleaseTransportResult,
 } from './lib/services/cts';
+
+// BAdI / Enhancement Implementation metadata
+export {
+  getBadiInfo,
+  parseEnhancementImplementation,
+  type BadiInfo,
+  type BadiImplementation,
+} from './lib/services/badi';

@@ -285,6 +285,8 @@ export interface LoadedFixtures {
   // BAdI / Enhancement Implementation (ENHO/XHH)
   badiSingle: string;
   badiSource: string;
+  // BAdI / Enhancement Implementation metadata (ENHO/XHB)
+  badiInfoSingle: string;
   // SRVD (RAP service definition)
   srvdSingle: string;
   srvdSource: string;
@@ -376,6 +378,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     bdefSource,
     badiSingle,
     badiSource,
+    badiInfoSingle,
     srvdSingle,
     srvdSource,
     srvbSingle,
@@ -456,6 +459,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     fixtures.bo.bdef.source.load(),
     fixtures.enhancements.enhoxhh.single.load(),
     fixtures.enhancements.enhoxhh.source.load(),
+    fixtures.enhancements.enhoxhb.single.load(),
     fixtures.ddic.srvd.single.load(),
     fixtures.ddic.srvd.source.load(),
     fixtures.businessservices.bindings.single.load(),
@@ -542,6 +546,7 @@ export async function loadRouteFixtures(): Promise<LoadedFixtures> {
     bdefSource,
     badiSingle,
     badiSource,
+    badiInfoSingle,
     srvdSingle,
     srvdSource,
     srvbSingle,
@@ -852,6 +857,19 @@ export function matchRoute(
   }
   if (m === 'DELETE' && url.startsWith('/sap/bc/adt/bo/behaviordefinitions/')) {
     return { status: 204, body: '', contentType: 'text/plain' };
+  }
+
+  // ── BAdI / Enhancement Implementation metadata (ENHO/XHB) ──────
+  // Endpoint: /sap/bc/adt/enhancements/enhoxhb/{name}
+  if (
+    m === 'GET' &&
+    /^\/sap\/bc\/adt\/enhancements\/enhoxhb\/[^/?]+/.test(pathname)
+  ) {
+    return {
+      status: 200,
+      body: f.badiInfoSingle,
+      contentType: 'application/vnd.sap.adt.enh.enhoxhb.v4+xml',
+    };
   }
 
   // ── BAdI / Enhancement Implementation (ENHO/XHH) ───────────────

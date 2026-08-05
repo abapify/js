@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { getBadiInfo } from '@abapify/adt-cli';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ToolContext } from '../types';
 import { sessionOrConnectionShape } from './shared-schemas';
@@ -27,12 +28,12 @@ export function registerGetBadiTool(server: McpServer, ctx: ToolContext): void {
     async (args, extra) => {
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
-        const name = args.badiName.toLowerCase();
-        const metadata = await client.adt.enhancements.enhoxhh.get(name);
-        const result: Record<string, unknown> = { metadata };
+        const info = await getBadiInfo(client, args.badiName);
+        const result: Record<string, unknown> = { info };
         if (args.includeSource) {
-          result.source =
-            await client.adt.enhancements.enhoxhh.source.main.get(name);
+          result.source = await client.adt.enhancements.enhoxhh.source.main.get(
+            args.badiName.toLowerCase(),
+          );
         }
         return {
           content: [

@@ -86,6 +86,9 @@ export const registry = {
       single: 'enhancements/enhoxhh/single.xml',
       source: 'enhancements/enhoxhh/source.abap',
     },
+    enhoxhb: {
+      single: 'enhancements/enhoxhb/single.xml',
+    },
   },
   businessservices: {
     bindings: {

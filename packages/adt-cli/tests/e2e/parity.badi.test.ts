@@ -31,6 +31,33 @@ describe('CLI + MCP parity (badi)', () => {
     if (harness) await harness.stop();
   });
 
+  it('parity: read BAdI info with implementations', async () => {
+    const cli = await runCliCommand(harness, [
+      'badi',
+      'ZE_MOCK_BADI',
+      '--implementations',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(cli.stdout).toContain('ZE_MOCK_BADI');
+    expect(cli.stdout).toContain('ZCL_MOCK_BADI_IMPL');
+    expect(cli.stdout).toContain('ZE_MOCK_BADI_DEF');
+  });
+
+  it('parity: read BAdI info as JSON', async () => {
+    const cli = await runCliCommand(harness, [
+      'badi',
+      'ZE_MOCK_BADI',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    expect(cli.json).toBeDefined();
+    expect(cli.json?.name).toBe('ZE_MOCK_BADI');
+    expect(cli.json?.badiImplementations).toHaveLength(1);
+    expect(cli.json?.badiImplementations[0].implementingClass).toBe(
+      'ZCL_MOCK_BADI_IMPL',
+    );
+  });
+
   it('parity: read BAdI source', async () => {
     // CLI `read` (no --json) prints the source to stdout. Run this
     // FIRST: commander retains parsed options between invocations on a
