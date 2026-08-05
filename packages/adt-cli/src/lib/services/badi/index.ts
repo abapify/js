@@ -41,96 +41,76 @@ export interface BadiInfo {
   badiImplementations: BadiImplementation[];
 }
 
-function getAttr(
-  el: XmlElement | null | undefined,
-  ns: string,
-  local: string,
-): string {
-  return el?.getAttributeNS(ns, local) ?? '';
+interface NamespaceAccessor {
+  attr(el: XmlElement | null | undefined, local: string): string;
+  bool(el: XmlElement | null | undefined, local: string): boolean;
+  child(parent: XmlElement, local: string): XmlElement | null;
+  children(parent: XmlElement, local: string): XmlElement[];
 }
 
-function getBoolAttr(
-  el: XmlElement | null | undefined,
-  ns: string,
-  local: string,
-): boolean {
-  return getAttr(el, ns, local).toLowerCase() === 'true';
+function namespaceAccessor(ns: string): NamespaceAccessor {
+  return {
+    attr(el, local) {
+      return el?.getAttributeNS(ns, local) ?? '';
+    },
+    bool(el, local) {
+      return this.attr(el, local).toLowerCase() === 'true';
+    },
+    child(parent, local) {
+      const list = parent.getElementsByTagNameNS(ns, local);
+      return (list.item(0) as XmlElement | null) ?? null;
+    },
+    children(parent, local) {
+      const list = parent.getElementsByTagNameNS(ns, local);
+      const result: XmlElement[] = [];
+      for (let i = 0; i < list.length; i++) {
+        const node = list.item(i) as XmlElement | null;
+        if (node) result.push(node);
+      }
+      return result;
+    },
+  };
 }
 
-function getChild(
-  parent: XmlElement,
-  ns: string,
-  local: string,
-): XmlElement | null {
-  const list = parent.getElementsByTagNameNS(ns, local);
-  return (list.item(0) as XmlElement | null) ?? null;
-}
-
-function getChildren(
-  parent: XmlElement,
-  ns: string,
-  local: string,
-): XmlElement[] {
-  const list = parent.getElementsByTagNameNS(ns, local);
-  const result: XmlElement[] = [];
-  for (let i = 0; i < list.length; i++) {
-    const node = list.item(i) as XmlElement | null;
-    if (node) result.push(node);
-  }
-  return result;
-}
+const enho = namespaceAccessor(NS_ENHO);
+const adtcore = namespaceAccessor(NS_ADTCORE);
 
 function rootAttr(root: XmlElement, local: string): string {
-  return getAttr(root, NS_ADTCORE, local) || root.getAttribute(local) || '';
+  return adtcore.attr(root, local) || root.getAttribute(local) || '';
 }
 
 function parseBadiImplementation(node: XmlElement): BadiImplementation {
   return {
-    name: getAttr(node, NS_ENHO, 'name'),
-    shortText: getAttr(node, NS_ENHO, 'shortText'),
-    active: getBoolAttr(node, NS_ENHO, 'active'),
-    default: getBoolAttr(node, NS_ENHO, 'default'),
-    example: getBoolAttr(node, NS_ENHO, 'example'),
-    implementingClass: getAttr(
-      getChild(node, NS_ENHO, 'implementingClass'),
-      NS_ADTCORE,
+    name: enho.attr(node, 'name'),
+    shortText: enho.attr(node, 'shortText'),
+    active: enho.bool(node, 'active'),
+    default: enho.bool(node, 'default'),
+    example: enho.bool(node, 'example'),
+    implementingClass: adtcore.attr(
+      enho.child(node, 'implementingClass'),
       'name',
     ),
-    badiDefinition: getAttr(
-      getChild(node, NS_ENHO, 'badiDefinition'),
-      NS_ADTCORE,
-      'name',
-    ),
-    enhancementSpot: getAttr(
-      getChild(node, NS_ENHO, 'enhancementSpot'),
-      NS_ADTCORE,
-      'name',
-    ),
+    badiDefinition: adtcore.attr(enho.child(node, 'badiDefinition'), 'name'),
+    enhancementSpot: adtcore.attr(enho.child(node, 'enhancementSpot'), 'name'),
   };
 }
 
 function parseBadiInfo(root: XmlElement): BadiInfo {
-  const contentCommon = getChild(root, NS_ENHO, 'contentCommon');
+  const contentCommon = enho.child(root, 'contentCommon');
 
-  const info: BadiInfo = {
+  return {
     name: rootAttr(root, 'name'),
     description: rootAttr(root, 'description'),
     type: rootAttr(root, 'type'),
-    package: getAttr(
-      getChild(root, NS_ADTCORE, 'packageRef'),
-      NS_ADTCORE,
-      'name',
-    ),
+    package: adtcore.attr(adtcore.child(root, 'packageRef'), 'name'),
     responsible: rootAttr(root, 'responsible'),
     version: rootAttr(root, 'version'),
-    technology: getAttr(contentCommon, NS_ENHO, 'toolType'),
-    switchSupported: getBoolAttr(contentCommon, NS_ENHO, 'switchSupported'),
-    badiImplementations: getChildren(root, NS_ENHO, 'badiImplementation').map(
-      parseBadiImplementation,
-    ),
+    technology: enho.attr(contentCommon, 'toolType'),
+    switchSupported: enho.bool(contentCommon, 'switchSupported'),
+    badiImplementations: enho
+      .children(root, 'badiImplementation')
+      .map(parseBadiImplementation),
   };
-
-  return info;
 }
 
 /**
