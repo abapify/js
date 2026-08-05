@@ -23,10 +23,7 @@ function isNotFound(error: unknown): boolean {
   );
 }
 
-export class AdkClassicBadiDefinition {
-  static readonly kind = 'ClassicBadiDefinition' as const;
-  readonly kind = AdkClassicBadiDefinition.kind;
-
+abstract class AdkClassicBadiBase {
   readonly name: string;
   protected readonly ctx: AdkContext;
 
@@ -34,6 +31,40 @@ export class AdkClassicBadiDefinition {
     this.ctx = input.ctx;
     this.name = input.name.toUpperCase();
   }
+
+  abstract get kind(): string;
+  abstract get objectUri(): string;
+  abstract getMetadata(): Promise<BasicObjectPropertiesResponse>;
+
+  static async get<T extends AdkClassicBadiBase>(
+    this: { new (input: { ctx: AdkContext; name: string }): T },
+    input: ClassicBadiInput,
+  ): Promise<T> {
+    const context = input.ctx ?? getGlobalContext();
+    const obj = new this({ ctx: context, name: input.name });
+    await obj.getMetadata();
+    return obj;
+  }
+
+  static async exists<T extends AdkClassicBadiBase>(
+    this: { new (input: { ctx: AdkContext; name: string }): T },
+    input: ClassicBadiInput,
+  ): Promise<boolean> {
+    try {
+      const ctor = this as unknown as {
+        get(input: ClassicBadiInput): Promise<T>;
+      };
+      await ctor.get(input);
+      return true;
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+      return false;
+    }
+  }
+}
+
+export class AdkClassicBadiDefinition extends AdkClassicBadiBase {
+  readonly kind = 'ClassicBadiDefinition' as const;
 
   get objectUri(): string {
     return `/sap/bc/adt/vit/wb/object_type/sxsdxd/object_name/${encodeURIComponent(this.name.toLowerCase())}`;
@@ -44,39 +75,10 @@ export class AdkClassicBadiDefinition {
       this.name,
     );
   }
-
-  static async get(input: ClassicBadiInput): Promise<AdkClassicBadiDefinition> {
-    const context = input.ctx ?? getGlobalContext();
-    const obj = new AdkClassicBadiDefinition({
-      ctx: context,
-      name: input.name,
-    });
-    await obj.getMetadata();
-    return obj;
-  }
-
-  static async exists(input: ClassicBadiInput): Promise<boolean> {
-    try {
-      await AdkClassicBadiDefinition.get(input);
-      return true;
-    } catch (error) {
-      if (!isNotFound(error)) throw error;
-      return false;
-    }
-  }
 }
 
-export class AdkClassicBadiImplementation {
-  static readonly kind = 'ClassicBadiImplementation' as const;
-  readonly kind = AdkClassicBadiImplementation.kind;
-
-  readonly name: string;
-  protected readonly ctx: AdkContext;
-
-  constructor(input: { ctx: AdkContext; name: string }) {
-    this.ctx = input.ctx;
-    this.name = input.name.toUpperCase();
-  }
+export class AdkClassicBadiImplementation extends AdkClassicBadiBase {
+  readonly kind = 'ClassicBadiImplementation' as const;
 
   get objectUri(): string {
     return `/sap/bc/adt/vit/wb/object_type/sxcixi/object_name/${encodeURIComponent(this.name.toLowerCase())}`;
@@ -86,27 +88,5 @@ export class AdkClassicBadiImplementation {
     return await this.ctx.client.adt.vit.wb.objectProperties.getImplementation(
       this.name,
     );
-  }
-
-  static async get(
-    input: ClassicBadiInput,
-  ): Promise<AdkClassicBadiImplementation> {
-    const context = input.ctx ?? getGlobalContext();
-    const obj = new AdkClassicBadiImplementation({
-      ctx: context,
-      name: input.name,
-    });
-    await obj.getMetadata();
-    return obj;
-  }
-
-  static async exists(input: ClassicBadiInput): Promise<boolean> {
-    try {
-      await AdkClassicBadiImplementation.get(input);
-      return true;
-    } catch (error) {
-      if (!isNotFound(error)) throw error;
-      return false;
-    }
   }
 }

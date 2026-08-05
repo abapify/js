@@ -533,11 +533,19 @@ async function listImplementations(
 export class BadiService {
   constructor(private readonly client: AdtClient) {}
 
+  private contextFor(name: string): ServiceContext {
+    return { client: this.client, normalized: name.trim().toUpperCase() };
+  }
+
+  private readContextFor(
+    name: string,
+    options?: { includeSource?: boolean; includeImplementations?: boolean },
+  ): ReadContext {
+    return { ...this.contextFor(name), options };
+  }
+
   async resolveKind({ name }: { name: string }): Promise<BadiKind> {
-    return resolveKind({
-      client: this.client,
-      normalized: name.trim().toUpperCase(),
-    });
+    return resolveKind(this.contextFor(name));
   }
 
   async get({
@@ -547,25 +555,15 @@ export class BadiService {
     name: string;
     options?: { includeSource?: boolean; includeImplementations?: boolean };
   }): Promise<BadiReadResult> {
-    return getBadi({
-      client: this.client,
-      normalized: name.trim().toUpperCase(),
-      options,
-    });
+    return getBadi(this.readContextFor(name, options));
   }
 
   async getDefinition({ name }: { name: string }): Promise<BadiMetadata> {
-    return readDefinition({
-      client: this.client,
-      normalized: name.trim().toUpperCase(),
-    });
+    return readDefinition(this.contextFor(name));
   }
 
   async getImplementation({ name }: { name: string }): Promise<BadiMetadata> {
-    return readImplementation({
-      client: this.client,
-      normalized: name.trim().toUpperCase(),
-    });
+    return readImplementation(this.contextFor(name));
   }
 
   /**
@@ -578,10 +576,7 @@ export class BadiService {
   }: {
     name: string;
   }): Promise<BadiMetadata[]> {
-    return listImplementations({
-      client: this.client,
-      normalized: name.trim().toUpperCase(),
-    });
+    return listImplementations(this.contextFor(name));
   }
 }
 
