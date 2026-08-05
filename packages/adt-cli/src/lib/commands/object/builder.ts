@@ -151,6 +151,46 @@ interface PersistSourceOptions {
   beforeActivate?: () => void;
 }
 
+interface DeleteLifecycleObject {
+  lock(transport?: string): Promise<ObjectLockHandle>;
+  unlock(lockHandle: string): Promise<void>;
+}
+
+/** Delete under an editor lock and release that lock on every outcome. */
+export async function deleteWithReleasedLock(
+  object: DeleteLifecycleObject,
+  deleteObject: (options: {
+    transport?: string;
+    lockHandle: string;
+  }) => Promise<void>,
+  requestedTransport?: string,
+): Promise<void> {
+  const lockHandle = await object.lock(requestedTransport);
+  let deleteError: unknown;
+  try {
+    await deleteObject({
+      lockHandle: lockHandle.handle,
+      transport: resolveEffectiveTransport(lockHandle, requestedTransport),
+    });
+  } catch (error) {
+    deleteError = error;
+  }
+
+  try {
+    await object.unlock(lockHandle.handle);
+  } catch (unlockError) {
+    if (deleteError) {
+      throw new AggregateError(
+        [deleteError, unlockError],
+        'Object delete and lock release both failed',
+        { cause: unlockError },
+      );
+    }
+    throw unlockError;
+  }
+  if (deleteError) throw deleteError;
+}
+
 /** Save under the editor lock, release it, and only then activate. */
 export async function persistSourceWithReleasedLock<T>(
   object: SourceLifecycleObject<T>,
@@ -583,9 +623,11 @@ export function buildObjectCrudCommands<
           }
 
           progress.step(`🗑️  Deleting ${def.label} ${n}...`);
-          await def.delete(
-            n,
-            options.transport ? { transport: options.transport } : undefined,
+          const object = await def.get(n);
+          await deleteWithReleasedLock(
+            object,
+            (deleteOptions) => def.delete(n, deleteOptions),
+            options.transport,
           );
           progress.done();
 

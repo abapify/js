@@ -1129,7 +1129,8 @@ async function addTransportDescriptors(
     }
     if (
       existing &&
-      stableJson(existing.requestedTransports) === stableJson(ctx.requested)
+      existing.requestedTransports.includes(transport) &&
+      existing.scopeTransports.includes(transport)
     ) {
       ownedPaths.add(path);
       ownedOwners.set(path, 'flow-index');

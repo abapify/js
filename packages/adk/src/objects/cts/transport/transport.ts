@@ -77,8 +77,8 @@ function releaseReportFailure(
     (entry) => entry.shortText,
   )?.shortText;
   return (
-    failed.statusText ||
     message ||
+    failed.statusText ||
     `SAP release report failed with status ${failed.status || 'unknown'}`
   );
 }
