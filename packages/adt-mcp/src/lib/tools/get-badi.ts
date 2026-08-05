@@ -34,9 +34,12 @@ export function registerGetBadiTool(server: McpServer, ctx: ToolContext): void {
     async (args, extra) => {
       try {
         const { client } = await resolveClient(ctx, args, extra ?? {});
-        const result = await new BadiService(client).get(args.badiName, {
-          includeSource: args.includeSource,
-          includeImplementations: args.includeImplementations,
+        const result = await new BadiService(client).get({
+          name: args.badiName,
+          options: {
+            includeSource: args.includeSource,
+            includeImplementations: args.includeImplementations,
+          },
         });
         if (args.includeImplementations && result.kind !== 'definition') {
           return {

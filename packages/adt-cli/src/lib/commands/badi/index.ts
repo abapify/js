@@ -55,7 +55,10 @@ badiCommand
 
       try {
         const adtClient = await getAdtClientV2();
-        const info = await getBadiInfo(adtClient, normalizedName);
+        const info = await getBadiInfo({
+          client: adtClient,
+          name: normalizedName,
+        });
 
         if (options.json) {
           console.log(JSON.stringify(info, null, 2));
@@ -117,11 +120,6 @@ badiCommand
   );
 
 function printHumanResult(result: BadiReadResult): void {
-  if (result.source) {
-    process.stdout.write(result.source);
-    return;
-  }
-
   console.log(`Kind:        ${result.kind}`);
   console.log(`Name:        ${result.name}`);
   console.log(`Type:        ${result.type}`);
@@ -182,9 +180,12 @@ export const getBadiCommand = new Command('badi')
       if (!opts.json) {
         progress.step(`🔍 Loading ${name.toUpperCase()}...`);
       }
-      const result = await service.get(name, {
-        includeSource: !opts.json,
-        includeImplementations: opts.implementations,
+      const result = await service.get({
+        name,
+        options: {
+          includeSource: !opts.json,
+          includeImplementations: opts.implementations,
+        },
       });
       if (!opts.json) {
         progress.done();
@@ -199,6 +200,11 @@ export const getBadiCommand = new Command('badi')
 
       if (opts.json) {
         console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      if (result.source) {
+        process.stdout.write(result.source);
         return;
       }
 

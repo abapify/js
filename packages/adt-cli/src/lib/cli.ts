@@ -137,6 +137,104 @@ function getResolvedConfigPath(argv: string[]): string | undefined {
   return undefined;
 }
 
+function registerAuthAndCoreCommands(program: Command): void {
+  const authCmd = program
+    .command('auth')
+    .description('Authentication commands');
+  authCmd.addCommand(loginCommand);
+  authCmd.addCommand(logoutCommand);
+  authCmd.addCommand(statusCommand);
+  authCmd.addCommand(authListCommand);
+  authCmd.addCommand(setDefaultCommand);
+  authCmd.addCommand(refreshCommand);
+
+  program.addCommand(discoveryCommand);
+  program.addCommand(infoCommand);
+  program.addCommand(fetchCommand);
+  program.addCommand(getCommand);
+  getCommand.addCommand(packageGetCommand);
+  getCommand.addCommand(getBadiCommand);
+  program.addCommand(searchCommand);
+  program.addCommand(lsCommand);
+  program.addCommand(createCtsCommand());
+}
+
+function registerImportAndUtilityCommands(program: Command): void {
+  const importCmd = program
+    .command('import')
+    .description('Import ABAP objects to various formats (abapGit, etc.)');
+  importCmd.addCommand(importObjectCommand);
+  importCmd.addCommand(importPackageCommand);
+  importCmd.addCommand(importTransportCommand);
+
+  program.addCommand(lockCommand);
+  program.addCommand(unlockCommand);
+  program.addCommand(locksCommand);
+  program.addCommand(checkCommand);
+  program.addCommand(sourceCommand);
+  program.addCommand(lintCommand);
+  program.addCommand(contextCommand);
+  program.addCommand(createDiagnoseCommand());
+  program.addCommand(userCommand);
+  program.addCommand(strustCommand);
+}
+
+function registerObjectAndRapCommands(program: Command): void {
+  program.addCommand(createPackageCommand());
+  program.addCommand(classCommand);
+  program.addCommand(programCommand);
+  program.addCommand(interfaceCommand);
+  program.addCommand(includeCommand);
+  program.addCommand(functionCommand);
+  program.addCommand(domainCommand);
+  program.addCommand(dataelementCommand);
+  program.addCommand(tableCommand);
+  program.addCommand(structureCommand);
+  program.addCommand(createDatapreviewCommand());
+  program.addCommand(createAbapCommand());
+  program.addCommand(ddlCommand);
+  program.addCommand(dclCommand);
+  program.addCommand(bdefCommand);
+  program.addCommand(badiCommand);
+  program.addCommand(srvdCommand);
+  program.addCommand(srvbCommand);
+  program.addCommand(createCheckoutCommand());
+  program.addCommand(checkinCommand);
+  program.addCommand(createChangesetCommand());
+  program.addCommand(rfcCommand);
+  program.addCommand(createFlpCommand());
+  program.addCommand(createWbCommand());
+  program.addCommand(createReplCommand());
+  program.addCommand(proxyCommand);
+}
+
+async function registerPluginCommands(
+  program: Command,
+  options?: { preloadedPlugins?: CliCommandPlugin[] },
+): Promise<void> {
+  // gCTS command-plugin (E07). Auto-registered here (not via adt.config.ts)
+  // because `@abapify/adt-plugin-gcts-cli` is a required dependency of
+  // `adt-cli`, matching the pattern used for the abapGit/gCTS *format*
+  // plugins above.
+  await loadStaticPlugins(program, [gctsCommand], process.cwd());
+
+  // Load command plugins from config (adt.config.ts or --config)
+  // NOTE: We need to parse --config early since plugins must be loaded before parseAsync()
+  const configPath = getResolvedConfigPath(process.argv);
+
+  if (options?.preloadedPlugins !== undefined) {
+    // Bundled mode: register statically imported plugins (no dynamic import needed)
+    await loadStaticPlugins(
+      program,
+      options.preloadedPlugins,
+      process.cwd(),
+      configPath,
+    );
+  } else {
+    await loadCommandPlugins(program, process.cwd(), configPath);
+  }
+}
+
 // Create main program
 export async function createCLI(options?: {
   /** Pre-loaded plugins to register instead of loading from config.
@@ -181,13 +279,7 @@ export async function createCLI(options?: {
     )
     .hook('preAction', (thisCommand) => {
       const opts = thisCommand.optsWithGlobals();
-
-      // Create logger based on global options
-      const logger = createCliLogger({
-        verbose: opts.verbose,
-      });
-
-      // Store logger and logging config for use in commands
+      const logger = createCliLogger({ verbose: opts.verbose });
       (thisCommand as any).logger = logger;
       (thisCommand as any).loggingConfig = {
         logLevel: opts.logLevel || 'info',
@@ -196,164 +288,11 @@ export async function createCLI(options?: {
       };
     });
 
-  // Auth commands
-  const authCmd = program
-    .command('auth')
-    .description('Authentication commands');
+  registerAuthAndCoreCommands(program);
+  registerImportAndUtilityCommands(program);
+  registerObjectAndRapCommands(program);
+  await registerPluginCommands(program, options);
 
-  authCmd.addCommand(loginCommand);
-  authCmd.addCommand(logoutCommand);
-  authCmd.addCommand(statusCommand);
-  authCmd.addCommand(authListCommand);
-  authCmd.addCommand(setDefaultCommand);
-  authCmd.addCommand(refreshCommand);
-
-  // Discovery command
-  program.addCommand(discoveryCommand);
-
-  // Info command (system and session info)
-  program.addCommand(infoCommand);
-
-  // Fetch command (authenticated HTTP requests)
-  program.addCommand(fetchCommand);
-
-  // Object inspector command
-  program.addCommand(getCommand);
-
-  // Get subcommands for specific object types (legacy: adt get package <name>)
-  getCommand.addCommand(packageGetCommand);
-  getCommand.addCommand(getBadiCommand);
-
-  // Package commands (adt package create/list/delete/activate/stat/get)
-  program.addCommand(createPackageCommand());
-
-  // ATC (ABAP Test Cockpit) command - now loaded as plugin from @abapify/adt-atc
-  // Add '@abapify/adt-atc/commands/atc' to adt.config.ts commands array to enable
-
-  // Search command
-  program.addCommand(searchCommand);
-
-  // List objects in repository (format-aware: abapgit, AFF)
-  program.addCommand(lsCommand);
-
-  // CTS commands (v2 client) - replaces old 'transport' command
-  // Use: adt cts search, adt cts get <TR>
-  // NOTE: Future commands - adt cts create, adt cts release (via ADK), adt cts check
-  program.addCommand(createCtsCommand());
-
-  // Import commands
-  const importCmd = program
-    .command('import')
-    .description('Import ABAP objects to various formats (abapGit, etc.)');
-
-  importCmd.addCommand(importObjectCommand);
-  importCmd.addCommand(importPackageCommand);
-  importCmd.addCommand(importTransportCommand);
-
-  // Export commands - moved to @abapify/adt-export plugin
-  // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
-
-  // Deploy command moved to @abapify/adt-export plugin
-  // Add '@abapify/adt-export/commands/export' to adt.config.ts commands array to enable
-
-  // Lock command (acquire lock, persist handle)
-  program.addCommand(lockCommand);
-
-  // Unlock command (force-release stale locks)
-  program.addCommand(unlockCommand);
-
-  // Locks command (list/cleanup persisted lock handles)
-  program.addCommand(locksCommand);
-
-  // Check command (syntax check / checkruns)
-  program.addCommand(checkCommand);
-
-  // Source command (read/write ABAP source code)
-  program.addCommand(sourceCommand);
-  program.addCommand(lintCommand);
-  program.addCommand(contextCommand);
-  program.addCommand(createDiagnoseCommand());
-
-  // User lookup command
-  program.addCommand(userCommand);
-
-  // STRUST command (SSL PSE cert management)
-  program.addCommand(strustCommand);
-
-  // Object CRUD commands (class, program, interface, include)
-  program.addCommand(classCommand);
-  program.addCommand(programCommand);
-  program.addCommand(interfaceCommand);
-  program.addCommand(includeCommand);
-  program.addCommand(functionCommand);
-
-  // DDIC commands (domain, dataelement, table, structure)
-  program.addCommand(domainCommand);
-  program.addCommand(dataelementCommand);
-  program.addCommand(tableCommand);
-  program.addCommand(structureCommand);
-
-  // Datapreview (OSQL queries)
-  program.addCommand(createDatapreviewCommand());
-
-  // ABAP execution (abap run)
-  program.addCommand(createAbapCommand());
-
-  // CDS/RAP commands (DDL, DCL)
-  program.addCommand(ddlCommand);
-  program.addCommand(dclCommand);
-  program.addCommand(bdefCommand);
-  program.addCommand(badiCommand);
-  program.addCommand(srvdCommand);
-  program.addCommand(srvbCommand);
-
-  // Checkout command (download SAP objects to abapgit-compatible files)
-  program.addCommand(createCheckoutCommand());
-
-  // Checkin command (push local abapGit/gCTS directory into SAP — inverse of checkout)
-  program.addCommand(checkinCommand);
-
-  // Changeset command (Wave 3) — transactional unit-of-work: begin/add/commit/rollback
-  program.addCommand(createChangesetCommand());
-
-  // RFC command (E13) — invoke classic RFC function modules via SOAP-over-HTTP
-  program.addCommand(rfcCommand);
-
-  // FLP command (E14) — Fiori Launchpad inventory (read-only)
-  program.addCommand(createFlpCommand());
-
-  // Workbench navigation (E15) — where-used, callers, callees, definition, outline
-  program.addCommand(createWbCommand());
-
-  // REPL - Interactive hypermedia navigator
-  program.addCommand(createReplCommand());
-
-  // Proxy command - ADT proxy server with JSON↔XML conversion
-  program.addCommand(proxyCommand);
-
-  // gCTS command-plugin (E07). Auto-registered here (not via adt.config.ts)
-  // because `@abapify/adt-plugin-gcts-cli` is a required dependency of
-  // `adt-cli`, matching the pattern used for the abapGit/gCTS *format*
-  // plugins above.
-  await loadStaticPlugins(program, [gctsCommand], process.cwd());
-
-  // Load command plugins from config (adt.config.ts or --config)
-  // NOTE: We need to parse --config early since plugins must be loaded before parseAsync()
-  const configPath = getResolvedConfigPath(process.argv);
-
-  if (options?.preloadedPlugins !== undefined) {
-    // Bundled mode: register statically imported plugins (no dynamic import needed)
-    await loadStaticPlugins(
-      program,
-      options.preloadedPlugins,
-      process.cwd(),
-      configPath,
-    );
-  } else {
-    await loadCommandPlugins(program, process.cwd(), configPath);
-  }
-
-  // Apply global options help to all commands using afterAll hook
   addGlobalOptionsHelpToAll(program);
 
   return program;

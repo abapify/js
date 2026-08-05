@@ -1284,8 +1284,11 @@ export function createHttpBrokerOperations(
           enhancement: _enhancement,
           source: _source,
           ...metadata
-        } = await new BadiService(client).get(badiName, {
-          includeImplementations: options?.includeImplementations,
+        } = await new BadiService(client).get({
+          name: badiName,
+          options: {
+            includeImplementations: options?.includeImplementations,
+          },
         });
         return metadata;
       });
