@@ -104,10 +104,14 @@ test('aborts a generated request with its caller-provided signal', async () => {
   const client = createAdtServerClient({
     baseUrl: 'http://adt-server.test',
     fetch: async (_input, init) => {
-      observedSignal = init?.signal ?? undefined;
+      const signal = init?.signal;
+      if (!signal) {
+        throw new Error('Generated client did not forward a request signal');
+      }
+      observedSignal = signal;
       return await new Promise<Response>((_resolve, reject) => {
-        observedSignal?.addEventListener('abort', () => {
-          reject(observedSignal?.reason);
+        signal.addEventListener('abort', () => {
+          reject(signal.reason);
         });
       });
     },
