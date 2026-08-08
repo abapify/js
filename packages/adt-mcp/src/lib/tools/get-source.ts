@@ -201,6 +201,8 @@ function compileGrepPattern(
     };
   }
   try {
+    // Dynamic pattern is validated above (length, nested quantifiers, backrefs, lookarounds).
+    // nosemgrep
     return { regex: new RegExp(pattern, 'i') };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
