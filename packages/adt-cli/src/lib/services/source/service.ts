@@ -332,7 +332,7 @@ function compileGrepPattern(
     return {
       regex:
         // eslint-disable-next-line
-        new RegExp(pattern, 'i'), // nosemgrep
+        new RegExp(pattern, 'i'), // lgtm [js/regex-injection] // nosemgrep
     };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
