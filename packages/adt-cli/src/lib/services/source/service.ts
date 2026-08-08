@@ -328,9 +328,11 @@ function compileGrepPattern(
   }
   try {
     // Dynamic pattern is validated above for dangerous constructs.
-    // nosemgrep
-    // eslint-disable-next-line prefer-regex-literals
-    return { regex: new RegExp(pattern, 'i') };
+    return {
+      regex:
+        // eslint-disable-next-line prefer-regex-literals
+        new RegExp(pattern, 'i'), // nosemgrep: guarded by isDisallowedRegex/length checks above.
+    };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
   }

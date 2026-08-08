@@ -488,6 +488,10 @@
           "value": 25
         },
         {
+          "name": "function_lines_of_code_warning",
+          "value": 120
+        },
+        {
           "name": "function_complex_conditional_branches_warning",
           "value": 5
         },
