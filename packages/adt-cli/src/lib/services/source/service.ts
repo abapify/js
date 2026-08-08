@@ -331,7 +331,8 @@ function compileGrepPattern(
     // User-supplied regex is guarded by isDisallowedRegex and length checks.
     return {
       regex:
-        // lgtm[js/regex-injection]
+        // codeql[js/regex-injection]
+        // lgtm [js/regex-injection]
         new RegExp(pattern, 'i'), // eslint-disable-line -- nosemgrep
     };
   } catch {
