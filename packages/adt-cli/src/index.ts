@@ -73,6 +73,21 @@ export {
   type ListObjectVersionsResult,
 } from './lib/services/source-history';
 
+// Source retrieval — shared by CLI and MCP for arc-1 SAPRead parity.
+export {
+  getSource,
+  GetSourceTooLargeError,
+  type GetSourceOptions,
+  type GetSourceResult,
+  type GetSourceDefaultResult,
+  type GetSourceMethodListResult,
+  type GetSourceMethodResult,
+  type GetSourceGrepResult,
+  type GetSourceStructuredResult,
+  type SourceInclude,
+  type SourceMethod,
+} from './lib/services/source';
+
 export {
   CheckService,
   DEFAULT_CHECK_SOURCE_VERSION,

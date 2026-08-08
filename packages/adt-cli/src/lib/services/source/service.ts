@@ -1,0 +1,636 @@
+/**
+ * Source retrieval service shared by CLI and MCP surfaces.
+ *
+ * Implements arc-1 SAPRead-style parity for reading ABAP source:
+ *   - version (active/inactive)
+ *   - include (class includes / source sections)
+ *   - method (method-level read or method list)
+ *   - grep (token-efficient regex search with context)
+ *   - maxBytes (bounded read with a hard cap)
+ *   - format (raw text or structured class includes / method boundaries)
+ */
+
+import { Buffer } from 'node:buffer';
+import { AdtResponseTooLargeError, type AdtClient } from '@abapify/adt-client';
+import { detectMethodBoundary, normalizeMethodBody } from '@abapify/adt-lint';
+import { getObjectUri } from '@abapify/adk';
+import { normalizeSearchResults } from '../../utils/lock-helpers';
+
+const DEFAULT_MAX_SOURCE_BYTES = 1024 * 1024;
+const HARD_MAX_SOURCE_BYTES = 2 * 1024 * 1024;
+const GREP_CONTEXT_LINES = 3;
+const MAX_GREP_PATTERN_LENGTH = 512;
+
+const VALID_CLASS_INCLUDES = new Set([
+  'main',
+  'definitions',
+  'implementations',
+  'testclasses',
+  'macros',
+  'text_symbols',
+]);
+
+// ReDoS-mitigation: reject patterns likely to cause catastrophic backtracking.
+const NESTED_QUANTIFIER_GROUP =
+  /\((?:\?:)?(?:[^()[\]\\]|\\.|\[[^\]]*\])*[*+{](?:[^()[\]\\]|\\.|\[[^\]]*\])*\)\s*(?:[*+?]|\{\d)/;
+const BACKREFERENCE = /\\[1-9]/;
+const LOOKAROUND = /\(\?(?:[=!]|<[=!])/;
+
+export interface GetSourceOptions {
+  objectName: string;
+  objectType?: string;
+  version?: string;
+  include?: string;
+  method?: string;
+  grep?: string;
+  maxBytes?: number;
+  format?: 'raw' | 'structured';
+}
+
+export interface GetSourceDefaultResult {
+  object: string;
+  source: string;
+  bytes: number;
+  version: string;
+  include?: string;
+  note?: string;
+}
+
+export interface GetSourceMethodListResult {
+  object: string;
+  methodCount: number;
+  methods: string[];
+  note?: string;
+}
+
+export interface GetSourceMethodResult {
+  object: string;
+  method: string;
+  source: string;
+  startLine: number;
+  endLine: number;
+  bytes: number;
+  note?: string;
+}
+
+export interface GetSourceGrepResult {
+  object: string;
+  pattern: string;
+  matchCount: number;
+  matches: string[];
+  note?: string;
+}
+
+export interface SourceInclude {
+  name: string;
+  startLine: number;
+  endLine: number;
+}
+
+export interface SourceMethod {
+  name: string;
+  startLine: number;
+  endLine: number;
+}
+
+export interface GetSourceStructuredResult {
+  object: string;
+  source: string;
+  bytes: number;
+  version: string;
+  include?: string;
+  includes: SourceInclude[];
+  methods: SourceMethod[];
+  note?: string;
+}
+
+export type GetSourceResult =
+  | GetSourceDefaultResult
+  | GetSourceMethodListResult
+  | GetSourceMethodResult
+  | GetSourceGrepResult
+  | GetSourceStructuredResult;
+
+const CLASS_START =
+  /^CLASS\s+(\S+)(?:\s+(DEFINITION|IMPLEMENTATION))?(?:\s+FOR\s+TESTING[^.]*)?\s*\.\s*$/i;
+const INTERFACE_START = /^INTERFACE\s+(\S+)(?:\s+DEFINITION)?\s*\.\s*$/i;
+const METHOD_START = /^METHOD\s+(\S+)\s*\.\s*$/i;
+
+function classifyClassInclude(startLine: string): string {
+  const upper = startLine.toUpperCase();
+  if (upper.includes('FOR TESTING')) return 'testclasses';
+  if (upper.includes('DEFINITION')) return 'definitions';
+  if (upper.includes('IMPLEMENTATION')) return 'implementations';
+  return 'main';
+}
+
+function parseStructuredSource(
+  source: string,
+  objectType: string | undefined,
+): { includes: SourceInclude[]; methods: SourceMethod[] } {
+  const lines = source.split(/\r?\n/);
+  const includes: SourceInclude[] = [];
+  const methods: SourceMethod[] = [];
+
+  type Block =
+    | { kind: 'class'; name: string; startLine: number; includeType: string }
+    | { kind: 'interface'; name: string; startLine: number }
+    | { kind: 'method'; name: string; startLine: number };
+
+  const stack: Block[] = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const rawLine = lines[i] ?? '';
+    const line = stripInlineComment(rawLine).trim();
+    if (!line) continue;
+
+    const classMatch = CLASS_START.exec(line);
+    const interfaceMatch = INTERFACE_START.exec(line);
+    const methodMatch = METHOD_START.exec(line);
+
+    if (classMatch) {
+      stack.push({
+        kind: 'class',
+        name: classMatch[1]!,
+        startLine: i + 1,
+        includeType: classifyClassInclude(line),
+      });
+      continue;
+    }
+
+    if (interfaceMatch) {
+      stack.push({
+        kind: 'interface',
+        name: interfaceMatch[1]!,
+        startLine: i + 1,
+      });
+      continue;
+    }
+
+    if (methodMatch) {
+      // Only record method implementations, not METHODS: declarations.
+      if (stack.length === 0 || stack[stack.length - 1]!.kind === 'method') {
+        continue;
+      }
+      stack.push({
+        kind: 'method',
+        name: methodMatch[1]!.toUpperCase(),
+        startLine: i + 1,
+      });
+      continue;
+    }
+
+    const upper = line.toUpperCase();
+
+    if (upper === 'ENDMETHOD.') {
+      const top = stack[stack.length - 1];
+      if (top?.kind === 'method') {
+        methods.push({
+          name: top.name,
+          startLine: top.startLine,
+          endLine: i + 1,
+        });
+        stack.pop();
+      }
+      continue;
+    }
+
+    if (upper === 'ENDCLASS.' || upper === 'ENDINTERFACE.') {
+      // Close any unclosed methods first (best-effort for malformed source).
+      while (stack.length > 0) {
+        const top = stack[stack.length - 1];
+        if (top?.kind === 'method') {
+          methods.push({
+            name: top.name,
+            startLine: top.startLine,
+            endLine: i + 1,
+          });
+          stack.pop();
+        } else {
+          break;
+        }
+      }
+
+      const top = stack[stack.length - 1];
+      if (top?.kind === 'class' && upper === 'ENDCLASS.') {
+        includes.push({
+          name: top.includeType,
+          startLine: top.startLine,
+          endLine: i + 1,
+        });
+        stack.pop();
+      } else if (top?.kind === 'interface' && upper === 'ENDINTERFACE.') {
+        includes.push({
+          name: 'main',
+          startLine: top.startLine,
+          endLine: i + 1,
+        });
+        stack.pop();
+      }
+    }
+  }
+
+  // Any still-open blocks are ignored (source is incomplete).
+  return { includes, methods };
+}
+
+export class GetSourceTooLargeError extends Error {
+  readonly code = 'SOURCE_TOO_LARGE' as const;
+
+  constructor(public readonly maxBytes: number) {
+    super(`Source exceeds the requested ${maxBytes}-byte limit.`);
+    this.name = 'GetSourceTooLargeError';
+  }
+}
+
+function stripInlineComment(line: string): string {
+  const idx = line.indexOf('"');
+  return idx >= 0 ? line.slice(0, idx) : line;
+}
+
+function extractMethodNameFromHeader(line: string): string | undefined {
+  const trimmed = stripInlineComment(line).trim();
+  const upper = trimmed.toUpperCase();
+  if (!upper.startsWith('METHOD ') || !upper.endsWith('.')) {
+    return undefined;
+  }
+
+  const withoutKeyword = trimmed.slice('METHOD '.length, -1).trim();
+  if (!withoutKeyword) {
+    return undefined;
+  }
+  const firstToken = /^[^\s]+/.exec(withoutKeyword)?.[0];
+  return firstToken?.toUpperCase();
+}
+
+function listMethods(source: string): string[] {
+  const methods: string[] = [];
+  const seen = new Set<string>();
+  for (const line of source.split(/\r?\n/)) {
+    const name = extractMethodNameFromHeader(line);
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      methods.push(name);
+    }
+  }
+  return methods;
+}
+
+function extractMethodBlock(
+  source: string,
+  methodName: string,
+): { source: string; startLine: number; endLine: number } | undefined {
+  const boundary = detectMethodBoundary(source, methodName);
+  if (!boundary) {
+    return undefined;
+  }
+
+  const lines = source.split(/\r?\n/);
+  const start = boundary.startLine - 1;
+  const end = boundary.endLine;
+  const methodSource = lines.slice(start, end).join('\n');
+  const body = normalizeMethodBody(methodSource, methodName);
+
+  const methodBlock = [
+    `METHOD ${methodName.toUpperCase()}.`,
+    body,
+    'ENDMETHOD.',
+  ].join('\n');
+
+  return {
+    source: methodBlock,
+    startLine: boundary.startLine,
+    endLine: boundary.endLine,
+  };
+}
+
+function isDisallowedRegex(pattern: string): boolean {
+  return (
+    NESTED_QUANTIFIER_GROUP.test(pattern) ||
+    BACKREFERENCE.test(pattern) ||
+    LOOKAROUND.test(pattern)
+  );
+}
+
+function compileGrepPattern(
+  pattern: string,
+): { regex: RegExp } | { invalidPattern: string } {
+  if (pattern.length > MAX_GREP_PATTERN_LENGTH) {
+    return {
+      invalidPattern: `Grep pattern exceeds maximum length of ${MAX_GREP_PATTERN_LENGTH} characters.`,
+    };
+  }
+  if (isDisallowedRegex(pattern)) {
+    return {
+      invalidPattern:
+        'Grep pattern uses constructs that are not allowed for safety (nested quantifiers, backreferences, or lookarounds).',
+    };
+  }
+  try {
+    // Dynamic pattern is validated above for dangerous constructs.
+    // eslint-disable-next-line prefer-regex-literals
+    return { regex: new RegExp(pattern, 'i') };
+  } catch {
+    return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
+  }
+}
+
+function findMatchingLines(lines: string[], regex: RegExp): number[] {
+  const matched: number[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (regex.test(lines[i] ?? '')) {
+      matched.push(i);
+    }
+  }
+  return matched;
+}
+
+function buildContextSet(lines: string[], matched: number[]): Set<number> {
+  const context = new Set<number>();
+  const lastIndex = lines.length - 1;
+  for (const idx of matched) {
+    const from = Math.max(0, idx - GREP_CONTEXT_LINES);
+    const to = Math.min(lastIndex, idx + GREP_CONTEXT_LINES);
+    for (let i = from; i <= to; i += 1) {
+      context.add(i);
+    }
+  }
+  return context;
+}
+
+function formatGrepResult(lines: string[], context: Set<number>): string[] {
+  const sorted = Array.from(context).sort((a, b) => a - b);
+  const result: string[] = [];
+  let prev = -2;
+  for (const idx of sorted) {
+    if (idx - prev > 1) {
+      result.push('---');
+    }
+    const lineNumber = (idx + 1).toString().padStart(5, ' ');
+    result.push(`${lineNumber}: ${lines[idx] ?? ''}`);
+    prev = idx;
+  }
+  return result;
+}
+
+function grepSource(
+  source: string,
+  pattern: string,
+): { matches: string[]; matchCount: number; invalidPattern?: string } {
+  const compileResult = compileGrepPattern(pattern);
+  if ('invalidPattern' in compileResult) {
+    return {
+      matches: [],
+      matchCount: 0,
+      invalidPattern: compileResult.invalidPattern,
+    };
+  }
+
+  const lines = source.split(/\r?\n/);
+  const matched = findMatchingLines(lines, compileResult.regex);
+  if (matched.length === 0) {
+    return { matches: [], matchCount: 0 };
+  }
+
+  const context = buildContextSet(lines, matched);
+  return {
+    matches: formatGrepResult(lines, context),
+    matchCount: matched.length,
+  };
+}
+
+function appendVersion(url: string, version: string | undefined): string {
+  if (!version) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}version=${encodeURIComponent(version)}`;
+}
+
+function buildClassIncludeUrl(
+  objectUri: string,
+  include: string,
+  version: string | undefined,
+): string {
+  const normalized = include.toLowerCase();
+  const base =
+    normalized === 'main'
+      ? `${objectUri}/source/main`
+      : `${objectUri}/includes/${encodeURIComponent(normalized)}`;
+  return appendVersion(base, version);
+}
+
+function buildSourceUrl(
+  objectUri: string,
+  objectType: string | undefined,
+  include: string | undefined,
+  version: string | undefined,
+): { url: string; note?: string } {
+  const upperType = objectType?.toUpperCase();
+  const normalizedInclude = include?.toLowerCase();
+
+  if (!normalizedInclude) {
+    return { url: appendVersion(`${objectUri}/source/main`, version) };
+  }
+
+  if (upperType === 'CLAS') {
+    const includes = normalizedInclude
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s): s is string => Boolean(s));
+    const firstInclude = includes[0];
+    if (!firstInclude) {
+      return { url: appendVersion(`${objectUri}/source/main`, version) };
+    }
+    if (!VALID_CLASS_INCLUDES.has(firstInclude)) {
+      return {
+        url: appendVersion(`${objectUri}/source/main`, version),
+        note: `Unknown class include "${firstInclude}". Valid: ${Array.from(VALID_CLASS_INCLUDES).join(', ')}. Returning main source.`,
+      };
+    }
+    if (includes.length === 1) {
+      return { url: buildClassIncludeUrl(objectUri, firstInclude, version) };
+    }
+    return {
+      url: buildClassIncludeUrl(objectUri, firstInclude, version),
+      note: `Multiple includes requested (${include}); current implementation returns the first include "${firstInclude}". Use separate calls or a single include for precise reads.`,
+    };
+  }
+
+  if (upperType === 'DDLS' && normalizedInclude === 'elements') {
+    return {
+      url: appendVersion(`${objectUri}/source/main`, version),
+      note: 'include="elements" is not yet supported for DDLS; returning main source.',
+    };
+  }
+
+  if (upperType === 'FUNC' && normalizedInclude === 'signature') {
+    return {
+      url: appendVersion(`${objectUri}/source/main`, version),
+      note: 'include="signature" is not yet supported for FUNC; returning main source.',
+    };
+  }
+
+  return {
+    url: appendVersion(`${objectUri}/source/main`, version),
+    note: `include="${include}" is only supported for CLAS; returning main source.`,
+  };
+}
+
+async function resolveUri(
+  client: AdtClient,
+  objectName: string,
+  objectType?: string,
+): Promise<string> {
+  if (objectType) {
+    const uri = getObjectUri(objectType, objectName);
+    if (uri) return uri;
+  }
+
+  const searchResult =
+    await client.adt.repository.informationsystem.search.quickSearch({
+      query: objectName,
+      maxResults: 10,
+    });
+
+  const objects = normalizeSearchResults(
+    searchResult as Record<string, unknown>,
+  );
+  const match = objects.find(
+    (o) => o.name?.toUpperCase() === objectName.toUpperCase(),
+  );
+
+  if (!match?.uri) {
+    throw new Error(`Object '${objectName}' not found`);
+  }
+  return match.uri;
+}
+
+async function fetchSource(
+  client: AdtClient,
+  url: string,
+  maxBytes: number,
+): Promise<string> {
+  try {
+    return await client.readTextBounded(url, maxBytes, {
+      headers: { Accept: 'text/plain' },
+    });
+  } catch (error) {
+    if (error instanceof AdtResponseTooLargeError) {
+      throw new GetSourceTooLargeError(maxBytes);
+    }
+    throw error;
+  }
+}
+
+function methodTypeSupported(objectType: string | undefined): boolean {
+  const upperType = objectType?.toUpperCase();
+  return !upperType || upperType === 'CLAS' || upperType === 'INTF';
+}
+
+/**
+ * Fetch ABAP source with arc-1 SAPRead-style filtering.
+ *
+ * @throws {GetSourceTooLargeError} when the source body exceeds maxBytes.
+ * @throws {Error} for resolution or validation failures.
+ */
+export async function getSource(
+  client: AdtClient,
+  options: GetSourceOptions,
+): Promise<GetSourceResult> {
+  const {
+    objectName,
+    objectType,
+    version = 'active',
+    include,
+    method,
+    grep,
+    maxBytes: requestedMaxBytes,
+    format = 'raw',
+  } = options;
+
+  if (grep && method) {
+    throw new Error(
+      'Do not combine grep with method. Use grep to find code, then method="<name>" to read the full method.',
+    );
+  }
+
+  if (format === 'structured' && (method || grep)) {
+    throw new Error(
+      'format=structured cannot be combined with method or grep.',
+    );
+  }
+
+  const maxBytes = Math.min(
+    requestedMaxBytes ?? DEFAULT_MAX_SOURCE_BYTES,
+    HARD_MAX_SOURCE_BYTES,
+  );
+
+  const objectUri = await resolveUri(client, objectName, objectType);
+  const { url, note } = buildSourceUrl(objectUri, objectType, include, version);
+
+  const source = await fetchSource(client, url, maxBytes);
+
+  if (method) {
+    if (!methodTypeSupported(objectType)) {
+      throw new Error(
+        `method is only supported for CLAS/INTF, but objectType was "${objectType}"`,
+      );
+    }
+    if (method === '*') {
+      const methods = listMethods(source);
+      return { object: objectName, methodCount: methods.length, methods, note };
+    }
+    const extracted = extractMethodBlock(source, method);
+    if (!extracted) {
+      throw new Error(`Method ${method} not found in ${objectName}`);
+    }
+    return {
+      object: objectName,
+      method: method.toUpperCase(),
+      source: extracted.source,
+      startLine: extracted.startLine,
+      endLine: extracted.endLine,
+      bytes: Buffer.byteLength(extracted.source, 'utf8'),
+      note,
+    };
+  }
+
+  if (grep) {
+    const grepResult = grepSource(source, grep);
+    if (grepResult.invalidPattern) {
+      throw new Error(grepResult.invalidPattern);
+    }
+    return {
+      object: objectName,
+      pattern: grep,
+      matchCount: grepResult.matchCount,
+      matches: grepResult.matches,
+      note,
+    };
+  }
+
+  if (format === 'structured') {
+    const { includes, methods: methodBoundaries } = parseStructuredSource(
+      source,
+      objectType,
+    );
+    return {
+      object: objectName,
+      source,
+      bytes: Buffer.byteLength(source, 'utf8'),
+      version,
+      include,
+      includes,
+      methods: methodBoundaries,
+      note,
+    };
+  }
+
+  return {
+    object: objectName,
+    source,
+    bytes: Buffer.byteLength(source, 'utf8'),
+    version,
+    include,
+    note,
+  };
+}

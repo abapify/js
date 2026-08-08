@@ -269,13 +269,15 @@ Fetch ABAP source code for a program, class, interface, or function group. Suppo
 | `method`     | string? | For `CLAS`: method name to read, or `*` to list all methods.                                                    |
 | `grep`       | string? | Regex pattern; returns matching source lines with context instead of full source.                               |
 | `maxBytes`   | number? | Maximum UTF-8 response size in bytes (default 1 MiB, hard cap 2 MiB).                                           |
+| `format`     | enum?   | `raw` (default) or `structured` (class includes and method boundaries as JSON).                                 |
 
 **Returns:**
 
-- Default: `{ bytes, source, version, include }`
+- Default: `{ object, bytes, source, version, include }`
 - `method=*`: `{ object, methodCount, methods }`
 - `method=<name>`: `{ object, method, startLine, endLine, bytes, source }`
 - `grep`: `{ object, pattern, matchCount, matches }`
+- `format=structured`: `{ object, source, bytes, version, include, includes, methods }`
 
 **Examples:**
 

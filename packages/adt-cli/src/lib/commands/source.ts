@@ -18,6 +18,7 @@ import {
   toMetadataOnlySourceVersionListing,
   type ListObjectVersionsResult,
 } from '../services/source-history';
+import { getSource, type GetSourceResult } from '../services/source';
 import { createLockService, resolveLockCorrelation } from '@abapify/adt-locks';
 import { getObjectUri } from '@abapify/adk';
 import {
@@ -198,37 +199,67 @@ async function resolveUri(
 
 // ── sub-commands ─────────────────────────────────────────────────────────────
 
+function formatGetSourceResult(result: GetSourceResult): string {
+  if ('includes' in result) {
+    return JSON.stringify(result, null, 2);
+  }
+  if ('source' in result) {
+    return result.source;
+  }
+  if ('matches' in result) {
+    return result.matches.join('\n');
+  }
+  if ('methods' in result) {
+    return result.methods.join('\n');
+  }
+  return '';
+}
+
 const getSourceCommand = new Command('get')
   .description('Print ABAP source code for an object to stdout')
   .argument('<objectName>', 'ABAP object name')
   .option('--type <type>', 'Object type hint (e.g. CLAS, PROG, INTF)')
+  .option('--version <version>', 'Source version (active or inactive)')
+  .option('--include <include>', 'Source include/section (e.g. testclasses)')
+  .option('--method <method>', 'Method name to read, or * to list methods')
+  .option('--grep <pattern>', 'Search source with regex context')
+  .option('--max-bytes <bytes>', 'Maximum source bytes to retrieve', '1048576')
+  .option('--format <format>', 'Output format (raw or structured)', 'raw')
   .option('--json', 'Output result as JSON')
   .action(
-    async (objectName: string, options: { type?: string; json?: boolean }) => {
+    async (
+      objectName: string,
+      options: {
+        type?: string;
+        version?: string;
+        include?: string;
+        method?: string;
+        grep?: string;
+        maxBytes?: string;
+        format?: string;
+        json?: boolean;
+      },
+    ) => {
       try {
         const client = await getAdtClientV2();
-        const uri = await resolveUri(client, objectName, options.type);
+        const result = await getSource(client, {
+          objectName,
+          objectType: options.type,
+          version: options.version,
+          include: options.include,
+          method: options.method,
+          grep: options.grep,
+          maxBytes: options.maxBytes ? Number(options.maxBytes) : undefined,
+          format: options.format === 'structured' ? 'structured' : 'raw',
+        });
 
-        // Prefer typed source contract for well-known object types (CLAS/INTF/PROG/DDLS/DCLS)
-        const contract = pickSourceContract(client, uri);
-        let source: string;
-        if (contract) {
-          source = await contract.op.get(contract.objectName);
+        if (options.json || options.format === 'structured') {
+          console.log(JSON.stringify(result, null, 2));
         } else {
-          // TODO: generic fallback — remove once all object types have
-          // typed source contracts (e.g. FUGR/FUNC, DOMA source, etc.).
-          source = String(
-            await client.fetch(`${uri}/source/main`, {
-              method: 'GET',
-              headers: { Accept: 'text/plain' },
-            }),
-          );
-        }
-
-        if (options.json) {
-          console.log(JSON.stringify({ objectName, uri, source }, null, 2));
-        } else {
-          process.stdout.write(source);
+          process.stdout.write(formatGetSourceResult(result));
+          if ('note' in result && result.note) {
+            process.stderr.write(`\nNote: ${result.note}\n`);
+          }
         }
       } catch (error) {
         console.error(
