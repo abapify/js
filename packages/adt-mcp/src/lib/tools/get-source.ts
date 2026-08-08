@@ -24,6 +24,13 @@ import { resolveObjectUri } from './utils';
 const DEFAULT_MAX_SOURCE_BYTES = 1024 * 1024;
 const HARD_MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 const GREP_CONTEXT_LINES = 3;
+const MAX_GREP_PATTERN_LENGTH = 512;
+
+// ReDoS-mitigation: reject patterns that are likely to cause catastrophic backtracking.
+const NESTED_QUANTIFIER_GROUP =
+  /\((?:\?:)?(?:[^()[\]\\]|\\.|\[[^\]]*])*[*+{](?:[^()[\]\\]|\\.|\[[^\]]*])*\)\s*(?:[*+?]|\{\d)/;
+const BACKREFERENCE = /\\[1-9]/;
+const LOOKAROUND = /\(\?(?:[=!]|<[=!])/;
 
 const VALID_CLASS_INCLUDES = new Set([
   'main',
@@ -67,7 +74,8 @@ function extractMethodNameFromHeader(line: string): string | undefined {
   if (!withoutKeyword) {
     return undefined;
   }
-  return withoutKeyword.split(/\s+/)[0]?.toUpperCase();
+  const firstToken = /^[^\s]+/.exec(withoutKeyword)?.[0];
+  return firstToken?.toUpperCase();
 }
 
 function listMethods(source: string): string[] {
@@ -111,20 +119,44 @@ function extractMethodBlock(
   };
 }
 
+function compileGrepPattern(
+  pattern: string,
+): { regex: RegExp } | { invalidPattern: string } {
+  if (pattern.length > MAX_GREP_PATTERN_LENGTH) {
+    return {
+      invalidPattern: `Grep pattern exceeds maximum length of ${MAX_GREP_PATTERN_LENGTH} characters.`,
+    };
+  }
+  if (
+    NESTED_QUANTIFIER_GROUP.test(pattern) ||
+    BACKREFERENCE.test(pattern) ||
+    LOOKAROUND.test(pattern)
+  ) {
+    return {
+      invalidPattern:
+        'Grep pattern uses constructs that are not allowed for safety (nested quantifiers, backreferences, or lookarounds).',
+    };
+  }
+  try {
+    return { regex: new RegExp(pattern, 'i') };
+  } catch {
+    return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
+  }
+}
+
 function grepSource(
   source: string,
   pattern: string,
 ): { matches: string[]; matchCount: number; invalidPattern?: string } {
-  let regex: RegExp;
-  try {
-    regex = new RegExp(pattern, 'i');
-  } catch {
+  const compileResult = compileGrepPattern(pattern);
+  if ('invalidPattern' in compileResult) {
     return {
       matches: [],
       matchCount: 0,
-      invalidPattern: `Invalid regex pattern: "${pattern}"`,
+      invalidPattern: compileResult.invalidPattern,
     };
   }
+  const { regex } = compileResult;
 
   const lines = source.split(/\r?\n/);
   const matched = new Set<number>();
