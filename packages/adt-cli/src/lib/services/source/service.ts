@@ -331,8 +331,8 @@ function compileGrepPattern(
     // User-supplied regex is guarded by isDisallowedRegex and length checks.
     return {
       regex:
-        // eslint-disable-next-line
-        new RegExp(pattern, 'i'), // lgtm [js/regex-injection] // nosemgrep
+        // lgtm[js/regex-injection]
+        new RegExp(pattern, 'i'), // eslint-disable-line -- nosemgrep
     };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
