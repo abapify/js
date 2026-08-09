@@ -18,7 +18,11 @@ import {
   toMetadataOnlySourceVersionListing,
   type ListObjectVersionsResult,
 } from '../services/source-history';
-import { getSource, type GetSourceResult } from '../services/source';
+import {
+  getSource,
+  type GetSourceResult,
+  type GrepMatch,
+} from '../services/source';
 import { createLockService, resolveLockCorrelation } from '@abapify/adt-locks';
 import { getObjectUri } from '@abapify/adk';
 import {
@@ -199,6 +203,28 @@ async function resolveUri(
 
 // ── sub-commands ─────────────────────────────────────────────────────────────
 
+function formatGrepMatch(match: GrepMatch): string {
+  const scope = [match.class, match.include, match.method]
+    .filter(Boolean)
+    .join('.');
+  const scopePrefix = scope ? `${scope} | ` : '';
+  const lineNumber = match.line.toString().padStart(5, ' ');
+  return `${scopePrefix}${lineNumber}: ${match.text}`;
+}
+
+function formatMethodContext(methodContext: GrepMatch[]): string {
+  const lines: string[] = [];
+  let prev = -1;
+  for (const match of methodContext) {
+    if (prev > 0 && match.line - prev > 1) {
+      lines.push('---');
+    }
+    lines.push(formatGrepMatch(match));
+    prev = match.line;
+  }
+  return lines.join('\n');
+}
+
 function formatGetSourceResult(result: GetSourceResult): string {
   if ('includes' in result) {
     return JSON.stringify(result, null, 2);
@@ -207,22 +233,9 @@ function formatGetSourceResult(result: GetSourceResult): string {
     return result.source;
   }
   if ('matches' in result) {
-    if (result.methodContext && result.methodContext.length > 0) {
-      const lines: string[] = [];
-      let prev = -1;
-      for (const m of result.methodContext) {
-        if (prev > 0 && m.line - prev > 1) {
-          lines.push('---');
-        }
-        const scope = [m.class, m.include, m.method].filter(Boolean).join('.');
-        const scopePrefix = scope ? `${scope} | ` : '';
-        const lineNumber = m.line.toString().padStart(5, ' ');
-        lines.push(`${scopePrefix}${lineNumber}: ${m.text}`);
-        prev = m.line;
-      }
-      return lines.join('\n');
-    }
-    return result.matches.join('\n');
+    return result.methodContext?.length
+      ? formatMethodContext(result.methodContext)
+      : result.matches.join('\n');
   }
   if ('methods' in result) {
     return result.methods.join('\n');

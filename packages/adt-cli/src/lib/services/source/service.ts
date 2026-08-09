@@ -136,124 +136,133 @@ function classifyClassInclude(startLine: string): string {
   return 'main';
 }
 
-function parseStructuredSource(
-  source: string,
-  objectType: string | undefined,
-): { includes: SourceInclude[]; methods: SourceMethod[] } {
-  const lines = source.split(/\r?\n/);
-  const includes: SourceInclude[] = [];
-  const methods: SourceMethod[] = [];
+type SourceBlock =
+  | { kind: 'class'; name: string; startLine: number; includeType: string }
+  | { kind: 'interface'; name: string; startLine: number }
+  | { kind: 'method'; name: string; startLine: number; owner?: string };
 
-  type Block =
-    | { kind: 'class'; name: string; startLine: number; includeType: string }
-    | { kind: 'interface'; name: string; startLine: number }
-    | { kind: 'method'; name: string; startLine: number; owner?: string };
+interface StructureParseState {
+  includes: SourceInclude[];
+  methods: SourceMethod[];
+  stack: SourceBlock[];
+  ownerStack: string[];
+}
 
-  const stack: Block[] = [];
-  const ownerStack: string[] = [];
+function openBlock(
+  state: StructureParseState,
+  line: string,
+  lineNumber: number,
+): boolean {
+  const classMatch = CLASS_START.exec(line);
+  if (classMatch) {
+    state.ownerStack.push(classMatch[1]!);
+    state.stack.push({
+      kind: 'class',
+      name: classMatch[1]!,
+      startLine: lineNumber,
+      includeType: classifyClassInclude(line),
+    });
+    return true;
+  }
 
-  for (let i = 0; i < lines.length; i += 1) {
-    const rawLine = lines[i] ?? '';
-    const line = stripInlineComment(rawLine).trim();
-    if (!line) continue;
+  const interfaceMatch = INTERFACE_START.exec(line);
+  if (interfaceMatch) {
+    state.ownerStack.push(interfaceMatch[1]!);
+    state.stack.push({
+      kind: 'interface',
+      name: interfaceMatch[1]!,
+      startLine: lineNumber,
+    });
+    return true;
+  }
 
-    const classMatch = CLASS_START.exec(line);
-    const interfaceMatch = INTERFACE_START.exec(line);
-    const methodMatch = METHOD_START.exec(line);
-
-    if (classMatch) {
-      ownerStack.push(classMatch[1]!);
-      stack.push({
-        kind: 'class',
-        name: classMatch[1]!,
-        startLine: i + 1,
-        includeType: classifyClassInclude(line),
-      });
-      continue;
-    }
-
-    if (interfaceMatch) {
-      ownerStack.push(interfaceMatch[1]!);
-      stack.push({
-        kind: 'interface',
-        name: interfaceMatch[1]!,
-        startLine: i + 1,
-      });
-      continue;
-    }
-
-    if (methodMatch) {
-      // Only record method implementations, not METHODS: declarations.
-      if (stack.length === 0 || stack[stack.length - 1]!.kind === 'method') {
-        continue;
-      }
-      stack.push({
+  const methodMatch = METHOD_START.exec(line);
+  if (methodMatch) {
+    const top = state.stack[state.stack.length - 1];
+    // Only record method implementations, not METHODS: declarations.
+    if (top && top.kind !== 'method') {
+      state.stack.push({
         kind: 'method',
         name: methodMatch[1]!.toUpperCase(),
-        startLine: i + 1,
-        owner: ownerStack[ownerStack.length - 1],
+        startLine: lineNumber,
+        owner: state.ownerStack[state.ownerStack.length - 1],
       });
-      continue;
     }
+    return true;
+  }
+
+  return false;
+}
+
+function closeOpenMethods(
+  state: StructureParseState,
+  endLine: number,
+  all: boolean,
+): void {
+  do {
+    const top = state.stack[state.stack.length - 1];
+    if (top?.kind !== 'method') return;
+    state.methods.push({
+      name: top.name,
+      startLine: top.startLine,
+      endLine,
+      owner: top.owner,
+    });
+    state.stack.pop();
+  } while (all);
+}
+
+function closeContainer(
+  state: StructureParseState,
+  keyword: 'ENDCLASS.' | 'ENDINTERFACE.',
+  endLine: number,
+): void {
+  // Close any unclosed methods first (best-effort for malformed source).
+  closeOpenMethods(state, endLine, true);
+
+  const top = state.stack[state.stack.length - 1];
+  const expected = keyword === 'ENDCLASS.' ? 'class' : 'interface';
+  if (top?.kind !== expected) return;
+
+  state.includes.push({
+    name: top.kind === 'class' ? top.includeType : 'main',
+    startLine: top.startLine,
+    endLine,
+    owner: top.name,
+  });
+  state.stack.pop();
+  state.ownerStack.pop();
+}
+
+function parseStructuredSource(source: string): {
+  includes: SourceInclude[];
+  methods: SourceMethod[];
+} {
+  const lines = source.split(/\r?\n/);
+  const state: StructureParseState = {
+    includes: [],
+    methods: [],
+    stack: [],
+    ownerStack: [],
+  };
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = stripInlineComment(lines[i] ?? '').trim();
+    if (!line) continue;
+
+    const lineNumber = i + 1;
+    if (openBlock(state, line, lineNumber)) continue;
 
     const upper = line.toUpperCase();
-
     if (upper === 'ENDMETHOD.') {
-      const top = stack[stack.length - 1];
-      if (top?.kind === 'method') {
-        methods.push({
-          name: top.name,
-          startLine: top.startLine,
-          endLine: i + 1,
-          owner: top.owner,
-        });
-        stack.pop();
-      }
-      continue;
-    }
-
-    if (upper === 'ENDCLASS.' || upper === 'ENDINTERFACE.') {
-      // Close any unclosed methods first (best-effort for malformed source).
-      while (stack.length > 0) {
-        const top = stack[stack.length - 1];
-        if (top?.kind === 'method') {
-          methods.push({
-            name: top.name,
-            startLine: top.startLine,
-            endLine: i + 1,
-            owner: top.owner,
-          });
-          stack.pop();
-        } else {
-          break;
-        }
-      }
-
-      const top = stack[stack.length - 1];
-      if (top?.kind === 'class' && upper === 'ENDCLASS.') {
-        includes.push({
-          name: top.includeType,
-          startLine: top.startLine,
-          endLine: i + 1,
-          owner: top.name,
-        });
-        stack.pop();
-        ownerStack.pop();
-      } else if (top?.kind === 'interface' && upper === 'ENDINTERFACE.') {
-        includes.push({
-          name: 'main',
-          startLine: top.startLine,
-          endLine: i + 1,
-          owner: top.name,
-        });
-        stack.pop();
-        ownerStack.pop();
-      }
+      closeOpenMethods(state, lineNumber, false);
+    } else if (upper === 'ENDCLASS.' || upper === 'ENDINTERFACE.') {
+      closeContainer(state, upper, lineNumber);
     }
   }
 
   // Any still-open blocks are ignored (source is incomplete).
-  return { includes, methods };
+  return { includes: state.includes, methods: state.methods };
 }
 
 export class GetSourceTooLargeError extends Error {
@@ -391,6 +400,31 @@ function buildContextSet(lines: string[], matched: number[]): Set<number> {
   return context;
 }
 
+function findEnclosing<T extends { startLine: number; endLine: number }>(
+  ranges: T[],
+  lineNumber: number,
+): T | undefined {
+  return ranges.find(
+    (range) => lineNumber >= range.startLine && lineNumber <= range.endLine,
+  );
+}
+
+function resolveLineContext(
+  lineNumber: number,
+  includes: SourceInclude[],
+  methods: SourceMethod[],
+): LineContext | undefined {
+  const include = findEnclosing(includes, lineNumber);
+  const method = findEnclosing(methods, lineNumber);
+  if (!include && !method) return undefined;
+
+  return {
+    class: method?.owner ?? include?.owner,
+    include: include?.name,
+    method: method?.name,
+  };
+}
+
 function buildLineContextMap(
   lines: string[],
   includes: SourceInclude[],
@@ -398,27 +432,7 @@ function buildLineContextMap(
 ): Map<number, LineContext> {
   const map = new Map<number, LineContext>();
   for (let i = 0; i < lines.length; i += 1) {
-    const lineNumber = i + 1;
-    let ctx: LineContext | undefined;
-
-    for (const include of includes) {
-      if (lineNumber >= include.startLine && lineNumber <= include.endLine) {
-        ctx = { class: include.owner, include: include.name };
-        break;
-      }
-    }
-
-    for (const method of methods) {
-      if (lineNumber >= method.startLine && lineNumber <= method.endLine) {
-        ctx = {
-          class: method.owner ?? ctx?.class,
-          include: ctx?.include,
-          method: method.name,
-        };
-        break;
-      }
-    }
-
+    const ctx = resolveLineContext(i + 1, includes, methods);
     if (ctx) {
       map.set(i, ctx);
     }
@@ -445,11 +459,13 @@ function formatGrepResult(
     const lineNumberStr = lineNumber.toString().padStart(5, ' ');
     matches.push(`${lineNumberStr}: ${text}`);
 
-    const match: GrepMatch = { line: lineNumber, text };
-    if (ctx.class) match.class = ctx.class;
-    if (ctx.include) match.include = ctx.include;
-    if (ctx.method) match.method = ctx.method;
-    methodContext.push(match);
+    methodContext.push({
+      line: lineNumber,
+      text,
+      ...(ctx.class ? { class: ctx.class } : {}),
+      ...(ctx.include ? { include: ctx.include } : {}),
+      ...(ctx.method ? { method: ctx.method } : {}),
+    });
     prev = idx;
   }
   return { matches, methodContext };
@@ -458,7 +474,6 @@ function formatGrepResult(
 function grepSource(
   source: string,
   pattern: string,
-  objectType?: string,
 ): {
   matches: string[];
   methodContext: GrepMatch[];
@@ -481,7 +496,7 @@ function grepSource(
     return { matches: [], methodContext: [], matchCount: 0 };
   }
 
-  const { includes, methods } = parseStructuredSource(source, objectType);
+  const { includes, methods } = parseStructuredSource(source);
   const contextMap = buildLineContextMap(lines, includes, methods);
   const context = buildContextSet(lines, matched);
   return {
@@ -686,7 +701,7 @@ export async function getSource(
   }
 
   if (grep) {
-    const grepResult = grepSource(source, grep, objectType);
+    const grepResult = grepSource(source, grep);
     if (grepResult.invalidPattern) {
       throw new Error(grepResult.invalidPattern);
     }
@@ -701,10 +716,8 @@ export async function getSource(
   }
 
   if (format === 'structured') {
-    const { includes, methods: methodBoundaries } = parseStructuredSource(
-      source,
-      objectType,
-    );
+    const { includes, methods: methodBoundaries } =
+      parseStructuredSource(source);
     return {
       object: objectName,
       source,
