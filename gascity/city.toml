@@ -1,0 +1,10 @@
+[workspace]
+provider = "codex"
+
+[providers]
+[providers.codex]
+base = "builtin:codex"
+ready_delay_ms = 0
+
+[[rigs]]
+name = "adt-cli"

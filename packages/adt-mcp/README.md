@@ -260,23 +260,23 @@ Fetch ABAP source code for a program, class, interface, or function group. Suppo
 
 **Parameters:**
 
-| Parameter    | Type    | Description                                                                                                     |
-| ------------ | ------- | --------------------------------------------------------------------------------------------------------------- |
-| `objectName` | string  | ABAP object name                                                                                                |
-| `objectType` | string? | Object type hint (`PROG`, `CLAS`, `INTF`, …). Skips the search round-trip when provided.                        |
-| `version`    | enum?   | `active` (default, last activated) or `inactive` (unactivated draft).                                           |
-| `include`    | string? | For `CLAS`: source include (`main`, `definitions`, `implementations`, `testclasses`, `macros`, `text_symbols`). |
-| `method`     | string? | For `CLAS`: method name to read, or `*` to list all methods.                                                    |
-| `grep`       | string? | Regex pattern; returns matching source lines with context instead of full source.                               |
-| `maxBytes`   | number? | Maximum UTF-8 response size in bytes (default 1 MiB, hard cap 2 MiB).                                           |
-| `format`     | enum?   | `raw` (default) or `structured` (class includes and method boundaries as JSON).                                 |
+| Parameter    | Type    | Description                                                                                                                                                                 |
+| ------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `objectName` | string  | ABAP object name                                                                                                                                                            |
+| `objectType` | string? | Object type hint (`PROG`, `CLAS`, `INTF`, …). Skips the search round-trip when provided.                                                                                    |
+| `version`    | enum?   | `active` (default, last activated) or `inactive` (unactivated draft).                                                                                                       |
+| `include`    | string? | For `CLAS`: source include (`main`, `definitions`, `implementations`, `testclasses`, `macros`, `text_symbols`).                                                             |
+| `method`     | string? | For `CLAS`: method name to read, or `*` to list all methods.                                                                                                                |
+| `grep`       | string? | Regex pattern; returns matching source lines with context instead of full source. For class/interface source, each match is annotated with the owning method/class/include. |
+| `maxBytes`   | number? | Maximum UTF-8 response size in bytes (default 1 MiB, hard cap 2 MiB).                                                                                                       |
+| `format`     | enum?   | `raw` (default) or `structured` (class includes and method boundaries as JSON).                                                                                             |
 
 **Returns:**
 
 - Default: `{ object, bytes, source, version, include }`
 - `method=*`: `{ object, methodCount, methods }`
 - `method=<name>`: `{ object, method, startLine, endLine, bytes, source }`
-- `grep`: `{ object, pattern, matchCount, matches }`
+- `grep`: `{ object, pattern, matchCount, matches, methodContext }`
 - `format=structured`: `{ object, source, bytes, version, include, includes, methods }`
 
 **Examples:**

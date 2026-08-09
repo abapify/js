@@ -1,0 +1,5 @@
+# Gas City
+.gc/
+.beads/*
+!.beads/identity.toml
+hooks/

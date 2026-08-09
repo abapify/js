@@ -1,0 +1,17 @@
+[pack]
+name = "adt-cli-gascity"
+description = "Gas City pack for orchestrating arc-1 parity work in abapify/adt-cli via the adt CLI and adt-mcp API."
+schema = 2
+
+[imports]
+[imports.core]
+source = "https://github.com/gastownhall/gascity/tree/main/internal/bootstrap/packs/core"
+version = "sha:f895c0ff47d6ee9334ed282a416387eb5b084d24"
+
+[imports.bd]
+source = "https://github.com/gastownhall/gascity/tree/main/examples/bd"
+version = "sha:f895c0ff47d6ee9334ed282a416387eb5b084d24"
+
+[[named_session]]
+template = "mayor"
+mode = "always"

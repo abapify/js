@@ -5,7 +5,8 @@
  *   - version (active/inactive)
  *   - include (class includes / source sections)
  *   - method (method-level read or method list)
- *   - grep (token-efficient regex search with context)
+ *   - grep (token-efficient regex search with context, method-level context
+ *     for class/interface methods)
  *   - maxBytes (bounded read with a hard cap)
  *   - format (raw text or structured class includes / method boundaries)
  */
@@ -73,11 +74,20 @@ export interface GetSourceMethodResult {
   note?: string;
 }
 
+export interface GrepMatch {
+  line: number;
+  text: string;
+  method?: string;
+  include?: string;
+  class?: string;
+}
+
 export interface GetSourceGrepResult {
   object: string;
   pattern: string;
   matchCount: number;
   matches: string[];
+  methodContext?: GrepMatch[];
   note?: string;
 }
 
@@ -85,12 +95,14 @@ export interface SourceInclude {
   name: string;
   startLine: number;
   endLine: number;
+  owner?: string;
 }
 
 export interface SourceMethod {
   name: string;
   startLine: number;
   endLine: number;
+  owner?: string;
 }
 
 export interface GetSourceStructuredResult {
@@ -135,9 +147,10 @@ function parseStructuredSource(
   type Block =
     | { kind: 'class'; name: string; startLine: number; includeType: string }
     | { kind: 'interface'; name: string; startLine: number }
-    | { kind: 'method'; name: string; startLine: number };
+    | { kind: 'method'; name: string; startLine: number; owner?: string };
 
   const stack: Block[] = [];
+  const ownerStack: string[] = [];
 
   for (let i = 0; i < lines.length; i += 1) {
     const rawLine = lines[i] ?? '';
@@ -149,6 +162,7 @@ function parseStructuredSource(
     const methodMatch = METHOD_START.exec(line);
 
     if (classMatch) {
+      ownerStack.push(classMatch[1]!);
       stack.push({
         kind: 'class',
         name: classMatch[1]!,
@@ -159,6 +173,7 @@ function parseStructuredSource(
     }
 
     if (interfaceMatch) {
+      ownerStack.push(interfaceMatch[1]!);
       stack.push({
         kind: 'interface',
         name: interfaceMatch[1]!,
@@ -176,6 +191,7 @@ function parseStructuredSource(
         kind: 'method',
         name: methodMatch[1]!.toUpperCase(),
         startLine: i + 1,
+        owner: ownerStack[ownerStack.length - 1],
       });
       continue;
     }
@@ -189,6 +205,7 @@ function parseStructuredSource(
           name: top.name,
           startLine: top.startLine,
           endLine: i + 1,
+          owner: top.owner,
         });
         stack.pop();
       }
@@ -204,6 +221,7 @@ function parseStructuredSource(
             name: top.name,
             startLine: top.startLine,
             endLine: i + 1,
+            owner: top.owner,
           });
           stack.pop();
         } else {
@@ -217,15 +235,19 @@ function parseStructuredSource(
           name: top.includeType,
           startLine: top.startLine,
           endLine: i + 1,
+          owner: top.name,
         });
         stack.pop();
+        ownerStack.pop();
       } else if (top?.kind === 'interface' && upper === 'ENDINTERFACE.') {
         includes.push({
           name: 'main',
           startLine: top.startLine,
           endLine: i + 1,
+          owner: top.name,
         });
         stack.pop();
+        ownerStack.pop();
       }
     }
   }
@@ -350,6 +372,12 @@ function findMatchingLines(lines: string[], regex: RegExp): number[] {
   return matched;
 }
 
+interface LineContext {
+  method?: string;
+  include?: string;
+  class?: string;
+}
+
 function buildContextSet(lines: string[], matched: number[]): Set<number> {
   const context = new Set<number>();
   const lastIndex = lines.length - 1;
@@ -363,29 +391,85 @@ function buildContextSet(lines: string[], matched: number[]): Set<number> {
   return context;
 }
 
-function formatGrepResult(lines: string[], context: Set<number>): string[] {
+function buildLineContextMap(
+  lines: string[],
+  includes: SourceInclude[],
+  methods: SourceMethod[],
+): Map<number, LineContext> {
+  const map = new Map<number, LineContext>();
+  for (let i = 0; i < lines.length; i += 1) {
+    const lineNumber = i + 1;
+    let ctx: LineContext | undefined;
+
+    for (const include of includes) {
+      if (lineNumber >= include.startLine && lineNumber <= include.endLine) {
+        ctx = { class: include.owner, include: include.name };
+        break;
+      }
+    }
+
+    for (const method of methods) {
+      if (lineNumber >= method.startLine && lineNumber <= method.endLine) {
+        ctx = {
+          class: method.owner ?? ctx?.class,
+          include: ctx?.include,
+          method: method.name,
+        };
+        break;
+      }
+    }
+
+    if (ctx) {
+      map.set(i, ctx);
+    }
+  }
+  return map;
+}
+
+function formatGrepResult(
+  lines: string[],
+  context: Set<number>,
+  contextMap: Map<number, LineContext>,
+): { matches: string[]; methodContext: GrepMatch[] } {
   const sorted = Array.from(context).sort((a, b) => a - b);
-  const result: string[] = [];
+  const matches: string[] = [];
+  const methodContext: GrepMatch[] = [];
   let prev = -2;
   for (const idx of sorted) {
     if (idx - prev > 1) {
-      result.push('---');
+      matches.push('---');
     }
-    const lineNumber = (idx + 1).toString().padStart(5, ' ');
-    result.push(`${lineNumber}: ${lines[idx] ?? ''}`);
+    const lineNumber = idx + 1;
+    const text = lines[idx] ?? '';
+    const ctx = contextMap.get(idx) ?? {};
+    const lineNumberStr = lineNumber.toString().padStart(5, ' ');
+    matches.push(`${lineNumberStr}: ${text}`);
+
+    const match: GrepMatch = { line: lineNumber, text };
+    if (ctx.class) match.class = ctx.class;
+    if (ctx.include) match.include = ctx.include;
+    if (ctx.method) match.method = ctx.method;
+    methodContext.push(match);
     prev = idx;
   }
-  return result;
+  return { matches, methodContext };
 }
 
 function grepSource(
   source: string,
   pattern: string,
-): { matches: string[]; matchCount: number; invalidPattern?: string } {
+  objectType?: string,
+): {
+  matches: string[];
+  methodContext: GrepMatch[];
+  matchCount: number;
+  invalidPattern?: string;
+} {
   const compileResult = compileGrepPattern(pattern);
   if ('invalidPattern' in compileResult) {
     return {
       matches: [],
+      methodContext: [],
       matchCount: 0,
       invalidPattern: compileResult.invalidPattern,
     };
@@ -394,12 +478,14 @@ function grepSource(
   const lines = source.split(/\r?\n/);
   const matched = findMatchingLines(lines, compileResult.regex);
   if (matched.length === 0) {
-    return { matches: [], matchCount: 0 };
+    return { matches: [], methodContext: [], matchCount: 0 };
   }
 
+  const { includes, methods } = parseStructuredSource(source, objectType);
+  const contextMap = buildLineContextMap(lines, includes, methods);
   const context = buildContextSet(lines, matched);
   return {
-    matches: formatGrepResult(lines, context),
+    ...formatGrepResult(lines, context, contextMap),
     matchCount: matched.length,
   };
 }
@@ -600,7 +686,7 @@ export async function getSource(
   }
 
   if (grep) {
-    const grepResult = grepSource(source, grep);
+    const grepResult = grepSource(source, grep, objectType);
     if (grepResult.invalidPattern) {
       throw new Error(grepResult.invalidPattern);
     }
@@ -609,6 +695,7 @@ export async function getSource(
       pattern: grep,
       matchCount: grepResult.matchCount,
       matches: grepResult.matches,
+      methodContext: grepResult.methodContext,
       note,
     };
   }

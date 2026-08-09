@@ -86,6 +86,7 @@ export {
   type GetSourceStructuredResult,
   type SourceInclude,
   type SourceMethod,
+  type GrepMatch,
 } from './lib/services/source';
 
 export {

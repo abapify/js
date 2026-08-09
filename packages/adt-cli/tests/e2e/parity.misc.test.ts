@@ -322,6 +322,36 @@ describe('CLI + MCP parity (misc)', () => {
     expect(json.matchCount).toBeGreaterThan(0);
   });
 
+  it('source get with grep returns method context — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--grep',
+      'do_something',
+      '--json',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    const json = JSON.parse(res.stdout) as {
+      matchCount: number;
+      methodContext?: Array<{
+        line: number;
+        text: string;
+        method?: string;
+        include?: string;
+        class?: string;
+      }>;
+    };
+    expect(json.methodContext).toBeDefined();
+    expect(Array.isArray(json.methodContext)).toBe(true);
+    const match = json.methodContext?.find((m) => m.method === 'DO_SOMETHING');
+    expect(match).toBeDefined();
+    expect(match?.class?.toLowerCase()).toBe('zcl_example');
+    expect(match?.include).toBe('implementations');
+  });
+
   it('source get with max-bytes — CLI', async () => {
     const res = await runCliCommand(harness, [
       'source',

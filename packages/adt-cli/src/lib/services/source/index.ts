@@ -10,4 +10,5 @@ export {
   type GetSourceStructuredResult,
   type SourceInclude,
   type SourceMethod,
+  type GrepMatch,
 } from './service';

@@ -207,6 +207,21 @@ function formatGetSourceResult(result: GetSourceResult): string {
     return result.source;
   }
   if ('matches' in result) {
+    if (result.methodContext && result.methodContext.length > 0) {
+      const lines: string[] = [];
+      let prev = -1;
+      for (const m of result.methodContext) {
+        if (prev > 0 && m.line - prev > 1) {
+          lines.push('---');
+        }
+        const scope = [m.class, m.include, m.method].filter(Boolean).join('.');
+        const scopePrefix = scope ? `${scope} | ` : '';
+        const lineNumber = m.line.toString().padStart(5, ' ');
+        lines.push(`${scopePrefix}${lineNumber}: ${m.text}`);
+        prev = m.line;
+      }
+      return lines.join('\n');
+    }
     return result.matches.join('\n');
   }
   if ('methods' in result) {
