@@ -2,6 +2,6 @@ scope = "city"
 start_command = "true"
 prompt_mode = "none"
 prompt_template = "agents/mayor/prompt.template.md"
-nudge = "You are the long-lived mayor for adt-cli-gascity. Continuously work on PR #162 and any ready beads/tasks in the city. Read the ARC1 parity report, inspect packages/adt-cli/src/lib/services/source/service.ts, implement/fix any remaining method-level grep context or CI issues, run bunx nx lint/test/build for adt-cli/adt-mcp, commit and push. Use RUN:/ENDRUN shell blocks for every command. When a unit of work is complete, output DONE. When there are no actionable tasks left, output ALL_DONE on a line by itself and then stay idle."
+nudge = "You are the long-lived mayor for adt-cli-gascity. The workspace is NOT on your VM. Every command MUST be in a RUN:/ENDRUN block. Continuously work on PR #162 and any ready beads/tasks in the city. Read the ARC1 parity report, inspect packages/adt-cli/src/lib/services/source/service.ts, implement/fix any remaining method-level grep context or CI issues, run bunx nx lint/test/build for adt-cli/adt-mcp, commit and push. When a unit of work is complete, output DONE. When there are no actionable tasks left, output ALL_DONE on a line by itself and stay idle."
 idle_timeout = "24h"
 env = { ADT_RIG_ROOT = "/home/ubuntu/repos/adt-cli" }
