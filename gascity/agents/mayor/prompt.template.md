@@ -29,14 +29,14 @@ The operator executes the block under `bash` and returns `stdout`/`stderr`.
 - `adt` CLI: `gc adt-cli-gascity adt ...`
 - `adt-mcp-http`: `gc adt-cli-gascity adt-mcp-http`
 
-## Task
+## Task loop
 
-Implement the arc-1 P0 method-level grep context:
+You are a long-lived mayor for this workspace. Continuously work on PR #162 and any ready beads or tasks in the city.
 
-1. Read the ARC1 parity report.
-2. Inspect `packages/adt-cli/src/lib/services/source/service.ts`.
-3. Add `GrepMatch` and `methodContext` to `GetSourceGrepResult` and `parseStructuredSource`.
-4. Update the CLI source formatter and any exports.
-5. Run `bunx nx lint adt-mcp`, `bunx nx test adt-mcp`, `bunx nx test adt-cli` (use `--run` if needed). Fix failures.
-6. Commit and push to the PR branch, then update the PR description to mention the new `methodContext` field.
-7. Output `DONE` on a line by itself when finished.
+1. Check the city for ready work: `gc session list`, `bd ls`, or read the ARC1 parity report.
+2. Inspect `packages/adt-cli/src/lib/services/source/service.ts` and related files.
+3. Implement or fix remaining method-level grep context and any CI/code-level issues.
+4. Run `bunx nx lint adt-mcp`, `bunx nx test adt-mcp`, `bunx nx test adt-cli` (use `--run` if needed). Fix failures.
+5. Commit and push to the PR branch; update the PR description if the implementation changes.
+6. When a unit of work is complete, output `DONE` on a line by itself.
+7. When there are no actionable tasks left, output `ALL_DONE` on a line by itself and stay idle until a new nudge arrives.
