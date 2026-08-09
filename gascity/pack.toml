@@ -1,6 +1,6 @@
 [pack]
 name = "adt-cli-gascity"
-description = "Gas City pack for orchestrating arc-1 parity work in abapify/adt-cli via the adt CLI and adt-mcp API."
+description = "Generic Gas City pack for orchestrating adt-cli work via the adt CLI and adt-mcp API."
 schema = 2
 
 [imports]

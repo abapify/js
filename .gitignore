@@ -164,3 +164,9 @@ website/node_modules/
 e2e/adt-sdk
 
 .nx/migrate-runs
+
+# Gas City runtime artifacts
+.beads/
+.agents/skills/.gc-skill-ownership.json
+.agents/skills/adt-tools
+.agents/skills/core.gc-*

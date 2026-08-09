@@ -350,11 +350,11 @@ def _send_message(devin_id, text):
     return _api_req("POST", f"/v3/organizations/{ORG_ID}/sessions/{devin_id}/messages", payload)
 
 
-def _create_devin_session(prompt, title="gc-mayor"):
+def _create_devin_session(prompt, title="gc-mayor", resumable=False):
     payload = {
         "prompt": prompt,
         "title": title,
-        "resumable": False,
+        "resumable": resumable,
         "bypass_approval": True,
         "tags": ["gascity", "mayor"],
         "devin_mode": "normal",
@@ -425,15 +425,16 @@ def _bead_to_prompt(nudge_text, cfg):
     rig = cfg.get("env", {}).get("ADT_RIG_ROOT") or _resolve_rig_root(cfg.get("work_dir", "")) or "/home/ubuntu/repos/adt-cli"
     system = f"""You are the mayor agent of the adt-cli Gas City workspace, running inside a remote Devin cloud session. The local gc-session-devin script is your operator: it will execute shell commands you request and return the output.
 
-You have full access to the workspace at {rig} and the Gas City city at {cfg.get('work_dir', '/home/ubuntu/adt-cli-gascity')}.
+CRITICAL: The workspace at {rig} and the Gas City city at {cfg.get('work_dir', '/home/ubuntu/adt-cli-gascity')} are NOT on your VM. You cannot run commands in your own shell, read local files, or edit files directly. Every filesystem interaction MUST be a shell command wrapped in a RUN: ... ENDRUN block. The operator runs it under bash in the workspace and returns stdout/stderr.
 
-To execute a command or multi-line shell script, output a block like:
+Example:
 RUN:
-<your bash commands here>
+cd {rig} && git status
 ENDRUN
-The operator runs it under bash and replies with stdout/stderr. Do not edit files in any other way; use shell commands (cat, sed, printf, git, bun, gc, etc.).
 
-Available tools:
+Do not use your own tools or environment. Do not browse URLs. Do not edit files except by asking the operator to run commands like cat/sed/printf/git/bun/gc/bd. Use shell commands for everything.
+
+Available tools (only via RUN: blocks):
 - git / gh (authenticated via GITHUB_TOKEN)
 - bun and bunx
 - gc (Gas City CLI, city auto-discovered from cwd)
@@ -441,8 +442,8 @@ Available tools:
 - adt CLI via `gc adt-cli-gascity adt ...`
 - adt-mcp-http server via `gc adt-cli-gascity adt-mcp-http`
 
-When you are completely done with the task and have pushed any changes, output a single line:
-DONE
+When a unit of work is complete, output a single line: DONE
+When there are no more actionable tasks, output a single line: ALL_DONE
 """
     if nudge_text:
         return f"{system}\n\nTASK:\n{nudge_text}"
@@ -620,18 +621,20 @@ def _devin_worker(session_dir, cfg):
         nudge = "Complete any ready work in the adt-cli Gas City workspace."
 
     prompt = _bead_to_prompt(nudge, cfg)
+    is_one_shot = cfg.get("lifecycle") == "one_shot"
+    resumable = not is_one_shot
     _worker_log(session_dir, "creating Devin session")
-    sess = _create_devin_session(prompt, title=f"gc-{name}")
+    sess = _create_devin_session(prompt, title=f"gc-{name}", resumable=resumable)
     devin_id = sess["session_id"]
     (d / "devin.json").write_text(json.dumps({"devin_id": devin_id}), encoding="utf-8")
-    _worker_log(session_dir, f"Devin session {devin_id} created")
+    _worker_log(session_dir, f"Devin session {devin_id} created (resumable={resumable})")
 
     seen_event_ids = set()
     consecutive_empty = 0
-    done = False
-    max_empty_polls = 360
+    max_empty_polls = 360 if is_one_shot else None
+    all_done = False
 
-    while not done and _is_alive(name) and not _worker_should_exit:
+    while _is_alive(name) and not _worker_should_exit:
         # Check for interrupt.
         if (d / "interrupt").exists():
             _worker_log(session_dir, "interrupt requested")
@@ -644,6 +647,8 @@ def _devin_worker(session_dir, cfg):
             nudge_file.unlink()
             _send_message(devin_id, text)
             _worker_log(session_dir, f"sent user nudge ({len(text)} chars)")
+            all_done = False
+            consecutive_empty = 0
 
         # Poll status.
         try:
@@ -657,6 +662,7 @@ def _devin_worker(session_dir, cfg):
 
         # Poll messages.
         new_items = 0
+        done_this_cycle = False
         try:
             resp = _fetch_new_messages(devin_id)
             items = resp.get("items") or []
@@ -674,18 +680,37 @@ def _devin_worker(session_dir, cfg):
                         out = _run_local_command(session_dir, cmd)
                         _send_message(devin_id, out)
                         _worker_log(session_dir, f"sent command output ({len(out)} chars)")
-                    if re.search(r"^DONE\s*$", msg, re.MULTILINE):
+                    if re.search(r"^ALL_DONE\s*$", msg, re.MULTILINE):
+                        _worker_log(session_dir, "Devin reported ALL_DONE")
+                        all_done = True
+                        done_this_cycle = True
+                    elif re.search(r"^DONE\s*$", msg, re.MULTILINE):
                         _worker_log(session_dir, "Devin reported DONE")
-                        done = True
+                        done_this_cycle = True
         except Exception as e:
             _worker_log(session_dir, f"message poll error: {e}")
 
-        if done:
-            break
+        if done_this_cycle:
+            # Finalize the current unit of work, but stay alive for the next nudge.
+            _worker_log(session_dir, "finalizing: pulling, testing, closing bead")
+            _run_local_command(session_dir, "cd $ADT_RIG_ROOT && git pull --ff-only || true")
+            _run_local_command(session_dir, "cd $ADT_RIG_ROOT && bunx nx lint adt-mcp && bunx nx test adt-mcp && bunx nx test adt-cli")
+            _close_work_bead(session_dir)
+            if all_done:
+                _worker_log(session_dir, "all done: entering idle watch")
+            consecutive_empty = 0
+
+        if all_done:
+            # Slow poll while waiting for the next assignment.
+            try:
+                time.sleep(60)
+            except InterruptedError:
+                pass
+            continue
 
         if new_items == 0:
             consecutive_empty += 1
-            if consecutive_empty >= max_empty_polls:
+            if max_empty_polls and consecutive_empty >= max_empty_polls:
                 _worker_log(session_dir, f"no new messages for {max_empty_polls} polls; exiting")
                 break
         else:
@@ -697,11 +722,6 @@ def _devin_worker(session_dir, cfg):
         except InterruptedError:
             pass
 
-    # After conversation: pull any remote changes, run tests, close bead.
-    _worker_log(session_dir, "finalizing: pulling, testing, closing bead")
-    _run_local_command(session_dir, "cd $ADT_RIG_ROOT && git pull --ff-only || true")
-    _run_local_command(session_dir, "cd $ADT_RIG_ROOT && bunx nx lint adt-mcp && bunx nx test adt-mcp && bunx nx test adt-cli")
-    _close_work_bead(session_dir)
     _worker_log(session_dir, "worker exiting")
 
 
