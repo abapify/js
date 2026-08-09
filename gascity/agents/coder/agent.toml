@@ -1,0 +1,8 @@
+scope = "city"
+start_command = "true"
+prompt_mode = "none"
+prompt_template = "agents/coder/prompt.template.md"
+nudge = "Implement the arc-1 P0 method-level grep context in PR #162. Read the ARC1 parity report, edit packages/adt-cli/src/lib/services/source/service.ts and related CLI/output, then run bunx nx lint/test/build and push the branch. Use RUN:/ENDRUN blocks and report DONE when finished."
+idle_timeout = "30m"
+lifecycle = "one_shot"
+env = { ADT_RIG_ROOT = "/home/ubuntu/repos/adt-cli" }

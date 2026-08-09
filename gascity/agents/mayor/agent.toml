@@ -1,4 +1,8 @@
 scope = "city"
+start_command = "true"
+prompt_mode = "none"
 prompt_template = "agents/mayor/prompt.template.md"
-nudge = "Check mail and hook status, then review the arc-1 parity bead board and dispatch the next ready work item."
+nudge = "Implement the arc-1 P0 method-level grep context in PR #162. Read the ARC1 parity report, edit packages/adt-cli/src/lib/services/source/service.ts (and any CLI/output files), then run bunx nx lint/test/build for adt-cli/adt-mcp. Commit and push the branch, then update the PR description. Use RUN:/ENDRUN shell blocks for every command and report DONE when finished."
 idle_timeout = "1h"
+lifecycle = "one_shot"
+env = { ADT_RIG_ROOT = "/home/ubuntu/repos/adt-cli" }

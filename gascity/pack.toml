@@ -14,4 +14,8 @@ version = "sha:f895c0ff47d6ee9334ed282a416387eb5b084d24"
 
 [[named_session]]
 template = "mayor"
-mode = "always"
+mode = "on_demand"
+
+[[named_session]]
+template = "coder"
+mode = "on_demand"

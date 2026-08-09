@@ -1,6 +1,9 @@
 [workspace]
 provider = "codex"
 
+[session]
+provider = "exec:/home/ubuntu/.local/bin/gc-session-devin"
+
 [providers]
 [providers.codex]
 base = "builtin:codex"
