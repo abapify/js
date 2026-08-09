@@ -1,3 +1,4 @@
 scope = "city"
+prompt_template = "agents/mayor/prompt.template.md"
 nudge = "Check mail and hook status, then review the arc-1 parity bead board and dispatch the next ready work item."
 idle_timeout = "1h"
