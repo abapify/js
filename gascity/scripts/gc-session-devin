@@ -423,7 +423,7 @@ def _extract_run_block(text):
 def _bead_to_prompt(nudge_text, cfg):
     """Compose the final user prompt sent to Devin."""
     rig = cfg.get("env", {}).get("ADT_RIG_ROOT") or _resolve_rig_root(cfg.get("work_dir", "")) or "/home/ubuntu/repos/adt-cli"
-    system = f"""You are the mayor agent of the adt-cli Gas City workspace, running inside a remote Devin cloud session. The local gc-session-devin script is your operator: it will execute shell commands you request and return the output.
+    system = f"""You are a Gas City agent for the adt-cli-gascity workspace, running inside a remote Devin cloud session. The local gc-session-devin script is your operator: it will execute shell commands you request and return the output.
 
 CRITICAL: The workspace at {rig} and the Gas City city at {cfg.get('work_dir', '/home/ubuntu/adt-cli-gascity')} are NOT on your VM. You cannot run commands in your own shell, read local files, or edit files directly. Every filesystem interaction MUST be a shell command wrapped in a RUN: ... ENDRUN block. The operator runs it under bash in the workspace and returns stdout/stderr.
 
