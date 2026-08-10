@@ -147,13 +147,17 @@ function getSeparatedConfigPathOrThrow(configPath: string | undefined): string {
 }
 
 export function getResolvedConfigPath(argv: string[]): string | undefined {
-  const configArgIndex = argv.indexOf('--config');
+  const optionTerminatorIndex = argv.indexOf('--');
+  const optionArgs =
+    optionTerminatorIndex === -1 ? argv : argv.slice(0, optionTerminatorIndex);
+
+  const configArgIndex = optionArgs.indexOf('--config');
   if (configArgIndex !== -1) {
-    const configPath = argv[configArgIndex + 1];
+    const configPath = optionArgs[configArgIndex + 1];
     return getSeparatedConfigPathOrThrow(configPath);
   }
 
-  const inlineConfigArg = argv.find((argument) =>
+  const inlineConfigArg = optionArgs.find((argument) =>
     argument.startsWith('--config='),
   );
   if (inlineConfigArg !== undefined) {

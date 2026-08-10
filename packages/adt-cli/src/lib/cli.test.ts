@@ -155,4 +155,27 @@ describe('getResolvedConfigPath', () => {
       "option '--config <path>' argument missing",
     );
   });
+
+  it.each([
+    ['separated', ['node', 'adt', '--', '--config', '/tmp/adt.config.ts']],
+    ['inline', ['node', 'adt', '--', '--config=/tmp/adt.config.ts']],
+  ])(
+    'ignores the %s config option after the -- terminator',
+    (_description, argv) => {
+      expect(getResolvedConfigPath(argv)).toBeUndefined();
+    },
+  );
+
+  it('resolves the config option before the -- terminator only', () => {
+    expect(
+      getResolvedConfigPath([
+        'node',
+        'adt',
+        '--config',
+        '/tmp/before.config.ts',
+        '--',
+        '--config=/tmp/after.config.ts',
+      ]),
+    ).toBe('/tmp/before.config.ts');
+  });
 });
