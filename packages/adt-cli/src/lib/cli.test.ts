@@ -15,7 +15,9 @@ describe('ADT CLI', () => {
   const originalCwd = process.cwd();
   const testCwd = mkdtempSync(join(tmpdir(), 'adt-cli-config-'));
   const explicitConfigPath = join(testCwd, 'explicit.config.ts');
-  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const consoleError = vi
+    .spyOn(console, 'error')
+    .mockImplementation(() => undefined);
 
   beforeAll(async () => {
     writeFileSync(
