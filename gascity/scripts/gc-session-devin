@@ -126,6 +126,7 @@ def _is_alive(session_dir):
 
 
 def _delete_remote_devin(session_dir):
+    """Archive the remote Devin session and remove the local record."""
     devin_file = _session_dir(session_dir) / "devin.json"
     if not devin_file.exists():
         return
@@ -134,8 +135,11 @@ def _delete_remote_devin(session_dir):
         devin_id = info.get("devin_id")
         if devin_id:
             _api_req("DELETE", f"/v3/organizations/{ORG_ID}/sessions/{devin_id}?archive=true")
+            _log(f"archived remote Devin session {devin_id}")
     except Exception as e:
         _log(f"cleanup remote devin for {session_dir}: {e}")
+    finally:
+        devin_file.unlink(missing_ok=True)
 
 
 def _handshake():
@@ -350,13 +354,13 @@ def _send_message(devin_id, text):
     return _api_req("POST", f"/v3/organizations/{ORG_ID}/sessions/{devin_id}/messages", payload)
 
 
-def _create_devin_session(prompt, title="gc-mayor", resumable=False):
+def _create_devin_session(prompt, title="gc-mayor", resumable=False, tags=None):
     payload = {
         "prompt": prompt,
         "title": title,
         "resumable": resumable,
         "bypass_approval": True,
-        "tags": ["gascity", "mayor"],
+        "tags": tags or ["gascity", "mayor"],
         "devin_mode": "normal",
     }
     return _api_req("POST", f"/v3/organizations/{ORG_ID}/sessions", payload)
@@ -450,53 +454,63 @@ When there are no more actionable tasks, output a single line: ALL_DONE
     return system
 
 
-def _close_work_bead(session_dir):
-    """Close the work bead assigned to this session, if any."""
+def _close_bead(session_dir, bead_id):
+    """Close a work bead by ID."""
     cfg = json.loads(_read_file(Path(session_dir) / "cfg.json", "{}"))
-    env = cfg.get("env") or {}
-    agent = env.get("GC_AGENT") or env.get("GC_ALIAS") or env.get("GC_SESSION_NAME") or "mayor"
     work_dir = cfg.get("work_dir") or os.getcwd()
     try:
-        result = subprocess.run(
-            ["gc", "hook", agent, "--claim", "--json"],
-            cwd=work_dir,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode == 0:
-            data = json.loads(result.stdout)
-            bead_id = data.get("bead_id") or data.get("id")
-            if bead_id:
-                subprocess.run(["bd", "close", bead_id], cwd=work_dir, check=False, timeout=60)
-                _worker_log(session_dir, f"closed work bead {bead_id}")
+        subprocess.run(["bd", "close", bead_id], cwd=work_dir, check=False, timeout=60)
+        _worker_log(session_dir, f"closed work bead {bead_id}")
     except Exception as e:
         _worker_log(session_dir, f"bead close failed: {e}")
 
 
-def _wait_for_nudge(session_dir, timeout=30):
-    """Wait briefly for a nudge file or return start-config nudge."""
+def _claim_bead(session_dir):
+    """Atomically claim one routed work item for this session."""
     cfg = json.loads(_read_file(Path(session_dir) / "cfg.json", "{}"))
-    nudge = cfg.get("nudge", "")
-    nudge_file = Path(session_dir) / "nudge.txt"
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if _worker_should_exit:
-            return ""
-        if nudge_file.exists() and nudge_file.stat().st_size > 0:
-            text = nudge_file.read_text(encoding="utf-8")
-            nudge_file.unlink()
-            return text
-        if nudge:
-            # If config carried a nudge, consume it once.
-            cfg["nudge"] = ""
-            (Path(session_dir) / "cfg.json").write_text(json.dumps(cfg), encoding="utf-8")
-            return nudge
-        try:
-            time.sleep(0.5)
-        except InterruptedError:
-            pass
-    return ""
+    env = cfg.get("env") or {}
+    agent = env.get("GC_AGENT") or env.get("GC_ALIAS") or env.get("GC_TEMPLATE") or Path(session_dir).name
+    work_dir = cfg.get("work_dir") or os.getcwd()
+    env_vars = {**os.environ, **env}
+    try:
+        result = subprocess.run(
+            ["gc", "hook", agent, "--claim", "--json"],
+            cwd=work_dir,
+            env=env_vars,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except Exception as e:
+        _worker_log(session_dir, f"bead claim failed: {e}")
+        return None
+    text = result.stdout.strip()
+    if not text:
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if data.get("action") == "drain" or not data.get("ok"):
+        return None
+    bead_id = data.get("bead_id") or data.get("id")
+    if not bead_id:
+        return None
+    details = {}
+    try:
+        bd_result = subprocess.run(
+            ["bd", "show", bead_id, "--json"],
+            cwd=work_dir,
+            env=env_vars,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if bd_result.returncode == 0 and bd_result.stdout.strip():
+            details = json.loads(bd_result.stdout.strip())
+    except Exception as e:
+        _worker_log(session_dir, f"bead show failed: {e}")
+    return {"id": bead_id, "details": details}
 
 
 _worker_should_exit = False
@@ -613,116 +627,130 @@ def _devin_worker(session_dir, cfg):
         _worker_log(session_dir, f"pre_start: {cmd[:120]}")
         _run_local_command(session_dir, cmd)
 
-    # Wait for the initial nudge/prompt.
-    _worker_log(session_dir, "waiting for prompt/nudge")
-    nudge = _wait_for_nudge(session_dir, timeout=60)
-    if not nudge:
-        _worker_log(session_dir, "no prompt received; using default task")
-        nudge = "Complete any ready work in the adt-cli Gas City workspace."
-
-    prompt = _bead_to_prompt(nudge, cfg)
-    is_one_shot = cfg.get("lifecycle") == "one_shot"
-    resumable = not is_one_shot
-    _worker_log(session_dir, "creating Devin session")
-    sess = _create_devin_session(prompt, title=f"gc-{name}", resumable=resumable)
-    devin_id = sess["session_id"]
-    (d / "devin.json").write_text(json.dumps({"devin_id": devin_id}), encoding="utf-8")
-    _worker_log(session_dir, f"Devin session {devin_id} created (resumable={resumable})")
-
-    seen_event_ids = set()
-    consecutive_empty = 0
-    max_empty_polls = 360 if is_one_shot else None
-    all_done = False
-
     while _is_alive(name) and not _worker_should_exit:
         # Check for interrupt.
         if (d / "interrupt").exists():
             _worker_log(session_dir, "interrupt requested")
             break
 
-        # Send any queued nudges as user messages.
+        # Drain any nudge so we know work may be available.
         nudge_file = d / "nudge.txt"
+        nudge_text = ""
         if nudge_file.exists() and nudge_file.stat().st_size > 0:
-            text = nudge_file.read_text(encoding="utf-8")
+            nudge_text = nudge_file.read_text(encoding="utf-8")
             nudge_file.unlink()
-            _send_message(devin_id, text)
-            _worker_log(session_dir, f"sent user nudge ({len(text)} chars)")
-            all_done = False
-            consecutive_empty = 0
+            _worker_log(session_dir, f"nudge received ({len(nudge_text)} chars)")
 
-        # Poll status.
-        try:
-            status = _get_session(devin_id)
-            st = status.get("status")
-            if st in ("exit", "error", "suspended"):
-                _worker_log(session_dir, f"Devin session status={st}")
-                break
-        except Exception as e:
-            _worker_log(session_dir, f"status poll error: {e}")
-
-        # Poll messages.
-        new_items = 0
-        done_this_cycle = False
-        try:
-            resp = _fetch_new_messages(devin_id)
-            items = resp.get("items") or []
-            for item in items:
-                event_id = item.get("event_id")
-                if event_id in seen_event_ids:
-                    continue
-                seen_event_ids.add(event_id)
-                new_items += 1
-                if item.get("source") == "devin":
-                    msg = item.get("message") or ""
-                    _worker_log(session_dir, f"devin: {msg[:200].replace(chr(10), ' ')}")
-                    cmd = _extract_run_block(msg)
-                    if cmd:
-                        out = _run_local_command(session_dir, cmd)
-                        _send_message(devin_id, out)
-                        _worker_log(session_dir, f"sent command output ({len(out)} chars)")
-                    if re.search(r"^ALL_DONE\s*$", msg, re.MULTILINE):
-                        _worker_log(session_dir, "Devin reported ALL_DONE")
-                        all_done = True
-                        done_this_cycle = True
-                    elif re.search(r"^DONE\s*$", msg, re.MULTILINE):
-                        _worker_log(session_dir, "Devin reported DONE")
-                        done_this_cycle = True
-        except Exception as e:
-            _worker_log(session_dir, f"message poll error: {e}")
-
-        if done_this_cycle:
-            # Finalize the current unit of work, but stay alive for the next nudge.
-            _worker_log(session_dir, "finalizing: pulling, testing, closing bead")
-            _run_local_command(session_dir, "cd $ADT_RIG_ROOT && git pull --ff-only || true")
-            _run_local_command(session_dir, "cd $ADT_RIG_ROOT && bunx nx lint adt-mcp && bunx nx test adt-mcp && bunx nx test adt-cli")
-            _close_work_bead(session_dir)
-            if all_done:
-                _worker_log(session_dir, "all done: entering idle watch")
-            consecutive_empty = 0
-
-        if all_done:
-            # Slow poll while waiting for the next assignment.
-            try:
-                time.sleep(60)
-            except InterruptedError:
-                pass
+        # Claim actual work before starting a Devin session.  This avoids
+        # leaving long-lived idle Devin sessions in the backlog.
+        bead = _claim_bead(session_dir)
+        if not bead:
+            if (d / "devin.json").exists():
+                _worker_log(session_dir, "no work; closing idle Devin session")
+                _delete_remote_devin(name)
+            _worker_log(session_dir, "no work; idling")
+            _update_activity(name)
+            # Sleep in short chunks so signals wake us and activity stays fresh.
+            deadline = time.time() + 60
+            while time.time() < deadline and not _worker_should_exit:
+                _update_activity(name)
+                try:
+                    time.sleep(min(POLL_INTERVAL_SEC, max(0.0, deadline - time.time())))
+                except InterruptedError:
+                    pass
+                if (d / "nudge.txt").exists() and (d / "nudge.txt").stat().st_size > 0:
+                    break
             continue
 
-        if new_items == 0:
-            consecutive_empty += 1
-            if max_empty_polls and consecutive_empty >= max_empty_polls:
-                _worker_log(session_dir, f"no new messages for {max_empty_polls} polls; exiting")
-                break
-        else:
-            consecutive_empty = 0
+        bead_id = bead["id"]
+        details = bead.get("details") or {}
+        bead_title = details.get("title") or details.get("name") or bead_id
+        bead_desc = details.get("description") or ""
+        task = f"Bead: {bead_title}\nID: {bead_id}\n\n{bead_desc}".strip()
+        if nudge_text:
+            task = f"{task}\n\nNUDGE:\n{nudge_text}"
 
-        # Sleep until next poll or until a signal wakes us.
-        try:
-            time.sleep(POLL_INTERVAL_SEC)
-        except InterruptedError:
-            pass
+        prompt = _bead_to_prompt(task, cfg)
+        title = f"gc-{name}-{bead_id}"
+        _worker_log(session_dir, f"claimed bead {bead_id}; creating Devin session {title}")
+        sess = _create_devin_session(prompt, title=title, resumable=False, tags=["gascity", name])
+        devin_id = sess["session_id"]
+        (d / "devin.json").write_text(json.dumps({"devin_id": devin_id}), encoding="utf-8")
+        _worker_log(session_dir, f"Devin session {devin_id} created")
+
+        seen_event_ids = set()
+        all_done = False
+        while _is_alive(name) and not _worker_should_exit:
+            if (d / "interrupt").exists():
+                _worker_log(session_dir, "interrupt requested")
+                break
+
+            nudge_file = d / "nudge.txt"
+            if nudge_file.exists() and nudge_file.stat().st_size > 0:
+                text = nudge_file.read_text(encoding="utf-8")
+                nudge_file.unlink()
+                _send_message(devin_id, text)
+                _worker_log(session_dir, f"sent user nudge ({len(text)} chars)")
+                all_done = False
+
+            # Poll status.
+            try:
+                status = _get_session(devin_id)
+                st = status.get("status")
+                if st in ("exit", "error", "suspended"):
+                    _worker_log(session_dir, f"Devin session status={st}")
+                    break
+            except Exception as e:
+                _worker_log(session_dir, f"status poll error: {e}")
+
+            done_this_cycle = False
+            try:
+                resp = _fetch_new_messages(devin_id)
+                items = resp.get("items") or []
+                for item in items:
+                    event_id = item.get("event_id")
+                    if event_id in seen_event_ids:
+                        continue
+                    seen_event_ids.add(event_id)
+                    if item.get("source") == "devin":
+                        msg = item.get("message") or ""
+                        _worker_log(session_dir, f"devin: {msg[:200].replace(chr(10), ' ')}")
+                        cmd = _extract_run_block(msg)
+                        if cmd:
+                            out = _run_local_command(session_dir, cmd)
+                            _send_message(devin_id, out)
+                            _worker_log(session_dir, f"sent command output ({len(out)} chars)")
+                        if re.search(r"^ALL_DONE\s*$", msg, re.MULTILINE):
+                            _worker_log(session_dir, "Devin reported ALL_DONE")
+                            all_done = True
+                            done_this_cycle = True
+                        elif re.search(r"^DONE\s*$", msg, re.MULTILINE):
+                            _worker_log(session_dir, "Devin reported DONE")
+                            done_this_cycle = True
+            except Exception as e:
+                _worker_log(session_dir, f"message poll error: {e}")
+
+            if done_this_cycle:
+                # Finalize the current unit of work, then close the bead and
+                # archive the Devin session so it does not linger in the backlog.
+                _worker_log(session_dir, "finalizing: pulling, testing, closing bead")
+                _run_local_command(session_dir, "cd $ADT_RIG_ROOT && git pull --ff-only || true")
+                _run_local_command(session_dir, "cd $ADT_RIG_ROOT && bunx nx lint adt-mcp && bunx nx test adt-mcp && bunx nx test adt-cli")
+                _close_bead(session_dir, bead_id)
+                _delete_remote_devin(name)
+                if all_done:
+                    _worker_log(session_dir, "all done; idling for next work")
+                break
+
+            try:
+                time.sleep(POLL_INTERVAL_SEC)
+            except InterruptedError:
+                pass
+
+        _delete_remote_devin(name)
 
     _worker_log(session_dir, "worker exiting")
+    _delete_remote_devin(name)
 
 
 def main():
