@@ -212,16 +212,16 @@ async function registerPluginCommands(
   program: Command,
   options?: { preloadedPlugins?: CliCommandPlugin[] },
 ): Promise<void> {
+  // Parse --config before any static plugin loads its configuration.
+  const configPath = getResolvedConfigPath(process.argv);
+
   // gCTS command-plugin (E07). Auto-registered here (not via adt.config.ts)
   // because `@abapify/adt-plugin-gcts-cli` is a required dependency of
   // `adt-cli`, matching the pattern used for the abapGit/gCTS *format*
   // plugins above.
-  await loadStaticPlugins(program, [gctsCommand], process.cwd());
+  await loadStaticPlugins(program, [gctsCommand], process.cwd(), configPath);
 
   // Load command plugins from config (adt.config.ts or --config)
-  // NOTE: We need to parse --config early since plugins must be loaded before parseAsync()
-  const configPath = getResolvedConfigPath(process.argv);
-
   if (options?.preloadedPlugins !== undefined) {
     // Bundled mode: register statically imported plugins (no dynamic import needed)
     await loadStaticPlugins(

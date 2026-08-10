@@ -1,20 +1,47 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+
 import { createCLI } from './cli';
 import type { Command } from 'commander';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('ADT CLI', () => {
   // createCLI() registers Commander.js singleton instances, so each
   // subsequent call would fail with "cannot add command X as already have command X".
   // Share a single program instance across all assertions in this suite.
   let program: Command;
+  const originalArgv = process.argv;
+  const originalCwd = process.cwd();
+  const testCwd = mkdtempSync(join(tmpdir(), 'adt-cli-config-'));
+  const explicitConfigPath = join(testCwd, 'explicit.config.ts');
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
   beforeAll(async () => {
+    writeFileSync(
+      join(testCwd, 'adt.config.ts'),
+      "throw new Error('cwd configuration must not be loaded');",
+    );
+    writeFileSync(explicitConfigPath, 'export default { commands: [] };');
+    process.chdir(testCwd);
+    process.argv = ['node', 'adt', '--config', explicitConfigPath];
     program = await createCLI();
+  });
+
+  afterAll(() => {
+    process.argv = originalArgv;
+    process.chdir(originalCwd);
+    consoleError.mockRestore();
+    rmSync(testCwd, { recursive: true, force: true });
   });
 
   it('should create CLI program', () => {
     expect(program).toBeDefined();
     expect(program.name()).toBe('adt');
+  });
+
+  it('uses the explicit config while registering static plugins', () => {
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it('should register user command', () => {
