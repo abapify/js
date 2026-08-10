@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
-import { createCLI } from './cli';
+import { createCLI, getResolvedConfigPath } from './cli';
 import type { Command } from 'commander';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,6 +44,11 @@ describe('ADT CLI', () => {
 
   it('uses the explicit config while registering static plugins', () => {
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('should register the built-in gcts command', () => {
+    const commandNames = program.commands.map((c) => c.name());
+    expect(commandNames).toContain('gcts');
   });
 
   it('should register user command', () => {
@@ -125,5 +130,29 @@ describe('ADT CLI', () => {
     expect(subNames).toContain('package');
     expect(subNames).toContain('ddl');
     expect(subNames).toContain('dcl');
+  });
+});
+
+describe('getResolvedConfigPath', () => {
+  it('resolves the space-separated config option value', () => {
+    expect(
+      getResolvedConfigPath(['node', 'adt', '--config', '/tmp/adt.config.ts']),
+    ).toBe('/tmp/adt.config.ts');
+  });
+
+  it('resolves the inline config option value', () => {
+    expect(
+      getResolvedConfigPath(['node', 'adt', '--config=/tmp/adt.config.ts']),
+    ).toBe('/tmp/adt.config.ts');
+  });
+
+  it.each([
+    ['missing value', ['node', 'adt', '--config']],
+    ['empty separated value', ['node', 'adt', '--config', '']],
+    ['empty inline value', ['node', 'adt', '--config=']],
+  ])('rejects a %s', (_description, argv) => {
+    expect(() => getResolvedConfigPath(argv)).toThrow(
+      "option '--config <path>' argument missing",
+    );
   });
 });
