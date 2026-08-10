@@ -129,14 +129,22 @@ ${globalOptions}
   }
 }
 
+function getConfigPathOrThrow(
+  configPath: string | undefined,
+  rejectOptionLikeValue: boolean,
+): string {
+  if (!configPath || (rejectOptionLikeValue && configPath.startsWith('-'))) {
+    throw new Error("option '--config <path>' argument missing");
+  }
+
+  return configPath;
+}
+
 export function getResolvedConfigPath(argv: string[]): string | undefined {
   const configArgIndex = argv.indexOf('--config');
   if (configArgIndex !== -1) {
     const configPath = argv[configArgIndex + 1];
-    if (!configPath || configPath.startsWith('-')) {
-      throw new Error("option '--config <path>' argument missing");
-    }
-    return configPath;
+    return getConfigPathOrThrow(configPath, true);
   }
 
   const inlineConfigArg = argv.find((argument) =>
@@ -144,10 +152,7 @@ export function getResolvedConfigPath(argv: string[]): string | undefined {
   );
   if (inlineConfigArg !== undefined) {
     const configPath = inlineConfigArg.slice('--config='.length);
-    if (!configPath) {
-      throw new Error("option '--config <path>' argument missing");
-    }
-    return configPath;
+    return getConfigPathOrThrow(configPath, false);
   }
 
   return undefined;
