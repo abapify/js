@@ -458,9 +458,14 @@ def _close_bead(session_dir, bead_id):
     """Close a work bead by ID."""
     cfg = json.loads(_read_file(Path(session_dir) / "cfg.json", "{}"))
     work_dir = cfg.get("work_dir") or os.getcwd()
+    env = {**os.environ, **(cfg.get("env") or {})}
     try:
-        subprocess.run(["bd", "close", bead_id], cwd=work_dir, check=False, timeout=60)
-        _worker_log(session_dir, f"closed work bead {bead_id}")
+        result = subprocess.run(["bd", "close", bead_id], cwd=work_dir, env=env, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            _worker_log(session_dir, f"closed work bead {bead_id}")
+        else:
+            err = (result.stdout or "") + (result.stderr or "")
+            _worker_log(session_dir, f"bead close failed: {err}")
     except Exception as e:
         _worker_log(session_dir, f"bead close failed: {e}")
 
@@ -507,7 +512,10 @@ def _claim_bead(session_dir):
             timeout=30,
         )
         if bd_result.returncode == 0 and bd_result.stdout.strip():
-            details = json.loads(bd_result.stdout.strip())
+            parsed = json.loads(bd_result.stdout.strip())
+            if isinstance(parsed, list):
+                parsed = parsed[0] if parsed else {}
+            details = parsed
     except Exception as e:
         _worker_log(session_dir, f"bead show failed: {e}")
     return {"id": bead_id, "details": details}
@@ -664,6 +672,8 @@ def _devin_worker(session_dir, cfg):
 
         bead_id = bead["id"]
         details = bead.get("details") or {}
+        if isinstance(details, list):
+            details = details[0] if details else {}
         bead_title = details.get("title") or details.get("name") or bead_id
         bead_desc = details.get("description") or ""
         task = f"Bead: {bead_title}\nID: {bead_id}\n\n{bead_desc}".strip()
