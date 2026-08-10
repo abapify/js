@@ -129,11 +129,42 @@ ${globalOptions}
   }
 }
 
-function getResolvedConfigPath(argv: string[]): string | undefined {
-  const configArgIndex = argv.indexOf('--config');
-  if (configArgIndex !== -1) {
-    return argv[configArgIndex + 1];
+function getNonEmptyConfigPathOrThrow(configPath: string | undefined): string {
+  if (!configPath) {
+    throw new Error("option '--config <path>' argument missing");
   }
+
+  return configPath;
+}
+
+function getSeparatedConfigPathOrThrow(configPath: string | undefined): string {
+  const resolvedConfigPath = getNonEmptyConfigPathOrThrow(configPath);
+  if (resolvedConfigPath.startsWith('-')) {
+    throw new Error("option '--config <path>' argument missing");
+  }
+
+  return resolvedConfigPath;
+}
+
+export function getResolvedConfigPath(argv: string[]): string | undefined {
+  const optionTerminatorIndex = argv.indexOf('--');
+  const optionArgs =
+    optionTerminatorIndex === -1 ? argv : argv.slice(0, optionTerminatorIndex);
+
+  const configArgIndex = optionArgs.indexOf('--config');
+  if (configArgIndex !== -1) {
+    const configPath = optionArgs[configArgIndex + 1];
+    return getSeparatedConfigPathOrThrow(configPath);
+  }
+
+  const inlineConfigArg = optionArgs.find((argument) =>
+    argument.startsWith('--config='),
+  );
+  if (inlineConfigArg !== undefined) {
+    const configPath = inlineConfigArg.slice('--config='.length);
+    return getNonEmptyConfigPathOrThrow(configPath);
+  }
+
   return undefined;
 }
 
@@ -212,16 +243,16 @@ async function registerPluginCommands(
   program: Command,
   options?: { preloadedPlugins?: CliCommandPlugin[] },
 ): Promise<void> {
+  // Parse --config before any static plugin loads its configuration.
+  const configPath = getResolvedConfigPath(process.argv);
+
   // gCTS command-plugin (E07). Auto-registered here (not via adt.config.ts)
   // because `@abapify/adt-plugin-gcts-cli` is a required dependency of
   // `adt-cli`, matching the pattern used for the abapGit/gCTS *format*
   // plugins above.
-  await loadStaticPlugins(program, [gctsCommand], process.cwd());
+  await loadStaticPlugins(program, [gctsCommand], process.cwd(), configPath);
 
   // Load command plugins from config (adt.config.ts or --config)
-  // NOTE: We need to parse --config early since plugins must be loaded before parseAsync()
-  const configPath = getResolvedConfigPath(process.argv);
-
   if (options?.preloadedPlugins !== undefined) {
     // Bundled mode: register statically imported plugins (no dynamic import needed)
     await loadStaticPlugins(
