@@ -1,0 +1,924 @@
+#!/usr/bin/env python3
+"""gc-session-devin: Gas City exec session provider that drives a remote Devin session.
+
+The script speaks the Gas City Runtime Provider Protocol (RPP v0) on stdin/stdout
+and translates each op into Devin v3 REST API calls.  A background worker process
+handles the actual conversation: it creates a Devin child session, forwards
+`nudge` messages as user prompts, polls for Devin replies, executes `RUN:` blocks
+locally, and returns the output to Devin.
+"""
+
+import datetime
+import json
+import os
+import re
+import select
+import shlex
+import signal
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+API_BASE = os.environ.get("GC_DEVIN_API_BASE", "https://api.devin.ai")
+ORG_ID = os.environ.get("GC_DEVIN_ORG_ID", "")
+KEY_PATH = os.environ.get("GC_DEVIN_API_KEY_PATH", os.path.expanduser("~/.config/gc/devin-api-key"))
+POLL_INTERVAL_SEC = int(os.environ.get("GC_DEVIN_POLL_INTERVAL", "10"))
+
+_WAKEUP_R = None
+_WAKEUP_W = None
+
+
+def _setup_wakeup_fd():
+    """Install a self-pipe so SIGUSR1 (nudge) wakes select()-based sleeps."""
+    global _WAKEUP_R, _WAKEUP_W
+    if _WAKEUP_R is not None:
+        try:
+            os.close(_WAKEUP_R)
+        except OSError:
+            pass
+    if _WAKEUP_W is not None:
+        try:
+            os.close(_WAKEUP_W)
+        except OSError:
+            pass
+    r, w = os.pipe()
+    os.set_blocking(r, False)
+    os.set_blocking(w, False)
+    _WAKEUP_R = r
+    _WAKEUP_W = w
+    signal.set_wakeup_fd(w)
+    signal.siginterrupt(signal.SIGUSR1, True)
+
+
+def _interruptible_sleep(timeout):
+    """Sleep that returns early when SIGUSR1 is delivered to the process."""
+    if _WAKEUP_R is None or timeout <= 0:
+        return
+    deadline = time.time() + timeout
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            break
+        try:
+            ready, _, _ = select.select([_WAKEUP_R], [], [], min(remaining, 1.0))
+            if ready:
+                try:
+                    while os.read(_WAKEUP_R, 1024):
+                        pass
+                except BlockingIOError:
+                    pass
+                break
+        except InterruptedError:
+            pass
+
+
+def _log(*args):
+    # Never log to stdout; protocol output goes to stdout.
+    print(*args, file=sys.stderr, flush=True)
+
+
+def _devin_token():
+    """Read the Devin API token from env or key file."""
+    tok = os.environ.get("DEVIN_AI_API") or os.environ.get("GC_DEVIN_API_KEY")
+    if tok:
+        return tok
+    p = Path(KEY_PATH)
+    if p.exists():
+        return p.read_text().strip()
+    return ""
+
+
+def _api_headers():
+    tok = _devin_token()
+    if not tok:
+        raise RuntimeError("No Devin API token available")
+    return {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+
+
+def _api_req(method, path, payload=None, timeout=120):
+    if not ORG_ID:
+        raise RuntimeError("GC_DEVIN_ORG_ID environment variable is required")
+    url = f"{API_BASE}{path}"
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method=method, headers=_api_headers())
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Devin API {method} {url} -> {e.code}: {body}")
+
+
+def _state_root():
+    base = os.environ.get("GC_EXEC_STATE_DIR") or os.environ.get("GC_CITY_PATH")
+    if base:
+        return Path(base) / ".gc" / "devin-sessions"
+    return Path(os.path.expanduser("~/.local/share/gc-session-devin"))
+
+
+def _session_dir(name):
+    root = _state_root()
+    d = root / name
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _write_file(path, text):
+    Path(path).write_text(text, encoding="utf-8")
+
+
+def _append_log(path, text):
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(text + "\n")
+
+
+def _read_file(path, default=""):
+    p = Path(path)
+    return p.read_text(encoding="utf-8") if p.exists() else default
+
+
+def _load_cfg(session_dir):
+    try:
+        text = _read_file(Path(session_dir) / "cfg.json", "{}")
+        return json.loads(text) if text.strip() else {}
+    except json.JSONDecodeError as e:
+        _worker_log(session_dir, f"invalid cfg.json: {e}")
+        return {}
+
+
+def _touch(path):
+    Path(path).touch()
+
+
+def _update_activity(session_dir):
+    (_session_dir(session_dir) / "last-activity").write_text(
+        datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+    )
+
+
+def _worker_pid(session_dir):
+    pid_file = _session_dir(session_dir) / "pid"
+    if not pid_file.exists():
+        return None
+    try:
+        return int(pid_file.read_text().strip())
+    except ValueError:
+        return None
+
+
+def _is_alive(session_dir):
+    pid = _worker_pid(session_dir)
+    if pid is None:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, OSError):
+        return False
+
+
+def _delete_remote_devin(session_dir):
+    """Archive the remote Devin session and remove the local record."""
+    devin_file = _session_dir(session_dir) / "devin.json"
+    if not devin_file.exists():
+        return
+    try:
+        info = json.loads(devin_file.read_text())
+        devin_id = info.get("devin_id")
+        if devin_id:
+            _api_req("DELETE", f"/v3/organizations/{ORG_ID}/sessions/{devin_id}?archive=true")
+            _log(f"archived remote Devin session {devin_id}")
+    except Exception as e:
+        _log(f"cleanup remote devin for {session_dir}: {e}")
+    finally:
+        devin_file.unlink(missing_ok=True)
+
+
+def _handshake():
+    print('{"version":0,"capabilities":["report-activity"]}', flush=True)
+    return 0
+
+
+def _start(name):
+    cfg = sys.stdin.read()
+    d = _session_dir(name)
+    (d / "cfg.json").write_text(cfg, encoding="utf-8")
+    try:
+        cfg_obj = json.loads(cfg) if cfg.strip() else {}
+    except json.JSONDecodeError as e:
+        _log(f"start {name}: invalid cfg json: {e}")
+        return 1
+    if (d / "pid").exists() and _is_alive(name):
+        # Already running; just refresh cfg.
+        return 0
+    # Archive any previous remote session before clearing local state.
+    _delete_remote_devin(name)
+    # Clear previous artifacts but keep log? Start fresh.
+    for f in ["pid", "nudge.txt", "interrupt", "devin.json"]:
+        (d / f).unlink(missing_ok=True)
+    _append_log(d / "log", f"[{_now()}] start: spawning worker")
+    _update_activity(name)
+    # Spawn worker; detach from session group so gc stop does not kill it via PG.
+    log_out = d / "worker.out"
+    log_err = d / "worker.err"
+    with open(log_out, "a") as out, open(log_err, "a") as err:
+        proc = subprocess.Popen(
+            [sys.executable, __file__, "worker", name, str(d)],
+            stdin=subprocess.DEVNULL,
+            stdout=out,
+            stderr=err,
+            start_new_session=True,
+            cwd=cfg_obj.get("work_dir") or None,
+        )
+    (d / "pid").write_text(str(proc.pid))
+    return 0
+
+
+def _stop(name):
+    d = _session_dir(name)
+    pid = _worker_pid(name)
+    if pid:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            # Wait a moment.
+            for _ in range(20):
+                if not _is_alive(name):
+                    break
+                time.sleep(0.1)
+            if _is_alive(name):
+                os.kill(pid, signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            pass
+    _delete_remote_devin(name)
+    for f in ["pid"]:
+        (d / f).unlink(missing_ok=True)
+    _append_log(d / "log", f"[{_now()}] stopped")
+    return 0
+
+
+def _is_running(name):
+    print("true" if _is_alive(name) else "false", flush=True)
+    return 0
+
+
+def _is_attached(name):
+    # Treat running as attached for gc's purposes.
+    print("true" if _is_alive(name) else "false", flush=True)
+    return 0
+
+
+def _process_alive(name, process_names):
+    if not process_names:
+        print("true" if _is_alive(name) else "false", flush=True)
+        return 0
+    child_pid_file = _session_dir(name) / "child-pid"
+    if child_pid_file.exists():
+        try:
+            cpid = int(child_pid_file.read_text(encoding="utf-8").strip())
+            os.kill(cpid, 0)
+            print("true", flush=True)
+            return 0
+        except (ProcessLookupError, OSError, ValueError):
+            pass
+    for pname in process_names:
+        try:
+            result = subprocess.run(
+                ["pgrep", "-x", pname],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                print("true", flush=True)
+                return 0
+        except Exception:
+            pass
+    print("false" if not _is_alive(name) else "true", flush=True)
+    return 0
+
+
+def _nudge(name):
+    text = sys.stdin.read()
+    d = _session_dir(name)
+    nudge_file = d / "nudge.txt"
+    with open(nudge_file, "a", encoding="utf-8") as f:
+        f.write(text)
+    _append_log(d / "log", f"[{_now()}] nudge received ({len(text)} chars)")
+    _update_activity(name)
+    # Best-effort wake worker if it sleeps.
+    pid = _worker_pid(name)
+    if pid:
+        try:
+            os.kill(pid, signal.SIGUSR1)
+        except (ProcessLookupError, OSError):
+            pass
+    return 0
+
+
+def _peek(name, lines_arg=None):
+    d = _session_dir(name)
+    log_file = d / "log"
+    if not log_file.exists():
+        return 0
+    content = log_file.read_text(encoding="utf-8").splitlines()
+    try:
+        n = int(lines_arg) if lines_arg is not None else 50
+    except ValueError:
+        n = 50
+    if n <= 0:
+        n = 50
+    for line in content[-n:]:
+        print(line, flush=True)
+    return 0
+
+
+def _get_last_activity(name):
+    d = _session_dir(name)
+    p = d / "last-activity"
+    if p.exists():
+        print(p.read_text().strip(), flush=True)
+    return 0
+
+
+def _list_running(prefix=""):
+    root = _state_root()
+    if not root.exists():
+        return 0
+    for d in root.iterdir():
+        if d.is_dir() and (d / "pid").exists() and _is_alive(d.name):
+            if not prefix or d.name == prefix or d.name.startswith(prefix):
+                print(d.name, flush=True)
+    return 0
+
+
+def _set_meta(name, key):
+    d = _session_dir(name)
+    meta_dir = d / "meta"
+    meta_dir.mkdir(exist_ok=True)
+    (meta_dir / key).write_text(sys.stdin.read(), encoding="utf-8")
+    return 0
+
+
+def _get_meta(name, key):
+    d = _session_dir(name)
+    p = d / "meta" / key
+    if p.exists():
+        print(p.read_text(encoding="utf-8"), end="", flush=True)
+    return 0
+
+
+def _remove_meta(name, key):
+    d = _session_dir(name)
+    (d / "meta" / key).unlink(missing_ok=True)
+    return 0
+
+
+def _interrupt(name):
+    d = _session_dir(name)
+    (d / "interrupt").touch()
+    pid = _worker_pid(name)
+    if pid:
+        try:
+            os.kill(pid, signal.SIGINT)
+        except (ProcessLookupError, OSError):
+            pass
+    return 0
+
+
+def _now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+# ---------------------------------------------------------------------------
+# Worker process
+# ---------------------------------------------------------------------------
+
+def _worker_log(session_dir, text):
+    log_file = Path(session_dir) / "log"
+    _append_log(log_file, f"[{_now()}] {text}")
+    _update_activity(Path(session_dir).name)
+
+
+def _fetch_new_messages(devin_id, after=None, first=100):
+    params = {"first": first}
+    if after:
+        params["after"] = after
+    qs = urllib.parse.urlencode(params)
+    path = f"/v3/organizations/{ORG_ID}/sessions/{devin_id}/messages"
+    if qs:
+        path += "?" + qs
+    return _api_req("GET", path, timeout=30)
+
+
+def _send_message(devin_id, text):
+    payload = {"message": text}
+    return _api_req("POST", f"/v3/organizations/{ORG_ID}/sessions/{devin_id}/messages", payload)
+
+
+def _create_devin_session(prompt, title="gc-mayor", resumable=False, tags=None):
+    payload = {
+        "prompt": prompt,
+        "title": title,
+        "resumable": resumable,
+        "bypass_approval": True,
+        "tags": tags or ["gascity", "mayor"],
+        "devin_mode": "normal",
+    }
+    return _api_req("POST", f"/v3/organizations/{ORG_ID}/sessions", payload)
+
+
+def _get_session(devin_id):
+    return _api_req("GET", f"/v3/organizations/{ORG_ID}/sessions/{devin_id}", timeout=30)
+
+
+def _allowed_env(cfg_env):
+    """Return a sanitized environment for model-issued shell commands."""
+    allowlist = {
+        "PATH", "HOME", "USER", "SHELL", "LOGNAME", "TERM", "LANG",
+        "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_SESSION_TYPE",
+        "TMPDIR", "TMP", "TEMP", "PWD", "OLDPWD",
+        "GITHUB_TOKEN", "GH_TOKEN", "NX_CLOUD_ACCESS_TOKEN",
+    }
+    allowed = {}
+    for key, value in os.environ.items():
+        if key in allowlist or key.startswith(("GC_", "ADT_", "BUN_", "NODE_", "NVM_", "NPM_", "PNPM_", "NX_")):
+            allowed[key] = value
+    allowed.update(cfg_env or {})
+    return allowed
+
+
+def _run_local_command(session_dir, command, return_status=False):
+    """Execute a shell command from the remote Devin and return its output."""
+    cfg = _load_cfg(session_dir)
+    work_dir = cfg.get("work_dir") or os.getcwd()
+    env = _allowed_env(cfg.get("env"))
+    # Ensure ADT_RIG_ROOT is set for gc adt commands.
+    if not env.get("ADT_RIG_ROOT"):
+        env["ADT_RIG_ROOT"] = _resolve_rig_root(work_dir) or work_dir
+    _worker_log(session_dir, f"RUN: {command[:200]}")
+    try:
+        result = subprocess.run(
+            ["/bin/bash", "-c", command],
+            cwd=work_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        out = (result.stdout or "") + (result.stderr or "")
+        if result.returncode != 0:
+            out = f"[exit {result.returncode}]\n{out}"
+        # Truncate very long output to keep message size reasonable.
+        if len(out) > 8000:
+            out = out[:4000] + "\n...\n" + out[-4000:]
+        if return_status:
+            return out, result.returncode
+        return out
+    except subprocess.TimeoutExpired:
+        out = "[error: command timed out after 5 minutes]"
+    except Exception as e:
+        out = f"[error running command: {e}]"
+    if return_status:
+        return out, 1
+    return out
+
+
+def _resolve_rig_root(work_dir):
+    site = Path(work_dir) / ".gc" / "site.toml"
+    if site.exists():
+        for line in site.read_text(encoding="utf-8").splitlines():
+            m = re.match(r'^path\s*=\s*"([^"]+)"', line)
+            if m:
+                return m.group(1)
+    return None
+
+
+def _extract_run_block(text):
+    """Extract the first RUN ... ENDRUN block from Devin's message."""
+    m = re.search(r"^RUN:(.*?)\n(?:ENDRUN|RUN_END)$", text, re.DOTALL | re.MULTILINE)
+    if m:
+        return m.group(1).strip()
+    # Also accept a single-line RUN: command.
+    m = re.search(r"^RUN:\s*(.+)$", text, re.MULTILINE)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def _bead_to_prompt(nudge_text, cfg):
+    """Compose the final user prompt sent to Devin."""
+    rig = cfg.get("env", {}).get("ADT_RIG_ROOT") or _resolve_rig_root(cfg.get("work_dir", "")) or "/home/ubuntu/repos/adt-cli"
+    system = f"""You are a Gas City agent for the adt-cli-gascity workspace, running inside a remote Devin cloud session. The local gc-session-devin script is your operator: it will execute shell commands you request and return the output.
+
+CRITICAL: The workspace at {rig} and the Gas City city at {cfg.get('work_dir', '/home/ubuntu/adt-cli-gascity')} are NOT on your VM. You cannot run commands in your own shell, read local files, or edit files directly. Every filesystem interaction MUST be a shell command wrapped in a RUN: ... ENDRUN block. The operator runs it under bash in the workspace and returns stdout/stderr.
+
+Example:
+RUN:
+cd {rig} && git status
+ENDRUN
+
+Do not use your own tools or environment. Do not browse URLs. Do not edit files except by asking the operator to run commands like cat/sed/printf/git/bun/gc/bd. Use shell commands for everything.
+
+Available tools (only via RUN: blocks):
+- git / gh (authenticated via GITHUB_TOKEN)
+- bun and bunx
+- gc (Gas City CLI, city auto-discovered from cwd)
+- bd (beads CLI)
+- adt CLI via `gc adt-cli-gascity adt ...`
+- adt-mcp-http server via `gc adt-cli-gascity adt-mcp-http`
+
+When a unit of work is complete, output a single line: DONE
+When there are no more actionable tasks, output a single line: ALL_DONE
+"""
+    if nudge_text:
+        return f"{system}\n\nTASK:\n{nudge_text}"
+    return system
+
+
+def _close_bead(session_dir, bead_id):
+    """Close a work bead by ID."""
+    cfg = _load_cfg(session_dir)
+    work_dir = cfg.get("work_dir") or os.getcwd()
+    env = {**os.environ, **(cfg.get("env") or {})}
+    try:
+        result = subprocess.run(["bd", "close", bead_id], cwd=work_dir, env=env, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            _worker_log(session_dir, f"closed work bead {bead_id}")
+        else:
+            err = (result.stdout or "") + (result.stderr or "")
+            _worker_log(session_dir, f"bead close failed: {err}")
+    except Exception as e:
+        _worker_log(session_dir, f"bead close failed: {e}")
+
+
+def _claim_bead(session_dir):
+    """Atomically claim one routed work item for this session."""
+    cfg = _load_cfg(session_dir)
+    env = cfg.get("env") or {}
+    agent = env.get("GC_AGENT") or env.get("GC_ALIAS") or env.get("GC_TEMPLATE") or Path(session_dir).name
+    work_dir = cfg.get("work_dir") or os.getcwd()
+    env_vars = {**os.environ, **env}
+    try:
+        result = subprocess.run(
+            ["gc", "hook", agent, "--claim", "--json"],
+            cwd=work_dir,
+            env=env_vars,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except Exception as e:
+        _worker_log(session_dir, f"bead claim failed: {e}")
+        return None
+    text = result.stdout.strip()
+    if not text:
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if data.get("action") == "drain" or not data.get("ok"):
+        return None
+    bead_id = data.get("bead_id") or data.get("id")
+    if not bead_id:
+        return None
+    details = {}
+    try:
+        bd_result = subprocess.run(
+            ["bd", "show", bead_id, "--json"],
+            cwd=work_dir,
+            env=env_vars,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if bd_result.returncode == 0 and bd_result.stdout.strip():
+            parsed = json.loads(bd_result.stdout.strip())
+            if isinstance(parsed, list):
+                parsed = parsed[0] if parsed else {}
+            details = parsed
+    except Exception as e:
+        _worker_log(session_dir, f"bead show failed: {e}")
+    return {"id": bead_id, "details": details}
+
+
+_worker_should_exit = False
+
+
+def _request_exit(signum, frame):
+    global _worker_should_exit
+    _worker_should_exit = True
+
+
+def _noop_signal(signum, frame):
+    pass
+
+
+def _is_devin_session(cfg):
+    env = cfg.get("env") or {}
+    return (
+        env.get("GC_TEMPLATE", "") in ("mayor", "coder")
+        or env.get("GC_ALIAS", "") in ("mayor", "coder")
+        or env.get("GC_AGENT", "") in ("mayor", "coder")
+    )
+
+
+def _local_worker(session_dir, cfg):
+    global _worker_should_exit
+    _worker_should_exit = False
+    signal.signal(signal.SIGUSR1, _noop_signal)
+    signal.signal(signal.SIGTERM, _request_exit)
+    signal.signal(signal.SIGINT, _request_exit)
+    name = Path(session_dir).name
+    command = cfg.get("command", "")
+    if not command:
+        _worker_log(session_dir, "no local command; exiting")
+        return 0
+    work_dir = cfg.get("work_dir") or os.getcwd()
+    env = _allowed_env(cfg.get("env"))
+    if not env.get("ADT_RIG_ROOT"):
+        env["ADT_RIG_ROOT"] = _resolve_rig_root(work_dir) or work_dir
+    for cmd in cfg.get("pre_start") or []:
+        _worker_log(session_dir, f"pre_start: {cmd[:120]}")
+        _run_local_command(session_dir, cmd)
+    log_path = Path(session_dir) / "local.log"
+    _worker_log(session_dir, f"starting local command: {command[:120]}")
+    try:
+        with open(log_path, "a", encoding="utf-8") as out:
+            proc = subprocess.Popen(
+                ["/bin/bash", "-c", command],
+                cwd=work_dir,
+                env=env,
+                stdout=out,
+                stderr=out,
+                start_new_session=True,
+            )
+    except Exception as e:
+        _worker_log(session_dir, f"failed to start local command: {e}")
+        return 1
+    child_pid_file = Path(session_dir) / "child-pid"
+    child_pid_file.write_text(str(proc.pid), encoding="utf-8")
+    while not _worker_should_exit:
+        try:
+            ret = proc.wait(timeout=5)
+            _worker_log(session_dir, f"local command exited with {ret}")
+            break
+        except subprocess.TimeoutExpired:
+            continue
+        except Exception as e:
+            _worker_log(session_dir, f"error waiting for local command: {e}")
+            break
+    if _worker_should_exit and proc.poll() is None:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        except Exception:
+            pass
+        try:
+            proc.wait(timeout=5)
+        except Exception:
+            pass
+        if proc.poll() is None:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except Exception:
+                pass
+    try:
+        child_pid_file.unlink(missing_ok=True)
+    except Exception:
+        pass
+    _worker_log(session_dir, "local worker exiting")
+    return 0
+
+
+def _worker(session_dir):
+    cfg = _load_cfg(session_dir)
+    template = (cfg.get("env") or {}).get("GC_TEMPLATE", "")
+    alias = (cfg.get("env") or {}).get("GC_ALIAS", "")
+    _worker_log(session_dir, f"worker started (template={template}, alias={alias})")
+    if _is_devin_session(cfg):
+        return _devin_worker(session_dir, cfg)
+    return _local_worker(session_dir, cfg)
+
+
+def _devin_worker(session_dir, cfg):
+    global _worker_should_exit
+    _worker_should_exit = False
+    signal.signal(signal.SIGUSR1, _noop_signal)
+    signal.signal(signal.SIGTERM, _request_exit)
+    signal.signal(signal.SIGINT, _request_exit)
+    _setup_wakeup_fd()
+    d = Path(session_dir)
+    name = d.name
+    _worker_log(session_dir, "Devin worker started")
+
+    # Run pre_start commands if any.
+    for cmd in cfg.get("pre_start") or []:
+        _worker_log(session_dir, f"pre_start: {cmd[:120]}")
+        _run_local_command(session_dir, cmd)
+
+    while _is_alive(name) and not _worker_should_exit:
+        _update_activity(name)
+        # Check for interrupt.
+        if (d / "interrupt").exists():
+            _worker_log(session_dir, "interrupt requested")
+            break
+
+        # Drain any nudge so we know work may be available.
+        nudge_file = d / "nudge.txt"
+        nudge_text = ""
+        if nudge_file.exists() and nudge_file.stat().st_size > 0:
+            processing = d / "nudge.processing"
+            try:
+                nudge_file.replace(processing)
+                nudge_text = processing.read_text(encoding="utf-8")
+                _worker_log(session_dir, f"nudge received ({len(nudge_text)} chars)")
+            finally:
+                processing.unlink(missing_ok=True)
+
+        # Claim actual work before starting a Devin session.  This avoids
+        # leaving long-lived idle Devin sessions in the backlog.
+        bead = _claim_bead(session_dir)
+        if not bead:
+            if (d / "devin.json").exists():
+                _worker_log(session_dir, "no work; closing idle Devin session")
+                _delete_remote_devin(name)
+            _worker_log(session_dir, "no work; idling")
+            # Sleep in short chunks so signals wake us and activity stays fresh.
+            deadline = time.time() + 60
+            while time.time() < deadline and not _worker_should_exit:
+                _update_activity(name)
+                _interruptible_sleep(min(POLL_INTERVAL_SEC, max(0.0, deadline - time.time())))
+                if (d / "nudge.txt").exists() and (d / "nudge.txt").stat().st_size > 0:
+                    break
+            continue
+
+        bead_id = bead["id"]
+        details = bead.get("details") or {}
+        if isinstance(details, list):
+            details = details[0] if details else {}
+        bead_title = details.get("title") or details.get("name") or bead_id
+        bead_desc = details.get("description") or ""
+        task = f"Bead: {bead_title}\nID: {bead_id}\n\n{bead_desc}".strip()
+        if nudge_text:
+            task = f"{task}\n\nNUDGE:\n{nudge_text}"
+
+        prompt = _bead_to_prompt(task, cfg)
+        title = f"gc-{name}-{bead_id}"
+        _worker_log(session_dir, f"claimed bead {bead_id}; creating Devin session {title}")
+        try:
+            sess = _create_devin_session(prompt, title=title, resumable=False, tags=["gascity", name])
+            devin_id = sess["session_id"]
+        except Exception as e:
+            _worker_log(session_dir, f"failed to create Devin session: {e}")
+            return 1
+        (d / "devin.json").write_text(json.dumps({"devin_id": devin_id}), encoding="utf-8")
+        _worker_log(session_dir, f"Devin session {devin_id} created")
+
+        seen_event_ids = set()
+        all_done = False
+        messages_cursor = None
+        while _is_alive(name) and not _worker_should_exit:
+            _update_activity(name)
+            # Check for interrupt.
+            if (d / "interrupt").exists():
+                _worker_log(session_dir, "interrupt requested")
+                break
+
+            nudge_file = d / "nudge.txt"
+            if nudge_file.exists() and nudge_file.stat().st_size > 0:
+                processing = d / "nudge.processing"
+                try:
+                    nudge_file.replace(processing)
+                    text = processing.read_text(encoding="utf-8")
+                    _send_message(devin_id, text)
+                    _worker_log(session_dir, f"sent user nudge ({len(text)} chars)")
+                    all_done = False
+                finally:
+                    processing.unlink(missing_ok=True)
+
+            # Poll status.
+            try:
+                status = _get_session(devin_id)
+                st = status.get("status")
+                if st in ("exit", "error", "suspended"):
+                    _worker_log(session_dir, f"Devin session status={st}")
+                    break
+            except Exception as e:
+                _worker_log(session_dir, f"status poll error: {e}")
+
+            done_this_cycle = False
+            try:
+                items = []
+                has_next = True
+                cursor = messages_cursor
+                while has_next:
+                    resp = _fetch_new_messages(devin_id, after=cursor)
+                    page = resp.get("items") or []
+                    items.extend(page)
+                    has_next = bool(resp.get("has_next_page"))
+                    cursor = resp.get("end_cursor")
+                    if not has_next or not cursor:
+                        break
+                if cursor:
+                    messages_cursor = cursor
+
+                for item in items:
+                    event_id = item.get("event_id")
+                    if event_id in seen_event_ids:
+                        continue
+                    seen_event_ids.add(event_id)
+                    if item.get("source") == "devin":
+                        msg = item.get("message") or ""
+                        _worker_log(session_dir, f"devin: {msg[:200].replace(chr(10), ' ')}")
+                        cmd = _extract_run_block(msg)
+                        if cmd:
+                            out = _run_local_command(session_dir, cmd)
+                            _send_message(devin_id, out)
+                            _worker_log(session_dir, f"sent command output ({len(out)} chars)")
+                        if re.search(r"^ALL_DONE\s*$", msg, re.MULTILINE):
+                            _worker_log(session_dir, "Devin reported ALL_DONE")
+                            all_done = True
+                            done_this_cycle = True
+                        elif re.search(r"^DONE\s*$", msg, re.MULTILINE):
+                            _worker_log(session_dir, "Devin reported DONE")
+                            done_this_cycle = True
+            except Exception as e:
+                _worker_log(session_dir, f"message poll error: {e}")
+
+            if done_this_cycle:
+                # Finalize the current unit of work, then close the bead and
+                # archive the Devin session so it does not linger in the backlog.
+                _worker_log(session_dir, "finalizing: pulling, testing, closing bead")
+                _run_local_command(session_dir, "cd $ADT_RIG_ROOT && git pull --ff-only || true")
+                lint_out, lint_rc = _run_local_command(
+                    session_dir,
+                    "cd $ADT_RIG_ROOT && bunx nx lint adt-mcp && bunx nx test adt-mcp && bunx nx test adt-cli",
+                    return_status=True,
+                )
+                if lint_rc == 0:
+                    _close_bead(session_dir, bead_id)
+                    _delete_remote_devin(name)
+                    if all_done:
+                        _worker_log(session_dir, "all done; idling for next work")
+                    break
+                else:
+                    _worker_log(session_dir, "finalization failed; leaving bead open for retry")
+                    _send_message(devin_id, lint_out)
+                    all_done = False
+                    done_this_cycle = False
+
+            _interruptible_sleep(POLL_INTERVAL_SEC)
+
+        _delete_remote_devin(name)
+
+    _worker_log(session_dir, "worker exiting")
+    _delete_remote_devin(name)
+
+
+def main():
+    if len(sys.argv) < 2:
+        _log("usage: gc-session-devin <op> [args]")
+        return 2
+    op = sys.argv[1]
+    if op == "protocol":
+        return _handshake()
+    if op == "start" and len(sys.argv) >= 3:
+        return _start(sys.argv[2])
+    if op == "stop" and len(sys.argv) >= 3:
+        return _stop(sys.argv[2])
+    if op == "is-running" and len(sys.argv) >= 3:
+        return _is_running(sys.argv[2])
+    if op == "is-attached" and len(sys.argv) >= 3:
+        return _is_attached(sys.argv[2])
+    if op == "process-alive" and len(sys.argv) >= 3:
+        return _process_alive(sys.argv[2], sys.argv[3:])
+    if op == "nudge" and len(sys.argv) >= 3:
+        return _nudge(sys.argv[2])
+    if op == "peek" and len(sys.argv) >= 3:
+        return _peek(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
+    if op == "get-last-activity" and len(sys.argv) >= 3:
+        return _get_last_activity(sys.argv[2])
+    if op == "list-running":
+        return _list_running(sys.argv[2] if len(sys.argv) > 2 else "")
+    if op == "set-meta" and len(sys.argv) >= 4:
+        return _set_meta(sys.argv[2], sys.argv[3])
+    if op == "get-meta" and len(sys.argv) >= 4:
+        return _get_meta(sys.argv[2], sys.argv[3])
+    if op == "remove-meta" and len(sys.argv) >= 4:
+        return _remove_meta(sys.argv[2], sys.argv[3])
+    if op == "interrupt" and len(sys.argv) >= 3:
+        return _interrupt(sys.argv[2])
+    if op == "worker" and len(sys.argv) >= 4:
+        return _worker(sys.argv[3])
+    # Unknown op: exit 2 is forward-compatible success per Gas City protocol.
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

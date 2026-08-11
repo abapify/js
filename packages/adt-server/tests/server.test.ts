@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -8,7 +9,10 @@ import {
   createMcpInvocationVerifier,
 } from '../../adt-mcp/src/index.ts';
 import { generateKeyPair, SignJWT } from 'jose';
-import { SourceVersionTooLargeError } from '@abapify/adt-client';
+import {
+  createAdtAdapter,
+  SourceVersionTooLargeError,
+} from '@abapify/adt-client';
 import { createRestBearerAuthorizer } from '../src/rest-auth.js';
 import { resolveMcpFrozenSource, startAdtServer } from '../src/server.js';
 import { createRestSourceCapabilityService } from '../src/source-capabilities.js';
@@ -341,6 +345,121 @@ test('forwards validated transport search criteria only after REST authenticatio
     await server.close();
   }
 });
+
+test('keeps downstream ADT work active after a REST response completes normally', async () => {
+  let observedSignal: AbortSignal | undefined;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input, init) => {
+    observedSignal = init?.signal ?? undefined;
+    return new Response('{}', {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof globalThis.fetch;
+  const adapter = createAdtAdapter({
+    baseUrl: 'https://sap.example.test',
+    username: 'test',
+    password: 'test',
+  });
+  const server = await startTestAdtServer({
+    operations: {
+      ...operations,
+      async searchPackages() {
+        await adapter.request({ method: 'GET', url: '/packages' });
+        return { data: [], truncated: false };
+      },
+    },
+    host: '127.0.0.1',
+    port: 0,
+    restAuthorizer: {
+      async authorize() {
+        return true;
+      },
+    },
+  });
+
+  try {
+    const response = await originalFetch(
+      `${server.url}/v1/destinations/dev/packages?q=z`,
+    );
+    assert.strictEqual(response.status, 200);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.ok(observedSignal);
+    assert.strictEqual(observedSignal.aborted, false);
+  } finally {
+    await server.close();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test(
+  'aborts downstream ADT work when a REST client disconnects',
+  { timeout: 2_000 },
+  async () => {
+    let observedSignal: AbortSignal | undefined;
+    let markOperationStarted: (() => void) | undefined;
+    let markOperationAborted: (() => void) | undefined;
+    const operationStarted = new Promise<void>((resolve) => {
+      markOperationStarted = resolve;
+    });
+    const operationAborted = new Promise<void>((resolve) => {
+      markOperationAborted = resolve;
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = ((_input, init) => {
+      observedSignal = init?.signal ?? undefined;
+      markOperationStarted?.();
+      return new Promise<Response>((_resolve, reject) => {
+        observedSignal?.addEventListener(
+          'abort',
+          () => {
+            markOperationAborted?.();
+            reject(observedSignal?.reason);
+          },
+          { once: true },
+        );
+      });
+    }) as typeof globalThis.fetch;
+    const adapter = createAdtAdapter({
+      baseUrl: 'https://sap.example.test',
+      username: 'test',
+      password: 'test',
+    });
+    const server = await startTestAdtServer({
+      operations: {
+        ...operations,
+        async searchPackages() {
+          await adapter.request({ method: 'GET', url: '/packages' });
+          return { data: [], truncated: false };
+        },
+      },
+      host: '127.0.0.1',
+      port: 0,
+      restAuthorizer: {
+        async authorize() {
+          return true;
+        },
+      },
+    });
+
+    try {
+      const request = http.request(
+        `${server.url}/v1/destinations/dev/packages?q=z`,
+      );
+      request.on('error', () => undefined);
+      request.end();
+      await operationStarted;
+      request.destroy();
+      await operationAborted;
+
+      assert.ok(observedSignal);
+      assert.strictEqual(observedSignal.aborted, true);
+    } finally {
+      await server.close();
+      globalThis.fetch = originalFetch;
+    }
+  },
+);
 
 test('serves canonical transport detail and aggregated objects without SAP URI fields', async () => {
   const calls: Array<{

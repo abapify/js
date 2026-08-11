@@ -1,0 +1,13 @@
+[workspace]
+provider = "codex"
+
+[session]
+provider = "exec:/home/ubuntu/.local/bin/gc-session-devin"
+
+[providers]
+[providers.codex]
+base = "builtin:codex"
+ready_delay_ms = 0
+
+[[rigs]]
+name = "adt-cli"

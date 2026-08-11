@@ -1,6 +1,7 @@
 import http from 'node:http';
 import {
   AdtResponseTooLargeError,
+  runWithAdtAbortSignal,
   SourceVersionTooLargeError,
 } from '@abapify/adt-client';
 import { z } from 'zod';
@@ -1000,7 +1001,40 @@ async function dispatchRoute(
     !(await ensureRestAuthorized(ctx, request, response))
   )
     return;
-  await route.handler(ctx, request, response, match);
+  if (!route.requiresRest) {
+    await route.handler(ctx, request, response, match);
+    return;
+  }
+  await runWithRequestAbortSignal(request, response, () =>
+    route.handler(ctx, request, response, match),
+  );
+}
+
+async function runWithRequestAbortSignal<T>(
+  request: http.IncomingMessage,
+  response: http.ServerResponse,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const abortController = new AbortController();
+  const abort = () => {
+    if (!abortController.signal.aborted) abortController.abort();
+  };
+  const abortOnPrematureResponseClose = () => {
+    if (!response.writableEnded) abort();
+  };
+
+  request.once('aborted', abort);
+  response.once('close', abortOnPrematureResponseClose);
+  if (request.aborted || (response.destroyed && !response.writableEnded)) {
+    abort();
+  }
+
+  try {
+    return await runWithAdtAbortSignal(abortController.signal, operation);
+  } finally {
+    request.removeListener('aborted', abort);
+    response.removeListener('close', abortOnPrematureResponseClose);
+  }
 }
 
 function handleServerError(
