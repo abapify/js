@@ -11,7 +11,7 @@ if [ -z "$RIG_PATH" ] && [ -n "${GC_CITY_PATH:-}" ]; then
   fi
 fi
 if [ -z "$RIG_PATH" ]; then
-  SEARCH_DIR="${GC_CITY_PATH:-$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)}"
+  SEARCH_DIR="${GC_CITY_PATH:-$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)}"
   while [ "$SEARCH_DIR" != "/" ]; do
     if [ -f "${SEARCH_DIR}/packages/adt-mcp/dist/bin/adt-mcp-http.mjs" ]; then
       RIG_PATH="$SEARCH_DIR"
@@ -21,7 +21,7 @@ if [ -z "$RIG_PATH" ]; then
   done
 fi
 if [ -z "$RIG_PATH" ]; then
-  RIG_PATH="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
+  RIG_PATH="$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)"
 fi
 
 MCP_HTTP="${RIG_PATH}/packages/adt-mcp/dist/bin/adt-mcp-http.mjs"

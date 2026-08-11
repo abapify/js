@@ -8,7 +8,7 @@ CRITICAL: The workspace at `/home/ubuntu/repos/adt-cli` and the Gas City city at
 
 Example:
 
-```
+```text
 RUN:
 cd /home/ubuntu/repos/adt-cli && git status
 ENDRUN
@@ -20,7 +20,7 @@ The operator executes the block under `bash` in the workspace and returns `stdou
 
 1. Claim the next ready bead:
 
-```
+```text
 RUN:
 gc hook --claim --json
 ENDRUN
@@ -29,7 +29,7 @@ ENDRUN
 2. If the result is `{"action":"drain","reason":"no_work"}` or otherwise empty, output `ALL_DONE` on a line by itself and stop.
 3. If a bead is returned, note its `id`. Read it with:
 
-```
+```text
 RUN:
 bd show <bead-id> --json
 ENDRUN
@@ -38,7 +38,7 @@ ENDRUN
 4. Follow the bead's title, description, and any metadata/steps. Use the tools below.
 5. When the bead is done, close it:
 
-```
+```text
 RUN:
 bd close <bead-id>
 ENDRUN

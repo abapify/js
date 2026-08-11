@@ -167,6 +167,9 @@ e2e/adt-sdk
 
 # Gas City runtime artifacts
 .beads/
+!gascity/.beads/identity.toml
+__pycache__/
+*.pyc
 .agents/skills/.gc-skill-ownership.json
 .agents/skills/adt-tools
 .agents/skills/core.gc-*

@@ -12,7 +12,7 @@ if [ -z "$RIG_PATH" ] && [ -n "${GC_CITY_PATH:-}" ]; then
 fi
 if [ -z "$RIG_PATH" ]; then
   # Search upward from the city path (or the pack root) for the repo checkout.
-  SEARCH_DIR="${GC_CITY_PATH:-$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)}"
+  SEARCH_DIR="${GC_CITY_PATH:-$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)}"
   while [ "$SEARCH_DIR" != "/" ]; do
     if [ -f "${SEARCH_DIR}/packages/adt-cli/dist/bin/adt.mjs" ]; then
       RIG_PATH="$SEARCH_DIR"
@@ -22,7 +22,7 @@ if [ -z "$RIG_PATH" ]; then
   done
 fi
 if [ -z "$RIG_PATH" ]; then
-  RIG_PATH="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
+  RIG_PATH="$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)"
 fi
 
 ADT_CLI="${RIG_PATH}/packages/adt-cli/dist/bin/adt.mjs"
