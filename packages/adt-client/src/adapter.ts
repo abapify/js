@@ -374,15 +374,9 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       // Make request
       logger?.debug(`HTTP ${options.method} ${url.toString()}`);
       {
-        const safeHeaders = {
-          ...headers,
-          // Mask sensitive headers for security
-          ...(headers.Authorization ? { Authorization: '***' } : {}),
-          ...(headers.Cookie ? { Cookie: '***' } : {}),
-          ...(headers['x-csrf-token'] ? { 'x-csrf-token': '***' } : {}),
-        };
+        const headerNames = Object.keys(headers).sort();
         logger?.debug(
-          'Request headers: ' + JSON.stringify(safeHeaders, null, 2),
+          'Request headers (names only): ' + JSON.stringify(headerNames),
         );
       }
       const response = await fetch(url.toString(), {
