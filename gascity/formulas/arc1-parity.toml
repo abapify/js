@@ -23,6 +23,6 @@ needs = ["implement"]
 
 [[steps]]
 id = "push"
-title = "Push and update PR"
-description = "Commit changes to the PR branch and update the PR description with the methodContext addition."
+title = "Format, push and update PR"
+description = "Run bunx nx format:write, commit changes to the PR branch, and update the PR description with the methodContext addition."
 needs = ["test"]

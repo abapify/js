@@ -12,6 +12,7 @@ import datetime
 import json
 import os
 import re
+import select
 import shlex
 import signal
 import subprocess
@@ -26,6 +27,53 @@ API_BASE = os.environ.get("GC_DEVIN_API_BASE", "https://api.devin.ai")
 ORG_ID = os.environ.get("GC_DEVIN_ORG_ID", "")
 KEY_PATH = os.environ.get("GC_DEVIN_API_KEY_PATH", os.path.expanduser("~/.config/gc/devin-api-key"))
 POLL_INTERVAL_SEC = int(os.environ.get("GC_DEVIN_POLL_INTERVAL", "10"))
+
+_WAKEUP_R = None
+_WAKEUP_W = None
+
+
+def _setup_wakeup_fd():
+    """Install a self-pipe so SIGUSR1 (nudge) wakes select()-based sleeps."""
+    global _WAKEUP_R, _WAKEUP_W
+    if _WAKEUP_R is not None:
+        try:
+            os.close(_WAKEUP_R)
+        except OSError:
+            pass
+    if _WAKEUP_W is not None:
+        try:
+            os.close(_WAKEUP_W)
+        except OSError:
+            pass
+    r, w = os.pipe()
+    os.set_blocking(r, False)
+    os.set_blocking(w, False)
+    _WAKEUP_R = r
+    _WAKEUP_W = w
+    signal.set_wakeup_fd(w)
+    signal.siginterrupt(signal.SIGUSR1, True)
+
+
+def _interruptible_sleep(timeout):
+    """Sleep that returns early when SIGUSR1 is delivered to the process."""
+    if _WAKEUP_R is None or timeout <= 0:
+        return
+    deadline = time.time() + timeout
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            break
+        try:
+            ready, _, _ = select.select([_WAKEUP_R], [], [], min(remaining, 1.0))
+            if ready:
+                try:
+                    while os.read(_WAKEUP_R, 1024):
+                        pass
+                except BlockingIOError:
+                    pass
+                break
+        except InterruptedError:
+            pass
 
 
 def _log(*args):
@@ -664,6 +712,7 @@ def _devin_worker(session_dir, cfg):
     signal.signal(signal.SIGUSR1, _noop_signal)
     signal.signal(signal.SIGTERM, _request_exit)
     signal.signal(signal.SIGINT, _request_exit)
+    _setup_wakeup_fd()
     d = Path(session_dir)
     name = d.name
     _worker_log(session_dir, "Devin worker started")
@@ -684,9 +733,13 @@ def _devin_worker(session_dir, cfg):
         nudge_file = d / "nudge.txt"
         nudge_text = ""
         if nudge_file.exists() and nudge_file.stat().st_size > 0:
-            nudge_text = nudge_file.read_text(encoding="utf-8")
-            nudge_file.unlink()
-            _worker_log(session_dir, f"nudge received ({len(nudge_text)} chars)")
+            processing = d / "nudge.processing"
+            try:
+                nudge_file.replace(processing)
+                nudge_text = processing.read_text(encoding="utf-8")
+                _worker_log(session_dir, f"nudge received ({len(nudge_text)} chars)")
+            finally:
+                processing.unlink(missing_ok=True)
 
         # Claim actual work before starting a Devin session.  This avoids
         # leaving long-lived idle Devin sessions in the backlog.
@@ -700,10 +753,7 @@ def _devin_worker(session_dir, cfg):
             deadline = time.time() + 60
             while time.time() < deadline and not _worker_should_exit:
                 _update_activity(name)
-                try:
-                    time.sleep(min(POLL_INTERVAL_SEC, max(0.0, deadline - time.time())))
-                except InterruptedError:
-                    pass
+                _interruptible_sleep(min(POLL_INTERVAL_SEC, max(0.0, deadline - time.time())))
                 if (d / "nudge.txt").exists() and (d / "nudge.txt").stat().st_size > 0:
                     break
             continue
@@ -721,8 +771,12 @@ def _devin_worker(session_dir, cfg):
         prompt = _bead_to_prompt(task, cfg)
         title = f"gc-{name}-{bead_id}"
         _worker_log(session_dir, f"claimed bead {bead_id}; creating Devin session {title}")
-        sess = _create_devin_session(prompt, title=title, resumable=False, tags=["gascity", name])
-        devin_id = sess["session_id"]
+        try:
+            sess = _create_devin_session(prompt, title=title, resumable=False, tags=["gascity", name])
+            devin_id = sess["session_id"]
+        except Exception as e:
+            _worker_log(session_dir, f"failed to create Devin session: {e}")
+            return 1
         (d / "devin.json").write_text(json.dumps({"devin_id": devin_id}), encoding="utf-8")
         _worker_log(session_dir, f"Devin session {devin_id} created")
 
@@ -738,11 +792,15 @@ def _devin_worker(session_dir, cfg):
 
             nudge_file = d / "nudge.txt"
             if nudge_file.exists() and nudge_file.stat().st_size > 0:
-                text = nudge_file.read_text(encoding="utf-8")
-                nudge_file.unlink()
-                _send_message(devin_id, text)
-                _worker_log(session_dir, f"sent user nudge ({len(text)} chars)")
-                all_done = False
+                processing = d / "nudge.processing"
+                try:
+                    nudge_file.replace(processing)
+                    text = processing.read_text(encoding="utf-8")
+                    _send_message(devin_id, text)
+                    _worker_log(session_dir, f"sent user nudge ({len(text)} chars)")
+                    all_done = False
+                finally:
+                    processing.unlink(missing_ok=True)
 
             # Poll status.
             try:
@@ -815,10 +873,7 @@ def _devin_worker(session_dir, cfg):
                     all_done = False
                     done_this_cycle = False
 
-            try:
-                time.sleep(POLL_INTERVAL_SEC)
-            except InterruptedError:
-                pass
+            _interruptible_sleep(POLL_INTERVAL_SEC)
 
         _delete_remote_devin(name)
 
