@@ -45,7 +45,7 @@ const sourceToolInputSchema = {
     .string()
     .optional()
     .describe(
-      'For CLAS: source include such as definitions, implementations, testclasses, macros, or main.',
+      'For CLAS: source include such as definitions, implementations, testclasses, macros, localtypes, text_symbols, or main.',
     ),
   method: z
     .string()

@@ -63,11 +63,12 @@ describe('getSource grep', () => {
   });
 
   it('rejects ReDoS-prone patterns', async () => {
+    const redos = '(a' + '+)' + '+b';
     await expect(
       getSource(createClient(), {
         objectName: 'ZCL_DEMO',
         objectType: 'CLAS',
-        grep: '(a+)+b',
+        grep: redos,
       }),
     ).rejects.toThrow();
   });

@@ -248,7 +248,10 @@ const getSourceCommand = new Command('get')
   .argument('<objectName>', 'ABAP object name')
   .option('--type <type>', 'Object type hint (e.g. CLAS, PROG, INTF)')
   .option('--version <version>', 'Source version (active or inactive)')
-  .option('--include <include>', 'Source include/section (e.g. testclasses)')
+  .option(
+    '--include <include>',
+    'Source include/section (e.g. testclasses, localtypes)',
+  )
   .option('--method <method>', 'Method name to read, or * to list methods')
   .option('--grep <pattern>', 'Search source with regex context')
   .option('--max-bytes <bytes>', 'Maximum source bytes to retrieve', '1048576')
@@ -270,6 +273,15 @@ const getSourceCommand = new Command('get')
     ) => {
       try {
         const client = await getAdtClientV2();
+        const maxBytes = options.maxBytes
+          ? Number(options.maxBytes)
+          : undefined;
+        if (
+          maxBytes !== undefined &&
+          (!Number.isInteger(maxBytes) || maxBytes <= 0)
+        ) {
+          throw new Error(`Invalid --max-bytes value: ${options.maxBytes}`);
+        }
         const result = await getSource(client, {
           objectName,
           objectType: options.type,
@@ -277,7 +289,7 @@ const getSourceCommand = new Command('get')
           include: options.include,
           method: options.method,
           grep: options.grep,
-          maxBytes: options.maxBytes ? Number(options.maxBytes) : undefined,
+          maxBytes,
           format: options.format === 'structured' ? 'structured' : 'raw',
         });
 

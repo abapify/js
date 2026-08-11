@@ -29,6 +29,7 @@ const VALID_CLASS_INCLUDES = new Set([
   'testclasses',
   'macros',
   'text_symbols',
+  'localtypes',
 ]);
 
 // ReDoS-mitigation: reject patterns likely to cause catastrophic backtracking.
@@ -124,7 +125,7 @@ export type GetSourceResult =
   | GetSourceStructuredResult;
 
 const CLASS_START =
-  /^CLASS\s+(\S+)(?:\s+(DEFINITION|IMPLEMENTATION))?(?:\s+FOR\s+TESTING[^.]*)?\s*\.\s*$/i;
+  /^CLASS\s+(\S+)\s+(DEFINITION|IMPLEMENTATION)(?:\s+.*)?\s*\.\s*$/i;
 const INTERFACE_START = /^INTERFACE\s+(\S+)(?:\s+DEFINITION)?\s*\.\s*$/i;
 const METHOD_START = /^METHOD\s+(\S+)\s*\.\s*$/i;
 
@@ -358,14 +359,12 @@ function compileGrepPattern(
     };
   }
   try {
-    // Dynamic pattern is validated above for dangerous constructs.
-    // User-supplied regex is guarded by isDisallowedRegex and length checks.
-    return {
-      regex:
-        // codeql[js/regex-injection]
-        // lgtm [js/regex-injection]
-        new RegExp(pattern, 'i'), // eslint-disable-line -- nosemgrep
-    };
+    // Pattern length and dangerous constructs are validated above before the
+    // RegExp constructor is reached. User input therefore never reaches this
+    // sink unvalidated.
+    // codeql[js/regex-injection]
+    const regex = new RegExp(pattern, 'i'); // eslint-disable-line -- nosemgrep
+    return { regex };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
   }
@@ -629,7 +628,7 @@ async function fetchSource(
 
 function methodTypeSupported(objectType: string | undefined): boolean {
   const upperType = objectType?.toUpperCase();
-  return !upperType || upperType === 'CLAS' || upperType === 'INTF';
+  return !upperType || upperType === 'CLAS';
 }
 
 /**
@@ -678,7 +677,7 @@ export async function getSource(
   if (method) {
     if (!methodTypeSupported(objectType)) {
       throw new Error(
-        `method is only supported for CLAS/INTF, but objectType was "${objectType}"`,
+        `method is only supported for CLAS, but objectType was "${objectType}"`,
       );
     }
     if (method === '*') {
