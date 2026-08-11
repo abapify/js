@@ -1,0 +1,2 @@
+description = "Pass through to the adt CLI binary"
+command = ["adt"]

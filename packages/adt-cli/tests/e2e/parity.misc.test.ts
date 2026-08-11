@@ -260,6 +260,134 @@ describe('CLI + MCP parity (misc)', () => {
     expect(res.json.source.length).toBeGreaterThan(0);
   });
 
+  it('source get with class include — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--include',
+      'testclasses',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    expect(res.stdout).toContain('ltc_example');
+  });
+
+  it('source get with method list — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--method',
+      '*',
+      '--json',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    const json = JSON.parse(res.stdout);
+    expect(json.methods).toContain('DO_SOMETHING');
+  });
+
+  it('source get with single method — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--method',
+      'do_something',
+      '--json',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    const json = JSON.parse(res.stdout);
+    expect(json.source).toContain('METHOD DO_SOMETHING.');
+  });
+
+  it('source get with grep — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--grep',
+      'do_something',
+      '--json',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    const json = JSON.parse(res.stdout);
+    expect(json.matchCount).toBeGreaterThan(0);
+  });
+
+  it('source get with grep returns method context — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--grep',
+      'do_something',
+      '--json',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    const json = JSON.parse(res.stdout) as {
+      matchCount: number;
+      methodContext?: Array<{
+        line: number;
+        text: string;
+        method?: string;
+        include?: string;
+        class?: string;
+      }>;
+    };
+    expect(json.methodContext).toBeDefined();
+    expect(Array.isArray(json.methodContext)).toBe(true);
+    const match = json.methodContext?.find((m) => m.method === 'DO_SOMETHING');
+    expect(match).toBeDefined();
+    expect(match?.class?.toLowerCase()).toBe('zcl_example');
+    expect(match?.include).toBe('implementations');
+  });
+
+  it('source get with max-bytes — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--max-bytes',
+      '100000',
+      '--json',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    const json = JSON.parse(res.stdout);
+    expect(json.bytes).toBeLessThanOrEqual(100000);
+  });
+
+  it('source get with structured format — CLI', async () => {
+    const res = await runCliCommand(harness, [
+      'source',
+      'get',
+      'ZCL_EXAMPLE',
+      '--type',
+      'CLAS',
+      '--format',
+      'structured',
+    ]);
+    expect(res.exitCode, res.stderr || res.stdout).toBe(0);
+    const json = JSON.parse(res.stdout);
+    expect(Array.isArray(json.includes)).toBe(true);
+    expect(json.methods).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'DO_SOMETHING' }),
+      ]),
+    );
+  });
+
   // ── Source put ──────────────────────────────────────────────────────────
 
   it('source put — CLI', async () => {

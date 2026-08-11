@@ -1,0 +1,28 @@
+formula = "arc1-parity"
+description = "Implement arc-1 SAPRead parity gaps for get_source, starting with P0 method-level grep context."
+
+[requires]
+formula_compiler = ">=2.0.0"
+
+[[steps]]
+id = "analyze"
+title = "Analyze parity report"
+description = "Read the ARC1_PARITY_REPORT attachment and confirm the P0 gap: method-level grep context."
+
+[[steps]]
+id = "implement"
+title = "Implement method-level grep context"
+description = "Update packages/adt-cli/src/lib/services/source/service.ts: add GrepMatch and methodContext to GetSourceGrepResult, parse owning class/include/method in parseStructuredSource, and annotate grep context lines. Update the CLI formatter and exports."
+needs = ["analyze"]
+
+[[steps]]
+id = "test"
+title = "Verify lint and tests"
+description = "Run bunx nx lint adt-mcp, bunx nx test adt-mcp, bunx nx test adt-cli. Fix failures."
+needs = ["implement"]
+
+[[steps]]
+id = "push"
+title = "Format, push and update PR"
+description = "Run bunx nx format:write, commit changes to the PR branch, and update the PR description with the methodContext addition."
+needs = ["test"]
