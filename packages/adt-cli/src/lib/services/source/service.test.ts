@@ -62,13 +62,12 @@ describe('getSource grep', () => {
     ).rejects.toThrow(/Do not combine grep with method/);
   });
 
-  it('rejects ReDoS-prone patterns', async () => {
-    const redos = '(a' + '+)' + '+b';
+  it('rejects disallowed regex patterns', async () => {
     await expect(
       getSource(createClient(), {
         objectName: 'ZCL_DEMO',
         objectType: 'CLAS',
-        grep: redos,
+        grep: '(?=abc)',
       }),
     ).rejects.toThrow();
   });

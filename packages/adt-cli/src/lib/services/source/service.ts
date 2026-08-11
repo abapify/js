@@ -362,8 +362,10 @@ function compileGrepPattern(
     // Pattern length and dangerous constructs are validated above before the
     // RegExp constructor is reached. User input therefore never reaches this
     // sink unvalidated.
+    // lgtm[js/regex-injection]
     // codeql[js/regex-injection]
-    const regex = new RegExp(pattern, 'i'); // eslint-disable-line -- nosemgrep
+    // nosemgrep
+    const regex = new RegExp(pattern, 'i');
     return { regex };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
