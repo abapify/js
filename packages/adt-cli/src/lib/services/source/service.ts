@@ -647,10 +647,10 @@ async function resolveUri(
   client: AdtClient,
   objectName: string,
   objectType?: string,
-): Promise<string> {
+): Promise<{ uri: string; objectType?: string }> {
   if (objectType) {
     const uri = getObjectUri(objectType, objectName);
-    if (uri) return uri;
+    if (uri) return { uri, objectType };
   }
 
   const searchResult =
@@ -669,7 +669,7 @@ async function resolveUri(
   if (!match?.uri) {
     throw new Error(`Object '${objectName}' not found`);
   }
-  return match.uri;
+  return { uri: match.uri, objectType: match.type };
 }
 
 async function fetchSource(
@@ -690,8 +690,7 @@ async function fetchSource(
 }
 
 function methodTypeSupported(objectType: string | undefined): boolean {
-  const upperType = objectType?.toUpperCase();
-  return !upperType || upperType === 'CLAS';
+  return objectType?.toUpperCase() === 'CLAS';
 }
 
 /**
@@ -732,15 +731,24 @@ export async function getSource(
     HARD_MAX_SOURCE_BYTES,
   );
 
-  const objectUri = await resolveUri(client, objectName, objectType);
-  const { url, note } = buildSourceUrl(objectUri, objectType, include, version);
+  const { uri: objectUri, objectType: resolvedObjectType } = await resolveUri(
+    client,
+    objectName,
+    objectType,
+  );
+  const { url, note } = buildSourceUrl(
+    objectUri,
+    resolvedObjectType,
+    include,
+    version,
+  );
 
   const source = await fetchSource(client, url, maxBytes);
 
   if (method) {
-    if (!methodTypeSupported(objectType)) {
+    if (!methodTypeSupported(resolvedObjectType)) {
       throw new Error(
-        `method is only supported for CLAS, but objectType was "${objectType}"`,
+        `method is only supported for CLAS, but objectType was "${resolvedObjectType ?? objectType}"`,
       );
     }
     if (method === '*') {
