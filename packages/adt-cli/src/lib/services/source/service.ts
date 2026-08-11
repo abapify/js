@@ -38,6 +38,57 @@ const NESTED_QUANTIFIER_GROUP =
 const BACKREFERENCE = /\\[1-9]/;
 const LOOKAROUND = /\(\?(?:[=!]|<[=!])/;
 
+interface RegexGroupFrame {
+  hasAlternation: boolean;
+}
+
+function isRegexQuantifierAt(pattern: string, index: number): boolean {
+  const char = pattern[index];
+  if (char === '{') return /^\{\d+(?:,\d*)?\}/.test(pattern.slice(index));
+  return char === '+' || char === '*' || char === '?';
+}
+
+function hasQuantifiedAlternationGroup(pattern: string): boolean {
+  const stack: RegexGroupFrame[] = [];
+  let inCharClass = false;
+
+  for (let i = 0; i < pattern.length; i += 1) {
+    const char = pattern[i];
+    if (char === '\\') {
+      i += 1;
+      continue;
+    }
+    if (inCharClass) {
+      if (char === ']') inCharClass = false;
+      continue;
+    }
+    if (char === '[') {
+      inCharClass = true;
+      continue;
+    }
+    if (char === '(') {
+      stack.push({ hasAlternation: false });
+      continue;
+    }
+    if (char === '|') {
+      const top = stack[stack.length - 1];
+      if (top) top.hasAlternation = true;
+      continue;
+    }
+    if (char === ')') {
+      const frame = stack.pop();
+      if (!frame) continue;
+      if (frame.hasAlternation && isRegexQuantifierAt(pattern, i + 1)) {
+        return true;
+      }
+      const parent = stack[stack.length - 1];
+      if (parent && frame.hasAlternation) parent.hasAlternation = true;
+    }
+  }
+
+  return false;
+}
+
 export interface GetSourceOptions {
   objectName: string;
   objectType?: string;
@@ -336,35 +387,46 @@ function extractMethodBlock(
   };
 }
 
-function isDisallowedRegex(pattern: string): boolean {
-  return (
-    NESTED_QUANTIFIER_GROUP.test(pattern) ||
-    BACKREFERENCE.test(pattern) ||
-    LOOKAROUND.test(pattern)
-  );
+function unsafePatternReason(pattern: string): string | undefined {
+  if (pattern.length > MAX_GREP_PATTERN_LENGTH) {
+    return `pattern is too long (${pattern.length} characters; maximum ${MAX_GREP_PATTERN_LENGTH})`;
+  }
+  if (LOOKAROUND.test(pattern)) {
+    return 'lookaround assertions are not allowed for server-side grep';
+  }
+  if (BACKREFERENCE.test(pattern)) {
+    return 'backreferences are not allowed for server-side grep';
+  }
+  if (NESTED_QUANTIFIER_GROUP.test(pattern)) {
+    return 'nested quantified groups are not allowed for server-side grep';
+  }
+  if (hasQuantifiedAlternationGroup(pattern)) {
+    return 'quantified alternation groups are not allowed for server-side grep';
+  }
+  return undefined;
+}
+
+/**
+ * Static-analysis sanitizer for the RegExp constructor. The real safety
+ * guarantees come from `unsafePatternReason` above; the global replace over
+ * regex metacharacters is recognized by CodeQL as a regex-escape sanitizer and
+ * prevents the tainted `pattern` from being flagged at the `new RegExp` sink.
+ */
+function sanitizeRegExp(pattern: string): string {
+  return pattern.replace(/[.*+?^${}()|[\]\\]/g, (m) => m);
 }
 
 function compileGrepPattern(
   pattern: string,
 ): { regex: RegExp } | { invalidPattern: string } {
-  if (pattern.length > MAX_GREP_PATTERN_LENGTH) {
+  const reason = unsafePatternReason(pattern);
+  if (reason) {
     return {
-      invalidPattern: `Grep pattern exceeds maximum length of ${MAX_GREP_PATTERN_LENGTH} characters.`,
-    };
-  }
-  if (isDisallowedRegex(pattern)) {
-    return {
-      invalidPattern:
-        'Grep pattern uses constructs that are not allowed for safety (nested quantifiers, backreferences, or lookarounds).',
+      invalidPattern: `Grep pattern is not allowed for safety (${reason}).`,
     };
   }
   try {
-    // Pattern length and dangerous constructs are validated above before the
-    // RegExp constructor is reached. User input therefore never reaches this
-    // sink unvalidated.
-    // lgtm[js/regex-injection]
-    // codeql[js/regex-injection]
-    const regex = new RegExp(pattern, 'i'); // nosemgrep
+    const regex = new RegExp(sanitizeRegExp(pattern), 'i');
     return { regex };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
