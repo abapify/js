@@ -1,7 +1,7 @@
 /**
  * Lightweight progress reporter for CLI output.
  * - Compact mode keeps updates on a single line (overwriting previous text).
- * - Non-compact mode logs through the provided logger (or console).
+ * - Non-compact mode logs through the provided logger (CLI loggers target stderr).
  * - Progress is written to stderr so stdout stays safe for piping source,
  *   JSON, XML, and other command payloads.
  *
