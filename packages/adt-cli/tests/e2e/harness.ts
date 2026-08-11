@@ -200,10 +200,31 @@ function tryParseJson(text: string): unknown {
  * - Uses commander's `exitOverride()` to convert parse errors into thrown errors.
  * - Returns a `CliRunResult` with stdout, stderr, exitCode, and optional parsed JSON.
  */
+function resetCommandOptions(command: Command): void {
+  const optionValues: Record<string, unknown> = {};
+  const optionValueSources: Record<string, string> = {};
+  for (const option of command.options) {
+    if (option.defaultValue !== undefined) {
+      optionValues[option.attributeName()] = option.defaultValue;
+      optionValueSources[option.attributeName()] = 'default';
+    }
+  }
+  (command as any)._optionValues = optionValues;
+  (command as any)._optionValueSources = optionValueSources;
+  for (const sub of command.commands) {
+    resetCommandOptions(sub);
+  }
+}
+
 export async function runCliCommand(
   harness: AdtHarness,
   argv: string[],
 ): Promise<CliRunResult> {
+  // Commander reuses the same Command instance across parseAsync calls and
+  // does not reset option values that are not supplied again. Reset to
+  // registered defaults before each call so tests remain isolated.
+  resetCommandOptions(harness.program);
+
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
 

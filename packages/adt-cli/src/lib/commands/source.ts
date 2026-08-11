@@ -18,6 +18,11 @@ import {
   toMetadataOnlySourceVersionListing,
   type ListObjectVersionsResult,
 } from '../services/source-history';
+import {
+  getSource,
+  type GetSourceResult,
+  type GrepMatch,
+} from '../services/source';
 import { createLockService, resolveLockCorrelation } from '@abapify/adt-locks';
 import { getObjectUri } from '@abapify/adk';
 import {
@@ -198,37 +203,103 @@ async function resolveUri(
 
 // ── sub-commands ─────────────────────────────────────────────────────────────
 
+function formatGrepMatch(match: GrepMatch): string {
+  const scope = [match.class, match.include, match.method]
+    .filter(Boolean)
+    .join('.');
+  const scopePrefix = scope ? `${scope} | ` : '';
+  const lineNumber = match.line.toString().padStart(5, ' ');
+  return `${scopePrefix}${lineNumber}: ${match.text}`;
+}
+
+function formatMethodContext(methodContext: GrepMatch[]): string {
+  const lines: string[] = [];
+  let prev = -1;
+  for (const match of methodContext) {
+    if (prev > 0 && match.line - prev > 1) {
+      lines.push('---');
+    }
+    lines.push(formatGrepMatch(match));
+    prev = match.line;
+  }
+  return lines.join('\n');
+}
+
+function formatGetSourceResult(result: GetSourceResult): string {
+  if ('includes' in result) {
+    return JSON.stringify(result, null, 2);
+  }
+  if ('source' in result) {
+    return result.source;
+  }
+  if ('matches' in result) {
+    return result.methodContext?.length
+      ? formatMethodContext(result.methodContext)
+      : result.matches.join('\n');
+  }
+  if ('methods' in result) {
+    return result.methods.join('\n');
+  }
+  return '';
+}
+
 const getSourceCommand = new Command('get')
   .description('Print ABAP source code for an object to stdout')
   .argument('<objectName>', 'ABAP object name')
   .option('--type <type>', 'Object type hint (e.g. CLAS, PROG, INTF)')
+  .option('--version <version>', 'Source version (active or inactive)')
+  .option(
+    '--include <include>',
+    'Source include/section (e.g. testclasses, localtypes)',
+  )
+  .option('--method <method>', 'Method name to read, or * to list methods')
+  .option('--grep <pattern>', 'Search source with regex context')
+  .option('--max-bytes <bytes>', 'Maximum source bytes to retrieve', '1048576')
+  .option('--format <format>', 'Output format (raw or structured)', 'raw')
   .option('--json', 'Output result as JSON')
   .action(
-    async (objectName: string, options: { type?: string; json?: boolean }) => {
+    async (
+      objectName: string,
+      options: {
+        type?: string;
+        version?: string;
+        include?: string;
+        method?: string;
+        grep?: string;
+        maxBytes?: string;
+        format?: string;
+        json?: boolean;
+      },
+    ) => {
       try {
         const client = await getAdtClientV2();
-        const uri = await resolveUri(client, objectName, options.type);
-
-        // Prefer typed source contract for well-known object types (CLAS/INTF/PROG/DDLS/DCLS)
-        const contract = pickSourceContract(client, uri);
-        let source: string;
-        if (contract) {
-          source = await contract.op.get(contract.objectName);
-        } else {
-          // TODO: generic fallback — remove once all object types have
-          // typed source contracts (e.g. FUGR/FUNC, DOMA source, etc.).
-          source = String(
-            await client.fetch(`${uri}/source/main`, {
-              method: 'GET',
-              headers: { Accept: 'text/plain' },
-            }),
-          );
+        const maxBytes = options.maxBytes
+          ? Number(options.maxBytes)
+          : undefined;
+        if (
+          maxBytes !== undefined &&
+          (!Number.isInteger(maxBytes) || maxBytes <= 0)
+        ) {
+          throw new Error(`Invalid --max-bytes value: ${options.maxBytes}`);
         }
+        const result = await getSource(client, {
+          objectName,
+          objectType: options.type,
+          version: options.version,
+          include: options.include,
+          method: options.method,
+          grep: options.grep,
+          maxBytes,
+          format: options.format === 'structured' ? 'structured' : 'raw',
+        });
 
-        if (options.json) {
-          console.log(JSON.stringify({ objectName, uri, source }, null, 2));
+        if (options.json || options.format === 'structured') {
+          console.log(JSON.stringify(result, null, 2));
         } else {
-          process.stdout.write(source);
+          process.stdout.write(formatGetSourceResult(result));
+          if ('note' in result && result.note) {
+            process.stderr.write(`\nNote: ${result.note}\n`);
+          }
         }
       } catch (error) {
         console.error(

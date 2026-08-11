@@ -468,6 +468,46 @@
           "value": 120
         }
       ]
+    },
+    {
+      "matching_content_path": "packages/adt-cli/src/lib/services/source/service.ts",
+      "matching_content_path_doc": "Source retrieval service mirrors arc-1 SAPRead parity; many small string helpers for URI/grep/method parsing.",
+      "rules": [
+        {
+          "name": "Primitive Obsession",
+          "weight": 0.0
+        },
+        {
+          "name": "String Heavy Function Arguments",
+          "weight": 0.0
+        }
+      ],
+      "thresholds": [
+        {
+          "name": "function_cyclomatic_complexity_warning",
+          "value": 25
+        },
+        {
+          "name": "function_lines_of_code_warning",
+          "value": 120
+        },
+        {
+          "name": "function_complex_conditional_branches_warning",
+          "value": 5
+        },
+        {
+          "name": "function_bumpy_road_bumps_for_warning",
+          "value": 5
+        },
+        {
+          "name": "function_nesting_depth_warning",
+          "value": 5
+        },
+        {
+          "name": "file_mean_cyclomatic_complexity_warning",
+          "value": 6
+        }
+      ]
     }
   ]
 }
