@@ -135,6 +135,7 @@ const VERSIONS_RELATION = 'http://www.sap.com/adt/relations/versions';
 const DEFAULT_CONCURRENCY = 4;
 const MAX_CONCURRENCY = 32;
 const RELATIVE_URI_TRAVERSAL = /(?:^|\/)(?:\.{1,2}|%2e(?:%2e)?)(?:\/|$)/i;
+const NON_SOURCE_CTS_OBJECT_KEYS = new Set(['R3TR/SUSK']);
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === 'object'
@@ -167,6 +168,20 @@ function compareText(left: string, right: string): number {
   if (left < right) return -1;
   if (left > right) return 1;
   return 0;
+}
+
+/**
+ * Some CTS entries represent SAP-maintained configuration rather than
+ * repository source. They have neither an ADK source model nor an abapGit
+ * representation, so they must not participate in a source-boundary manifest.
+ */
+function isNonSourceCtsObject(reference: {
+  pgmid: string;
+  type: string;
+}): boolean {
+  return NON_SOURCE_CTS_OBJECT_KEYS.has(
+    `${reference.pgmid.trim().toUpperCase()}/${reference.type.trim().toUpperCase()}`,
+  );
 }
 
 function isUnsafeRelativeHref(href: string): boolean {
@@ -839,12 +854,14 @@ export async function buildTransportSourceManifest(
     ...requested,
     ...resolved.scopeTransportNumbers,
   ]);
-  const objects = [...resolved.objects].sort(
-    (left, right) =>
-      compareText(left.pgmid, right.pgmid) ||
-      compareText(left.type, right.type) ||
-      compareText(left.name, right.name),
-  );
+  const objects = resolved.objects
+    .filter((reference) => !isNonSourceCtsObject(reference))
+    .sort(
+      (left, right) =>
+        compareText(left.pgmid, right.pgmid) ||
+        compareText(left.type, right.type) ||
+        compareText(left.name, right.name),
+    );
 
   const perObjectEntries = await mapOrdered(
     objects,

@@ -665,6 +665,42 @@ describe('buildTransportSourceManifest', () => {
     ]);
   });
 
+  it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {
+    const authorizationAssignment = transportObject({
+      name: 'Z_CONCUR_RECON',
+      type: 'SUSK',
+    });
+    const program = transportObject({
+      name: 'ZREVIEWED_PROGRAM',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution(
+      [authorizationAssignment, program],
+      ['DEVK900002', 'DEVK900002'],
+    );
+    const head = version('00001', 0, ['DEVK900002']);
+    const { ctx } = contextWithVersions(vi.fn().mockResolvedValue([head]));
+
+    const manifest = await buildTransportSourceManifest(
+      ['DEVK900001'],
+      {},
+      ctx,
+    );
+
+    expect(manifest.entries).toEqual([
+      expect.objectContaining({
+        object: expect.objectContaining({
+          pgmid: 'R3TR',
+          type: 'PROG',
+          name: 'ZREVIEWED_PROGRAM',
+        }),
+        exact: true,
+        head,
+      }),
+    ]);
+    expect(factoryGet).not.toHaveBeenCalledWith('Z_CONCUR_RECON', 'SUSK');
+  });
+
   it('discovers and selects composite components independently', async () => {
     const object = transportObject({
       name: 'ZCL_SAMPLE',

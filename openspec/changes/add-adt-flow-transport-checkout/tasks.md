@@ -21,6 +21,7 @@
 - [x] 3.5 Implement the exact-repeat head zero-SAP-call fast path and the base/head per-component no-body-read fast path, with tests that assert call counts and zero writes.
 - [x] 3.6 Prove transport descriptors first appear on successful head checkout, while base writes only present predecessor object descriptors and does not pre-create new-object identities.
 - [x] 3.7 Add tests proving deletion of `.adt` changes call counts but not the materialized source result.
+- [x] 3.8 Exclude the non-source `R3TR SUSK` CTS authorization-maintenance entry before source-history retrieval, with a manifest regression test.
 
 ## 4. Safe repository reconciliation
 
