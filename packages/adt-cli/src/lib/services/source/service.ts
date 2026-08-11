@@ -364,8 +364,7 @@ function compileGrepPattern(
     // sink unvalidated.
     // lgtm[js/regex-injection]
     // codeql[js/regex-injection]
-    // nosemgrep
-    const regex = new RegExp(pattern, 'i');
+    const regex = new RegExp(pattern, 'i'); // nosemgrep
     return { regex };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
