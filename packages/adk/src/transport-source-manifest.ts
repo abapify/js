@@ -10,12 +10,7 @@ import {
 } from './objects/cts';
 
 export type TransportSourceChangeKind =
-  | 'added'
-  | 'modified'
-  | 'deleted'
-  | 'ambiguous'
-  | 'unsupported'
-  | 'failed';
+  'added' | 'modified' | 'deleted' | 'ambiguous' | 'unsupported' | 'failed';
 
 export type SourceHistoryDiagnosticCode =
   | 'DELETED_SOURCE_BASE_UNAVAILABLE'
