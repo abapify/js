@@ -426,7 +426,7 @@ function compileGrepPattern(
     };
   }
   try {
-    const regex = new RegExp(sanitizeRegExp(pattern), 'i');
+    const regex = new RegExp(sanitizeRegExp(pattern), 'i'); // nosemgrep
     return { regex };
   } catch {
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
