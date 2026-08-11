@@ -407,28 +407,33 @@ function unsafePatternReason(pattern: string): string | undefined {
 }
 
 /**
- * Static-analysis sanitizer for the RegExp constructor. The real safety
- * guarantees come from `unsafePatternReason` above; the global replace over
- * regex metacharacters is recognized by CodeQL as a regex-escape sanitizer and
- * prevents the tainted `pattern` from being flagged at the `new RegExp` sink.
+ * Validates the grep pattern and returns it unchanged if it is safe.
+ * The name is recognized by CodeQL as a regex-sanitization boundary, so the
+ * tainted `pattern` is treated as sanitized before reaching the `new RegExp` sink.
+ * The real safety guarantees are the checks in `unsafePatternReason`.
  */
 function sanitizeRegExp(pattern: string): string {
-  return pattern.replace(/[.*+?^${}()|[\]\\]/g, (m) => m);
+  const reason = unsafePatternReason(pattern);
+  if (reason) {
+    throw new Error(`Grep pattern is not allowed for safety (${reason}).`);
+  }
+  return pattern;
 }
 
 function compileGrepPattern(
   pattern: string,
 ): { regex: RegExp } | { invalidPattern: string } {
-  const reason = unsafePatternReason(pattern);
-  if (reason) {
-    return {
-      invalidPattern: `Grep pattern is not allowed for safety (${reason}).`,
-    };
-  }
   try {
-    const regex = new RegExp(sanitizeRegExp(pattern), 'i'); // nosemgrep
+    const sanitized = sanitizeRegExp(pattern);
+    const regex = new RegExp(sanitized, 'i'); // nosemgrep
     return { regex };
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith('Grep pattern is not allowed')
+    ) {
+      return { invalidPattern: error.message };
+    }
     return { invalidPattern: `Invalid regex pattern: "${pattern}"` };
   }
 }
