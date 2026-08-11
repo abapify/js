@@ -155,6 +155,13 @@ from the root `adt.config.ts` and SHALL persist only relevant identities.
 - **THEN** an object is relevant only when it satisfies every configured dimension
 - **THEN** type filtering occurs before source-history retrieval
 
+#### Scenario: A CTS configuration entry has no source representation
+
+- **GIVEN** a transport contains an `R3TR SUSK` authorization-maintenance assignment
+- **WHEN** checkout evaluates the transport
+- **THEN** that non-source entry is excluded before source-history retrieval
+- **THEN** all remaining relevant repository source components retain exact-boundary validation
+
 #### Scenario: Configuration expands scope
 
 - **GIVEN** a previously excluded object type or package becomes enabled
