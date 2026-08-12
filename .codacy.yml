@@ -5,13 +5,9 @@ engines:
       # CSSLint does not support CSS custom properties used by Docusaurus/Infima
       - 'website/src/css/custom.css'
   eslint-8:
-    exclude_paths:
-      - '.github/workflows/sonar.yml'
-      - 'scripts/sonar-monorepo.ts'
+    exclude_paths: []
   opengrep:
-    exclude_paths:
-      - '.github/workflows/sonar.yml'
-      - 'scripts/sonar-monorepo.ts'
+    exclude_paths: []
   remark-lint:
     exclude_paths:
       # Generated release notes contain markdown constructs (e.g. `[bot]`)
