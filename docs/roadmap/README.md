@@ -110,7 +110,7 @@ mcp_call_tool(server="deepwiki", tool="devin_session_create",
                           "tags": ["sapcli-parity", "eXX"]})
 ```
 
-Otherwise: open https://app.devin.ai/ → New session → paste the **Devin prompt** block from the epic file.
+Otherwise: open <https://app.devin.ai/> → New session → paste the **Devin prompt** block from the epic file.
 
 ## Conventions enforced across all epics
 

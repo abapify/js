@@ -46,16 +46,16 @@ support.
 
 ### `transport`
 
-| Flag                          | Description                                                 |
-| ----------------------------- | ----------------------------------------------------------- |
-| `<transportNumber>`           | Transport request number to import.                         |
-| `[targetFolder]`              | Target folder for output.                                   |
-| `-o, --output <path>`         | Output directory (overrides `targetFolder`).                |
-| `-t, --object-types <types>`  | Comma-separated object types.                               |
-| `--format <format>`           | Output format. Default: `abapgit`.                          |
-| `--format-option <key=value>` | Repeatable format option.                                   |
-| `--folder-logic <logic>`      | **[DEPRECATED]** Use `--format-option folderLogic=<logic>`. |
-| `--debug`                     | Enable debug output.                                        |
+| Flag                          | Description                                               |
+| ----------------------------- | --------------------------------------------------------- |
+| `<transportNumber>`           | Transport request number to import.                       |
+| `[targetFolder]`              | Target folder for output.                                 |
+| `-o, --output <path>`         | Output directory (overrides `targetFolder`).              |
+| `-t, --object-types <types>`  | Comma-separated object types.                             |
+| `--format <format>`           | Output format. Default: `abapgit`.                        |
+| `--format-option <key=value>` | Repeatable format option.                                 |
+| `--folder-logic <logic>`      | **DEPRECATED** Use `--format-option folderLogic=<logic>`. |
+| `--debug`                     | Enable debug output.                                      |
 
 ## Examples
 
