@@ -13,7 +13,6 @@ import json
 import os
 import re
 import select
-import shlex
 import signal
 import subprocess
 import sys
@@ -29,28 +28,26 @@ KEY_PATH = os.environ.get("GC_DEVIN_API_KEY_PATH", os.path.expanduser("~/.config
 POLL_INTERVAL_SEC = int(os.environ.get("GC_DEVIN_POLL_INTERVAL", "10"))
 
 _WAKEUP_R = None
-_WAKEUP_W = None
 
 
 def _setup_wakeup_fd():
     """Install a self-pipe so SIGUSR1 (nudge) wakes select()-based sleeps."""
-    global _WAKEUP_R, _WAKEUP_W
+    global _WAKEUP_R
     if _WAKEUP_R is not None:
         try:
             os.close(_WAKEUP_R)
         except OSError:
-            pass
-    if _WAKEUP_W is not None:
-        try:
-            os.close(_WAKEUP_W)
-        except OSError:
-            pass
+            pass  # expected if fd already closed
     r, w = os.pipe()
     os.set_blocking(r, False)
     os.set_blocking(w, False)
     _WAKEUP_R = r
-    _WAKEUP_W = w
-    signal.set_wakeup_fd(w)
+    old_w = signal.set_wakeup_fd(w)
+    if old_w >= 0:
+        try:
+            os.close(old_w)
+        except OSError:
+            pass  # expected if fd already closed
     signal.siginterrupt(signal.SIGUSR1, True)
 
 
@@ -70,9 +67,11 @@ def _interruptible_sleep(timeout):
                     while os.read(_WAKEUP_R, 1024):
                         pass
                 except BlockingIOError:
+                    # no more data to drain from the wakeup pipe
                     pass
                 break
         except InterruptedError:
+            # retry when a signal interrupts select()
             pass
 
 
@@ -254,6 +253,7 @@ def _stop(name):
             if _is_alive(name):
                 os.kill(pid, signal.SIGKILL)
         except (ProcessLookupError, OSError):
+            # expected if the process is already gone
             pass
     _delete_remote_devin(name)
     for f in ["pid"]:
@@ -285,6 +285,7 @@ def _process_alive(name, process_names):
             print("true", flush=True)
             return 0
         except (ProcessLookupError, OSError, ValueError):
+            # child process already gone or pid file invalid
             pass
     for pname in process_names:
         try:
@@ -298,6 +299,7 @@ def _process_alive(name, process_names):
                 print("true", flush=True)
                 return 0
         except Exception:
+            # pgrep not available or failed; fall through to next check
             pass
     print("false" if not _is_alive(name) else "true", flush=True)
     return 0
@@ -387,6 +389,7 @@ def _interrupt(name):
         try:
             os.kill(pid, signal.SIGINT)
         except (ProcessLookupError, OSError):
+            # expected if the worker is already gone
             pass
     return 0
 
@@ -635,7 +638,6 @@ def _local_worker(session_dir, cfg):
     signal.signal(signal.SIGUSR1, _noop_signal)
     signal.signal(signal.SIGTERM, _request_exit)
     signal.signal(signal.SIGINT, _request_exit)
-    name = Path(session_dir).name
     command = cfg.get("command", "")
     if not command:
         _worker_log(session_dir, "no local command; exiting")
@@ -678,19 +680,23 @@ def _local_worker(session_dir, cfg):
         try:
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
         except Exception:
+            # process group may already be gone
             pass
         try:
             proc.wait(timeout=5)
         except Exception:
+            # ignore errors while waiting for termination
             pass
         if proc.poll() is None:
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             except Exception:
+                # process group may already be gone
                 pass
     try:
         child_pid_file.unlink(missing_ok=True)
     except Exception:
+        # unlink is best-effort; missing_ok already handles absence
         pass
     _worker_log(session_dir, "local worker exiting")
     return 0
@@ -879,6 +885,7 @@ def _devin_worker(session_dir, cfg):
 
     _worker_log(session_dir, "worker exiting")
     _delete_remote_devin(name)
+    return 0
 
 
 def main():
