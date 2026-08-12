@@ -34,17 +34,17 @@
 - apply CodeRabbit auto-fixes ([68e47903](https://github.com/abapify/adt-cli/commit/68e47903))
 - address PR review — regex security, method detection, BTP 404, lint gate, specs ([bf634260](https://github.com/abapify/adt-cli/commit/bf634260))
 - reduce duplication, remove useless conditional, harden JSONC parser ([7181ab33](https://github.com/abapify/adt-cli/commit/7181ab33))
-- guard starts[0] with nullish coalescing for SonarCloud reliability ([77334cf7](https://github.com/abapify/adt-cli/commit/77334cf7))
+- guard starts\[0] with nullish coalescing for SonarCloud reliability ([77334cf7](https://github.com/abapify/adt-cli/commit/77334cf7))
 - use localeCompare in sort for SonarCloud S2871 reliability ([a40e9dec](https://github.com/abapify/adt-cli/commit/a40e9dec))
 - prefer-const lint error in cts tr objects command ([11da0c54](https://github.com/abapify/adt-cli/commit/11da0c54))
 - apply prettier formatting to service.ts ([52dfffae](https://github.com/abapify/adt-cli/commit/52dfffae))
 - optimize findObjectFiles index, restore transportNumber compat, dedup ImportContext ([4f08ee94](https://github.com/abapify/adt-cli/commit/4f08ee94))
 - resolve SonarCloud reliability and duplication findings ([ac951739](https://github.com/abapify/adt-cli/commit/ac951739))
-- use const variable for transportNumbers[0] to avoid non-null assertions ([12dbce6c](https://github.com/abapify/adt-cli/commit/12dbce6c))
+- use const variable for transportNumbers\[0] to avoid non-null assertions ([12dbce6c](https://github.com/abapify/adt-cli/commit/12dbce6c))
 - **aclass:** proper regex metacharacter escaping in `kw()` helper ([77908b41](https://github.com/abapify/adt-cli/commit/77908b41))
 - **aclass:** qualified method names + keyword method names ([cfe5839d](https://github.com/abapify/adt-cli/commit/cfe5839d))
 - **aclass+openai-codegen:** address PR #111 review findings ([#111](https://github.com/abapify/adt-cli/issues/111))
-- **adt-lint:** replace lazy '._?' with '[^']_' in token regex to fix S5852/polynomial-redos ([6238f973](https://github.com/abapify/adt-cli/commit/6238f973))
+- **adt-lint:** replace lazy '._?' with '\[^']_' in token regex to fix S5852/polynomial-redos ([6238f973](https://github.com/abapify/adt-cli/commit/6238f973))
 - **adt-pilot:** use https in test/example URLs to clear SonarCloud hotspots ([f7246654](https://github.com/abapify/adt-cli/commit/f7246654))
 - **adt-pilot:** use extensionless internal imports per bundler-imports rule ([d819a8de](https://github.com/abapify/adt-cli/commit/d819a8de))
 - **adt-pilot:** align declared deps with actual usage ([ffa6346f](https://github.com/abapify/adt-cli/commit/ffa6346f))
@@ -60,8 +60,8 @@
 
 - CodeRabbit
 - Cursor @cursoragent
-- Devin @devin-ai-integration[bot]
-- Devin AI @devin-ai-integration[bot]
+- Devin @devin-ai-integration\[bot]
+- Devin AI @devin-ai-integration\[bot]
 - Petr Plenkov
 - ThePlenkov @ThePlenkov
 
@@ -149,7 +149,7 @@
 
 ### ❤️ Thank You
 
-- Devin @devin-ai-integration[bot]
+- Devin @devin-ai-integration\[bot]
 - Petr Plenkov
 
 ## 0.3.0 (2026-04-20)
@@ -256,7 +256,7 @@
 
 - CodeRabbit
 - Codex @oai-codex
-- Devin @devin-ai-integration[bot]
+- Devin @devin-ai-integration\[bot]
 - Petr Plenkov
 - ThePlenkov @ThePlenkov
 
@@ -304,7 +304,7 @@
 - resolve SonarCloud quality gate failures ([e8cfed9](https://github.com/abapify/adt-cli/commit/e8cfed9))
 - address remaining SonarQube findings - complexity, duplication, and code quality ([11a3408](https://github.com/abapify/adt-cli/commit/11a3408))
 - update sonar-project.properties with exclusions and project key ([dc374f8](https://github.com/abapify/adt-cli/commit/dc374f8))
-- use [^<]+ in XML tag regexes to require non-empty content ([b459ea7](https://github.com/abapify/adt-cli/commit/b459ea7))
+- use \[^<]+ in XML tag regexes to require non-empty content ([b459ea7](https://github.com/abapify/adt-cli/commit/b459ea7))
 - simplify sonar exclusions to **/generated/** ([ecc42c5](https://github.com/abapify/adt-cli/commit/ecc42c5))
 - simplify sonar exclusions to **/generated/** ([2c2dad3](https://github.com/abapify/adt-cli/commit/2c2dad3))
 - remove trailing blank lines from sonar-project.properties ([56b8e5e](https://github.com/abapify/adt-cli/commit/56b8e5e))
@@ -325,7 +325,7 @@
 
 ### ❤️ Thank You
 
-- Devin @devin-ai-integration[bot]
+- Devin @devin-ai-integration\[bot]
 - Petr Plenkov
 - ThePlenkov @ThePlenkov
 
