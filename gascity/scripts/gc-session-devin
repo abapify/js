@@ -64,15 +64,15 @@ def _setup_wakeup_fd():
         try:
             signal.set_wakeup_fd(-1)
         except (OSError, ValueError):
-            pass
+            pass  # expected if wakeup fd was not registered or already closed
         try:
             os.close(r)
         except OSError:
-            pass
+            pass  # expected if read fd already closed
         try:
             os.close(w)
         except OSError:
-            pass
+            pass  # expected if write fd already closed
         raise
 
 
