@@ -3,9 +3,9 @@ name: opsx-explore
 description: Enter explore mode — think through ideas, investigate problems, clarify requirements (no implementation).
 category: workflow
 tags:
-  - openspec
-  - experimental
-  - discovery
+- openspec
+- experimental
+- discovery
 ---
 
 Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.

@@ -3,9 +3,9 @@ name: opsx-apply
 description: Implement tasks from an OpenSpec change (experimental workflow).
 category: workflow
 tags:
-  - openspec
-  - experimental
-  - implementation
+- openspec
+- experimental
+- implementation
 ---
 
 Implement tasks from an OpenSpec change.
