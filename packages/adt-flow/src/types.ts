@@ -72,6 +72,11 @@ export interface FlowCheckoutResult {
   removed: string[];
   unchanged: string[];
   descriptors: string[];
+  skipped: Array<{
+    object: string;
+    component: string;
+    diagnostic: string;
+  }>;
   sapCalls: { manifest: number; metadata: number; source: number };
   fastPath: 'exact-head' | 'indexed-components' | 'none';
 }

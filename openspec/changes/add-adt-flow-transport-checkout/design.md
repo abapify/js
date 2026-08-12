@@ -67,8 +67,10 @@ Alternatives rejected:
 ### 2. Compose exact-source-history; never reimplement it
 
 `adt-flow` calls `buildTransportSourceManifest`. It rejects any relevant
-`ambiguous`, `unsupported`, or `failed` entry before reading source bodies or
-changing files. It lazily downloads only selected base or head bodies.
+`ambiguous` or `failed` entry before reading source bodies or changing files.
+It records and excludes `unsupported` entries, so object types with no
+source-history implementation do not block exact components in the same
+transport. It lazily downloads only selected base or head bodies.
 
 For an added component, base means absence. For a deleted component, base
 materializes the recoverable predecessor and head means absence. This produces
@@ -214,7 +216,9 @@ functions require a separate design.
   reconstruction; indexed successive checkouts can still reconcile observed
   path changes.
 - **Deleted object metadata may no longer load** → Reuse source-history typed
-  diagnostics and fail closed unless the base is recoverable.
+  diagnostics and fail closed unless the base is recoverable. Object types
+  explicitly classified as unsupported are skipped with their diagnostic rather
+  than being misrepresented as an exact boundary.
 - **Large transports can overload SAP** → Filter types early, bound both
   metadata and source reads, deduplicate component URIs, and fetch bodies only
   after complete manifest validation.

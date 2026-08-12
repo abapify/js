@@ -56,6 +56,27 @@ function manifest(
   };
 }
 
+function unsupportedEntry(
+  name = 'PAYHX01',
+): TransportSourceManifest['entries'][number] {
+  return {
+    object: {
+      pgmid: 'R3TR',
+      type: 'TABD',
+      name,
+      packageName: 'ZROOT_FEATURE',
+    },
+    component: { id: 'object' },
+    sourceTransport: 'DEVK900001',
+    changeKind: 'unsupported',
+    exact: false,
+    diagnostic: {
+      code: 'OBJECT_TYPE_UNSUPPORTED',
+      message: 'No source-history loader is registered for this object type.',
+    },
+  };
+}
+
 const format: FormatPlugin = {
   id: 'abapgit',
   description: 'fixture',
@@ -523,6 +544,34 @@ describe('transport checkout', () => {
     expect(ports.loadObject).not.toHaveBeenCalled();
   });
 
+  it('skips unsupported objects while materializing supported objects from the same transport', async () => {
+    const workspace = await root();
+    const current = manifest('modified', version('before'), version('after'));
+    current.entries.push(unsupportedEntry());
+    const ports = dependencies(() => current);
+    ports.readSource.mockResolvedValue('stable source\n');
+    ports.loadObject.mockResolvedValue({
+      object: { name: 'ZCL_SAMPLE' },
+      packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+    });
+
+    const result = await createAdtFlowService(ports).checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config,
+    });
+
+    expect(result.skipped).toEqual([
+      {
+        object: 'TABD/PAYHX01',
+        component: 'object',
+        diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
+      },
+    ]);
+    expect(result.changed).toContain('src/feature/zcl_sample.clas.abap');
+    expect(ports.loadObject).toHaveBeenCalledTimes(1);
+  });
+
   it('reconciles a package reassignment as old-path removal plus new-path writes', async () => {
     const workspace = await root();
     let current = manifest(
@@ -651,5 +700,32 @@ describe('transport checkout', () => {
     expect(filtered.removed).toEqual([]);
     expect(filtered.changed).toEqual([]);
     expect(filtered.sapCalls.metadata).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not record unsupported objects excluded by application component', async () => {
+    const workspace = await root();
+    const current: TransportSourceManifest = {
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      entries: [unsupportedEntry()],
+    };
+    const ports = dependencies(() => current);
+    ports.loadObject.mockResolvedValue({
+      object: { name: 'PAYHX01' },
+      packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+      applicationComponent: 'ZOTHER',
+    });
+
+    const result = await createAdtFlowService(ports).checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config: {
+        ...config,
+        include: { applicationComponents: ['ZAPP'] },
+      },
+    });
+
+    expect(result.skipped).toEqual([]);
+    expect(ports.loadObject).toHaveBeenCalledTimes(1);
   });
 });

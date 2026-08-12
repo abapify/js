@@ -94,6 +94,11 @@ function checkoutTrCommand(
           `${result.changed.length} changed, ${result.moved.length} moved, ` +
           `${result.removed.length} removed, ${result.unchanged.length} unchanged.`,
       );
+      for (const skipped of result.skipped) {
+        ctx.logger.warn(
+          `Skipped unsupported object ${skipped.object} (${skipped.component}; ${skipped.diagnostic}).`,
+        );
+      }
       ctx.logger.info(
         `SAP calls: manifest=${result.sapCalls.manifest}, metadata=${result.sapCalls.metadata}, ` +
           `source=${result.sapCalls.source}; fast-path=${result.fastPath}.`,

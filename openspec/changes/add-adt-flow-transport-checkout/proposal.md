@@ -29,7 +29,9 @@ the source immediately before it and the source introduced by it.
 - Add a typed `flow` section to root `adt.config.ts` for relevant object types,
   packages, application components, format, and bounded concurrency.
 - Fail closed before filesystem mutation when the source boundary is
-  ambiguous, unsupported, colliding, or locally divergent from indexed state.
+  ambiguous or failed, or when paths collide or diverge from indexed state;
+  record and skip unsupported object types so exact source components in the
+  same transport remain reviewable.
 - Explicitly limit MVP exactness to versioned source components. Full history
   replication and reconstruction of historical object metadata are deferred.
 

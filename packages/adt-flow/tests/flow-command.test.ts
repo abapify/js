@@ -29,6 +29,13 @@ describe('flow CLI command', () => {
       removed: [],
       unchanged: [],
       descriptors: [],
+      skipped: [
+        {
+          object: 'TABD/PAYHX01',
+          component: 'object',
+          diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
+        },
+      ],
       sapCalls: { manifest: 1, metadata: 1, source: 1 },
       fastPath: 'none' as const,
     }));
@@ -37,6 +44,7 @@ describe('flow CLI command', () => {
       createService: vi.fn(() => ({ checkout })),
     });
     const info = vi.fn();
+    const warn = vi.fn();
     const ctx = {
       cwd: '/workspace',
       config: {
@@ -45,7 +53,7 @@ describe('flow CLI command', () => {
           include: { objectTypes: ['CLAS'] },
         },
       },
-      logger: { debug: vi.fn(), info, warn: vi.fn(), error: vi.fn() },
+      logger: { debug: vi.fn(), info, warn, error: vi.fn() },
       getAdtClient: vi.fn(async () => ({}) as AdtClient),
     } satisfies CliContext;
 
@@ -66,6 +74,10 @@ describe('flow CLI command', () => {
     expect(info).toHaveBeenCalledWith(
       expect.stringContaining('1 changed, 0 moved, 0 removed'),
     );
+    expect(warn).toHaveBeenCalledWith(
+      'Skipped unsupported object TABD/PAYHX01 (object; OBJECT_TYPE_UNSUPPORTED).',
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a missing flow config before requesting an ADT client', async () => {
