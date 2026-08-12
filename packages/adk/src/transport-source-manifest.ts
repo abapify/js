@@ -674,7 +674,7 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
         failureIdentity,
         { id: 'object' },
         sourceTransport,
-        error.code === 'OBJECT_METADATA_LOAD_FAILED' ? 'failed' : 'unsupported',
+        'unsupported',
         {
           code: error.code,
           message: error.message,

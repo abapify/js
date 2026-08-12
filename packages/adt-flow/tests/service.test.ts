@@ -5,7 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TransportSourceManifest } from '@abapify/adk';
 import type { SourceVersionRef } from '@abapify/adt-client';
 import type { FormatPlugin } from '@abapify/adt-plugin';
-import { createAdtFlowService, type FlowCheckoutDependencies } from '../src';
+import {
+  createAdtFlowService,
+  AdtFlowError,
+  type FlowCheckoutDependencies,
+} from '../src';
 
 const roots: string[] = [];
 
@@ -73,6 +77,18 @@ function unsupportedEntry(
     diagnostic: {
       code: 'OBJECT_TYPE_UNSUPPORTED',
       message: 'No source-history loader is registered for this object type.',
+    },
+  };
+}
+
+function metadataLoadFailedEntry(
+  name = 'PAYHX01',
+): TransportSourceManifest['entries'][number] {
+  return {
+    ...unsupportedEntry(name),
+    diagnostic: {
+      code: 'OBJECT_METADATA_LOAD_FAILED',
+      message: 'SAP ADT rejected repository object metadata retrieval.',
     },
   };
 }
@@ -726,6 +742,68 @@ describe('transport checkout', () => {
     });
 
     expect(result.skipped).toEqual([]);
+    expect(ports.loadObject).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips metadata-load-failed objects without re-loading metadata when an application component filter is configured', async () => {
+    const workspace = await root();
+    const current: TransportSourceManifest = {
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      entries: [metadataLoadFailedEntry()],
+    };
+    const ports = dependencies(() => current);
+    const result = await createAdtFlowService(ports).checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config: {
+        ...config,
+        include: { applicationComponents: ['ZAPP'] },
+      },
+    });
+
+    expect(result.skipped).toEqual([
+      {
+        object: 'TABD/PAYHX01',
+        component: 'object',
+        diagnostic: 'OBJECT_METADATA_LOAD_FAILED',
+      },
+    ]);
+    expect(ports.loadObject).not.toHaveBeenCalled();
+  });
+
+  it('records unsupported objects in skipped when loadObject fails during application component filtering', async () => {
+    const workspace = await root();
+    const current: TransportSourceManifest = {
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      entries: [unsupportedEntry()],
+    };
+    const ports = dependencies(() => current);
+    ports.loadObject.mockRejectedValue(
+      new AdtFlowError(
+        'object_metadata_unavailable',
+        'ADT returned an unsupported object metadata model.',
+        { object: 'R3TR/TABD/PAYHX01' },
+      ),
+    );
+
+    const result = await createAdtFlowService(ports).checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config: {
+        ...config,
+        include: { applicationComponents: ['ZAPP'] },
+      },
+    });
+
+    expect(result.skipped).toEqual([
+      {
+        object: 'TABD/PAYHX01',
+        component: 'object',
+        diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
+      },
+    ]);
     expect(ports.loadObject).toHaveBeenCalledTimes(1);
   });
 });

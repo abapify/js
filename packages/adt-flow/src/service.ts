@@ -974,20 +974,41 @@ async function unsupportedEntries(
   }
 
   const skipped: FlowCheckoutResult['skipped'] = [];
+  const pushSkipped = (identityEntries: TransportSourceManifestEntry[]) => {
+    for (const entry of identityEntries) {
+      skipped.push({
+        object: `${entry.object.type}/${entry.object.name}`,
+        component: entry.component.id,
+        diagnostic: entry.diagnostic?.code ?? 'UNSUPPORTED',
+      });
+    }
+  };
+
   await Promise.all(
     [...byIdentity.values()].map(
       async ({ identity, entries: identityEntries }) => {
-        const model = await limiter.run(() =>
-          ctx.dependencies.loadObject(identity),
-        );
-        ctx.calls.metadata += model.metadataCalls ?? 1;
-        if (isApplicationComponentExcluded(ctx.config, model)) return;
-        for (const entry of identityEntries) {
-          skipped.push({
-            object: `${entry.object.type}/${entry.object.name}`,
-            component: entry.component.id,
-            diagnostic: entry.diagnostic?.code ?? 'UNSUPPORTED',
-          });
+        if (
+          identityEntries.some(
+            (entry) => entry.diagnostic?.code === 'OBJECT_METADATA_LOAD_FAILED',
+          )
+        ) {
+          pushSkipped(identityEntries);
+          return;
+        }
+
+        try {
+          const model = await limiter.run(() =>
+            ctx.dependencies.loadObject(identity),
+          );
+          ctx.calls.metadata += model.metadataCalls ?? 1;
+          if (isApplicationComponentExcluded(ctx.config, model)) return;
+          pushSkipped(identityEntries);
+        } catch (error) {
+          if (error instanceof AdtFlowError) {
+            pushSkipped(identityEntries);
+            return;
+          }
+          throw error;
         }
       },
     ),
