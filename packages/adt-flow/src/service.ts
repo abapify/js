@@ -898,6 +898,7 @@ async function tryExactHeadFastPath(
     removed: [],
     unchanged: fast.ownedPaths,
     descriptors: fast.descriptorPaths,
+    skipped: [],
     sapCalls: ctx.calls,
     fastPath: 'exact-head',
   };
@@ -906,6 +907,7 @@ async function tryExactHeadFastPath(
 interface ManifestContext {
   manifest: TransportSourceManifest;
   entries: TransportSourceManifestEntry[];
+  skipped: FlowCheckoutResult['skipped'];
   metadataLimiter: Limiter;
   sourceLimiter: Limiter;
   maxSourceBytes: number;
@@ -939,6 +941,18 @@ function prepareGroups(
   return groups;
 }
 
+function unsupportedEntries(
+  entries: readonly TransportSourceManifestEntry[],
+): FlowCheckoutResult['skipped'] {
+  return entries
+    .filter((entry) => entry.changeKind === 'unsupported')
+    .map((entry) => ({
+      object: `${entry.object.type}/${entry.object.name}`,
+      component: entry.component.id,
+      diagnostic: entry.diagnostic?.code ?? 'UNSUPPORTED',
+    }));
+}
+
 async function buildManifestAndGroups(
   ctx: CheckoutContext,
 ): Promise<ManifestContext> {
@@ -947,8 +961,12 @@ async function buildManifestAndGroups(
     ctx.requested,
     buildManifestRequestOptions(ctx.config),
   );
-  const entries = manifest.entries.filter((entry) =>
+  const scopedEntries = manifest.entries.filter((entry) =>
     packageMatches(entry.object.packageName, ctx.config.include?.packages),
+  );
+  const skipped = unsupportedEntries(scopedEntries);
+  const entries = scopedEntries.filter(
+    (entry) => entry.changeKind !== 'unsupported',
   );
   const metadataLimiter = new Limiter(
     ctx.config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
@@ -970,6 +988,7 @@ async function buildManifestAndGroups(
   return {
     manifest,
     entries,
+    skipped,
     metadataLimiter,
     sourceLimiter,
     maxSourceBytes,
@@ -1158,6 +1177,7 @@ async function addTransportDescriptors(
 function buildCheckoutResult(
   ctx: CheckoutContext,
   manifest: TransportSourceManifest,
+  skipped: FlowCheckoutResult['skipped'],
   plan: RepositoryPlan,
   processed: ProcessedGroups,
 ): FlowCheckoutResult {
@@ -1181,6 +1201,7 @@ function buildCheckoutResult(
       .sort(),
     unchanged: plan.unchanged.filter((path) => !descriptorSet.has(path)),
     descriptors: [...descriptorSet].sort(),
+    skipped,
     sapCalls: ctx.calls,
     fastPath: reusedIndexedComponent ? 'indexed-components' : 'none',
   };
@@ -1216,7 +1237,13 @@ async function checkoutFlow(
     processed.ownedOwners,
   );
   await applyRepositoryPlan(ctx.root, plan);
-  return buildCheckoutResult(ctx, manifestContext.manifest, plan, processed);
+  return buildCheckoutResult(
+    ctx,
+    manifestContext.manifest,
+    manifestContext.skipped,
+    plan,
+    processed,
+  );
 }
 
 export function createAdtFlowService(
