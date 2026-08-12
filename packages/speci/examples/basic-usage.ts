@@ -222,6 +222,8 @@ async function demo() {
     // Using composedClient (same API, different structure)
     const composedUsers = await composedClient.users.list();
     const composedPosts = await composedClient.posts.listByUser('123');
+    console.log('Composed users:', composedUsers);
+    console.log('Composed posts:', composedPosts);
     console.log('Composed API works the same way!');
   } catch (error) {
     console.error('Error:', error);

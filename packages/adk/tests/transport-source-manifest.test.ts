@@ -665,6 +665,42 @@ describe('buildTransportSourceManifest', () => {
     ]);
   });
 
+  it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {
+    const authorizationAssignment = transportObject({
+      name: 'Z_CONCUR_RECON',
+      type: 'SUSK',
+    });
+    const program = transportObject({
+      name: 'ZREVIEWED_PROGRAM',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution(
+      [authorizationAssignment, program],
+      ['DEVK900002', 'DEVK900002'],
+    );
+    const head = version('00001', 0, ['DEVK900002']);
+    const { ctx } = contextWithVersions(vi.fn().mockResolvedValue([head]));
+
+    const manifest = await buildTransportSourceManifest(
+      ['DEVK900001'],
+      {},
+      ctx,
+    );
+
+    expect(manifest.entries).toEqual([
+      expect.objectContaining({
+        object: expect.objectContaining({
+          pgmid: 'R3TR',
+          type: 'PROG',
+          name: 'ZREVIEWED_PROGRAM',
+        }),
+        exact: true,
+        head,
+      }),
+    ]);
+    expect(factoryGet).not.toHaveBeenCalledWith('Z_CONCUR_RECON', 'SUSK');
+  });
+
   it('discovers and selects composite components independently', async () => {
     const object = transportObject({
       name: 'ZCL_SAMPLE',
@@ -816,7 +852,7 @@ describe('buildTransportSourceManifest', () => {
     expect(manifest.entries[0]?.diagnostic?.message).not.toContain('sensitive');
   });
 
-  it('marks a concrete ADK metadata load rejection as failed', async () => {
+  it('marks a concrete ADK metadata load rejection unsupported', async () => {
     const object = transportObject({
       name: 'ZLOAD_FAILURE',
       metadata: rootSourceMetadata(),
@@ -832,7 +868,7 @@ describe('buildTransportSourceManifest', () => {
     );
 
     expect(manifest.entries[0]).toMatchObject({
-      changeKind: 'failed',
+      changeKind: 'unsupported',
       exact: false,
       diagnostic: { code: 'OBJECT_METADATA_LOAD_FAILED' },
     });

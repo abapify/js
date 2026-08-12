@@ -13,11 +13,15 @@ type TransportManagementBody = InferTypedSchema<typeof transportmanagment>;
 
 type ChangeOwnerRoot = ChangeOwnerBody['root'];
 
-function isChangeOwnerRoot(
-  root: TransportManagementBody['root'] | undefined,
-): root is ChangeOwnerRoot {
-  return Boolean(
-    root && root.useraction === 'changeowner' && root.number && root.targetuser,
+function isChangeOwnerRoot(root: unknown): root is ChangeOwnerRoot {
+  if (typeof root !== 'object' || root === null) return false;
+  const { useraction, number, targetuser } = root as Record<string, unknown>;
+  return (
+    useraction === 'changeowner' &&
+    typeof number === 'string' &&
+    number.length > 0 &&
+    typeof targetuser === 'string' &&
+    targetuser.length > 0
   );
 }
 

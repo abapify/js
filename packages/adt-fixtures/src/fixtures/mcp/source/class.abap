@@ -2,3 +2,9 @@ CLASS zcl_example DEFINITION PUBLIC FINAL CREATE PUBLIC.
   PUBLIC SECTION.
     METHODS: do_something.
 ENDCLASS.
+
+CLASS zcl_example IMPLEMENTATION.
+  METHOD do_something.
+    " implemented
+  ENDMETHOD.
+ENDCLASS.

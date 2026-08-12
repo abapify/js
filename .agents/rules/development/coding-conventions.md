@@ -18,3 +18,8 @@ description: Core coding conventions for the abapify monorepo. TypeScript strict
 - Cross-package imports: `@abapify/<package-name>`
 - Internal file imports: extensionless relative paths — see [bundler-imports](bundler-imports.md) for details
 - `workspace:*` protocol for local workspace deps — see `$link-workspace-packages` skill for setup
+- **CLI stream contract** — stdout contains only the command payload (source,
+  JSON, XML, or other data intended for piping); progress, diagnostics, and
+  errors go to stderr. Source-producing commands must be safe to use as the
+  input of a corresponding write command. Enforce this via a regression test
+  at the shared output/progress abstraction, not in an individual command.

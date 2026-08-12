@@ -63,6 +63,7 @@ test('flow_checkout_tr delegates to the shared service inside an allowed root', 
           removed: [],
           unchanged: [],
           descriptors: ['.adt/objects/CLAS/zcl_sample.clas.adt.json'],
+          skipped: [],
           sapCalls: { manifest: 1, metadata: 1, source: 1 },
           fastPath: 'none',
         };
@@ -88,6 +89,7 @@ test('flow_checkout_tr delegates to the shared service inside an allowed root', 
     config: ctx.flowConfig,
   });
   assert.equal(result.structuredContent?.mode, 'base');
+  assert.deepEqual(result.structuredContent?.skipped, []);
   assert.deepEqual(target.annotations, {
     readOnlyHint: false,
     destructiveHint: true,

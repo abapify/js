@@ -12,5 +12,18 @@
   "types": "./dist/index.d.mts",
   "files": [
     "dist"
-  ]
+  ],
+  "nx": {
+    "targets": {
+      "build": {
+        "inputs": [
+          "{projectRoot}/src/**/*.ts",
+          "{projectRoot}/src/fixtures/**/*",
+          "{projectRoot}/tsconfig.lib.json",
+          "{projectRoot}/tsdown.config.ts",
+          "{projectRoot}/package.json"
+        ]
+      }
+    }
+  }
 }

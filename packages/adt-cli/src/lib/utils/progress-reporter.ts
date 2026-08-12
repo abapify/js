@@ -1,7 +1,9 @@
 /**
  * Lightweight progress reporter for CLI output.
  * - Compact mode keeps updates on a single line (overwriting previous text).
- * - Non-compact mode logs through the provided logger (or console).
+ * - Non-compact mode logs through the provided logger (CLI loggers target stderr).
+ * - Progress is written to stderr so stdout stays safe for piping source,
+ *   JSON, XML, and other command payloads.
  *
  * When a logger is provided, progress messages are tagged with { progress: true }.
  */
@@ -54,7 +56,7 @@ export function createProgressReporter(
 
   const clearLine = () => {
     if (open) {
-      process.stdout.write('\r\x1b[K');
+      process.stderr.write('\r\x1b[K');
     }
   };
 
@@ -65,7 +67,7 @@ export function createProgressReporter(
       return;
     }
     clearLine();
-    process.stdout.write(clean);
+    process.stderr.write(clean);
     lastMessage = clean;
     open = true;
     logWithFlag(clean, { transient: true });
@@ -75,7 +77,7 @@ export function createProgressReporter(
     const clean = sanitize(message);
     clearLine();
     if (compact || !logger) {
-      process.stdout.write(`${clean}\n`);
+      process.stderr.write(`${clean}\n`);
     }
     logWithFlag(clean);
     open = false;
@@ -91,10 +93,10 @@ export function createProgressReporter(
     if (compact) {
       if (finalMessage) {
         const clean = sanitize(finalMessage);
-        process.stdout.write(`${clean}\n`);
+        process.stderr.write(`${clean}\n`);
         logWithFlag(clean);
       } else if (open && lastMessage) {
-        process.stdout.write(`${lastMessage}\n`);
+        process.stderr.write(`${lastMessage}\n`);
         logWithFlag(lastMessage);
       }
     } else {

@@ -20,12 +20,20 @@ current source.
 - **THEN** each component materializes the version immediately older than its earliest in-scope version
 - **THEN** input array order is not used as source chronology
 
-#### Scenario: Source boundary is ambiguous
+#### Scenario: Source boundary is ambiguous or failed
 
-- **GIVEN** a relevant component has ambiguous, unsupported, or failed source history
+- **GIVEN** a relevant component has ambiguous or failed source history
 - **WHEN** checkout is requested
 - **THEN** checkout fails with a typed bounded diagnostic
 - **THEN** no repository path is changed
+
+#### Scenario: Object has no materializable source history
+
+- **GIVEN** a transport contains an otherwise relevant object whose manifest entry is `unsupported`, including one whose ADT metadata cannot be loaded
+- **WHEN** checkout is requested
+- **THEN** checkout excludes that object without reading source or changing its repository paths
+- **THEN** checkout continues with the remaining exact source components
+- **THEN** the structured result and CLI diagnostics identify the skipped object and its diagnostic code
 
 ### Requirement: Creation and deletion produce reviewable trees
 
@@ -154,6 +162,13 @@ from the root `adt.config.ts` and SHALL persist only relevant identities.
 - **WHEN** transport objects are evaluated
 - **THEN** an object is relevant only when it satisfies every configured dimension
 - **THEN** type filtering occurs before source-history retrieval
+
+#### Scenario: A CTS configuration entry has no source representation
+
+- **GIVEN** a transport contains an `R3TR SUSK` authorization-maintenance assignment
+- **WHEN** checkout evaluates the transport
+- **THEN** that non-source entry is excluded before source-history retrieval
+- **THEN** all remaining relevant repository source components retain exact-boundary validation
 
 #### Scenario: Configuration expands scope
 
