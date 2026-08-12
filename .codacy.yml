@@ -1,0 +1,14 @@
+---
+engines:
+  csslint:
+    exclude_paths:
+      # CSSLint does not support CSS custom properties used by Docusaurus/Infima
+      - 'website/src/css/custom.css'
+  remark-lint:
+    exclude_paths:
+      # Generated release notes contain markdown constructs (e.g. `[bot]`)
+      # that are not intended as reference links
+      - '**/CHANGELOG.md'
+      # Prompt frontmatter uses bracket placeholders that remark-lint treats
+      # as undefined references
+      - '.github/prompts/*.prompt.md'
