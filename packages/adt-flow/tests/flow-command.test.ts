@@ -77,6 +77,7 @@ describe('flow CLI command', () => {
     expect(warn).toHaveBeenCalledWith(
       'Skipped unsupported object TABD/PAYHX01 (object; OBJECT_TYPE_UNSUPPORTED).',
     );
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a missing flow config before requesting an ADT client', async () => {

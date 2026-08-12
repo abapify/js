@@ -139,12 +139,12 @@ function applicationComponentMatches(
 }
 
 function isApplicationComponentExcluded(
-  ctx: ProcessGroupContext,
+  config: FlowConfig,
   model: FlowObjectModel,
 ): boolean {
   return !applicationComponentMatches(
     model.applicationComponent,
-    ctx.config.include?.applicationComponents,
+    config.include?.applicationComponents,
   );
 }
 
@@ -707,7 +707,7 @@ async function maybeSkipByAppComponent(
     dependencies.loadObject(group.identity),
   );
   calls.metadata += model.metadataCalls ?? 1;
-  if (isApplicationComponentExcluded(ctx, model)) {
+  if (isApplicationComponentExcluded(ctx.config, model)) {
     return {
       desired: [],
       descriptorPaths: [],
@@ -802,7 +802,7 @@ async function processGroup(ctx: ProcessGroupContext): Promise<GroupResult> {
   );
   calls.metadata += model.metadataCalls ?? 1;
 
-  if (isApplicationComponentExcluded(ctx, model)) {
+  if (isApplicationComponentExcluded(ctx.config, model)) {
     return emptyGroupResult();
   }
 
@@ -941,16 +941,58 @@ function prepareGroups(
   return groups;
 }
 
-function unsupportedEntries(
+async function unsupportedEntries(
   entries: readonly TransportSourceManifestEntry[],
-): FlowCheckoutResult['skipped'] {
-  return entries
-    .filter((entry) => entry.changeKind === 'unsupported')
-    .map((entry) => ({
+  ctx: CheckoutContext,
+  limiter: Limiter,
+  hasApplicationComponentFilter: boolean,
+): Promise<FlowCheckoutResult['skipped']> {
+  const unsupported = entries.filter(
+    (entry) => entry.changeKind === 'unsupported',
+  );
+
+  if (!hasApplicationComponentFilter) {
+    return unsupported.map((entry) => ({
       object: `${entry.object.type}/${entry.object.name}`,
       component: entry.component.id,
       diagnostic: entry.diagnostic?.code ?? 'UNSUPPORTED',
     }));
+  }
+
+  const byIdentity = new Map<
+    string,
+    { identity: FlowObjectIdentity; entries: TransportSourceManifestEntry[] }
+  >();
+  for (const entry of unsupported) {
+    const identity = objectIdentity(entry.object);
+    const existing = byIdentity.get(identity.canonical);
+    if (existing) {
+      existing.entries.push(entry);
+    } else {
+      byIdentity.set(identity.canonical, { identity, entries: [entry] });
+    }
+  }
+
+  const skipped: FlowCheckoutResult['skipped'] = [];
+  await Promise.all(
+    [...byIdentity.values()].map(
+      async ({ identity, entries: identityEntries }) => {
+        const model = await limiter.run(() =>
+          ctx.dependencies.loadObject(identity),
+        );
+        ctx.calls.metadata += model.metadataCalls ?? 1;
+        if (isApplicationComponentExcluded(ctx.config, model)) return;
+        for (const entry of identityEntries) {
+          skipped.push({
+            object: `${entry.object.type}/${entry.object.name}`,
+            component: entry.component.id,
+            diagnostic: entry.diagnostic?.code ?? 'UNSUPPORTED',
+          });
+        }
+      },
+    ),
+  );
+  return skipped;
 }
 
 async function buildManifestAndGroups(
@@ -964,19 +1006,24 @@ async function buildManifestAndGroups(
   const scopedEntries = manifest.entries.filter((entry) =>
     packageMatches(entry.object.packageName, ctx.config.include?.packages),
   );
-  const skipped = unsupportedEntries(scopedEntries);
-  const entries = scopedEntries.filter(
-    (entry) => entry.changeKind !== 'unsupported',
-  );
   const metadataLimiter = new Limiter(
     ctx.config.concurrency?.metadata ?? DEFAULT_METADATA_CONCURRENCY,
+  );
+  const hasApplicationComponentFilter =
+    (ctx.config.include?.applicationComponents?.length ?? 0) > 0;
+  const skipped = await unsupportedEntries(
+    scopedEntries,
+    ctx,
+    metadataLimiter,
+    hasApplicationComponentFilter,
+  );
+  const entries = scopedEntries.filter(
+    (entry) => entry.changeKind !== 'unsupported',
   );
   const sourceLimiter = new Limiter(
     ctx.config.concurrency?.sources ?? DEFAULT_SOURCE_CONCURRENCY,
   );
   const maxSourceBytes = ctx.config.maxSourceBytes ?? DEFAULT_MAX_SOURCE_BYTES;
-  const hasApplicationComponentFilter =
-    (ctx.config.include?.applicationComponents?.length ?? 0) > 0;
 
   const allSrcFiles = await walkFiles(ctx.root, 'src');
   const srcFilesByObject = buildObjectFileIndex(

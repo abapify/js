@@ -701,4 +701,31 @@ describe('transport checkout', () => {
     expect(filtered.changed).toEqual([]);
     expect(filtered.sapCalls.metadata).toBeGreaterThanOrEqual(1);
   });
+
+  it('does not record unsupported objects excluded by application component', async () => {
+    const workspace = await root();
+    const current: TransportSourceManifest = {
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      entries: [unsupportedEntry()],
+    };
+    const ports = dependencies(() => current);
+    ports.loadObject.mockResolvedValue({
+      object: { name: 'PAYHX01' },
+      packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+      applicationComponent: 'ZOTHER',
+    });
+
+    const result = await createAdtFlowService(ports).checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config: {
+        ...config,
+        include: { applicationComponents: ['ZAPP'] },
+      },
+    });
+
+    expect(result.skipped).toEqual([]);
+    expect(ports.loadObject).toHaveBeenCalledTimes(1);
+  });
 });
