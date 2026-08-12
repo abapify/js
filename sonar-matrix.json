@@ -146,6 +146,11 @@
       "sources": "packages/adt-diff/src"
     },
     {
+      "projectKey": "abapify_adt-cli_adt-flow",
+      "projectName": "@abapify/adt-flow",
+      "sources": "packages/adt-flow/src"
+    },
+    {
       "projectKey": "abapify_adt-cli_adt-atc",
       "projectName": "@abapify/adt-atc",
       "sources": "packages/adt-atc/src"
@@ -228,7 +233,7 @@
     {
       "projectKey": "abapify_adt-cli_root",
       "projectName": "abapify",
-      "sources": "src,.github"
+      "sources": ".github,docs,gascity,openspec,scripts,src"
     }
   ]
 }

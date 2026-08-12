@@ -26,6 +26,17 @@ const ORG = 'abapify';
 const MONOREPO = 'adt-cli';
 const EXISTING_ADT_CLI_KEY = `${ORG}_${MONOREPO}`;
 
+const ROOT_EXCLUDED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'coverage',
+  'tmp',
+  'git_modules',
+  '.verdaccio',
+  '.nx',
+]);
+
 interface NxProject {
   name: string;
   root: string;
@@ -59,6 +70,24 @@ function hasSourceFiles(dir: string): boolean {
 
 function hasDirFiles(dir: string): boolean {
   return existsSync(dir) && readdirSync(dir).length > 0;
+}
+
+function topLevelSourceDirs(projectRootTlds: Set<string>): string[] {
+  const excluded = new Set<string>(ROOT_EXCLUDED_DIRS);
+  for (const tld of projectRootTlds) {
+    excluded.add(tld);
+  }
+
+  const dirs: string[] = [];
+  for (const entry of readdirSync(ROOT, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const { name } = entry;
+    if (name.startsWith('.') && name !== '.github') continue;
+    if (excluded.has(name)) continue;
+    if (hasDirFiles(join(ROOT, name))) dirs.push(name);
+  }
+  dirs.sort();
+  return dirs;
 }
 
 function readPackageName(root: string): string | undefined {
@@ -115,14 +144,14 @@ function computeName({
 function determineSources({
   root,
   sourceRoot,
+  projectRootTlds,
 }: {
   root: string;
   sourceRoot: string | null;
+  projectRootTlds: Set<string>;
 }): string | null {
   if (root === '.') {
-    const parts: string[] = [];
-    if (hasDirFiles(join(ROOT, 'src'))) parts.push('src');
-    if (hasDirFiles(join(ROOT, '.github'))) parts.push('.github');
+    const parts = topLevelSourceDirs(projectRootTlds);
     return parts.length > 0 ? parts.join(',') : null;
   }
 
@@ -153,10 +182,18 @@ async function main(): Promise<void> {
     }),
   );
 
+  const projectRootTlds = new Set(
+    details.filter((p) => p.root !== '.').map((p) => p.root.split('/')[0]),
+  );
+
   const projects: SonarProject[] = [];
 
   for (const p of details) {
-    const sources = determineSources(p);
+    const sources = determineSources({
+      root: p.root,
+      sourceRoot: p.sourceRoot,
+      projectRootTlds,
+    });
     if (!sources) {
       // eslint-disable-next-line no-console
       console.log(`Skipping ${p.name}: no analyzable source directory`);

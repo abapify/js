@@ -116,6 +116,10 @@
     "projectName": "@abapify/adt-diff"
   },
   {
+    "projectKey": "abapify_adt-cli_adt-flow",
+    "projectName": "@abapify/adt-flow"
+  },
+  {
     "projectKey": "abapify_adt-cli_adt-atc",
     "projectName": "@abapify/adt-atc"
   },
