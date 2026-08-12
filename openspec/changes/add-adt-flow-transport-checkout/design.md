@@ -69,8 +69,9 @@ Alternatives rejected:
 `adt-flow` calls `buildTransportSourceManifest`. It rejects any relevant
 `ambiguous` or `failed` entry before reading source bodies or changing files.
 It records and excludes `unsupported` entries, so object types with no
-source-history implementation do not block exact components in the same
-transport. It lazily downloads only selected base or head bodies.
+source-history implementation and objects whose ADT metadata cannot be loaded
+do not block exact components in the same transport. It lazily downloads only
+selected base or head bodies.
 
 For an added component, base means absence. For a deleted component, base
 materializes the recoverable predecessor and head means absence. This produces

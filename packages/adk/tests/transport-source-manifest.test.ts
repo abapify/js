@@ -852,7 +852,7 @@ describe('buildTransportSourceManifest', () => {
     expect(manifest.entries[0]?.diagnostic?.message).not.toContain('sensitive');
   });
 
-  it('marks a concrete ADK metadata load rejection as failed', async () => {
+  it('marks a concrete ADK metadata load rejection unsupported', async () => {
     const object = transportObject({
       name: 'ZLOAD_FAILURE',
       metadata: rootSourceMetadata(),
@@ -868,7 +868,7 @@ describe('buildTransportSourceManifest', () => {
     );
 
     expect(manifest.entries[0]).toMatchObject({
-      changeKind: 'failed',
+      changeKind: 'unsupported',
       exact: false,
       diagnostic: { code: 'OBJECT_METADATA_LOAD_FAILED' },
     });
