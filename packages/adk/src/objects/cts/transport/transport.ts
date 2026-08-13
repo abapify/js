@@ -316,14 +316,29 @@ export class AdkTransportRequest extends AdkObject<
 
   async release(): Promise<ReleaseResult> {
     try {
-      await this.ctx.client.adt.cts.transportrequests.useraction.release(
-        this.number,
-        { root: { useraction: 'release' } },
-      );
+      // useraction="release" against the base transportrequests URI is a
+      // silent no-op (HTTP 200, empty body, no state change). SAP's own GET
+      // response advertises the real release action as the newreleasejobs
+      // sub-resource link (rel="http://www.sap.com/cts/relations/newreleasejobs")
+      // - that is the endpoint that actually transitions status D -> R.
+      await this.ctx.client.fetch(`${this.objectUri}/newreleasejobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/vnd.sap.adt.transportorganizer.v1+xml',
+          Accept: 'application/vnd.sap.adt.transportorganizer.v1+xml',
+        },
+        body: '',
+      });
 
-      (this.itemData as { status?: string; status_text?: string }).status = 'R';
-      (this.itemData as { status?: string; status_text?: string }).status_text =
-        'Released';
+      // Re-fetch from SAP rather than assume success - a 200 response from
+      // the useraction endpoint above was never proof of a state change.
+      await this.load();
+      if (this.status !== 'R') {
+        return {
+          success: false,
+          message: `SAP did not release ${this.number} (status: ${this.statusText})`,
+        };
+      }
       return { success: true };
     } catch (error) {
       return {
