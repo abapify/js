@@ -625,8 +625,12 @@ describe('transport checkout', () => {
         diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
       },
     ]);
-    expect(result.changed).toContain('src/feature/zcl_sample.clas.abap');
+    expect(result.changed).toEqual([
+      'src/feature/zcl_sample.clas.abap',
+      'src/feature/zcl_sample.clas.xml',
+    ]);
     expect(ports.loadObject).toHaveBeenCalledTimes(1);
+    expect(ports.readSource).toHaveBeenCalledTimes(1);
   });
 
   it('reconciles a package reassignment as old-path removal plus new-path writes', async () => {
