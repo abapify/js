@@ -81,6 +81,19 @@ function unsupportedEntry(
   };
 }
 
+function unsupportedDiagnosticEntry(): TransportSourceManifest['entries'][number] {
+  return {
+    ...unsupportedEntry('ZCL_TR_LOAN_CUSTOM_ENTITY FETCH_DATA_LIST'),
+    object: {
+      pgmid: 'R3TR',
+      type: 'METH',
+      name: 'ZCL_TR_LOAN_CUSTOM_ENTITY FETCH_DATA_LIST',
+      packageName: 'ZROOT_FEATURE',
+    },
+    changeKind: 'ambiguous',
+  };
+}
+
 function metadataLoadFailedEntry(
   name = 'PAYHX01',
 ): TransportSourceManifest['entries'][number] {
@@ -580,6 +593,34 @@ describe('transport checkout', () => {
     expect(result.skipped).toEqual([
       {
         object: 'TABD/PAYHX01',
+        component: 'object',
+        diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
+      },
+    ]);
+    expect(result.changed).toContain('src/feature/zcl_sample.clas.abap');
+    expect(ports.loadObject).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips an unsupported diagnostic even when its manifest change kind is ambiguous', async () => {
+    const workspace = await root();
+    const current = manifest('modified', version('before'), version('after'));
+    current.entries.push(unsupportedDiagnosticEntry());
+    const ports = dependencies(() => current);
+    ports.readSource.mockResolvedValue('stable source\n');
+    ports.loadObject.mockResolvedValue({
+      object: { name: 'ZCL_SAMPLE' },
+      packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+    });
+
+    const result = await createAdtFlowService(ports).checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config,
+    });
+
+    expect(result.skipped).toEqual([
+      {
+        object: 'METH/ZCL_TR_LOAN_CUSTOM_ENTITY FETCH_DATA_LIST',
         component: 'object',
         diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
       },
