@@ -16,6 +16,7 @@ export const registry = {
     useractionRelease: 'transport/useraction-release.xml',
     useractionChangeowner: 'transport/useraction-changeowner.xml',
     useractionNewrequest: 'transport/useraction-newrequest.xml',
+    taskCreateResponse: 'transport/task-create-response.xml',
   },
   atc: {
     customizing: 'atc/customizing.xml',
@@ -84,6 +85,19 @@ export const registry = {
     enhoxhh: {
       single: 'enhancements/enhoxhh/single.xml',
       source: 'enhancements/enhoxhh/source.abap',
+    },
+    enhoxhb: {
+      single: 'enhancements/enhoxhb/single.xml',
+    },
+  },
+  badi: {
+    implementationsSearch: 'badi/implementations-search.json',
+  },
+  vit: {
+    wb: {
+      sxsdxdSingle: 'vit/wb/sxsdxd-single.xml',
+      sxcixiSingle: 'vit/wb/sxcixi-single.xml',
+      sxcixiSingleB: 'vit/wb/sxcixi-single-b.xml',
     },
   },
   businessservices: {

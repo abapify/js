@@ -19,11 +19,37 @@
 
 import { srvd } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
+import { shouldIncludeSource } from '../source-inclusion';
+import {
+  FormatMaterializationError,
+  type FormatSerializeOptions,
+} from '@abapify/adt-plugin';
 
 // SRVD is not derived from AdkObject — we cast to the minimal handler shape
 // via the string form of createHandler.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SrvdLike = any;
+
+type SrvdSourceObject = { getSource?: () => Promise<string> | string };
+
+async function resolveSrvdSource(
+  object: SrvdSourceObject,
+  sources: Readonly<Record<string, string | undefined>> | undefined,
+): Promise<string | undefined> {
+  if (sources !== undefined) {
+    const keys = Object.keys(sources);
+    if (keys.some((key) => key !== 'main')) {
+      throw new FormatMaterializationError(
+        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+        `SRVD only supports the 'main' source component; received ${keys.join(', ')}.`,
+      );
+    }
+    return sources.main;
+  }
+  return typeof object?.getSource === 'function'
+    ? await object.getSource()
+    : '';
+}
 
 export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
   'SRVD',
@@ -51,15 +77,18 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
     }),
 
     // Custom serialize — file extension for SRVD source is `.asrvd`, not `.abap`.
-    async serialize(object, ctx): Promise<SerializedFile[]> {
+    async serialize(
+      object,
+      ctx,
+      options?: FormatSerializeOptions,
+    ): Promise<SerializedFile[]> {
       const files: SerializedFile[] = [];
       const objectName = ctx.getObjectName(object);
 
-      // Source: <name>.srvd.asrvd
-      const source = await (typeof object?.getSource === 'function'
-        ? object.getSource()
-        : Promise.resolve(''));
-      if (source) {
+      // Source: <name>.srvd.asrvd. When a source map is supplied it is
+      // authoritative; otherwise fall back to the mutable object getter.
+      const source = await resolveSrvdSource(object, options?.sources);
+      if (shouldIncludeSource(source, options?.sources?.main)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.asrvd`, source),
         );
@@ -75,7 +104,7 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
     },
 
     setSources: (obj, sources) => {
-      if (sources.main) {
+      if (sources.main !== undefined) {
         (obj as unknown as { _pendingSource: string })._pendingSource =
           sources.main;
       }

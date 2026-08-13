@@ -137,11 +137,11 @@ function NavigatorInner({ systemName }: { systemName?: string }) {
     );
   }
 
-  if (!current && !loading) {
+  if (!current) {
     return <UrlPrompt onSubmit={navigate} />;
   }
 
-  if (!current || !pageResult) {
+  if (!pageResult) {
     return (
       <Box padding={1}>
         <Text dimColor>No content loaded</Text>

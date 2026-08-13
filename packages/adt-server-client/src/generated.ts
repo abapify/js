@@ -9,6 +9,10 @@ export interface AdtServerClientOptions {
   headers?: Record<string, string>;
 }
 
+export interface AdtServerRequestOptions {
+  signal?: AbortSignal;
+}
+
 export class AdtServerHttpError extends Error {
   constructor(
     readonly status: number,
@@ -33,6 +37,13 @@ const operationDefinitions = {
     pathParameters: ['destination'],
     queryParameters: [],
     hasBody: true,
+  },
+  getBadi: {
+    method: 'GET',
+    path: '/v1/destinations/{destination}/badi/{name}',
+    pathParameters: ['destination', 'name'],
+    queryParameters: ['implementations'],
+    hasBody: false,
   },
   getObjectMetadata: {
     method: 'GET',
@@ -193,6 +204,37 @@ export type BuildTransportSourceManifestResponse = {
       sourceCapability: string;
     };
     diagnostic?: { code: string; message: string };
+  }>;
+};
+export type GetBadiParams = {
+  destination: string;
+  name: string;
+  implementations?: boolean;
+};
+export type GetBadiResponse = {
+  kind: 'definition' | 'implementation' | 'enhancement';
+  name: string;
+  type: string;
+  description?: string;
+  language?: string;
+  version?: string;
+  packageName?: string;
+  packageUri?: string;
+  responsible?: string;
+  masterLanguage?: string;
+  masterSystem?: string;
+  implementations?: Array<{
+    kind: 'implementation';
+    name: string;
+    type: string;
+    description?: string;
+    language?: string;
+    version?: string;
+    packageName?: string;
+    packageUri?: string;
+    responsible?: string;
+    masterLanguage?: string;
+    masterSystem?: string;
   }>;
 };
 export type GetObjectMetadataParams = {
@@ -489,6 +531,7 @@ export function createAdtServerClient(options: AdtServerClientOptions) {
   const request = async <T>(
     definition: OperationDefinition,
     input?: object,
+    requestOptions?: AdtServerRequestOptions,
   ): Promise<T> => {
     const path = definition.path.replace(
       /\{([A-Za-z_$][A-Za-z0-9_$]*)\}/gu,
@@ -515,6 +558,7 @@ export function createAdtServerClient(options: AdtServerClientOptions) {
         ...options.headers,
       },
       ...(definition.hasBody ? { body: JSON.stringify(body) } : {}),
+      signal: requestOptions?.signal,
     });
     const responseBody = await response.json().catch(() => undefined);
     if (!response.ok) {
@@ -526,74 +570,141 @@ export function createAdtServerClient(options: AdtServerClientOptions) {
   return {
     buildTransportSourceManifest: (
       params: BuildTransportSourceManifestParams,
+      requestOptions?: AdtServerRequestOptions,
     ) =>
       request<BuildTransportSourceManifestResponse>(
         operationDefinitions.buildTransportSourceManifest,
         params,
+        requestOptions,
       ),
-    getObjectMetadata: (params: GetObjectMetadataParams) =>
+    getBadi: (
+      params: GetBadiParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
+      request<GetBadiResponse>(
+        operationDefinitions.getBadi,
+        params,
+        requestOptions,
+      ),
+    getObjectMetadata: (
+      params: GetObjectMetadataParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<GetObjectMetadataResponse>(
         operationDefinitions.getObjectMetadata,
         params,
+        requestOptions,
       ),
-    getObjectSourceHistory: (params: GetObjectSourceHistoryParams) =>
+    getObjectSourceHistory: (
+      params: GetObjectSourceHistoryParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<GetObjectSourceHistoryResponse>(
         operationDefinitions.getObjectSourceHistory,
         params,
+        requestOptions,
       ),
-    getPackageTree: (params: GetPackageTreeParams) =>
+    getPackageTree: (
+      params: GetPackageTreeParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<GetPackageTreeResponse>(
         operationDefinitions.getPackageTree,
         params,
+        requestOptions,
       ),
-    getTransportDetail: (params: GetTransportDetailParams) =>
+    getTransportDetail: (
+      params: GetTransportDetailParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<GetTransportDetailResponse>(
         operationDefinitions.getTransportDetail,
         params,
+        requestOptions,
       ),
-    listDestinations: () =>
-      request<ListDestinationsResponse>(operationDefinitions.listDestinations),
-    listPackageObjects: (params: ListPackageObjectsParams) =>
+    listDestinations: (requestOptions?: AdtServerRequestOptions) =>
+      request<ListDestinationsResponse>(
+        operationDefinitions.listDestinations,
+        undefined,
+        requestOptions,
+      ),
+    listPackageObjects: (
+      params: ListPackageObjectsParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<ListPackageObjectsResponse>(
         operationDefinitions.listPackageObjects,
         params,
+        requestOptions,
       ),
-    listTransportObjects: (params: ListTransportObjectsParams) =>
+    listTransportObjects: (
+      params: ListTransportObjectsParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<ListTransportObjectsResponse>(
         operationDefinitions.listTransportObjects,
         params,
+        requestOptions,
       ),
-    listTransports: (params: ListTransportsParams) =>
+    listTransports: (
+      params: ListTransportsParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<ListTransportsResponse>(
         operationDefinitions.listTransports,
         params,
+        requestOptions,
       ),
-    readAtcFindingDocumentation: (params: ReadAtcFindingDocumentationParams) =>
+    readAtcFindingDocumentation: (
+      params: ReadAtcFindingDocumentationParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<ReadAtcFindingDocumentationResponse>(
         operationDefinitions.readAtcFindingDocumentation,
         params,
+        requestOptions,
       ),
-    readObjectSource: (params: ReadObjectSourceParams) =>
+    readObjectSource: (
+      params: ReadObjectSourceParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<ReadObjectSourceResponse>(
         operationDefinitions.readObjectSource,
         params,
+        requestOptions,
       ),
-    readSourceVersion: (params: ReadSourceVersionParams) =>
+    readSourceVersion: (
+      params: ReadSourceVersionParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<ReadSourceVersionResponse>(
         operationDefinitions.readSourceVersion,
         params,
+        requestOptions,
       ),
-    runAtc: (params: RunAtcParams) =>
-      request<RunAtcResponse>(operationDefinitions.runAtc, params),
-    searchObjects: (params: SearchObjectsParams) =>
+    runAtc: (params: RunAtcParams, requestOptions?: AdtServerRequestOptions) =>
+      request<RunAtcResponse>(
+        operationDefinitions.runAtc,
+        params,
+        requestOptions,
+      ),
+    searchObjects: (
+      params: SearchObjectsParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<SearchObjectsResponse>(
         operationDefinitions.searchObjects,
         params,
+        requestOptions,
       ),
-    searchPackages: (params: SearchPackagesParams) =>
+    searchPackages: (
+      params: SearchPackagesParams,
+      requestOptions?: AdtServerRequestOptions,
+    ) =>
       request<SearchPackagesResponse>(
         operationDefinitions.searchPackages,
         params,
+        requestOptions,
       ),
   };
 }

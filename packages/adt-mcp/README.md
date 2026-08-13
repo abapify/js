@@ -256,18 +256,39 @@ and a typed diagnostic when exact isolation cannot be proven.
 
 #### `get_source`
 
-Fetch the raw ABAP source code for a program, class, interface, or function group.
+Fetch ABAP source code for a program, class, interface, or function group. Supports version-aware reads, class includes, method-level reads, and regex grep for token-efficient source exploration.
 
 **Parameters:**
 
-| Parameter    | Type    | Description                                                                              |
-| ------------ | ------- | ---------------------------------------------------------------------------------------- |
-| `objectName` | string  | ABAP object name                                                                         |
-| `objectType` | string? | Object type hint (`PROG`, `CLAS`, `INTF`, …). Skips the search round-trip when provided. |
+| Parameter    | Type    | Description                                                                                                                                                        |
+| ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `objectName` | string  | ABAP object name                                                                                                                                                   |
+| `objectType` | string? | Object type hint (`PROG`, `CLAS`, `INTF`, …). Skips the search round-trip when provided.                                                                           |
+| `version`    | enum?   | `active` (default, last activated) or `inactive` (unactivated draft).                                                                                              |
+| `include`    | string? | For `CLAS`: source include (`main`, `definitions`, `implementations`, `testclasses`, `macros`, `text_symbols`, `localtypes`).                                      |
+| `method`     | string? | For `CLAS`: method name to read, or `*` to list all methods.                                                                                                       |
+| `grep`       | string? | Regex pattern; returns matching source lines with context instead of full source. For `CLAS` source, each match is annotated with the owning method/class/include. |
+| `maxBytes`   | number? | Maximum UTF-8 response size in bytes (default 1 MiB, hard cap 2 MiB).                                                                                              |
+| `format`     | enum?   | `raw` (default) or `structured` (class includes and method boundaries as JSON).                                                                                    |
 
-**Returns:** Plain ABAP source text.
+**Returns:**
 
-**Tip:** Always pass `objectType` when you already know it — it saves one network round-trip.
+- Default: `{ object, bytes, source, version, include }`
+- `method=*`: `{ object, methodCount, methods }`
+- `method=<name>`: `{ object, method, startLine, endLine, bytes, source }`
+- `grep`: `{ object, pattern, matchCount, matches, methodContext }`
+- `format=structured`: `{ object, source, bytes, version, include, includes, methods }`
+
+**Examples:**
+
+```text
+get_source objectName=ZCL_ORDER objectType=CLAS version=inactive
+get_source objectName=ZCL_ORDER objectType=CLAS include=testclasses
+get_source objectName=ZCL_ORDER objectType=CLAS method=get_name
+get_source objectName=ZCL_ORDER objectType=CLAS grep="SELECT.*FROM"
+```
+
+**Tip:** Do not combine `method` and `grep`. Use `grep` to locate code, then `method` to read the full method.
 
 ---
 
@@ -462,7 +483,21 @@ Create a new transport request.
 | `description` | string         | ✅      | Transport description                |
 | `type`        | `"K"` \| `"W"` | `"K"`   | Workbench (`K`) or Customizing (`W`) |
 
-> 🚧 Not yet implemented — returns a clear error until the underlying client method is available.
+---
+
+#### `cts_create_task`
+
+Create and verify a modifiable task under an existing transport request.
+
+**Parameters:**
+
+| Parameter   | Type   | Description                     |
+| ----------- | ------ | ------------------------------- |
+| `transport` | string | Parent transport request number |
+| `owner`     | string | SAP user who will own the task  |
+
+**Returns:** The parent transport number, created task number, normalized owner,
+and `created` status.
 
 ---
 
@@ -472,13 +507,10 @@ Release a transport request.
 
 **Parameters:**
 
-| Parameter     | Type   | Description      |
-| ------------- | ------ | ---------------- |
-| `transportId` | string | Transport number |
-
-> 🚧 Not yet implemented.
-
----
+| Parameter    | Type    | Description                                 |
+| ------------ | ------- | ------------------------------------------- |
+| `transport`  | string  | Transport number                            |
+| `releaseAll` | boolean | Release modifiable tasks before the request |
 
 #### `cts_delete_transport`
 
@@ -486,9 +518,25 @@ Delete a transport request.
 
 **Parameters:**
 
-| Parameter     | Type   | Description      |
-| ------------- | ------ | ---------------- |
-| `transportId` | string | Transport number |
+| Parameter   | Type   | Description      |
+| ----------- | ------ | ---------------- |
+| `transport` | string | Transport number |
+
+---
+
+#### `flow_checkout_tr`
+
+Reconcile an allowed local workspace to an exact transport source boundary.
+The tool delegates to `@abapify/adt-flow`; it does not run Git commands.
+
+| Parameter       | Type     | Default | Description                                     |
+| --------------- | -------- | ------- | ----------------------------------------------- |
+| `transports`    | string[] | ✅      | Non-empty transport scope                       |
+| `workspaceRoot` | string   | ✅      | Absolute directory within a server-owned root   |
+| `base`          | boolean  | `false` | Select the version immediately before the scope |
+
+The JSON result contains changed, moved, removed, unchanged, descriptor, and
+SAP-call counts. It never contains source bodies or credentials.
 
 ---
 
@@ -605,12 +653,11 @@ const server = createMcpServer({
 
 ## Testing
 
-Integration tests use Node.js native test runner (`node:test`) and a built-in mock ADT server that needs no SAP system.
+Integration tests use Vitest and a built-in mock ADT server that needs no SAP system.
 
 ```bash
 # Run all integration tests
-cd packages/adt-mcp
-node --test --import tsx tests/integration.test.ts
+bunx vitest run tests/integration.test.ts
 ```
 
 ### Using the mock server in your own tests
@@ -632,34 +679,36 @@ await mock.stop();
 bunx nx build adt-mcp      # build
 bunx nx typecheck adt-mcp  # type check
 bunx nx lint adt-mcp       # lint
-bunx nx test adt-mcp       # tests (runs integration suite)
+bunx nx test adt-mcp       # run integration tests with Vitest
 ```
 
 ---
 
 ## Feature Parity Map
 
-| CLI Command                  | MCP Tool                        | Status     |
-| ---------------------------- | ------------------------------- | ---------- |
-| `adt discovery`              | `discovery`                     | ✅         |
-| `adt info`                   | `system_info`                   | ✅         |
-| `adt search`                 | `search_objects`                | ✅         |
-| `adt get`                    | `get_object`                    | ✅         |
-| `adt source get`             | `get_source`                    | ✅         |
-| `adt source versions`        | `list_source_versions`          | ✅         |
-| `adt source version get`     | `get_source_version`            | ✅         |
-| `adt source put`             | `update_source`                 | ✅         |
-| `adt activate`               | `activate_object`               | ✅         |
-| `adt check`                  | `check_syntax`                  | ✅         |
-| `adt aunit run`              | `run_unit_tests`                | ✅         |
-| `adt atc run`                | `atc_run`                       | ✅         |
-| `adt cts tr list`            | `cts_list_transports`           | ✅         |
-| `adt cts tr get`             | `cts_get_transport`             | ✅         |
-| `adt cts tr source-manifest` | `cts_transport_source_manifest` | ✅         |
-| `adt cts tr delete`          | `cts_delete_transport`          | ✅         |
-| `adt cts tr create`          | `cts_create_transport`          | 🚧 Not yet |
-| `adt cts tr release`         | `cts_release_transport`         | 🚧 Not yet |
-| `adt ls`                     | —                               | 🔜 Future  |
-| `adt cts search`             | —                               | 🔜 Future  |
-| `adt import package`         | —                               | 🔜 Future  |
-| `adt import transport`       | —                               | 🔜 Future  |
+| CLI Command                  | MCP Tool                        | Status    |
+| ---------------------------- | ------------------------------- | --------- |
+| `adt discovery`              | `discovery`                     | ✅        |
+| `adt info`                   | `system_info`                   | ✅        |
+| `adt search`                 | `search_objects`                | ✅        |
+| `adt get`                    | `get_object`                    | ✅        |
+| `adt source get`             | `get_source`                    | ✅        |
+| `adt source versions`        | `list_source_versions`          | ✅        |
+| `adt source version get`     | `get_source_version`            | ✅        |
+| `adt source put`             | `update_source`                 | ✅        |
+| `adt activate`               | `activate_object`               | ✅        |
+| `adt check`                  | `check_syntax`                  | ✅        |
+| `adt aunit run`              | `run_unit_tests`                | ✅        |
+| `adt atc run`                | `atc_run`                       | ✅        |
+| `adt cts tr list`            | `cts_list_transports`           | ✅        |
+| `adt cts tr get`             | `cts_get_transport`             | ✅        |
+| `adt cts tr task create`     | `cts_create_task`               | ✅        |
+| `adt cts tr source-manifest` | `cts_transport_source_manifest` | ✅        |
+| `adt cts tr delete`          | `cts_delete_transport`          | ✅        |
+| `adt cts tr create`          | `cts_create_transport`          | ✅        |
+| `adt cts tr release`         | `cts_release_transport`         | ✅        |
+| `adt flow checkout tr`       | `flow_checkout_tr`              | ✅        |
+| `adt ls`                     | —                               | 🔜 Future |
+| `adt cts search`             | —                               | 🔜 Future |
+| `adt import package`         | —                               | 🔜 Future |
+| `adt import transport`       | —                               | 🔜 Future |

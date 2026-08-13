@@ -44,15 +44,19 @@ ADT source history is link-driven. Object metadata describes one or more source 
 
 **Rationale**: live TRL metadata proves those sections are independently versioned. Collapsing them to one object version would produce false before/after pairs.
 
-### 3a. Root requests expand to concrete task provenance
+### 3a. Root and task requests expand to the complete CTS provenance scope
 
 **Decision**: resolving a root transport preserves the concrete request or task
 that contributed each object and returns the complete in-scope identifier set
-(root plus tasks). Version-feed provenance is matched against that expanded set.
+(root plus tasks). Resolving a task also preserves the requested task as the
+object source while adding the parent request exposed by SAP to the in-scope
+identifier set. Version-feed provenance is matched against that expanded set.
 
 **Rationale**: CTS object lists are aggregated under a root request, while source
-history commonly attributes a change to the child task. Replacing the task ID
-with the requested root would make an exact in-scope version appear unrelated.
+history can attribute a change either to the child task or to its parent request,
+depending on the SAP release and object family. Replacing either concrete
+identity, or omitting the parent for a directly requested task, would make an
+exact in-scope version appear unrelated.
 
 ### 4. Deterministic version selection with an exactness gate
 

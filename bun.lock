@@ -249,6 +249,17 @@
       "name": "@abapify/adt-fixtures",
       "version": "0.4.1",
     },
+    "packages/adt-flow": {
+      "name": "@abapify/adt-flow",
+      "version": "0.4.1",
+      "dependencies": {
+        "@abapify/adk": "0.4.1",
+        "@abapify/adt-client": "0.4.1",
+        "@abapify/adt-config": "0.4.1",
+        "@abapify/adt-plugin": "0.4.1",
+        "zod": "^4.4.3",
+      },
+    },
     "packages/adt-lint": {
       "name": "@abapify/adt-lint",
       "version": "0.4.1",
@@ -278,8 +289,10 @@
         "@abapify/adt-config": "0.4.1",
         "@abapify/adt-contracts": "0.4.1",
         "@abapify/adt-fixtures": "0.4.1",
+        "@abapify/adt-flow": "0.4.1",
         "@abapify/adt-lint": "0.4.1",
         "@abapify/adt-locks": "0.4.1",
+        "@abapify/adt-plugin": "0.4.1",
         "@abapify/adt-plugin-abapgit": "0.4.1",
         "@abapify/adt-rfc": "0.4.1",
         "@abapify/adt-schemas": "0.4.1",
@@ -580,6 +593,8 @@
     "@abapify/adt-export": ["@abapify/adt-export@workspace:packages/adt-export"],
 
     "@abapify/adt-fixtures": ["@abapify/adt-fixtures@workspace:packages/adt-fixtures"],
+
+    "@abapify/adt-flow": ["@abapify/adt-flow@workspace:packages/adt-flow"],
 
     "@abapify/adt-lint": ["@abapify/adt-lint@workspace:packages/adt-lint"],
 

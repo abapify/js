@@ -1,0 +1,18 @@
+{
+  "objectReference": [
+    {
+      "name": "ZE_MOCK_CLASSIC_BADI_IMPL",
+      "type": "SXCI/XI",
+      "uri": "/sap/bc/adt/vit/wb/object_type/sxcixi/object_name/ze_mock_classic_badi_impl",
+      "description": "Mock classic BAdI implementation",
+      "packageName": "MOCK_PKG"
+    },
+    {
+      "name": "ZE_MOCK_CLASSIC_BADI_IMPL_B",
+      "type": "SXCI/XI",
+      "uri": "/sap/bc/adt/vit/wb/object_type/sxcixi/object_name/ze_mock_classic_badi_impl_b",
+      "description": "Second mock classic BAdI implementation",
+      "packageName": "MOCK_PKG"
+    }
+  ]
+}

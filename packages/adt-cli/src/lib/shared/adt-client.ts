@@ -70,10 +70,10 @@ export const silentLogger: Logger = {
  * Console logger - outputs to console (used when enableLogging is true)
  */
 export const consoleLogger: Logger = {
-  trace: (msg: string) => console.debug(msg),
-  debug: (msg: string) => console.debug(msg),
-  info: (msg: string) => console.log(msg),
-  warn: (msg: string) => console.warn(msg),
+  trace: (msg: string) => console.error(msg),
+  debug: (msg: string) => console.error(msg),
+  info: (msg: string) => console.error(msg),
+  warn: (msg: string) => console.error(msg),
   error: (msg: string) => console.error(msg),
   fatal: (msg: string) => console.error(msg),
   child: () => consoleLogger,

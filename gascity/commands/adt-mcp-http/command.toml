@@ -1,0 +1,2 @@
+description = "Start the adt-mcp Streamable HTTP server"
+command = ["adt-mcp-http"]

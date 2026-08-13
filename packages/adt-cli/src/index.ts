@@ -72,3 +72,56 @@ export {
   type ListObjectVersionsInput,
   type ListObjectVersionsResult,
 } from './lib/services/source-history';
+
+// Source retrieval — shared by CLI and MCP for arc-1 SAPRead parity.
+export {
+  getSource,
+  GetSourceTooLargeError,
+  type GetSourceOptions,
+  type GetSourceResult,
+  type GetSourceDefaultResult,
+  type GetSourceMethodListResult,
+  type GetSourceMethodResult,
+  type GetSourceGrepResult,
+  type GetSourceStructuredResult,
+  type SourceInclude,
+  type SourceMethod,
+  type GrepMatch,
+} from './lib/services/source';
+
+export {
+  CheckService,
+  DEFAULT_CHECK_SOURCE_VERSION,
+  type CheckMessage,
+  type CheckReport,
+  type CheckResult,
+  type CheckServiceInput,
+  type CheckSourceVersion,
+} from './lib/services/check/service';
+
+export {
+  CtsTransportLifecycleService,
+  type CtsTransportLifecycleOperations,
+  type CtsTransportSummary,
+  type CreateTaskInput,
+  type CreateTaskResult,
+  type ReassignTransportInput,
+  type ReassignTransportResult,
+  type ReleaseTransportInput,
+  type ReleaseTransportResult,
+} from './lib/services/cts';
+
+// BAdI — ENHO metadata (enhoxhb) and unified read (classic vit/wb + ENHO)
+export {
+  getBadiInfo,
+  parseEnhancementImplementation,
+  BadiService,
+  ClassicBadiService,
+  normalizeClassicBadiMetadata,
+  type BadiInfo,
+  type BadiImplementation,
+  type BadiKind,
+  type BadiMetadata,
+  type BadiReadResult,
+  type ClassicBadiMetadata,
+} from './lib/services/badi';

@@ -7,6 +7,7 @@ import {
   atcRunResponse,
   destinationSummaryResponse,
   objectMetadataResponse,
+  badiResponse,
   objectNamePathParameter,
   objectPageResponse,
   objectSearchQuery,
@@ -53,6 +54,7 @@ const packageSearchQuerySchema = z.toJSONSchema(packageSearchQuery);
 const packageTreeQuerySchema = z.toJSONSchema(packageTreeQuery);
 const objectPageResponseSchema = z.toJSONSchema(objectPageResponse);
 const objectMetadataResponseSchema = z.toJSONSchema(objectMetadataResponse);
+const badiResponseSchema = z.toJSONSchema(badiResponse);
 const objectSourceHistoryResponseSchema = z.toJSONSchema(
   objectSourceHistoryResponse,
 );
@@ -384,6 +386,40 @@ export const openApiDocument = {
               'Canonical object metadata, facets and allowlisted relation capabilities',
             content: {
               'application/json': { schema: objectMetadataResponseSchema },
+            },
+          },
+          '400': { description: 'Invalid request' },
+        },
+      },
+    },
+    '/v1/destinations/{destination}/badi/{name}': {
+      get: {
+        operationId: 'getBadi',
+        parameters: [
+          { $ref: '#/components/parameters/destination' },
+          {
+            name: 'name',
+            in: 'path',
+            required: true,
+            schema: objectNamePathParameterSchema,
+            description:
+              'BAdI name — definition, implementation, or ENHO container',
+          },
+          {
+            name: 'implementations',
+            in: 'query',
+            required: false,
+            schema: { type: 'boolean' },
+            description:
+              'When name is a classic definition (SXSD/XD), include its SXCI/XI implementations',
+          },
+        ],
+        responses: {
+          '200': {
+            description:
+              'Canonical BAdI metadata; kind is resolved from repository type',
+            content: {
+              'application/json': { schema: badiResponseSchema },
             },
           },
           '400': { description: 'Invalid request' },

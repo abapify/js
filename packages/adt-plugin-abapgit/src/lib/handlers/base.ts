@@ -7,6 +7,10 @@
 
 import type { AdkObject, AdkKind } from '@abapify/adk';
 import { getTypeForKind, getMainType } from '@abapify/adk';
+import {
+  FormatMaterializationError,
+  type FormatSerializeOptions,
+} from '@abapify/adt-plugin';
 import type {
   AbapGitSchema,
   InferAbapGitType,
@@ -76,8 +80,13 @@ export interface ObjectHandler<
   readonly schema: TSchema;
   /** Map abapGit file suffix to source key */
   readonly suffixToSourceKey?: Record<string, string>;
+  /** Whether this handler treats an explicit `sources` map as authoritative. */
+  readonly supportsExplicitSources?: boolean;
   /** Serialize object to files (SAP → Git) */
-  serialize(object: T): Promise<SerializedFile[]>;
+  serialize(
+    object: T,
+    options?: FormatSerializeOptions,
+  ): Promise<SerializedFile[]>;
   /**
    * Map abapGit values to ADK data (Git → SAP)
    * Return type includes name (required) plus any ADK data fields
@@ -209,6 +218,13 @@ export interface HandlerDefinition<
   suffixToSourceKey?: Record<string, string>;
 
   /**
+   * Whether this handler treats an explicit `sources` map as authoritative.
+   * If omitted, the factory infers it from `getSource`/`getSources` or from
+   * the custom `serialize` arity.
+   */
+  supportsExplicitSources?: boolean;
+
+  /**
    * Custom filename for XML file (optional)
    * Default: `${objectName}.${type}.xml`
    *
@@ -269,6 +285,7 @@ export interface HandlerDefinition<
   serialize?(
     object: T,
     ctx: HandlerContext<T, InferAbapGitType<TSchema>>,
+    options?: FormatSerializeOptions,
   ): Promise<SerializedFile[]>;
 }
 
@@ -451,15 +468,72 @@ export function createHandler<
     },
   };
 
-  // Default serialize
-  const defaultSerialize = async (object: T): Promise<SerializedFile[]> => {
+  function resolveXmlFileName(object: T): string {
+    if (definition.xmlFileName) {
+      return typeof definition.xmlFileName === 'function'
+        ? definition.xmlFileName(object, ctx)
+        : definition.xmlFileName;
+    }
+    return `${ctx.getObjectName(object)}.${fileExtension}.xml`;
+  }
+
+  function createExplicitSourceFile(
+    sourceKey: string,
+    content: string | undefined,
+    suffixBySourceKey: Map<string, string | undefined>,
+    objectName: string,
+  ): SerializedFile | undefined {
+    if (content === undefined) return undefined;
+    if (!suffixBySourceKey.has(sourceKey)) {
+      throw new FormatMaterializationError(
+        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+        `The ${type} format handler cannot map source component "${sourceKey}".`,
+      );
+    }
+    return ctx.createAbapFile(
+      objectName,
+      content,
+      suffixBySourceKey.get(sourceKey),
+    );
+  }
+
+  function buildExplicitSourceFiles(
+    object: T,
+    sources: Record<string, string | undefined>,
+  ): SerializedFile[] {
+    const sourceKeys = Object.keys(sources);
+    if (sourceKeys.length === 0) return [];
+    if (!definition.getSource && !definition.getSources) {
+      throw new FormatMaterializationError(
+        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+        `The ${type} format handler does not serialize source components.`,
+      );
+    }
+    const suffixBySourceKey = new Map<string, string | undefined>([
+      ['main', undefined],
+      ...Object.entries(definition.suffixToSourceKey ?? {}).map(
+        ([suffix, sourceKey]) => [sourceKey, suffix] as const,
+      ),
+    ]);
     const objectName = ctx.getObjectName(object);
     const files: SerializedFile[] = [];
+    for (const sourceKey of sourceKeys.sort((left, right) =>
+      left.localeCompare(right, 'en-US'),
+    )) {
+      const file = createExplicitSourceFile(
+        sourceKey,
+        sources[sourceKey],
+        suffixBySourceKey,
+        objectName,
+      );
+      if (file) files.push(file);
+    }
+    return files;
+  }
 
-    // Add source files
+  async function buildMutableSourceFiles(object: T): Promise<SerializedFile[]> {
+    const objectName = ctx.getObjectName(object);
     if (definition.getSources) {
-      // Multiple source files (e.g., CLAS with includes)
-      // Resolve all promises in parallel
       const rawSources = definition.getSources(object);
       const sources = await Promise.all(
         rawSources.map(async ({ suffix, content }) => ({
@@ -467,31 +541,31 @@ export function createHandler<
           content: await content,
         })),
       );
-      for (const { suffix, content } of sources) {
-        if (content) {
-          files.push(ctx.createAbapFile(objectName, content, suffix));
-        }
-      }
-    } else if (definition.getSource) {
-      // Single source file (e.g., INTF)
+      return sources
+        .filter(({ content }) => content)
+        .map(({ suffix, content }) =>
+          ctx.createAbapFile(objectName, content!, suffix),
+        );
+    }
+    if (definition.getSource) {
       const source = await definition.getSource(object);
-      files.push(ctx.createAbapFile(objectName, source));
+      return source ? [ctx.createAbapFile(objectName, source)] : [];
     }
+    return [];
+  }
 
-    // Add XML metadata file
+  // Default serialize
+  const defaultSerialize = async (
+    object: T,
+    options?: FormatSerializeOptions,
+  ): Promise<SerializedFile[]> => {
+    const sourceFiles =
+      options?.sources !== undefined
+        ? buildExplicitSourceFiles(object, options.sources)
+        : await buildMutableSourceFiles(object);
+    const xmlFileName = resolveXmlFileName(object);
     const xmlContent = ctx.toAbapGitXml(object);
-    let xmlFileName: string;
-    if (definition.xmlFileName) {
-      xmlFileName =
-        typeof definition.xmlFileName === 'function'
-          ? definition.xmlFileName(object, ctx)
-          : definition.xmlFileName;
-    } else {
-      xmlFileName = `${objectName}.${fileExtension}.xml`;
-    }
-    files.push(ctx.createFile(xmlFileName, xmlContent));
-
-    return files;
+    return [...sourceFiles, ctx.createFile(xmlFileName, xmlContent)];
   };
 
   // Default fromAbapGit using definition.fromAbapGit if provided
@@ -503,14 +577,37 @@ export function createHandler<
       }
     : undefined;
 
+  // Determine whether this handler can honor an explicit source map.
+  // Handlers may declare it explicitly; otherwise we fall back to arity.
+  const explicitSupports = definition.supportsExplicitSources;
+  const serializeAcceptsOptions =
+    explicitSupports ??
+    (definition.serialize !== undefined && definition.serialize.length >= 3);
+  const supportsExplicitSources =
+    explicitSupports ??
+    (definition.getSource !== undefined ||
+      definition.getSources !== undefined ||
+      serializeAcceptsOptions);
+
   // Create handler object with full type information
   const handler: ObjectHandler<T, TSchema> = {
     type,
     fileExtension,
     schema: definition.schema,
     suffixToSourceKey: definition.suffixToSourceKey,
+    supportsExplicitSources,
     serialize: definition.serialize
-      ? (object: T) => definition.serialize!(object, ctx)
+      ? async (object: T, options?: FormatSerializeOptions) => {
+          if (serializeAcceptsOptions) {
+            return await definition.serialize!(object, ctx, options);
+          }
+          return await (
+            definition.serialize as (
+              object: T,
+              ctx: HandlerContext<T, InferAbapGitType<TSchema>>,
+            ) => Promise<SerializedFile[]>
+          )(object, ctx);
+        }
       : defaultSerialize,
     fromAbapGit: defaultFromAbapGit,
     setSources: definition.setSources,

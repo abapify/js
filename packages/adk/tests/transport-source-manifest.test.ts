@@ -604,6 +604,29 @@ describe('buildTransportSourceManifest', () => {
     expect(readVersionSource).not.toHaveBeenCalled();
   });
 
+  it('matches parent-attributed source history for a directly requested task', async () => {
+    const object = transportObject({
+      name: 'ZTASK_CREATED_CLASS',
+      type: 'CLAS',
+      objectUri: '/sap/bc/adt/oo/classes/ztask_created_class',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution([object], ['DEVK901021'], ['DEVK901021', 'DEVK901020']);
+    const head = version('00001', 0, ['DEVK901020']);
+    const { ctx } = contextWithVersions(vi.fn().mockResolvedValue([head]));
+
+    const result = await buildTransportSourceManifest(['DEVK901021'], {}, ctx);
+
+    expect(result.scopeTransports).toEqual(['DEVK901021', 'DEVK901020']);
+    expect(result.entries[0]).toMatchObject({
+      sourceTransport: 'DEVK901021',
+      changeKind: 'added',
+      exact: true,
+      head,
+    });
+    expect(result.entries[0]?.base).toBeUndefined();
+  });
+
   it('resolves a LIMU REPS transport leaf through the PROG source-history model', async () => {
     const object = transportObject({
       name: 'ZTEST_GCTS_PROGRAM',
@@ -640,6 +663,42 @@ describe('buildTransportSourceManifest', () => {
         head,
       }),
     ]);
+  });
+
+  it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {
+    const authorizationAssignment = transportObject({
+      name: 'Z_CONCUR_RECON',
+      type: 'SUSK',
+    });
+    const program = transportObject({
+      name: 'ZREVIEWED_PROGRAM',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution(
+      [authorizationAssignment, program],
+      ['DEVK900002', 'DEVK900002'],
+    );
+    const head = version('00001', 0, ['DEVK900002']);
+    const { ctx } = contextWithVersions(vi.fn().mockResolvedValue([head]));
+
+    const manifest = await buildTransportSourceManifest(
+      ['DEVK900001'],
+      {},
+      ctx,
+    );
+
+    expect(manifest.entries).toEqual([
+      expect.objectContaining({
+        object: expect.objectContaining({
+          pgmid: 'R3TR',
+          type: 'PROG',
+          name: 'ZREVIEWED_PROGRAM',
+        }),
+        exact: true,
+        head,
+      }),
+    ]);
+    expect(factoryGet).not.toHaveBeenCalledWith('Z_CONCUR_RECON', 'SUSK');
   });
 
   it('discovers and selects composite components independently', async () => {
@@ -793,7 +852,7 @@ describe('buildTransportSourceManifest', () => {
     expect(manifest.entries[0]?.diagnostic?.message).not.toContain('sensitive');
   });
 
-  it('marks a concrete ADK metadata load rejection as failed', async () => {
+  it('marks a concrete ADK metadata load rejection unsupported', async () => {
     const object = transportObject({
       name: 'ZLOAD_FAILURE',
       metadata: rootSourceMetadata(),
@@ -809,7 +868,7 @@ describe('buildTransportSourceManifest', () => {
     );
 
     expect(manifest.entries[0]).toMatchObject({
-      changeKind: 'failed',
+      changeKind: 'unsupported',
       exact: false,
       diagnostic: { code: 'OBJECT_METADATA_LOAD_FAILED' },
     });

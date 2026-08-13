@@ -105,6 +105,60 @@ describe('default serialize behavior', () => {
     assert.strictEqual(abapFile?.content, '* ABAP source code');
   });
 
+  it('treats explicit sources as authoritative and skips mutable getters', async () => {
+    const mockObject = {
+      name: 'TEST_OVERRIDE',
+      dataSync: { name: 'TEST_OVERRIDE' },
+    };
+    let getterCalls = 0;
+
+    const handler = createHandler('OVERRIDE', {
+      schema: mockSchema as any,
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_OVERRIDE',
+      serializer_version: 'v1.0.0',
+      toAbapGit: (obj) => ({ NAME: obj.name }),
+      getSource: async () => {
+        getterCalls += 1;
+        return 'mutable source';
+      },
+    });
+
+    const files = await handler.serialize(mockObject as any, {
+      sources: { main: 'immutable historical source' },
+    });
+
+    assert.strictEqual(getterCalls, 0);
+    assert.strictEqual(
+      files.find((file) => file.path.endsWith('.abap'))?.content,
+      'immutable historical source',
+    );
+  });
+
+  it('rejects source overrides for metadata-only handlers', async () => {
+    const handler = createHandler('METADATA_ONLY', {
+      schema: mockSchema as any,
+      version: 'v1.0.0',
+      serializer: 'LCL_OBJECT_METADATA_ONLY',
+      serializer_version: 'v1.0.0',
+      toAbapGit: (obj) => ({ NAME: obj.name }),
+    });
+
+    await assert.rejects(
+      handler.serialize(
+        {
+          name: 'TEST_METADATA',
+          dataSync: { name: 'TEST_METADATA' },
+        } as any,
+        { sources: { main: 'invalid source' } },
+      ),
+      (error: unknown) =>
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+    );
+  });
+
   it('creates multiple ABAP files when getSources provided', async () => {
     const mockObject = {
       name: 'TEST_MULTI',

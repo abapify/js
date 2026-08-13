@@ -206,6 +206,14 @@ it('documents canonical object metadata without raw ADT links', () => {
   assert.ok(!JSON.stringify(metadata).includes('href'));
 });
 
+it('documents unified BAdI metadata endpoint', () => {
+  const badi =
+    openApiDocument.paths['/v1/destinations/{destination}/badi/{name}'].get;
+
+  assert.strictEqual(badi.operationId, 'getBadi');
+  assert.ok(badi.responses['200'].content?.['application/json'].schema);
+});
+
 it('documents canonical object source history without source locators', () => {
   const history =
     openApiDocument.paths[

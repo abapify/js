@@ -7,7 +7,7 @@
  * A lightweight mock ADT HTTP server provides fixture responses.
  */
 
-import { describe, it, before, after } from 'node:test';
+import { describe, it, beforeAll, afterAll } from 'vitest';
 import assert from 'node:assert';
 import { randomBytes } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -58,7 +58,7 @@ function connArgs(): Record<string, string> {
 }
 
 describe('adt-mcp integration tests', () => {
-  before(async () => {
+  beforeAll(async () => {
     // 1. Start mock ADT backend
     mockAdt = createMockAdtServer();
     const info = await mockAdt.start();
@@ -93,7 +93,7 @@ describe('adt-mcp integration tests', () => {
     await client.connect(clientTransport);
   });
 
-  after(async () => {
+  afterAll(async () => {
     await client.close();
     await mockAdt.stop();
   });
@@ -493,6 +493,22 @@ describe('adt-mcp integration tests', () => {
       });
       const data = json as { status: string; transport: string };
       assert.strictEqual(data.status, 'created');
+    });
+  });
+
+  describe('cts_create_task tool', () => {
+    it('creates and verifies a modifiable task under a request', async () => {
+      const { json } = await callTool('cts_create_task', {
+        ...connArgs(),
+        transport: 'DEVK900001',
+        owner: 'NEWOWNER',
+      });
+      assert.deepStrictEqual(json, {
+        status: 'created',
+        transport: 'DEVK900001',
+        task: 'DEVK900004',
+        owner: 'NEWOWNER',
+      });
     });
   });
 
@@ -1112,12 +1128,20 @@ describe('adt-mcp integration tests', () => {
 
   describe('cts_reassign_transport tool', () => {
     it('reassigns a transport to a new owner', async () => {
-      const { json } = await callTool('cts_reassign_transport', {
+      // The release-tool scenario above intentionally transitions this shared
+      // fixture to R. Reassign must be exercised from an independent D state.
+      await mockAdt.reset();
+
+      const { json, raw } = await callTool('cts_reassign_transport', {
         ...connArgs(),
         transportNumber: 'DEVK900001',
         targetUser: 'NEWOWNER',
         recursive: true,
       });
+      assert.ok(
+        !(raw as { isError?: boolean }).isError,
+        `reassign should succeed: ${String(json)}`,
+      );
       const data = json as {
         status: string;
         transport: string;
@@ -1385,6 +1409,7 @@ describe('adt-mcp integration tests', () => {
         'cts_list_transports',
         'cts_get_transport',
         'cts_create_transport',
+        'cts_create_task',
         'cts_release_transport',
         'cts_delete_transport',
         'cts_search_transports',

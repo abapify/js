@@ -1,6 +1,7 @@
 import http from 'node:http';
 import {
   AdtResponseTooLargeError,
+  runWithAdtAbortSignal,
   SourceVersionTooLargeError,
 } from '@abapify/adt-client';
 import { z } from 'zod';
@@ -27,6 +28,7 @@ import {
   MAX_SOURCE_BYTES,
   objectPageResponse,
   objectMetadataResponse,
+  badiResponse,
   objectNamePathParameter,
   objectSearchResult,
   objectSourceReadBody,
@@ -575,6 +577,40 @@ async function handleObjectMetadata(
   }
 }
 
+async function handleBadiRead(
+  ctx: RequestHandlerContext,
+  request: http.IncomingMessage,
+  response: http.ServerResponse,
+  match: RegExpExecArray,
+): Promise<void> {
+  try {
+    const destination = match[1]!;
+    const badiName = parseObjectName(match[2]!);
+    const query = z
+      .object({
+        implementations: z
+          .enum(['true', 'false'])
+          .optional()
+          .transform((value) => value === 'true'),
+      })
+      .strict()
+      .parse(readQuery(request));
+    if (!ctx.options.operations.getBadi) {
+      writeNotFound(response);
+      return;
+    }
+    const data = badiResponse.parse(
+      await ctx.options.operations.getBadi(destination, badiName, {
+        includeImplementations: query.implementations,
+      }),
+    );
+    sendJson(response, data);
+  } catch (error) {
+    if (handleKnownError(response, error)) return;
+    throw error;
+  }
+}
+
 async function handleObjectSourceHistory(
   ctx: RequestHandlerContext,
   request: http.IncomingMessage,
@@ -875,6 +911,12 @@ const defaultRoutes: Route[] = [
   },
   {
     method: 'GET',
+    pattern: /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/badi\/([^/]+)$/u,
+    requiresRest: true,
+    handler: handleBadiRead,
+  },
+  {
+    method: 'GET',
     pattern:
       /^\/v1\/destinations\/([a-z][a-z0-9-]{1,62})\/objects\/([^/]+)\/([^/]+)\/source-history$/u,
     requiresRest: true,
@@ -959,7 +1001,40 @@ async function dispatchRoute(
     !(await ensureRestAuthorized(ctx, request, response))
   )
     return;
-  await route.handler(ctx, request, response, match);
+  if (!route.requiresRest) {
+    await route.handler(ctx, request, response, match);
+    return;
+  }
+  await runWithRequestAbortSignal(request, response, () =>
+    route.handler(ctx, request, response, match),
+  );
+}
+
+async function runWithRequestAbortSignal<T>(
+  request: http.IncomingMessage,
+  response: http.ServerResponse,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const abortController = new AbortController();
+  const abort = () => {
+    if (!abortController.signal.aborted) abortController.abort();
+  };
+  const abortOnPrematureResponseClose = () => {
+    if (!response.writableEnded) abort();
+  };
+
+  request.once('aborted', abort);
+  response.once('close', abortOnPrematureResponseClose);
+  if (request.aborted || (response.destroyed && !response.writableEnded)) {
+    abort();
+  }
+
+  try {
+    return await runWithAdtAbortSignal(abortController.signal, operation);
+  } finally {
+    request.removeListener('aborted', abort);
+    response.removeListener('close', abortOnPrematureResponseClose);
+  }
 }
 
 function handleServerError(
