@@ -104,6 +104,7 @@
       "version": "0.4.1",
       "dependencies": {
         "@abapify/adt-client": "0.4.1",
+        "@abapify/adt-contracts": "0.4.1",
         "@abapify/adt-locks": "0.4.1",
         "@abapify/adt-schemas": "0.4.1",
       },
