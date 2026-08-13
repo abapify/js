@@ -148,6 +148,13 @@ function isApplicationComponentExcluded(
   );
 }
 
+function isUnsupportedEntry(entry: TransportSourceManifestEntry): boolean {
+  return (
+    entry.changeKind === 'unsupported' ||
+    entry.diagnostic?.code === 'OBJECT_TYPE_UNSUPPORTED'
+  );
+}
+
 function selectedVersion(
   entry: TransportSourceManifestEntry,
   mode: 'base' | 'head',
@@ -947,9 +954,7 @@ async function unsupportedEntries(
   limiter: Limiter,
   hasApplicationComponentFilter: boolean,
 ): Promise<FlowCheckoutResult['skipped']> {
-  const unsupported = entries.filter(
-    (entry) => entry.changeKind === 'unsupported',
-  );
+  const unsupported = entries.filter(isUnsupportedEntry);
 
   if (!hasApplicationComponentFilter) {
     return unsupported.map((entry) => ({
@@ -1038,9 +1043,7 @@ async function buildManifestAndGroups(
     metadataLimiter,
     hasApplicationComponentFilter,
   );
-  const entries = scopedEntries.filter(
-    (entry) => entry.changeKind !== 'unsupported',
-  );
+  const entries = scopedEntries.filter((entry) => !isUnsupportedEntry(entry));
   const sourceLimiter = new Limiter(
     ctx.config.concurrency?.sources ?? DEFAULT_SOURCE_CONCURRENCY,
   );

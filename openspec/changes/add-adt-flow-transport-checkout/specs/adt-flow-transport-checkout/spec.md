@@ -29,7 +29,7 @@ current source.
 
 #### Scenario: Object has no materializable source history
 
-- **GIVEN** a transport contains an otherwise relevant object whose manifest entry is `unsupported`, including one whose ADT metadata cannot be loaded
+- **GIVEN** a transport contains an otherwise relevant object whose manifest entry is `unsupported` or carries the `OBJECT_TYPE_UNSUPPORTED` diagnostic, including one whose ADT metadata cannot be loaded
 - **WHEN** checkout is requested
 - **THEN** checkout excludes that object without reading source or changing its repository paths
 - **THEN** checkout continues with the remaining exact source components
