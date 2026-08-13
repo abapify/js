@@ -27,6 +27,7 @@ import type {
 import {
   isMcpDestinationKey,
   isMcpOperationClass,
+  type McpDelegatedAccess,
   type McpFrozenSourceAccess,
   type McpScopedAccess,
   type McpRequestAccess,
@@ -190,6 +191,8 @@ function snapshotRequestAccess(
   if (access.frozenSource && !frozenSource) return undefined;
   const scoped = snapshotScopedAccess(access.scoped);
   if (access.scoped && !scoped) return undefined;
+  const delegated = snapshotDelegatedAccess(access.delegated);
+  if (access.delegated && !delegated) return undefined;
   if (
     scoped &&
     (classes.length !== 2 ||
@@ -204,6 +207,7 @@ function snapshotRequestAccess(
     destinationKeys: Object.freeze([...destinationKeys]),
     ...(frozenSource ? { frozenSource } : {}),
     ...(scoped ? { scoped } : {}),
+    ...(delegated ? { delegated } : {}),
   });
 }
 
@@ -351,6 +355,28 @@ function snapshotScopedAccess(
     return snapshotSafeExecuteScope(access, resourceKeys, toolNames);
   }
   return undefined;
+}
+
+function snapshotDelegatedAccess(
+  access: McpDelegatedAccess | undefined,
+): McpDelegatedAccess | undefined {
+  if (!access) return undefined;
+  if (
+    typeof access.threadId !== 'string' ||
+    !UUID_REGEX.test(access.threadId) ||
+    typeof access.executionId !== 'string' ||
+    !UUID_REGEX.test(access.executionId) ||
+    typeof access.systemSid !== 'string' ||
+    access.systemSid.length === 0 ||
+    access.systemSid.length > 16
+  ) {
+    return undefined;
+  }
+  return Object.freeze({
+    threadId: access.threadId,
+    executionId: access.executionId,
+    systemSid: access.systemSid,
+  });
 }
 
 function snapshotFrozenSourceAccess(
