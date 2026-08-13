@@ -341,7 +341,17 @@ export class AdkTransportRequest extends AdkObject<
 
       // Re-fetch from SAP rather than assume success - a 200 response from
       // the useraction endpoint above was never proof of a state change.
-      await this.load();
+      // If the reload itself fails, report that the release POST succeeded
+      // but verification could not be completed — do not conflate it with a
+      // release failure, since SAP may have actually released the transport.
+      try {
+        await this.load();
+      } catch (reloadError) {
+        return {
+          success: false,
+          message: `Released ${this.number} but failed to verify: ${reloadError instanceof Error ? reloadError.message : String(reloadError)}`,
+        };
+      }
       if (this.status !== 'R') {
         return {
           success: false,

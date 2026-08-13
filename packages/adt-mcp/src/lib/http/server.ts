@@ -39,6 +39,7 @@ import { createAuthMiddleware, type AuthMode, type UserHint } from './auth.js';
 import {
   isMcpInvocationDispatchPolicySupported,
   parseAiReviewFrozenSourcePolicy,
+  parseDelegatedAssistantReadPolicy,
   parseFrozenSource,
   parseScopedAdtInvocationPolicy,
   parseSafeExecutePolicy,
@@ -426,6 +427,7 @@ function invocationRequestAccess(
   }
   const frozenSource = parseAiReviewFrozenSourcePolicy(invocation);
   const scopedPolicy = parseScopedAdtInvocationPolicy(invocation);
+  const delegated = parseDelegatedAssistantReadPolicy(invocation);
   return snapshotRequestAccess({
     classes: invocation.classes,
     destinationKeys: invocation.destinationKeys,
@@ -440,6 +442,7 @@ function invocationRequestAccess(
           },
         }
       : {}),
+    ...(delegated ? { delegated } : {}),
   });
 }
 

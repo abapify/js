@@ -250,6 +250,9 @@ describe('AdkTransportRequest CTS lifecycle', () => {
     const result = await transport.release();
 
     expect(result.success).toBe(false);
+    expect(result.message).toContain(
+      'Released DEVK900001 but failed to verify',
+    );
     expect(result.message).toContain('Network error during reload');
   });
 
