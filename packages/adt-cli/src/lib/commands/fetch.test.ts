@@ -37,4 +37,63 @@ describe('formatFetchFailure', () => {
       'Transport cause: socket hang up (ECONNRESET)',
     );
   });
+
+  it('redacts API-key headers, Digest auth parameters, and sensitive statusText', () => {
+    const error = Object.assign(
+      new Error(
+        'Authorization: Digest username="u", realm="r", nonce="n"\nX-Api-Key: leaked-key',
+      ),
+      {
+        status: 401,
+        statusText: 'Unauthorized?access_token=status-secret',
+        rawBody:
+          'Authorization: Digest username="u", response="resp"\nX-Api-Key: body-key',
+      },
+    );
+
+    const diagnostic = formatFetchFailure(error).join('\n');
+
+    expect(diagnostic).not.toContain('leaked-key');
+    expect(diagnostic).not.toContain('body-key');
+    expect(diagnostic).not.toContain('status-secret');
+    expect(diagnostic).not.toContain('response="resp"');
+    expect(diagnostic).not.toContain('nonce="n"');
+    expect(diagnostic).toContain('[REDACTED]');
+  });
+
+  it('redacts authorization/cookie JSON keys and ADT XML entry attributes', () => {
+    const error = Object.assign(new Error('upstream error'), {
+      status: 500,
+      rawBody:
+        '{"authorization":"Bearer abc","cookie":"sid=123","set-cookie":"x=1"}\n' +
+        '<entry key="access_token">plain-secret</entry>',
+    });
+
+    const diagnostic = formatFetchFailure(error).join('\n');
+
+    expect(diagnostic).not.toContain('Bearer abc');
+    expect(diagnostic).not.toContain('sid=123');
+    expect(diagnostic).not.toContain('plain-secret');
+    expect(diagnostic).toContain('[REDACTED]');
+  });
+
+  it('truncates the response body at a code-point boundary (no split surrogates)', () => {
+    // Build a body where the 4000th code point is a surrogate pair ('😀').
+    // 3999 'a's + '😀' (1 code point, 2 UTF-16 units) + 'b' = 4001 code points.
+    // Code-point slicing keeps 3999 'a's + '😀' (valid); naive unit slicing
+    // would cut inside the surrogate pair and emit a lone high surrogate.
+    const rawBody = 'a'.repeat(3999) + '😀b';
+    const error = Object.assign(new Error('err'), {
+      status: 500,
+      rawBody,
+    });
+
+    const diagnostic = formatFetchFailure(error).join('\n');
+
+    expect(diagnostic).toContain('… [truncated]');
+    // The truncated body must not contain a lone high surrogate (U+D800–U+DBFF
+    // alone renders as U+FFFD). '😀' is preserved intact.
+    expect(diagnostic).toContain('😀');
+    expect(diagnostic).not.toContain('\uFFFD');
+  });
 });

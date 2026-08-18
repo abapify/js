@@ -12,31 +12,51 @@ type FetchFailure = Error & {
   cause?: unknown;
 };
 
+// Sensitive JSON/XML/query key fragments shared across redaction patterns.
+const SENSITIVE_KEY_FRAGMENT =
+  'token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate|authorization|cookie|set-cookie';
+
 function redactDiagnostic(value: string): string {
   return value
     .replace(
-      /((?:proxy-)?authorization:\s*(?:bearer|basic)?\s*)\S+/gi,
+      /((?:(?:proxy-)?authorization|x-api-key|x-apikey|api-key|x-auth-token):\s*)[^\r\n]*/gi,
       '$1[REDACTED]',
     )
     .replace(/(?:set-)?cookie:\s*[^\r\n]*/gi, 'Cookie: [REDACTED]')
     .replace(
-      /(["'](?:[a-z0-9_-]*?(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate)[a-z0-9_-]*)["']\s*:\s*["'])[^"']*/gi,
+      new RegExp(
+        `(["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["']\\s*:\\s*["'])[^"']*`,
+        'gi',
+      ),
       '$1[REDACTED]',
     )
     .replace(
-      /(<(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate)\b[^>]*>)[\s\S]*?(<\/[^>]+>)/gi,
+      new RegExp(
+        `(<(?:${SENSITIVE_KEY_FRAGMENT})\\b[^>]*>)[\\s\\S]*?(<\\/[^>]+>)`,
+        'gi',
+      ),
       '$1[REDACTED]$2',
     )
     .replace(
-      /([?&](?:[a-z0-9_-]*?(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate)[a-z0-9_-]*)=[^&\s]*)/gi,
-      (match) => `${match.slice(0, match.indexOf('=') + 1)}[REDACTED]`,
+      new RegExp(
+        `(<\\w+\\b[^>]*\\bkey=["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["'][^>]*>)[\\s\\S]*?(<\\/[^>]+>)`,
+        'gi',
+      ),
+      '$1[REDACTED]$2',
+    )
+    .replace(
+      new RegExp(
+        `([?&](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)=)[^&\\s]*`,
+        'gi',
+      ),
+      '$1[REDACTED]',
     );
 }
 
 function describeCause(cause: unknown): string | undefined {
   if (!(cause instanceof Error)) return undefined;
   const code = 'code' in cause ? (cause as { code?: unknown }).code : undefined;
-  const message = redactDiagnostic(cause.message);
+  const message = redactDiagnostic(cause.message ?? '');
   return code ? `${message} (${String(code)})` : message;
 }
 
@@ -52,7 +72,9 @@ export function formatFetchFailure(error: unknown): string[] {
 
   if (typeof failure?.status === 'number') {
     const statusText =
-      typeof failure.statusText === 'string' ? ` ${failure.statusText}` : '';
+      typeof failure.statusText === 'string'
+        ? ` ${redactDiagnostic(failure.statusText)}`
+        : '';
     lines.push(`   HTTP status: ${failure.status}${statusText}`);
   } else {
     lines.push(
@@ -61,14 +83,12 @@ export function formatFetchFailure(error: unknown): string[] {
   }
 
   if (typeof failure?.rawBody === 'string' && failure.rawBody.length > 0) {
-    const body = redactDiagnostic(failure.rawBody).slice(
-      0,
-      MAX_RESPONSE_DIAGNOSTIC_CHARS,
-    );
+    const sanitized = redactDiagnostic(failure.rawBody);
+    // Slice by code points to avoid splitting surrogate pairs (invalid UTF-8).
+    const codePoints = Array.from(sanitized);
+    const body = codePoints.slice(0, MAX_RESPONSE_DIAGNOSTIC_CHARS).join('');
     const suffix =
-      failure.rawBody.length > MAX_RESPONSE_DIAGNOSTIC_CHARS
-        ? '… [truncated]'
-        : '';
+      codePoints.length > MAX_RESPONSE_DIAGNOSTIC_CHARS ? '… [truncated]' : '';
     lines.push(
       `   Response body (sanitized, max ${MAX_RESPONSE_DIAGNOSTIC_CHARS} chars): ${body}${suffix}`,
     );
@@ -150,7 +170,7 @@ export const fetchCommand = new Command('fetch')
     } catch (error) {
       for (const line of formatFetchFailure(error)) console.error(line);
       if (error instanceof Error && error.stack) {
-        console.error('\nStack trace:', error.stack);
+        console.error('\nStack trace:', redactDiagnostic(error.stack));
       }
       process.exit(1);
     }
