@@ -12,9 +12,9 @@ type FetchFailure = Error & {
   cause?: unknown;
 };
 
-// Sensitive JSON/XML/query key fragments shared across redaction patterns.
-const SENSITIVE_KEY_FRAGMENT =
-  'token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate|authorization|cookie|set-cookie';
+// Sensitive key fragments are inlined into each regex literal below (rather
+// than interpolated via new RegExp) to satisfy Codacy's non-literal-RegExp
+// rule. Keep the lists in sync when adding new sensitive key names.
 
 function redactDiagnostic(value: string): string {
   return value
@@ -24,31 +24,19 @@ function redactDiagnostic(value: string): string {
     )
     .replace(/(?:set-)?cookie:\s*[^\r\n]*/gi, 'Cookie: [REDACTED]')
     .replace(
-      new RegExp(
-        String.raw`(["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["']\s*:\s*["'])(?:[^"'\\]|\\.)*`,
-        'gi',
-      ),
+      /(["'](?:[a-z0-9_-]*?(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate|authorization|cookie|set-cookie)[a-z0-9_-]*)["']\s*:\s*["'])(?:[^"'\\]|\\.)*/gi,
       '$1[REDACTED]',
     )
     .replace(
-      new RegExp(
-        String.raw`(<(?:${SENSITIVE_KEY_FRAGMENT})\b[^>]*>)[\s\S]*?(<\/[^>]+>)`,
-        'gi',
-      ),
+      /(<(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate|authorization|cookie|set-cookie)\b[^>]*>)[\s\S]*?(<\/[^>]+>)/gi,
       '$1[REDACTED]$2',
     )
     .replace(
-      new RegExp(
-        String.raw`(<\w+\b[^>]*\bkey=["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["'][^>]*>)[\s\S]*?(<\/[^>]+>)`,
-        'gi',
-      ),
+      /(<\w+\b[^>]*\bkey=["'](?:[a-z0-9_-]*?(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate|authorization|cookie|set-cookie)[a-z0-9_-]*)["'][^>]*>)[\s\S]*?(<\/[^>]+>)/gi,
       '$1[REDACTED]$2',
     )
     .replace(
-      new RegExp(
-        String.raw`([?&](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)=)[^&\s]*`,
-        'gi',
-      ),
+      /([?&](?:[a-z0-9_-]*?(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|samlrequest|relaystate|authorization|cookie|set-cookie)[a-z0-9_-]*)=)[^&\s]*/gi,
       '$1[REDACTED]',
     );
 }
