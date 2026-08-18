@@ -25,28 +25,28 @@ function redactDiagnostic(value: string): string {
     .replace(/(?:set-)?cookie:\s*[^\r\n]*/gi, 'Cookie: [REDACTED]')
     .replace(
       new RegExp(
-        `(["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["']\\s*:\\s*["'])[^"']*`,
+        String.raw`(["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["']\s*:\s*["'])(?:[^"'\\]|\\.)*`,
         'gi',
       ),
       '$1[REDACTED]',
     )
     .replace(
       new RegExp(
-        `(<(?:${SENSITIVE_KEY_FRAGMENT})\\b[^>]*>)[\\s\\S]*?(<\\/[^>]+>)`,
+        String.raw`(<(?:${SENSITIVE_KEY_FRAGMENT})\b[^>]*>)[\s\S]*?(<\/[^>]+>)`,
         'gi',
       ),
       '$1[REDACTED]$2',
     )
     .replace(
       new RegExp(
-        `(<\\w+\\b[^>]*\\bkey=["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["'][^>]*>)[\\s\\S]*?(<\\/[^>]+>)`,
+        String.raw`(<\w+\b[^>]*\bkey=["'](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)["'][^>]*>)[\s\S]*?(<\/[^>]+>)`,
         'gi',
       ),
       '$1[REDACTED]$2',
     )
     .replace(
       new RegExp(
-        `([?&](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)=)[^&\\s]*`,
+        String.raw`([?&](?:[a-z0-9_-]*?(?:${SENSITIVE_KEY_FRAGMENT})[a-z0-9_-]*)=)[^&\s]*`,
         'gi',
       ),
       '$1[REDACTED]',

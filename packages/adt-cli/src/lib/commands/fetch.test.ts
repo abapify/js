@@ -58,6 +58,7 @@ describe('formatFetchFailure', () => {
     expect(diagnostic).not.toContain('status-secret');
     expect(diagnostic).not.toContain('response="resp"');
     expect(diagnostic).not.toContain('nonce="n"');
+    expect(diagnostic).not.toContain('username="u"');
     expect(diagnostic).toContain('[REDACTED]');
   });
 
@@ -73,7 +74,23 @@ describe('formatFetchFailure', () => {
 
     expect(diagnostic).not.toContain('Bearer abc');
     expect(diagnostic).not.toContain('sid=123');
+    expect(diagnostic).not.toContain('x=1');
     expect(diagnostic).not.toContain('plain-secret');
+    expect(diagnostic).toContain('[REDACTED]');
+  });
+
+  it('redacts JSON string values containing escaped quotes', () => {
+    const error = Object.assign(new Error('err'), {
+      status: 500,
+      rawBody: '{"password":"abc\\"def","token":"xyz\\"wuv"}',
+    });
+
+    const diagnostic = formatFetchFailure(error).join('\n');
+
+    // The old pattern [^"']* stopped at the escaped quote, leaking `def"`
+    // and `wuv"`. The escape-aware pattern consumes the full value.
+    expect(diagnostic).not.toContain('def');
+    expect(diagnostic).not.toContain('wuv');
     expect(diagnostic).toContain('[REDACTED]');
   });
 
