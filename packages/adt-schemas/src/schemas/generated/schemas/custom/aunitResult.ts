@@ -5,11 +5,17 @@
  * Source: xsd/custom/aunitResult.xsd
  */
 
+import atom from '../sap/atom';
+
 export default {
   $xmlns: {
     xsd: 'http://www.w3.org/2001/XMLSchema',
     aunit: 'http://www.sap.com/adt/aunit',
+    atom: 'http://www.w3.org/2005/Atom',
   },
+  $imports: [
+    atom,
+  ],
   targetNamespace: 'http://www.sap.com/adt/aunit',
   attributeFormDefault: 'unqualified',
   elementFormDefault: 'qualified',
@@ -24,6 +30,11 @@ export default {
       name: 'AunitRunResult',
       sequence: {
         element: [
+          {
+            ref: 'atom:link',
+            minOccurs: '0',
+            maxOccurs: 'unbounded',
+          },
           {
             name: 'program',
             type: 'aunit:AunitProgram',
