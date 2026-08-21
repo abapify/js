@@ -31,6 +31,13 @@ export default {
       sequence: {
         element: [
           {
+            name: 'external',
+            type: 'aunit:AunitExternal',
+            minOccurs: '0',
+            maxOccurs: '1',
+            form: 'unqualified',
+          },
+          {
             ref: 'atom:link',
             minOccurs: '0',
             maxOccurs: 'unbounded',
@@ -44,6 +51,29 @@ export default {
           },
         ],
       },
+    },
+    {
+      name: 'AunitExternal',
+      sequence: {
+        element: [
+          {
+            name: 'coverage',
+            type: 'aunit:AunitCoverage',
+            minOccurs: '0',
+            maxOccurs: '1',
+            form: 'unqualified',
+          },
+        ],
+      },
+    },
+    {
+      name: 'AunitCoverage',
+      attribute: [
+        {
+          name: 'uri',
+          type: 'xsd:anyURI',
+        },
+      ],
     },
     {
       name: 'AunitProgram',
