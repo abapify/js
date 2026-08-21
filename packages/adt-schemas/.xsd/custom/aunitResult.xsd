@@ -33,9 +33,12 @@
 -->
 <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
     xmlns:aunit="http://www.sap.com/adt/aunit"
+    xmlns:atom="http://www.w3.org/2005/Atom"
     targetNamespace="http://www.sap.com/adt/aunit"
     elementFormDefault="qualified"
     attributeFormDefault="unqualified">
+
+  <xsd:import namespace="http://www.w3.org/2005/Atom" schemaLocation="../sap/atom.xsd"/>
 
   <!-- Root element -->
   <xsd:element name="runResult" type="aunit:AunitRunResult"/>
@@ -43,6 +46,7 @@
   <!-- Run Result -->
   <xsd:complexType name="AunitRunResult">
     <xsd:sequence>
+      <xsd:element ref="atom:link" minOccurs="0" maxOccurs="unbounded"/>
       <xsd:element name="program" type="aunit:AunitProgram" minOccurs="0" maxOccurs="unbounded" form="unqualified"/>
     </xsd:sequence>
   </xsd:complexType>

@@ -20,7 +20,6 @@ import {
 } from '../../src/adt/runtime/traces/coverage';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { TypedContractScenario, runTypedScenario } from './base/typed-scenario';
-import { extractCoverageMeasurementId } from '../../src/adt/aunit/coverage-link';
 
 const SCOV_CONTENT_TYPE = 'application/xml+scov';
 
@@ -140,47 +139,3 @@ class StatementsTypedScenario extends TypedContractScenario<
 }
 
 runTypedScenario(new StatementsTypedScenario());
-
-// ─────────────────────────────────────────────────────────────
-// 4. Coverage link helper
-// ─────────────────────────────────────────────────────────────
-
-describe('extractCoverageMeasurementId', () => {
-  it('returns undefined when no coverage link is present', () => {
-    expect(extractCoverageMeasurementId({})).toBeUndefined();
-    expect(extractCoverageMeasurementId(null)).toBeUndefined();
-  });
-
-  it('finds the measurement id from a flat link array', () => {
-    // Atom link `rel` is an opaque relation-type URI per RFC 5988, not a
-    // network URL. Must match SAP wire format byte-for-byte.
-    const rel =
-      'http://www.sap.com/adt/relations/runtime/traces/coverage/measurements/coveredobjects'; // NOSONAR: link-relation identifier (not a URL)
-    const id = extractCoverageMeasurementId({
-      link: [
-        {
-          href: '/sap/bc/adt/runtime/traces/coverage/measurements/6D664D9B46CB1FE1859107ADE8729541/coveredobjects',
-          rel,
-        },
-      ],
-    });
-    expect(id).toBe('6D664D9B46CB1FE1859107ADE8729541');
-  });
-
-  it('finds the measurement id by walking nested nodes', () => {
-    const id = extractCoverageMeasurementId({
-      program: {
-        testClasses: {
-          testClass: {
-            link: [
-              {
-                href: '/sap/bc/adt/runtime/traces/coverage/measurements/ABCDEF012345/statements',
-              },
-            ],
-          },
-        },
-      },
-    });
-    expect(id).toBe('ABCDEF012345');
-  });
-});
