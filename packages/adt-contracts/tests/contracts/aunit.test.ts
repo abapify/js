@@ -9,13 +9,11 @@
  */
 
 import { fixtures } from '@abapify/adt-fixtures';
-import { expect, it } from 'vitest';
 import { aunitRun, aunitResult } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 
 // Import contracts
 import { aunitContract } from '../../src/adt/aunit';
-import { extractCoverageMeasurementId } from '../../src/adt/aunit/coverage-link';
 
 // =============================================================================
 // Contract Definition Tests
@@ -53,12 +51,3 @@ class AunitTestrunsScenario extends ContractScenario {
 // =============================================================================
 
 runScenario(new AunitTestrunsScenario());
-
-it('preserves the Atom coverage measurement link from an AUnit result', async () => {
-  const xml = await fixtures.aunit.runResultCoverageLink.load();
-  const parsed = aunitResult.parse(xml);
-
-  expect(extractCoverageMeasurementId(parsed)).toBe(
-    '6D664D9B46CB1FE1859107ADE8729541',
-  );
-});

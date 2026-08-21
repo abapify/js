@@ -12,7 +12,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { fixtures } from '@abapify/adt-fixtures';
-import { acoverageResult, acoverageStatements } from '../../src/schemas';
+import {
+  acoverageResult,
+  acoverageStatements,
+  aunitResult,
+} from '../../src/schemas';
 import {
   coverageContract,
   measurements,
@@ -182,5 +186,14 @@ describe('extractCoverageMeasurementId', () => {
       },
     });
     expect(id).toBe('ABCDEF012345');
+  });
+
+  it('preserves the Atom coverage measurement link from an AUnit result', async () => {
+    const xml = await fixtures.aunit.runResultCoverageLink.load();
+    const parsed = aunitResult.parse(xml);
+
+    expect(extractCoverageMeasurementId(parsed)).toBe(
+      '6D664D9B46CB1FE1859107ADE8729541',
+    );
   });
 });
