@@ -594,7 +594,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       const { abortController, dispose } = executionAbortController();
       try {
         const response = await fetch(
-          url.toString(),
+          url.toString(), // nosemgrep — origin validated by resolveAdtUrl above
           withDispatcher({
             method: 'GET',
             headers,
