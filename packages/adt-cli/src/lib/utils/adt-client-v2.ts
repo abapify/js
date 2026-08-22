@@ -555,8 +555,9 @@ export async function getAdtClientV2Safe(
     return testOverride;
   }
 
-  // Fail fast on an invalid timeout before any auth/refresh work.
-  const headersTimeoutMs = resolveAdtHeadersTimeoutMs();
+  // Validate the headers timeout up front so an invalid value fails before
+  // any expired-session refresh or authentication work can send a request.
+  const adtHeadersTimeout = resolveAdtHeadersTimeoutMs();
 
   const ctx = getCliContext();
   const effectiveOptions = {
@@ -728,7 +729,7 @@ export async function getAdtClientV2Safe(
     logger,
     plugins,
     onSessionExpired,
-    headersTimeoutMs,
+    headersTimeoutMs: adtHeadersTimeout,
   });
 
   if (!isAdkInitialized()) {
