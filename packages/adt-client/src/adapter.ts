@@ -11,7 +11,7 @@ import type { ResponsePlugin, ResponseContext } from './plugins/types';
 import { SessionManager } from './utils/session';
 import { createAdtError } from './errors';
 import { activeAdtAbortSignal } from './cancellation';
-import { Agent, type Dispatcher } from 'undici';
+import { Agent, fetch as undiciFetch, type Dispatcher } from 'undici';
 
 // Re-export HttpAdapter type for consumers
 /**
@@ -190,6 +190,18 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
     init: T,
   ): T & { dispatcher?: Dispatcher } {
     return dispatcher ? { ...init, dispatcher } : init;
+  }
+
+  /** Keep a configured Agent paired with the Undici fetch ABI that created it. */
+  async function requestFetch(
+    input: string,
+    init: RequestInit & { dispatcher?: Dispatcher },
+  ): Promise<Response> {
+    if (!dispatcher) return globalThis.fetch(input, init);
+    return (await undiciFetch(
+      input,
+      init as Parameters<typeof undiciFetch>[1],
+    )) as unknown as Response;
   }
 
   /**
@@ -408,7 +420,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
           'Request headers (names only): ' + JSON.stringify(headerNames),
         );
       }
-      const response = await fetch(
+      const response = await requestFetch(
         url.toString(),
         withDispatcher({
           method: options.method,
@@ -593,7 +605,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
 
       const { abortController, dispose } = executionAbortController();
       try {
-        const response = await fetch(
+        const response = await requestFetch(
           url.toString(), // nosemgrep — origin validated by resolveAdtUrl above
           withDispatcher({
             method: 'GET',

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const agentConstructions = vi.hoisted(
   () => [] as Array<Record<string, unknown>>,
 );
+const undiciFetch = vi.hoisted(() => vi.fn());
 
 vi.mock('undici', () => ({
   Agent: class {
@@ -10,6 +11,7 @@ vi.mock('undici', () => ({
       agentConstructions.push(options);
     }
   },
+  fetch: undiciFetch,
 }));
 
 import { createAdtAdapter, type AdtAdapterConfig } from '../src/adapter';
@@ -17,18 +19,18 @@ import { createAdtAdapter, type AdtAdapterConfig } from '../src/adapter';
 describe('ADT response header timeout', () => {
   afterEach(() => {
     agentConstructions.length = 0;
+    undiciFetch.mockReset();
     vi.unstubAllGlobals();
   });
 
-  it('uses the configured timeout for long-running SAP requests', async () => {
-    const fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve(
-        new Response('<result />', {
-          headers: { 'content-type': 'application/xml' },
-        }),
-      ),
+  it('uses the matching Undici fetch implementation with the configured Agent', async () => {
+    undiciFetch.mockResolvedValue(
+      new Response('<result />', {
+        headers: { 'content-type': 'application/xml' },
+      }),
     );
-    vi.stubGlobal('fetch', fetch);
+    const nativeFetch = vi.fn();
+    vi.stubGlobal('fetch', nativeFetch);
     const config = {
       baseUrl: 'https://sap.example.test',
       username: 'test',
@@ -43,9 +45,10 @@ describe('ADT response header timeout', () => {
     });
 
     expect(agentConstructions).toEqual([{ headersTimeout: 900_000 }]);
-    expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+    expect(undiciFetch.mock.calls[0]?.[1]).toMatchObject({
       dispatcher: expect.anything(),
     });
+    expect(nativeFetch).not.toHaveBeenCalled();
   });
 
   it('rejects absolute URLs that target a different origin', async () => {
