@@ -6,15 +6,18 @@
  */
 
 import atom from '../sap/atom';
+import adtcoreObjectSets from './adtcoreObjectSets';
 
 export default {
   $xmlns: {
     xsd: 'http://www.w3.org/2001/XMLSchema',
     aunit: 'http://www.sap.com/adt/aunit',
+    adtcore: 'http://www.sap.com/adt/core',
     atom: 'http://www.w3.org/2005/Atom',
   },
   $imports: [
     atom,
+    adtcoreObjectSets,
   ],
   targetNamespace: 'http://www.sap.com/adt/aunit',
   attributeFormDefault: 'unqualified',
@@ -70,8 +73,7 @@ export default {
       name: 'AunitCoverage',
       attribute: [
         {
-          name: 'uri',
-          type: 'xsd:anyURI',
+          ref: 'adtcore:uri',
         },
       ],
     },
@@ -97,16 +99,13 @@ export default {
       },
       attribute: [
         {
-          name: 'uri',
-          type: 'xsd:anyURI',
+          ref: 'adtcore:uri',
         },
         {
-          name: 'type',
-          type: 'xsd:string',
+          ref: 'adtcore:type',
         },
         {
-          name: 'name',
-          type: 'xsd:string',
+          ref: 'adtcore:name',
         },
         {
           name: 'uriType',
@@ -150,12 +149,10 @@ export default {
       },
       attribute: [
         {
-          name: 'uri',
-          type: 'xsd:anyURI',
+          ref: 'adtcore:uri',
         },
         {
-          name: 'name',
-          type: 'xsd:string',
+          ref: 'adtcore:name',
         },
         {
           name: 'uriType',
@@ -200,12 +197,10 @@ export default {
       },
       attribute: [
         {
-          name: 'uri',
-          type: 'xsd:anyURI',
+          ref: 'adtcore:uri',
         },
         {
-          name: 'name',
-          type: 'xsd:string',
+          ref: 'adtcore:name',
         },
         {
           name: 'executionTime',
@@ -314,20 +309,16 @@ export default {
       name: 'AunitStackEntry',
       attribute: [
         {
-          name: 'uri',
-          type: 'xsd:anyURI',
+          ref: 'adtcore:uri',
         },
         {
-          name: 'type',
-          type: 'xsd:string',
+          ref: 'adtcore:type',
         },
         {
-          name: 'name',
-          type: 'xsd:string',
+          ref: 'adtcore:name',
         },
         {
-          name: 'description',
-          type: 'xsd:string',
+          ref: 'adtcore:description',
         },
       ],
     },
