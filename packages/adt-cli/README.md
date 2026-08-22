@@ -305,7 +305,8 @@ response-header timeout, set a positive millisecond value:
 ADT_HEADERS_TIMEOUT_MS=900000 adt aunit --transport NPLK900042
 ```
 
-Leave the variable unset for the native default. Invalid, zero, or fractional
+Leave the variable unset (or set it to an empty string) for the native
+default — both are treated equivalently. Invalid, zero, or fractional
 values fail before the request is sent.
 
 ## Command Reference

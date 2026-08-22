@@ -324,6 +324,10 @@ export async function getAdtClientV2(
     return testOverride;
   }
 
+  // Resolve the headers timeout before any auth/refresh work so an invalid
+  // value fails fast instead of after a potentially network-bound refresh.
+  const headersTimeoutMs = resolveAdtHeadersTimeoutMs();
+
   // Merge with global CLI context (explicit options take precedence)
   const ctx = getCliContext();
   const effectiveOptions = {
@@ -511,7 +515,7 @@ export async function getAdtClientV2(
     logger,
     plugins,
     onSessionExpired,
-    headersTimeoutMs: resolveAdtHeadersTimeoutMs(),
+    headersTimeoutMs,
   });
 
   // Initialize ADK global context if not already done
@@ -550,6 +554,10 @@ export async function getAdtClientV2Safe(
   if (testOverride) {
     return testOverride;
   }
+
+  // Resolve the headers timeout before any auth/refresh work so an invalid
+  // value fails fast instead of after a potentially network-bound refresh.
+  const headersTimeoutMs = resolveAdtHeadersTimeoutMs();
 
   const ctx = getCliContext();
   const effectiveOptions = {
@@ -721,7 +729,7 @@ export async function getAdtClientV2Safe(
     logger,
     plugins,
     onSessionExpired,
-    headersTimeoutMs: resolveAdtHeadersTimeoutMs(),
+    headersTimeoutMs,
   });
 
   if (!isAdkInitialized()) {

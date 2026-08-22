@@ -12,6 +12,12 @@ describe('resolveAdtHeadersTimeoutMs', () => {
     expect(resolveAdtHeadersTimeoutMs({})).toBeUndefined();
   });
 
+  it('treats an empty string as unset (equivalent to leaving it unset)', () => {
+    expect(
+      resolveAdtHeadersTimeoutMs({ ADT_HEADERS_TIMEOUT_MS: '' }),
+    ).toBeUndefined();
+  });
+
   it.each(['0', '-1', '1.5', 'invalid'])(
     'rejects invalid timeout %s',
     (value) => {
