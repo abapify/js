@@ -298,6 +298,16 @@ ADT_LOG_COMPONENTS=auth,http adt auth login --file service-key.json
 
 Available log levels: `trace`, `debug`, `info`, `warn`, `error`, `fatal`.
 
+For SAP operations that legitimately take longer than the native HTTP client's
+response-header timeout, set a positive millisecond value:
+
+```bash
+ADT_HEADERS_TIMEOUT_MS=900000 adt aunit --transport NPLK900042
+```
+
+Leave the variable unset for the native default. Invalid, zero, or fractional
+values fail before the request is sent.
+
 ## Command Reference
 
 | Command                             | Description                       |

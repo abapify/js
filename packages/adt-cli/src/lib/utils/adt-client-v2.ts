@@ -35,6 +35,7 @@ import {
   type ProgressReporter,
 } from './progress-reporter';
 import { setAdtSystem } from '../ui/components/link';
+import { resolveAdtHeadersTimeoutMs } from './adt-http-options';
 
 // Re-export shared state from shared/adt-client.ts for backward compatibility
 export {
@@ -510,6 +511,7 @@ export async function getAdtClientV2(
     logger,
     plugins,
     onSessionExpired,
+    headersTimeoutMs: resolveAdtHeadersTimeoutMs(),
   });
 
   // Initialize ADK global context if not already done
@@ -719,6 +721,7 @@ export async function getAdtClientV2Safe(
     logger,
     plugins,
     onSessionExpired,
+    headersTimeoutMs: resolveAdtHeadersTimeoutMs(),
   });
 
   if (!isAdkInitialized()) {

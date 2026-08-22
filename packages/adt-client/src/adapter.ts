@@ -11,6 +11,7 @@ import type { ResponsePlugin, ResponseContext } from './plugins/types';
 import { SessionManager } from './utils/session';
 import { createAdtError } from './errors';
 import { activeAdtAbortSignal } from './cancellation';
+import { Agent, type Dispatcher } from 'undici';
 
 // Re-export HttpAdapter type for consumers
 /**
@@ -176,7 +177,13 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
     logger,
     plugins = [],
     onSessionExpired,
+    headersTimeoutMs,
   } = config;
+
+  const dispatcher =
+    headersTimeoutMs === undefined
+      ? undefined
+      : new Agent({ headersTimeout: headersTimeoutMs });
 
   // Determine auth method
   const isSamlAuth = !!cookieHeader;
@@ -384,7 +391,8 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
         headers,
         body: requestBody,
         signal: executionSignal,
-      });
+        ...(dispatcher ? { dispatcher } : {}),
+      } as RequestInit & { dispatcher?: Dispatcher });
 
       // Process response for session management (cookies, CSRF, ETags)
       sessionManager.processResponse(response, url.pathname);
@@ -566,7 +574,8 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
           method: 'GET',
           headers,
           signal: abortController.signal,
-        });
+          ...(dispatcher ? { dispatcher } : {}),
+        } as RequestInit & { dispatcher?: Dispatcher });
         sessionManager.processResponse(response, url.pathname);
 
         const text = await readResponseTextBounded(
