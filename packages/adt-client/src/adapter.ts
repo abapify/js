@@ -594,7 +594,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       const { abortController, dispose } = executionAbortController();
       try {
         const response = await fetch(
-          url,
+          url.toString(),
           withDispatcher({
             method: 'GET',
             headers,
