@@ -185,6 +185,13 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       ? undefined
       : new Agent({ headersTimeout: headersTimeoutMs });
 
+  /** Merge the optional Undici dispatcher into a fetch RequestInit. */
+  function withDispatcher<T extends RequestInit>(
+    init: T,
+  ): T & { dispatcher?: Dispatcher } {
+    return dispatcher ? { ...init, dispatcher } : init;
+  }
+
   // Determine auth method
   const isSamlAuth = !!cookieHeader;
 
@@ -386,13 +393,15 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
           'Request headers (names only): ' + JSON.stringify(headerNames),
         );
       }
-      const response = await fetch(url.toString(), {
-        method: options.method,
-        headers,
-        body: requestBody,
-        signal: executionSignal,
-        ...(dispatcher ? { dispatcher } : {}),
-      } as RequestInit & { dispatcher?: Dispatcher });
+      const response = await fetch(
+        url.toString(),
+        withDispatcher({
+          method: options.method,
+          headers,
+          body: requestBody,
+          signal: executionSignal,
+        }),
+      );
 
       // Process response for session management (cookies, CSRF, ETags)
       sessionManager.processResponse(response, url.pathname);
@@ -570,12 +579,14 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       const { abortController, dispose } = executionAbortController();
       try {
         // nosemgrep
-        const response = await fetch(url, {
-          method: 'GET',
-          headers,
-          signal: abortController.signal,
-          ...(dispatcher ? { dispatcher } : {}),
-        } as RequestInit & { dispatcher?: Dispatcher });
+        const response = await fetch(
+          url,
+          withDispatcher({
+            method: 'GET',
+            headers,
+            signal: abortController.signal,
+          }),
+        );
         sessionManager.processResponse(response, url.pathname);
 
         const text = await readResponseTextBounded(
