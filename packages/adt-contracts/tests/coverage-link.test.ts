@@ -58,4 +58,13 @@ describe('extractCoverageMeasurementId', () => {
       '6D664D9B46CB1FE1859107ADE8729541',
     );
   });
+
+  it('preserves the external coverage URI returned by S0D', async () => {
+    const xml = await fixtures.aunit.runResultCoverageExternal.load();
+    const parsed = aunitResult.parse(xml);
+
+    expect(extractCoverageMeasurementId(parsed)).toBe(
+      '06B02025CD671FD1A7B6AB1C7D024677',
+    );
+  });
 });
