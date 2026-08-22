@@ -555,8 +555,7 @@ export async function getAdtClientV2Safe(
     return testOverride;
   }
 
-  // Resolve the headers timeout before any auth/refresh work so an invalid
-  // value fails fast instead of after a potentially network-bound refresh.
+  // Fail fast on an invalid timeout before any auth/refresh work.
   const headersTimeoutMs = resolveAdtHeadersTimeoutMs();
 
   const ctx = getCliContext();

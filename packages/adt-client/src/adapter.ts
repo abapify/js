@@ -578,8 +578,8 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
 
       const { abortController, dispose } = executionAbortController();
       try {
-        // nosemgrep
         const response = await fetch(
+          // nosemgrep: user-controlled URL is the ADT base URL + object path
           url,
           withDispatcher({
             method: 'GET',
