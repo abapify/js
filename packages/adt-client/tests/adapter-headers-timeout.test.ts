@@ -47,4 +47,22 @@ describe('ADT response header timeout', () => {
       dispatcher: expect.anything(),
     });
   });
+
+  it('rejects absolute URLs that target a different origin', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    const adapter = createAdtAdapter({
+      baseUrl: 'https://sap.example.test',
+      username: 'test',
+      password: 'test',
+    } as AdtAdapterConfig);
+
+    await expect(
+      adapter.request({
+        method: 'GET',
+        url: 'https://evil.example.test/sap/bc/adt/abapunit/testruns',
+      }),
+    ).rejects.toThrow(/ADT requests must target the configured base origin/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });
