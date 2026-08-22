@@ -205,6 +205,19 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
   }
 
   /**
+   * Route a session-manager request through the same paired Undici
+   * fetch/dispatcher used for the final adapter request, so the
+   * configured headersTimeout applies to the entire write flow
+   * (CSRF handshake included), not just the last hop.
+   */
+  async function sessionFetch(
+    input: string | URL,
+    init?: RequestInit,
+  ): Promise<Response> {
+    return requestFetch(input.toString(), withDispatcher(init ?? {}));
+  }
+
+  /**
    * Resolve `options.url` against the configured `baseUrl` and reject
    * absolute URLs that would send credentials to a different origin.
    */
@@ -233,7 +246,7 @@ export function createAdtAdapter(config: AdtAdapterConfig): AdtHttpAdapter {
       : `Basic ${Buffer.from(basicCredentials).toString('base64')}`);
 
   // Create session manager for stateful sessions
-  const sessionManager = new SessionManager(logger);
+  const sessionManager = new SessionManager(logger, sessionFetch);
 
   // Inject SAML cookie if provided
   if (cookieHeader) {

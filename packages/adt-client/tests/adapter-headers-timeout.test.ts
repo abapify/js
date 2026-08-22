@@ -68,4 +68,70 @@ describe('ADT response header timeout', () => {
     ).rejects.toThrow(/ADT requests must target the configured base origin/);
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it('routes the CSRF handshake through the paired Undici fetch with the configured dispatcher', async () => {
+    const nativeFetch = vi.fn();
+    vi.stubGlobal('fetch', nativeFetch);
+
+    undiciFetch.mockImplementation(async (_input: unknown, init?: any) => {
+      const headers = init?.headers ?? {};
+      const secSession = headers['x-sap-security-session'];
+      const csrfHeader = headers['x-csrf-token'];
+      const method = init?.method ?? 'GET';
+
+      // Step 1: create security session
+      if (secSession === 'create') {
+        return new Response(
+          '<atom:entry xmlns:atom="http://www.w3.org/2005/Atom">' +
+            '<atom:link href="/sap/bc/adt/core/http/sessions/TEST123" ' +
+            'rel="http://www.sap.com/adt/categories/core/http/sessions/securitysession"/>' +
+            '</atom:entry>',
+          {
+            status: 200,
+            headers: {
+              'content-type':
+                'application/vnd.sap.adt.core.http.session.v3+xml',
+            },
+          },
+        );
+      }
+      // Step 2: fetch CSRF token
+      if (secSession === 'use' && csrfHeader === 'Fetch') {
+        return new Response('', {
+          status: 200,
+          headers: { 'x-csrf-token': 'csrf-token-value' },
+        });
+      }
+      // Step 3: delete security session
+      if (method === 'DELETE') {
+        return new Response('', { status: 200 });
+      }
+      // Step 4: the actual POST request
+      return new Response('<result />', {
+        status: 200,
+        headers: { 'content-type': 'application/xml' },
+      });
+    });
+
+    const adapter = createAdtAdapter({
+      baseUrl: 'https://sap.example.test',
+      username: 'test',
+      password: 'test',
+      headersTimeoutMs: 900_000,
+    } as AdtAdapterConfig & { headersTimeoutMs: number });
+
+    await adapter.request({
+      method: 'POST',
+      url: '/sap/bc/adt/abapunit/testruns',
+      body: '<test/>',
+    });
+
+    // Every undiciFetch call (CSRF handshake + final POST) must carry the dispatcher
+    for (const call of undiciFetch.mock.calls) {
+      expect(call[1]).toMatchObject({ dispatcher: expect.anything() });
+    }
+    // At least 4 calls: create, fetch CSRF, delete session, final POST
+    expect(undiciFetch.mock.calls.length).toBeGreaterThanOrEqual(4);
+    expect(nativeFetch).not.toHaveBeenCalled();
+  });
 });
