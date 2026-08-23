@@ -4,14 +4,15 @@
  * POST returns the cov:statementsBulkResponse with per-method statement
  * / branch / procedure coverage details.
  *
- * Content-Type: application/xml+scov
+ * Content-Type: application/xml
+ * Accept:       application/xml
  */
 
 import { http, contract } from '../../../../base';
 import { acoverageStatements } from '../../../../schemas';
 import { coverageXmlBody } from './request';
 
-const SCOV_CONTENT_TYPE = 'application/xml+scov';
+const XML_CONTENT_TYPE = 'application/xml';
 
 export const statements = contract({
   /**
@@ -24,7 +25,7 @@ export const statements = contract({
         body: coverageXmlBody,
         responses: { 200: acoverageStatements },
         headers: {
-          Accept: SCOV_CONTENT_TYPE,
+          Accept: XML_CONTENT_TYPE,
           'Content-Type': 'application/xml',
         },
       },

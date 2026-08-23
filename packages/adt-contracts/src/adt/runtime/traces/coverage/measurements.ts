@@ -5,15 +5,15 @@
  * created measurement. Used as the second step of the aunit → coverage
  * flow: aunit run → atom:link to measurement → POST this endpoint.
  *
- * Content-Type: application/xml+scov
- * Accept:       application/xml+scov
+ * Content-Type: application/xml
+ * Accept:       application/xml
  */
 
 import { http, contract } from '../../../../base';
 import { acoverageResult } from '../../../../schemas';
 import { coverageXmlBody } from './request';
 
-const SCOV_CONTENT_TYPE = 'application/xml+scov';
+const XML_CONTENT_TYPE = 'application/xml';
 
 export const measurements = contract({
   /**
@@ -31,7 +31,7 @@ export const measurements = contract({
         body: coverageXmlBody,
         responses: { 200: acoverageResult },
         headers: {
-          Accept: SCOV_CONTENT_TYPE,
+          Accept: XML_CONTENT_TYPE,
           'Content-Type': 'application/xml',
         },
       },
