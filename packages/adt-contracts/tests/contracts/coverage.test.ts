@@ -25,7 +25,7 @@ import {
 import { ContractScenario, runScenario, type ContractOperation } from './base';
 import { TypedContractScenario, runTypedScenario } from './base/typed-scenario';
 
-const SCOV_CONTENT_TYPE = 'application/xml+scov';
+const XML_CONTENT_TYPE = 'application/xml';
 
 // ─────────────────────────────────────────────────────────────
 // 1. Structural contract scenario
@@ -40,7 +40,7 @@ class CoverageContractScenario extends ContractScenario {
       method: 'POST',
       path: '/sap/bc/adt/runtime/traces/coverage/measurements/ABCDEF123',
       headers: {
-        Accept: SCOV_CONTENT_TYPE,
+        Accept: XML_CONTENT_TYPE,
         'Content-Type': 'application/xml',
       },
       query: { withAdditionalTypeInfo: true },
@@ -57,7 +57,7 @@ class CoverageContractScenario extends ContractScenario {
       method: 'POST',
       path: '/sap/bc/adt/runtime/traces/coverage/results/ABCDEF123/statements',
       headers: {
-        Accept: SCOV_CONTENT_TYPE,
+        Accept: XML_CONTENT_TYPE,
         'Content-Type': 'application/xml',
       },
       body: { schema: coverageXmlBody },
