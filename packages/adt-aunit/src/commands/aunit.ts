@@ -69,6 +69,32 @@ interface AdtClient {
   };
 }
 
+type CoverageClient = NonNullable<
+  AdtClient['adt']['runtime']
+>['traces']['coverage'];
+
+async function fetchCoverageData(
+  coverage: CoverageClient,
+  measurementId: string,
+  targetUris: string[],
+): Promise<{
+  measurements: AcoverageResultSchema;
+  statements: AcoverageStatementsSchema | undefined;
+}> {
+  const measurements = await coverage.measurements.post(
+    measurementId,
+    buildCoverageQuery(targetUris),
+  );
+  const statementUris = extractCoverageStatementUris(measurements);
+  if (statementUris.length === 0)
+    return { measurements, statements: undefined };
+  const statements = await coverage.statements.post(
+    measurementId,
+    buildStatementsBulkRequest(statementUris),
+  );
+  return { measurements, statements };
+}
+
 // Request body shape (matches aunitRun schema)
 interface RunConfigurationBody {
   runConfiguration: {
@@ -643,18 +669,11 @@ export const aunitCommand: CliCommandPlugin = {
       } else {
         try {
           const cov = client.adt.runtime.traces.coverage;
-          const measurements = await cov.measurements.post(
+          const { measurements, statements } = await fetchCoverageData(
+            cov,
             measurementId,
-            buildCoverageQuery(targetUris),
+            targetUris,
           );
-          const statementUris = extractCoverageStatementUris(measurements);
-          const statements =
-            statementUris.length > 0
-              ? await cov.statements.post(
-                  measurementId,
-                  buildStatementsBulkRequest(statementUris),
-                )
-              : undefined;
           const format = options.coverageFormat ?? 'jacoco';
           const xml =
             format === 'sonar-generic'

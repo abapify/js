@@ -580,6 +580,82 @@ function extractObjectUri(url: string): string {
   return url.split('?')[0];
 }
 
+function matchCoverageStatements(
+  method: string,
+  pathname: string,
+  requestBody: string,
+  f: LoadedFixtures,
+): RouteResult | undefined {
+  if (
+    method !== 'POST' ||
+    !/^\/sap\/bc\/adt\/runtime\/traces\/coverage\/results\/[^/]+\/statements/.test(
+      pathname,
+    )
+  ) {
+    return;
+  }
+  if (
+    !requestBody.includes('<cov:statementsBulkRequest') ||
+    !/<statementsRequest\b[^>]*\bget=(["'])[^"']+\1/.test(requestBody)
+  ) {
+    return {
+      status: 400,
+      body: 'Expected cov:statementsBulkRequest',
+      contentType: 'text/plain',
+    };
+  }
+  return {
+    status: 200,
+    body: f.coverageStatements,
+    contentType: 'application/xml+scov',
+  };
+}
+
+function matchCoverageMeasurements(
+  method: string,
+  pathname: string,
+  requestBody: string,
+  f: LoadedFixtures,
+): RouteResult | undefined {
+  if (
+    method !== 'POST' ||
+    !/^\/sap\/bc\/adt\/runtime\/traces\/coverage\/measurements\/[^/]+/.test(
+      pathname,
+    )
+  ) {
+    return;
+  }
+  if (
+    !requestBody.includes('<cov:query') ||
+    !/<adtcore:objectReference\b[^>]*\badtcore:uri=(["'])[^"']+\1/.test(
+      requestBody,
+    )
+  ) {
+    return {
+      status: 400,
+      body: 'Expected cov:query',
+      contentType: 'text/plain',
+    };
+  }
+  return {
+    status: 200,
+    body: f.coverageMeasurements,
+    contentType: 'application/xml+scov',
+  };
+}
+
+function matchCoverageRoute(
+  method: string,
+  pathname: string,
+  requestBody: string,
+  f: LoadedFixtures,
+): RouteResult | undefined {
+  return (
+    matchCoverageStatements(method, pathname, requestBody, f) ??
+    matchCoverageMeasurements(method, pathname, requestBody, f)
+  );
+}
+
 /**
  * Match a request method + url to a mock response.
  * Returns `undefined` if no route handles the request.
@@ -594,6 +670,8 @@ export function matchRoute(
 ): RouteResult | undefined {
   const m = method.toUpperCase();
   const pathname = url.split('?')[0];
+  const coverageRoute = matchCoverageRoute(m, pathname, requestBody, f);
+  if (coverageRoute) return coverageRoute;
 
   // ── ADT security session endpoints (strict-protocol aware) ─────────────
   // When called with x-sap-security-session: create, return an atom feed
@@ -1682,58 +1760,6 @@ export function matchRoute(
   // AUnit test run
   if (m === 'POST' && url.startsWith('/sap/bc/adt/abapunit/testruns')) {
     return { status: 200, body: f.aunit, contentType: 'application/json' };
-  }
-
-  // ABAP Coverage — statements bulk response
-  // POST /sap/bc/adt/runtime/traces/coverage/results/{id}/statements
-  if (
-    m === 'POST' &&
-    /^\/sap\/bc\/adt\/runtime\/traces\/coverage\/results\/[^/]+\/statements/.test(
-      pathname,
-    )
-  ) {
-    if (
-      !requestBody.includes('<cov:statementsBulkRequest') ||
-      !/<statementsRequest\b[^>]*\bget=(["'])[^"']+\1/.test(requestBody)
-    ) {
-      return {
-        status: 400,
-        body: 'Expected cov:statementsBulkRequest',
-        contentType: 'text/plain',
-      };
-    }
-    return {
-      status: 200,
-      body: f.coverageStatements,
-      contentType: 'application/xml+scov',
-    };
-  }
-
-  // ABAP Coverage — measurement tree
-  // POST /sap/bc/adt/runtime/traces/coverage/measurements/{id}
-  if (
-    m === 'POST' &&
-    /^\/sap\/bc\/adt\/runtime\/traces\/coverage\/measurements\/[^/]+/.test(
-      pathname,
-    )
-  ) {
-    if (
-      !requestBody.includes('<cov:query') ||
-      !/<adtcore:objectReference\b[^>]*\badtcore:uri=(["'])[^"']+\1/.test(
-        requestBody,
-      )
-    ) {
-      return {
-        status: 400,
-        body: 'Expected cov:query',
-        contentType: 'text/plain',
-      };
-    }
-    return {
-      status: 200,
-      body: f.coverageMeasurements,
-      contentType: 'application/xml+scov',
-    };
   }
 
   // Function module source

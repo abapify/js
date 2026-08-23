@@ -243,6 +243,33 @@ type CoverageFetchResult =
   | { kind: 'payload'; value: CoveragePayload }
   | { kind: 'limit'; value: SafeExecuteLimitResult };
 
+type CoverageClient = {
+  measurements: { post: (id: string, body: string) => Promise<unknown> };
+  statements: { post: (id: string, body: string) => Promise<unknown> };
+};
+
+async function fetchCoverageData(
+  coverage: CoverageClient,
+  measurementId: string,
+  targetUris: string[],
+): Promise<{
+  measurements: Parameters<typeof toJacocoXml>[0]['measurements'];
+  statements: Parameters<typeof toJacocoXml>[0]['statements'];
+}> {
+  const measurements = (await coverage.measurements.post(
+    measurementId,
+    buildCoverageQuery(targetUris),
+  )) as Parameters<typeof toJacocoXml>[0]['measurements'];
+  const statementUris = extractCoverageStatementUris(measurements);
+  if (statementUris.length === 0)
+    return { measurements, statements: undefined };
+  const statements = (await coverage.statements.post(
+    measurementId,
+    buildStatementsBulkRequest(statementUris),
+  )) as Parameters<typeof toJacocoXml>[0]['statements'];
+  return { measurements, statements };
+}
+
 async function fetchCoveragePayload(
   client: AdtClient,
   response: AunitResultData,
@@ -295,10 +322,11 @@ async function fetchCoveragePayload(
 
   const cov = runtime.traces.coverage;
   try {
-    const measurements = (await cov.measurements.post(
+    const { measurements, statements } = await fetchCoverageData(
+      cov,
       measurementId,
-      buildCoverageQuery(targetUris),
-    )) as Parameters<typeof toJacocoXml>[0]['measurements'];
+      targetUris,
+    );
     if (
       safePolicy?.check === 'coverage' &&
       coverageMeasurementCount(measurements.result) > safePolicy.maxMeasurements
@@ -308,14 +336,6 @@ async function fetchCoveragePayload(
         value: safeExecuteLimitResult('safe_execute_limit_exceeded'),
       };
     }
-    const statementUris = extractCoverageStatementUris(measurements);
-    const statements =
-      statementUris.length > 0
-        ? ((await cov.statements.post(
-            measurementId,
-            buildStatementsBulkRequest(statementUris),
-          )) as Parameters<typeof toJacocoXml>[0]['statements'])
-        : undefined;
     const xml =
       format === 'sonar-generic'
         ? toSonarGenericCoverageXml({ measurements, statements })
