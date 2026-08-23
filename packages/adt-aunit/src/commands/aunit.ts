@@ -9,7 +9,12 @@
  */
 
 import type { CliCommandPlugin, CliContext } from '@abapify/adt-plugin';
-import { extractCoverageMeasurementId } from '@abapify/adt-contracts';
+import {
+  buildCoverageQuery,
+  buildStatementsBulkRequest,
+  extractCoverageMeasurementId,
+  extractCoverageStatementUris,
+} from '@abapify/adt-contracts';
 import {
   acoverageResult,
   acoverageStatements,
@@ -50,10 +55,13 @@ interface AdtClient {
       traces: {
         coverage: {
           measurements: {
-            post: (id: string) => Promise<AcoverageResultSchema>;
+            post: (id: string, body: string) => Promise<AcoverageResultSchema>;
           };
           statements: {
-            get: (id: string) => Promise<AcoverageStatementsSchema>;
+            post: (
+              id: string,
+              body: string,
+            ) => Promise<AcoverageStatementsSchema>;
           };
         };
       };
@@ -635,8 +643,18 @@ export const aunitCommand: CliCommandPlugin = {
       } else {
         try {
           const cov = client.adt.runtime.traces.coverage;
-          const measurements = await cov.measurements.post(measurementId);
-          const statements = await cov.statements.get(measurementId);
+          const measurements = await cov.measurements.post(
+            measurementId,
+            buildCoverageQuery(targetUris),
+          );
+          const statementUris = extractCoverageStatementUris(measurements);
+          const statements =
+            statementUris.length > 0
+              ? await cov.statements.post(
+                  measurementId,
+                  buildStatementsBulkRequest(statementUris),
+                )
+              : undefined;
           const format = options.coverageFormat ?? 'jacoco';
           const xml =
             format === 'sonar-generic'

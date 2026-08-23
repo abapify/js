@@ -11,6 +11,7 @@
 
 import { http, contract } from '../../../../base';
 import { acoverageResult } from '../../../../schemas';
+import { coverageXmlBody } from './request';
 
 const SCOV_CONTENT_TYPE = 'application/xml+scov';
 
@@ -27,10 +28,11 @@ export const measurements = contract({
       `/sap/bc/adt/runtime/traces/coverage/measurements/${identifier}`,
       {
         query: { withAdditionalTypeInfo: true },
+        body: coverageXmlBody,
         responses: { 200: acoverageResult },
         headers: {
           Accept: SCOV_CONTENT_TYPE,
-          'Content-Type': SCOV_CONTENT_TYPE,
+          'Content-Type': 'application/xml',
         },
       },
     ),

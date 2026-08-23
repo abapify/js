@@ -1685,13 +1685,20 @@ export function matchRoute(
   }
 
   // ABAP Coverage — statements bulk response
-  // GET /sap/bc/adt/runtime/traces/coverage/results/{id}/statements
+  // POST /sap/bc/adt/runtime/traces/coverage/results/{id}/statements
   if (
-    m === 'GET' &&
+    m === 'POST' &&
     /^\/sap\/bc\/adt\/runtime\/traces\/coverage\/results\/[^/]+\/statements/.test(
       pathname,
     )
   ) {
+    if (!requestBody.includes('<cov:statementsBulkRequest')) {
+      return {
+        status: 400,
+        body: 'Expected cov:statementsBulkRequest',
+        contentType: 'text/plain',
+      };
+    }
     return {
       status: 200,
       body: f.coverageStatements,
@@ -1707,6 +1714,13 @@ export function matchRoute(
       pathname,
     )
   ) {
+    if (!requestBody.includes('<cov:query')) {
+      return {
+        status: 400,
+        body: 'Expected cov:query',
+        contentType: 'text/plain',
+      };
+    }
     return {
       status: 200,
       body: f.coverageMeasurements,

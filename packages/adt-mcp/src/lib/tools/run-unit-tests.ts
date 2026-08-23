@@ -22,7 +22,12 @@ import {
 } from './utils';
 import type { InferTypedSchema } from '@abapify/adt-schemas';
 import { aunitResult } from '@abapify/adt-schemas';
-import { extractCoverageMeasurementId } from '@abapify/adt-contracts';
+import {
+  buildCoverageQuery,
+  buildStatementsBulkRequest,
+  extractCoverageMeasurementId,
+  extractCoverageStatementUris,
+} from '@abapify/adt-contracts';
 import {
   toJacocoXml,
   toSonarGenericCoverageXml,
@@ -241,6 +246,7 @@ type CoverageFetchResult =
 async function fetchCoveragePayload(
   client: AdtClient,
   response: AunitResultData,
+  targetUris: string[],
   normalizedOptions: NormalizedUnitTestOptions,
   safePolicy: SafeExecutePolicy | undefined,
 ): Promise<CoverageFetchResult> {
@@ -251,8 +257,12 @@ async function fetchCoveragePayload(
         runtime?: {
           traces: {
             coverage: {
-              measurements: { post: (id: string) => Promise<unknown> };
-              statements: { get: (id: string) => Promise<unknown> };
+              measurements: {
+                post: (id: string, body: string) => Promise<unknown>;
+              };
+              statements: {
+                post: (id: string, body: string) => Promise<unknown>;
+              };
             };
           };
         };
@@ -287,6 +297,7 @@ async function fetchCoveragePayload(
   try {
     const measurements = (await cov.measurements.post(
       measurementId,
+      buildCoverageQuery(targetUris),
     )) as Parameters<typeof toJacocoXml>[0]['measurements'];
     if (
       safePolicy?.check === 'coverage' &&
@@ -297,9 +308,14 @@ async function fetchCoveragePayload(
         value: safeExecuteLimitResult('safe_execute_limit_exceeded'),
       };
     }
-    const statements = (await cov.statements.get(measurementId)) as Parameters<
-      typeof toJacocoXml
-    >[0]['statements'];
+    const statementUris = extractCoverageStatementUris(measurements);
+    const statements =
+      statementUris.length > 0
+        ? ((await cov.statements.post(
+            measurementId,
+            buildStatementsBulkRequest(statementUris),
+          )) as Parameters<typeof toJacocoXml>[0]['statements'])
+        : undefined;
     const xml =
       format === 'sonar-generic'
         ? toSonarGenericCoverageXml({ measurements, statements })
@@ -409,6 +425,7 @@ export function registerRunUnitTestsTool(
           const coverageResult = await fetchCoveragePayload(
             client,
             response as AunitResultData,
+            [objectUri],
             normalizedOptions,
             safePolicy,
           );
