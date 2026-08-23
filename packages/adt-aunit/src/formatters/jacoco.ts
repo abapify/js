@@ -3,9 +3,9 @@
  *
  * Consumes parsed coverage data from the adt-contracts runtime endpoints:
  *
- *   measurements: client.adt.runtime.traces.coverage.measurements.post(id)
+ *   measurements: client.adt.runtime.traces.coverage.measurements.post(id, query)
  *                 → AcoverageResultSchema  (tree of DEVC → CLAS → methods)
- *   statements:   client.adt.runtime.traces.coverage.statements.get(id)
+ *   statements:   client.adt.runtime.traces.coverage.statements.post(id, bulkRequest)
  *                 → AcoverageStatementsSchema (per-method line hits/misses)
  *
  * Emits JaCoCo 1.1 XML:
