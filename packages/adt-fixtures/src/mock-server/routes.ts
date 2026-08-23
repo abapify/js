@@ -1692,7 +1692,10 @@ export function matchRoute(
       pathname,
     )
   ) {
-    if (!requestBody.includes('<cov:statementsBulkRequest')) {
+    if (
+      !requestBody.includes('<cov:statementsBulkRequest') ||
+      !/<statementsRequest\b[^>]*\bget=(["'])[^"']+\1/.test(requestBody)
+    ) {
       return {
         status: 400,
         body: 'Expected cov:statementsBulkRequest',
@@ -1714,7 +1717,12 @@ export function matchRoute(
       pathname,
     )
   ) {
-    if (!requestBody.includes('<cov:query')) {
+    if (
+      !requestBody.includes('<cov:query') ||
+      !/<adtcore:objectReference\b[^>]*\badtcore:uri=(["'])[^"']+\1/.test(
+        requestBody,
+      )
+    ) {
       return {
         status: 400,
         body: 'Expected cov:query',
