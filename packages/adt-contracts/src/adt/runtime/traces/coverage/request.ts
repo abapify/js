@@ -39,6 +39,44 @@ ${objectReferences}
 </cov:query>`;
 }
 
+function takeUnseenRecord(
+  value: unknown,
+  seenValues: Set<unknown>,
+): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || seenValues.has(value)) return;
+  seenValues.add(value);
+  return value as Record<string, unknown>;
+}
+
+function takeStatementUri(
+  record: Record<string, unknown>,
+  seenUris: Set<string>,
+): string | undefined {
+  const { rel, href } = record;
+  if (
+    rel !== STATEMENTS_RELATION ||
+    typeof href !== 'string' ||
+    seenUris.has(href)
+  ) {
+    return;
+  }
+  seenUris.add(href);
+  return href;
+}
+
+function enqueueChildObjects(
+  record: Record<string, unknown>,
+  queue: unknown[],
+): void {
+  for (const child of Object.values(record)) {
+    if (Array.isArray(child)) {
+      queue.push(...child);
+      continue;
+    }
+    if (child && typeof child === 'object') queue.push(child);
+  }
+}
+
 export function extractCoverageStatementUris(value: unknown): string[] {
   const statementUris: string[] = [];
   const seenUris = new Set<string>();
@@ -46,26 +84,11 @@ export function extractCoverageStatementUris(value: unknown): string[] {
   const queue: unknown[] = [value];
 
   while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current || typeof current !== 'object' || seenValues.has(current)) {
-      continue;
-    }
-    seenValues.add(current);
-
-    const record = current as Record<string, unknown>;
-    if (
-      record.rel === STATEMENTS_RELATION &&
-      typeof record.href === 'string' &&
-      !seenUris.has(record.href)
-    ) {
-      seenUris.add(record.href);
-      statementUris.push(record.href);
-    }
-
-    for (const child of Object.values(record)) {
-      if (Array.isArray(child)) queue.push(...child);
-      else if (child && typeof child === 'object') queue.push(child);
-    }
+    const record = takeUnseenRecord(queue.shift(), seenValues);
+    if (!record) continue;
+    const statementUri = takeStatementUri(record, seenUris);
+    if (statementUri) statementUris.push(statementUri);
+    enqueueChildObjects(record, queue);
   }
 
   return statementUris;
