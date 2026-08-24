@@ -32,7 +32,11 @@ const ansi = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
 };
 import { outputJunitReport, outputSonarReport } from '../formatters';
-import { toJacocoXml, toSonarGenericCoverageXml } from '../formatters/jacoco';
+import {
+  createAbapGitCoverageSourceResolver,
+  toJacocoXml,
+  toSonarGenericCoverageXml,
+} from '../formatters/jacoco';
 import type {
   AunitResult,
   AunitProgram,
@@ -675,10 +679,19 @@ export const aunitCommand: CliCommandPlugin = {
             targetUris,
           );
           const format = options.coverageFormat ?? 'jacoco';
+          const sourcePathResolver = createAbapGitCoverageSourceResolver();
           const xml =
             format === 'sonar-generic'
-              ? toSonarGenericCoverageXml({ measurements, statements })
-              : toJacocoXml({ measurements, statements });
+              ? toSonarGenericCoverageXml({
+                  measurements,
+                  statements,
+                  sourcePathResolver,
+                })
+              : toJacocoXml({
+                  measurements,
+                  statements,
+                  sourcePathResolver,
+                });
           if (options.coverageOutput) {
             const { writeFileSync } = await import('node:fs');
             writeFileSync(options.coverageOutput, xml, 'utf-8');
