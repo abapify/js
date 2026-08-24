@@ -290,14 +290,14 @@ async function exactHeadFastPath(
     }
   | undefined
 > {
-  const transportPaths = transports.map(transportDescriptorPath);
-  const descriptors = await Promise.all(
-    transportPaths.map((path) =>
+  const requestedPaths = transports.map(transportDescriptorPath);
+  const requestedDescriptors = await Promise.all(
+    requestedPaths.map((path) =>
       readDescriptor(root, path, transportDescriptorSchema),
     ),
   );
   if (
-    descriptors.some(
+    requestedDescriptors.some(
       (descriptor) =>
         !descriptor ||
         descriptor.configDigest !== configDigest ||
@@ -309,6 +309,44 @@ async function exactHeadFastPath(
     return undefined;
   }
 
+  const initialDescriptors = requestedDescriptors as TransportDescriptor[];
+  const scopeTransports = initialDescriptors[0]?.scopeTransports;
+  if (
+    !scopeTransports ||
+    initialDescriptors.some(
+      (descriptor) =>
+        stableJson(descriptor.scopeTransports) !==
+          stableJson(scopeTransports) ||
+        transports.some(
+          (transport) => !descriptor.scopeTransports.includes(transport),
+        ),
+    )
+  ) {
+    return undefined;
+  }
+  const transportPaths = scopeTransports.map(transportDescriptorPath);
+  const descriptors = await Promise.all(
+    transportPaths.map((path) =>
+      readDescriptor(root, path, transportDescriptorSchema),
+    ),
+  );
+  if (
+    descriptors.some(
+      (descriptor, index) =>
+        !descriptor ||
+        descriptor.configDigest !== configDigest ||
+        descriptor.formatDigest !== formatDigest ||
+        descriptor.inventory === undefined ||
+        stableJson(descriptor.requestedTransports) !== stableJson(transports) ||
+        stableJson(descriptor.scopeTransports) !==
+          stableJson(scopeTransports) ||
+        descriptor.inventory.some(
+          (object) => object.sourceTransport !== scopeTransports[index],
+        ),
+    )
+  ) {
+    return undefined;
+  }
   const validDescriptors = descriptors as TransportDescriptor[];
   const objectPaths = [
     ...new Set(validDescriptors.flatMap((d) => d.objects)),
@@ -340,7 +378,7 @@ async function exactHeadFastPath(
   return {
     descriptorPaths: [...transportPaths, ...objectPaths].sort(compareStrings),
     ownedPaths: ownedPaths.sort(compareStrings),
-    scopeTransports: descriptors[0]?.scopeTransports ?? [...transports],
+    scopeTransports,
   };
 }
 
@@ -1222,10 +1260,17 @@ async function addTransportDescriptors(
     } catch {
       existing = undefined;
     }
+    const matchesCurrentCheckout =
+      existing !== undefined &&
+      stableJson(existing.requestedTransports) === stableJson(ctx.requested) &&
+      stableJson(existing.scopeTransports) ===
+        stableJson(manifest.scopeTransports);
+    const isPreviousSelfDescriptor =
+      existing?.requestedTransports.includes(transport) === true &&
+      existing.scopeTransports.includes(transport);
     if (
-      existing &&
-      existing.requestedTransports.includes(transport) &&
-      existing.scopeTransports.includes(transport)
+      existing?.scopeTransports.includes(transport) &&
+      (matchesCurrentCheckout || isPreviousSelfDescriptor)
     ) {
       ownedPaths.add(path);
       ownedOwners.set(path, 'flow-index');

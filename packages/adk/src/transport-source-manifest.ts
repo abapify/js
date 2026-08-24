@@ -671,7 +671,8 @@ function repositoryObjectReference(
   reference: TransportObjectReference,
 ): RepositoryObjectReference {
   const pgmid = reference.pgmid.trim().toUpperCase();
-  const rawType = reference.type.trim().toUpperCase().split('/')[0] ?? '';
+  const rawTypeFull = reference.type.trim().toUpperCase();
+  const rawType = rawTypeFull.split('/')[0] ?? '';
   if (pgmid === 'LIMU') {
     const ownerType = reference.wbtype?.trim().toUpperCase();
     const ownerName = ownerType
@@ -698,8 +699,8 @@ function repositoryObjectReference(
   }
   return {
     pgmid,
-    type: reference.type,
-    name: reference.name,
+    type: rawTypeFull,
+    name: reference.name.trim().toUpperCase(),
     isDeleted: reference.isDeleted,
   };
 }
@@ -717,9 +718,7 @@ function selectorDimensionMatches(
 ): boolean {
   const values = selectorValues(expected);
   if (values.length === 0) return true;
-  return values.some(
-    (value) => value === '*' || candidates.some((item) => item === value),
-  );
+  return values.some((value) => value === '*' || candidates.includes(value));
 }
 
 function manifestSelectorMatches(

@@ -73,6 +73,7 @@ function manifest(
 
 function unsupportedEntry(
   name = 'PAYHX01',
+  sourceTransport = 'DEVK900001',
 ): TransportSourceManifest['entries'][number] {
   return {
     object: {
@@ -82,7 +83,7 @@ function unsupportedEntry(
       packageName: 'ZROOT_FEATURE',
     },
     component: { id: 'object' },
-    sourceTransport: 'DEVK900001',
+    sourceTransport,
     changeKind: 'unsupported',
     exact: false,
     diagnostic: {
@@ -324,7 +325,7 @@ describe('transport checkout', () => {
       objFunc: '',
       sourceTransport: 'DEVK900002',
     });
-    current.entries.push(unsupportedEntry('ZUNSUPPORTED'));
+    current.entries.push(unsupportedEntry('ZUNSUPPORTED', 'DEVK900002'));
 
     await createAdtFlowService(dependencies(() => current)).checkout({
       root: workspace,
@@ -351,6 +352,85 @@ describe('transport checkout', () => {
         sourceTransport: 'DEVK900002',
       }),
     ]);
+  });
+
+  it('rejects the exact-head fast path when a scoped descriptor is missing', async () => {
+    const workspace = await root();
+    const current = manifest(
+      'added',
+      undefined,
+      version('task-two'),
+      'DEVK900002',
+    );
+    current.scopeTransports = ['DEVK900001', 'DEVK900002'];
+    const ports = dependencies(() => current);
+    const flow = createAdtFlowService(ports);
+    await flow.checkout({
+      root: workspace,
+      transports: ['DEVK900002'],
+      config,
+    });
+    await rm(join(workspace, '.adt/tr/DEVK900001.json'));
+    ports.buildManifest.mockClear();
+
+    const result = await flow.checkout({
+      root: workspace,
+      transports: ['DEVK900002'],
+      config,
+    });
+
+    expect(result.fastPath).not.toBe('exact-head');
+    expect(ports.buildManifest).toHaveBeenCalledOnce();
+    await expect(
+      readFile(join(workspace, '.adt/tr/DEVK900001.json'), 'utf8'),
+    ).resolves.toContain('DEVK900001');
+  });
+
+  it('updates every scoped descriptor during a repeated task-only checkout', async () => {
+    const workspace = await root();
+    let current = manifest(
+      'added',
+      undefined,
+      version('task-two'),
+      'DEVK900002',
+    );
+    current.scopeTransports = ['DEVK900001', 'DEVK900002'];
+    const ports = dependencies(() => current);
+    const flow = createAdtFlowService(ports);
+    await flow.checkout({
+      root: workspace,
+      transports: ['DEVK900002'],
+      config,
+    });
+
+    current = {
+      ...current,
+      entries: [
+        {
+          ...current.entries[0]!,
+          head: version('task-two-updated'),
+        },
+      ],
+    };
+    const taskDescriptorPath = join(workspace, '.adt/tr/DEVK900002.json');
+    const taskDescriptor = JSON.parse(
+      await readFile(taskDescriptorPath, 'utf8'),
+    );
+    taskDescriptor.configDigest = '0'.repeat(64);
+    await writeFile(taskDescriptorPath, JSON.stringify(taskDescriptor));
+
+    await expect(
+      flow.checkout({
+        root: workspace,
+        transports: ['DEVK900002'],
+        config,
+      }),
+    ).resolves.toMatchObject({ fastPath: 'none' });
+    for (const transport of ['DEVK900001', 'DEVK900002']) {
+      await expect(
+        readFile(join(workspace, `.adt/tr/${transport}.json`), 'utf8'),
+      ).resolves.toContain('DEVK900002');
+    }
   });
 
   it('does not overwrite an unrecognized file at a transport descriptor path', async () => {

@@ -65,4 +65,4 @@
 - [x] 9.1 Add failing tests proving selector-excluded and unsupported CTS objects remain in the manifest inventory.
 - [x] 9.2 Persist one `.adt/tr/<TR>.json` descriptor per discovered request/task with concrete object provenance.
 - [x] 9.3 Resolve supported LIMU leaves through their `wbtype` and ADT owner URI while preserving the original CTS identity.
-- [ ] 9.4 Prove an inventory-only task survives the consumer's state-only publication path and can be retried after support expands.
+- [x] 9.4 Prove an inventory-only task survives the consumer's state-only publication path and can be retried after support expands (covered by the downstream consumer regression).
