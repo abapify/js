@@ -332,6 +332,9 @@ function emitPackage(
     for (const { node, sourcePath } of classes) {
       emitClass(node, sourcePath, lineMap, indentLevel + 1, out);
     }
+    // Repository-path resolution can split one SAP package across multiple
+    // JaCoCo packages. Roll up the class nodes actually emitted in this
+    // directory so each package counter remains consistent with its children.
     for (const counterType of Object.keys(COUNTER_TYPE_MAPPING)) {
       let total = 0;
       let executed = 0;

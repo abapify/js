@@ -58,6 +58,43 @@ describe('toJacocoXml', () => {
     expect(xml).toContain('<counter type="INSTRUCTION"');
   });
 
+  it('rolls up package counters from the classes emitted in each directory', () => {
+    const measurements = {
+      result: {
+        nodes: {
+          node: [
+            {
+              objectReference: { name: 'SAP_PACKAGE', type: 'DEVC/K' },
+              coverages: {
+                coverage: [{ type: 'statement', total: 999, executed: 999 }],
+              },
+              nodes: {
+                node: [
+                  {
+                    objectReference: { name: 'FOO', type: 'CLAS/OC' },
+                    coverages: {
+                      coverage: [{ type: 'statement', total: 10, executed: 8 }],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    const xml = toJacocoXml({
+      measurements: measurements as never,
+      sourcePathResolver: () => 'src/zca_tools/foo.clas.abap',
+    });
+
+    expect(xml).toContain(
+      '<counter type="INSTRUCTION" missed="2" covered="8"/>',
+    );
+    expect(xml).not.toContain('covered="999"');
+  });
+
   it('emits <sourcefile> with abapGit path convention', async () => {
     const { measurements, statements } = await loadCoverage();
     const xml = toJacocoXml({ measurements, statements });
