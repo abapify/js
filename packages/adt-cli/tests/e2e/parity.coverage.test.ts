@@ -106,8 +106,9 @@ describe('CLI + MCP parity (aunit coverage)', () => {
       '<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">',
     );
     expect(stdout).toContain('<report name="ABAP Coverage">');
-    // The mock measurements tree uses CL_EXAMPLE_CLASS / TEST_EXAMPLE_PACKAGE.
-    expect(stdout).toContain('<package name="TEST_EXAMPLE_PACKAGE">');
+    // No matching repository source exists for the fixture, so the resolver
+    // falls back to the conventional abapGit source root.
+    expect(stdout).toContain('<package name="src">');
     expect(stdout).toMatch(/sourcefilename="cl_example_class\.clas\.abap"/);
   });
 
