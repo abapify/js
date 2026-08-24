@@ -41,6 +41,17 @@ function manifest(
   return {
     requestedTransports: [transport],
     scopeTransports: [transport],
+    inventory: [
+      {
+        pgmid: 'R3TR',
+        type: 'CLAS',
+        name: 'ZCL_SAMPLE',
+        wbtype: 'CLAS',
+        uri: '/sap/bc/adt/oo/classes/zcl_sample',
+        objFunc: '',
+        sourceTransport: transport,
+      },
+    ],
     entries: [
       {
         object: {
@@ -293,6 +304,53 @@ describe('transport checkout', () => {
         ).requestedTransports,
       ).toEqual(['DEVK900001', 'DEVK900002']);
     }
+  });
+
+  it('persists a complete CTS inventory in one descriptor per request and task', async () => {
+    const workspace = await root();
+    const current = manifest(
+      'modified',
+      version('before'),
+      version('after'),
+      'DEVK900002',
+    );
+    current.scopeTransports = ['DEVK900001', 'DEVK900002'];
+    current.inventory.push({
+      pgmid: 'LIMU',
+      type: 'ZZZZ',
+      name: 'ZUNSUPPORTED',
+      wbtype: 'ZZZZ',
+      uri: '/sap/bc/adt/repository/informationsystem/objectproperties/values',
+      objFunc: '',
+      sourceTransport: 'DEVK900002',
+    });
+    current.entries.push(unsupportedEntry('ZUNSUPPORTED'));
+
+    await createAdtFlowService(dependencies(() => current)).checkout({
+      root: workspace,
+      transports: ['DEVK900002'],
+      config,
+    });
+
+    const parent = JSON.parse(
+      await readFile(join(workspace, '.adt/tr/DEVK900001.json'), 'utf8'),
+    );
+    const task = JSON.parse(
+      await readFile(join(workspace, '.adt/tr/DEVK900002.json'), 'utf8'),
+    );
+    expect(parent.inventory).toEqual([]);
+    expect(task.inventory).toEqual([
+      expect.objectContaining({
+        type: 'CLAS',
+        name: 'ZCL_SAMPLE',
+        sourceTransport: 'DEVK900002',
+      }),
+      expect.objectContaining({
+        type: 'ZZZZ',
+        name: 'ZUNSUPPORTED',
+        sourceTransport: 'DEVK900002',
+      }),
+    ]);
   });
 
   it('does not overwrite an unrecognized file at a transport descriptor path', async () => {
@@ -768,6 +826,7 @@ describe('transport checkout', () => {
     const current: TransportSourceManifest = {
       requestedTransports: ['DEVK900001'],
       scopeTransports: ['DEVK900001'],
+      inventory: [],
       entries: [unsupportedEntry()],
     };
     const ports = dependencies(() => current);
@@ -795,6 +854,7 @@ describe('transport checkout', () => {
     const current: TransportSourceManifest = {
       requestedTransports: ['DEVK900001'],
       scopeTransports: ['DEVK900001'],
+      inventory: [],
       entries: [metadataLoadFailedEntry()],
     };
     const ports = dependencies(() => current);
@@ -822,6 +882,7 @@ describe('transport checkout', () => {
     const current: TransportSourceManifest = {
       requestedTransports: ['DEVK900001'],
       scopeTransports: ['DEVK900001'],
+      inventory: [],
       entries: [unsupportedEntry()],
     };
     const ports = dependencies(() => current);

@@ -155,6 +155,10 @@ function isUnsupportedEntry(entry: TransportSourceManifestEntry): boolean {
   );
 }
 
+function materializedObject(entry: TransportSourceManifestEntry) {
+  return entry.repositoryObject ?? entry.object;
+}
+
 function selectedVersion(
   entry: TransportSourceManifestEntry,
   mode: 'base' | 'head',
@@ -211,7 +215,7 @@ function groupEntries(entries: readonly TransportSourceManifestEntry[]): Array<{
     { identity: FlowObjectIdentity; entries: TransportSourceManifestEntry[] }
   >();
   for (const entry of entries) {
-    const identity = objectIdentity(entry.object);
+    const identity = objectIdentity(materializedObject(entry));
     const group = grouped.get(identity.canonical) ?? { identity, entries: [] };
     group.entries.push(entry);
     grouped.set(identity.canonical, group);
@@ -298,6 +302,7 @@ async function exactHeadFastPath(
         !descriptor ||
         descriptor.configDigest !== configDigest ||
         descriptor.formatDigest !== formatDigest ||
+        descriptor.inventory === undefined ||
         stableJson(descriptor.requestedTransports) !== stableJson(transports),
     )
   ) {
@@ -969,7 +974,7 @@ async function unsupportedEntries(
     { identity: FlowObjectIdentity; entries: TransportSourceManifestEntry[] }
   >();
   for (const entry of unsupported) {
-    const identity = objectIdentity(entry.object);
+    const identity = objectIdentity(materializedObject(entry));
     const existing = byIdentity.get(identity.canonical);
     if (existing) {
       existing.entries.push(entry);
@@ -1205,7 +1210,7 @@ async function addTransportDescriptors(
   const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort(
     compareStrings,
   );
-  for (const transport of ctx.requested) {
+  for (const transport of manifest.scopeTransports) {
     const path = transportDescriptorPath(transport);
     let existing: TransportDescriptor | undefined;
     try {
@@ -1230,6 +1235,9 @@ async function addTransportDescriptors(
         schemaVersion: 1,
         requestedTransports: ctx.requested,
         scopeTransports: manifest.scopeTransports,
+        inventory: (manifest.inventory ?? []).filter(
+          (object) => object.sourceTransport === transport,
+        ),
         objects: relevantObjectDescriptors,
         configDigest: ctx.configDigest,
         formatDigest: ctx.formatDigest,

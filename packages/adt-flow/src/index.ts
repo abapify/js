@@ -15,6 +15,7 @@ export {
   objectDescriptorSchema,
   ownedFileSchema,
   sourceSelectionSchema,
+  transportObjectInventoryEntrySchema,
   transportDescriptorSchema,
   type ObjectDescriptor,
   type OwnedFile,

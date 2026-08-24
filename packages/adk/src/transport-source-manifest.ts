@@ -1,7 +1,7 @@
 import { assertAdtUri, type SourceVersionRef } from '@abapify/adt-client';
 import type { AdkContext } from './base/context';
 import { getGlobalContext } from './base/global-context';
-import { normalizeObjectName } from './base/registry';
+import { getEndpointForType, normalizeObjectName } from './base/registry';
 import { createAdkFactory } from './factory';
 import {
   resolveTransportObjects,
@@ -102,13 +102,25 @@ export interface TransportSourceManifestComponent {
 
 export interface TransportSourceManifestEntry extends TransportSourceVersionSelection {
   object: TransportSourceManifestObject;
+  repositoryObject?: TransportSourceManifestObject;
   component: TransportSourceManifestComponent;
+  sourceTransport: string;
+}
+
+export interface TransportObjectInventoryEntry {
+  pgmid: string;
+  type: string;
+  name: string;
+  wbtype?: string;
+  uri?: string;
+  objFunc: string;
   sourceTransport: string;
 }
 
 export interface TransportSourceManifest {
   requestedTransports: string[];
   scopeTransports: string[];
+  inventory: TransportObjectInventoryEntry[];
   entries: TransportSourceManifestEntry[];
 }
 
@@ -628,6 +640,127 @@ export function selectTransportSourceVersions( // NOSONAR - SAP feed-order selec
 
 type TransportObjectReference = ResolvedTransportObjects['objects'][number];
 
+interface RepositoryObjectReference {
+  pgmid: string;
+  type: string;
+  name: string;
+  isDeleted: boolean;
+}
+
+function repositoryNameFromUri(
+  uri: string | undefined,
+  type: string,
+): string | undefined {
+  if (!uri) return undefined;
+  const endpoint = getEndpointForType(type);
+  if (!endpoint) return undefined;
+  const prefix = `/sap/bc/adt/${endpoint}/`;
+  if (!uri.startsWith(prefix)) return undefined;
+  const encodedName = uri.slice(prefix.length).split('/')[0];
+  if (!encodedName) return undefined;
+  try {
+    const name = decodeURIComponent(encodedName).trim().toUpperCase();
+    return name || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Resolve a LIMU leaf to the repository object that owns its source. */
+function repositoryObjectReference(
+  reference: TransportObjectReference,
+): RepositoryObjectReference {
+  const pgmid = reference.pgmid.trim().toUpperCase();
+  const rawType = reference.type.trim().toUpperCase().split('/')[0] ?? '';
+  if (pgmid === 'LIMU') {
+    const ownerType = reference.wbtype?.trim().toUpperCase();
+    const ownerName = ownerType
+      ? repositoryNameFromUri(reference.uri, ownerType)
+      : undefined;
+    if (ownerType && ownerName) {
+      return {
+        pgmid: 'R3TR',
+        type: ownerType,
+        name: ownerName,
+        // A deleted leaf changes its owner. Only REPS preserves the legacy
+        // whole-program deletion behavior when no R3TR parent is present.
+        isDeleted: rawType === 'REPS' && reference.isDeleted,
+      };
+    }
+    if (rawType === 'REPS') {
+      return {
+        pgmid: 'R3TR',
+        type: 'PROG',
+        name: reference.name.trim().toUpperCase(),
+        isDeleted: reference.isDeleted,
+      };
+    }
+  }
+  return {
+    pgmid,
+    type: reference.type,
+    name: reference.name,
+    isDeleted: reference.isDeleted,
+  };
+}
+
+function selectorValues(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return (Array.isArray(value) ? value : [value]).map((item) =>
+    item.trim().toUpperCase(),
+  );
+}
+
+function selectorDimensionMatches(
+  candidates: readonly string[],
+  expected: string | string[] | undefined,
+): boolean {
+  const values = selectorValues(expected);
+  if (values.length === 0) return true;
+  return values.some(
+    (value) => value === '*' || candidates.some((item) => item === value),
+  );
+}
+
+function manifestSelectorMatches(
+  original: TransportObjectReference,
+  repository: RepositoryObjectReference,
+  selector: TransportObjectSelector | undefined,
+): boolean {
+  if (!selector) return true;
+  return (
+    selectorDimensionMatches(
+      [original.objFunc.trim().toUpperCase()],
+      selector.objFunc,
+    ) &&
+    selectorDimensionMatches(
+      [original.pgmid.trim().toUpperCase(), repository.pgmid],
+      selector.pgmid,
+    ) &&
+    selectorDimensionMatches(
+      [original.type.trim().toUpperCase(), repository.type.toUpperCase()],
+      selector.type,
+    )
+  );
+}
+
+function inventoryEntry(
+  reference: TransportObjectReference,
+  sourceTransport: string,
+): TransportObjectInventoryEntry {
+  const wbtype = reference.wbtype?.trim().toUpperCase();
+  const uri = reference.uri?.trim();
+  return {
+    pgmid: reference.pgmid.trim().toUpperCase(),
+    type: reference.type.trim().toUpperCase(),
+    name: reference.name.trim().toUpperCase(),
+    ...(wbtype ? { wbtype } : {}),
+    ...(uri ? { uri } : {}),
+    objFunc: reference.objFunc.trim().toUpperCase(),
+    sourceTransport,
+  };
+}
+
 /**
  * CTS exposes a program's main source as the LIMU/REPS sub-object, while ADT
  * exposes the same source history through the repository PROG resource. Keep
@@ -635,7 +768,7 @@ type TransportObjectReference = ResolvedTransportObjects['objects'][number];
  * metadata and immutable-version discovery.
  */
 function sourceHistoryDiscoveryType(
-  reference: TransportObjectReference,
+  reference: RepositoryObjectReference,
 ): string {
   const pgmid = reference.pgmid.trim().toUpperCase();
   const type = reference.type.trim().toUpperCase().split('/')[0];
@@ -643,21 +776,41 @@ function sourceHistoryDiscoveryType(
 }
 
 async function buildObjectEntries( // NOSONAR - SAP object manifest construction is branch-heavy; will be refactored in follow-up
-  reference: TransportObjectReference,
+  original: TransportObjectReference,
+  repository: RepositoryObjectReference,
   sourceTransport: string,
   scopeTransportNumbers: readonly string[],
   ctx: AdkContext,
 ): Promise<TransportSourceManifestEntry[]> {
   const baseIdentity: TransportSourceManifestObject = {
-    pgmid: reference.pgmid,
-    type: reference.type,
-    name: reference.name,
+    pgmid: original.pgmid,
+    type: original.type,
+    name: original.name,
   };
+  const hasRepositoryOwner =
+    repository.pgmid !== baseIdentity.pgmid ||
+    repository.type !== baseIdentity.type ||
+    repository.name !== baseIdentity.name;
+  const withRepositoryOwner = (
+    entry: TransportSourceManifestEntry,
+    packageName?: string,
+  ): TransportSourceManifestEntry =>
+    hasRepositoryOwner
+      ? {
+          ...entry,
+          repositoryObject: {
+            pgmid: repository.pgmid,
+            type: repository.type,
+            name: repository.name,
+            ...(packageName ? { packageName } : {}),
+          },
+        }
+      : entry;
   let discovery: ObjectSourceDiscovery;
   try {
     discovery = await discoverObjectSourceHistory(
-      reference.name,
-      sourceHistoryDiscoveryType(reference),
+      repository.name,
+      sourceHistoryDiscoveryType(repository),
       ctx,
       false,
     );
@@ -670,15 +823,17 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
         : {}),
     };
     return [
-      unavailableEntry(
-        failureIdentity,
-        { id: 'object' },
-        sourceTransport,
-        'unsupported',
-        {
-          code: error.code,
-          message: error.message,
-        },
+      withRepositoryOwner(
+        unavailableEntry(
+          failureIdentity,
+          { id: 'object' },
+          sourceTransport,
+          'unsupported',
+          {
+            code: error.code,
+            message: error.message,
+          },
+        ),
       ),
     ];
   }
@@ -700,12 +855,15 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
 
     if (component.diagnostic) {
       entries.push(
-        unavailableEntry(
-          identity,
-          publicComponent,
-          sourceTransport,
-          'unsupported',
-          component.diagnostic,
+        withRepositoryOwner(
+          unavailableEntry(
+            identity,
+            publicComponent,
+            sourceTransport,
+            'unsupported',
+            component.diagnostic,
+          ),
+          discovery.object.packageName,
         ),
       );
       continue;
@@ -713,15 +871,18 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
 
     if (!component.versionsUri) {
       entries.push(
-        unavailableEntry(
-          identity,
-          publicComponent,
-          sourceTransport,
-          'unsupported',
-          {
-            code: 'SOURCE_COMPONENT_VERSIONS_UNAVAILABLE',
-            message: 'The source component has no exact versions relation.',
-          },
+        withRepositoryOwner(
+          unavailableEntry(
+            identity,
+            publicComponent,
+            sourceTransport,
+            'unsupported',
+            {
+              code: 'SOURCE_COMPONENT_VERSIONS_UNAVAILABLE',
+              message: 'The source component has no exact versions relation.',
+            },
+          ),
+          discovery.object.packageName,
         ),
       );
       continue;
@@ -734,10 +895,19 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
       );
     } catch {
       entries.push(
-        unavailableEntry(identity, publicComponent, sourceTransport, 'failed', {
-          code: 'SOURCE_HISTORY_RETRIEVAL_FAILED',
-          message: 'SAP ADT rejected source-history metadata retrieval.',
-        }),
+        withRepositoryOwner(
+          unavailableEntry(
+            identity,
+            publicComponent,
+            sourceTransport,
+            'failed',
+            {
+              code: 'SOURCE_HISTORY_RETRIEVAL_FAILED',
+              message: 'SAP ADT rejected source-history metadata retrieval.',
+            },
+          ),
+          discovery.object.packageName,
+        ),
       );
       continue;
     }
@@ -745,14 +915,19 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
     const selection = selectTransportSourceVersions(
       versions,
       scopeTransportNumbers,
-      reference.isDeleted,
+      repository.isDeleted,
     );
-    entries.push({
-      object: identity,
-      component: publicComponent,
-      sourceTransport,
-      ...selection,
-    });
+    entries.push(
+      withRepositoryOwner(
+        {
+          object: identity,
+          component: publicComponent,
+          sourceTransport,
+          ...selection,
+        },
+        discovery.object.packageName,
+      ),
+    );
   }
 
   return entries;
@@ -840,31 +1015,58 @@ export async function buildTransportSourceManifest(
 ): Promise<TransportSourceManifest> {
   const context = ctx ?? getGlobalContext();
   const requested = uniqueStable(requestedTransports);
-  const resolved = await resolveTransportObjects(
-    requested,
-    options.selector ?? {},
-    context,
-  );
+  const resolved = await resolveTransportObjects(requested, {}, context);
   const scopeTransports = uniqueStable([
     ...requested,
     ...resolved.scopeTransportNumbers,
   ]);
-  const objects = resolved.objects
-    .filter((reference) => !isNonSourceCtsObject(reference))
+  const inventory = resolved.objects
+    .map((reference) =>
+      inventoryEntry(
+        reference,
+        resolved.sourceTransportMap.get(reference.key) ?? requested[0] ?? '',
+      ),
+    )
     .sort(
       (left, right) =>
+        compareText(left.sourceTransport, right.sourceTransport) ||
         compareText(left.pgmid, right.pgmid) ||
         compareText(left.type, right.type) ||
         compareText(left.name, right.name),
+    );
+  const seenRepositoryObjects = new Set<string>();
+  const objects = resolved.objects
+    .filter((reference) => !isNonSourceCtsObject(reference))
+    .map((original) => ({
+      original,
+      repository: repositoryObjectReference(original),
+      sourceTransport:
+        resolved.sourceTransportMap.get(original.key) ?? requested[0] ?? '',
+    }))
+    .filter(({ original, repository }) =>
+      manifestSelectorMatches(original, repository, options.selector),
+    )
+    .filter(({ repository }) => {
+      const key = `${repository.pgmid}/${repository.type}/${repository.name}`;
+      if (seenRepositoryObjects.has(key)) return false;
+      seenRepositoryObjects.add(key);
+      return true;
+    })
+    .sort(
+      (left, right) =>
+        compareText(left.repository.pgmid, right.repository.pgmid) ||
+        compareText(left.repository.type, right.repository.type) ||
+        compareText(left.repository.name, right.repository.name),
     );
 
   const perObjectEntries = await mapOrdered(
     objects,
     normalizeConcurrency(options.concurrency),
-    (reference) =>
+    ({ original, repository, sourceTransport }) =>
       buildObjectEntries(
-        reference,
-        resolved.sourceTransportMap.get(reference.key) ?? '',
+        original,
+        repository,
+        sourceTransport,
         scopeTransports,
         context,
       ),
@@ -873,6 +1075,7 @@ export async function buildTransportSourceManifest(
   return {
     requestedTransports: requested,
     scopeTransports,
+    inventory,
     entries: perObjectEntries.flat(),
   };
 }
