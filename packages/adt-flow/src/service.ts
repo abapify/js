@@ -155,6 +155,10 @@ function isUnsupportedEntry(entry: TransportSourceManifestEntry): boolean {
   );
 }
 
+function materializedObject(entry: TransportSourceManifestEntry) {
+  return entry.repositoryObject ?? entry.object;
+}
+
 function selectedVersion(
   entry: TransportSourceManifestEntry,
   mode: 'base' | 'head',
@@ -211,7 +215,7 @@ function groupEntries(entries: readonly TransportSourceManifestEntry[]): Array<{
     { identity: FlowObjectIdentity; entries: TransportSourceManifestEntry[] }
   >();
   for (const entry of entries) {
-    const identity = objectIdentity(entry.object);
+    const identity = objectIdentity(materializedObject(entry));
     const group = grouped.get(identity.canonical) ?? { identity, entries: [] };
     group.entries.push(entry);
     grouped.set(identity.canonical, group);
@@ -286,7 +290,41 @@ async function exactHeadFastPath(
     }
   | undefined
 > {
-  const transportPaths = transports.map(transportDescriptorPath);
+  const requestedPaths = transports.map(transportDescriptorPath);
+  const requestedDescriptors = await Promise.all(
+    requestedPaths.map((path) =>
+      readDescriptor(root, path, transportDescriptorSchema),
+    ),
+  );
+  if (
+    requestedDescriptors.some(
+      (descriptor) =>
+        !descriptor ||
+        descriptor.configDigest !== configDigest ||
+        descriptor.formatDigest !== formatDigest ||
+        descriptor.inventory === undefined ||
+        stableJson(descriptor.requestedTransports) !== stableJson(transports),
+    )
+  ) {
+    return undefined;
+  }
+
+  const initialDescriptors = requestedDescriptors as TransportDescriptor[];
+  const scopeTransports = initialDescriptors[0]?.scopeTransports;
+  if (
+    !scopeTransports ||
+    initialDescriptors.some(
+      (descriptor) =>
+        stableJson(descriptor.scopeTransports) !==
+          stableJson(scopeTransports) ||
+        transports.some(
+          (transport) => !descriptor.scopeTransports.includes(transport),
+        ),
+    )
+  ) {
+    return undefined;
+  }
+  const transportPaths = scopeTransports.map(transportDescriptorPath);
   const descriptors = await Promise.all(
     transportPaths.map((path) =>
       readDescriptor(root, path, transportDescriptorSchema),
@@ -294,16 +332,21 @@ async function exactHeadFastPath(
   );
   if (
     descriptors.some(
-      (descriptor) =>
+      (descriptor, index) =>
         !descriptor ||
         descriptor.configDigest !== configDigest ||
         descriptor.formatDigest !== formatDigest ||
-        stableJson(descriptor.requestedTransports) !== stableJson(transports),
+        descriptor.inventory === undefined ||
+        stableJson(descriptor.requestedTransports) !== stableJson(transports) ||
+        stableJson(descriptor.scopeTransports) !==
+          stableJson(scopeTransports) ||
+        descriptor.inventory.some(
+          (object) => object.sourceTransport !== scopeTransports[index],
+        ),
     )
   ) {
     return undefined;
   }
-
   const validDescriptors = descriptors as TransportDescriptor[];
   const objectPaths = [
     ...new Set(validDescriptors.flatMap((d) => d.objects)),
@@ -335,7 +378,7 @@ async function exactHeadFastPath(
   return {
     descriptorPaths: [...transportPaths, ...objectPaths].sort(compareStrings),
     ownedPaths: ownedPaths.sort(compareStrings),
-    scopeTransports: descriptors[0]?.scopeTransports ?? [...transports],
+    scopeTransports,
   };
 }
 
@@ -969,7 +1012,7 @@ async function unsupportedEntries(
     { identity: FlowObjectIdentity; entries: TransportSourceManifestEntry[] }
   >();
   for (const entry of unsupported) {
-    const identity = objectIdentity(entry.object);
+    const identity = objectIdentity(materializedObject(entry));
     const existing = byIdentity.get(identity.canonical);
     if (existing) {
       existing.entries.push(entry);
@@ -1205,7 +1248,7 @@ async function addTransportDescriptors(
   const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort(
     compareStrings,
   );
-  for (const transport of ctx.requested) {
+  for (const transport of manifest.scopeTransports) {
     const path = transportDescriptorPath(transport);
     let existing: TransportDescriptor | undefined;
     try {
@@ -1217,10 +1260,17 @@ async function addTransportDescriptors(
     } catch {
       existing = undefined;
     }
+    const matchesCurrentCheckout =
+      existing !== undefined &&
+      stableJson(existing.requestedTransports) === stableJson(ctx.requested) &&
+      stableJson(existing.scopeTransports) ===
+        stableJson(manifest.scopeTransports);
+    const isPreviousSelfDescriptor =
+      existing?.requestedTransports.includes(transport) === true &&
+      existing.scopeTransports.includes(transport);
     if (
-      existing &&
-      existing.requestedTransports.includes(transport) &&
-      existing.scopeTransports.includes(transport)
+      existing?.scopeTransports.includes(transport) &&
+      (matchesCurrentCheckout || isPreviousSelfDescriptor)
     ) {
       ownedPaths.add(path);
       ownedOwners.set(path, 'flow-index');
@@ -1230,6 +1280,9 @@ async function addTransportDescriptors(
         schemaVersion: 1,
         requestedTransports: ctx.requested,
         scopeTransports: manifest.scopeTransports,
+        inventory: (manifest.inventory ?? []).filter(
+          (object) => object.sourceTransport === transport,
+        ),
         objects: relevantObjectDescriptors,
         configDigest: ctx.configDigest,
         formatDigest: ctx.formatDigest,
