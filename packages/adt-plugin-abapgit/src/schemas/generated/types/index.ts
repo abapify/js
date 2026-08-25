@@ -17,3 +17,6 @@ export type { TtypSchema as TtypAbapGitType } from './ttyp';
 export type { BdefSchema as BdefAbapGitType } from './bdef';
 export type { SrvdSchema as SrvdAbapGitType } from './srvd';
 export type { SrvbSchema as SrvbAbapGitType } from './srvb';
+export type { DclsSchema as DclsAbapGitType } from './dcls';
+export type { DdlsSchema as DdlsAbapGitType } from './ddls';
+export type { DdlxSchema as DdlxAbapGitType } from './ddlx';

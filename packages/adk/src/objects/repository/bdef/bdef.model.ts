@@ -18,14 +18,24 @@
 import { getGlobalContext } from '../../../base/global-context';
 import type { AdkContext } from '../../../base/context';
 import { toText } from '../../../base/fetch-utils';
+import { BehaviorDefinition } from '../../../base/kinds';
+import { registerObjectType } from '../../../base/registry';
 
 export class AdkBehaviorDefinition {
   /** Static ADK kind marker — used by abapGit handler registry if needed. */
-  static readonly kind = 'BehaviorDefinition' as const;
+  static readonly kind = BehaviorDefinition;
   readonly kind = AdkBehaviorDefinition.kind;
 
   readonly name: string;
   protected readonly ctx: AdkContext;
+  private metadata?: {
+    blueSource?: {
+      description?: string;
+      masterLanguage?: string;
+      abapLanguageVersion?: string;
+      packageRef?: { name?: string };
+    };
+  };
 
   constructor(ctx: AdkContext, name: string) {
     this.ctx = ctx;
@@ -36,9 +46,20 @@ export class AdkBehaviorDefinition {
     return `/sap/bc/adt/bo/behaviordefinitions/${encodeURIComponent(this.name.toLowerCase())}`;
   }
 
-  /** Placeholder description — full metadata requires additional SAP fetch */
   get description(): string {
-    return this.name;
+    return this.metadata?.blueSource?.description ?? this.name;
+  }
+
+  get originalLanguage(): string | undefined {
+    return this.metadata?.blueSource?.masterLanguage;
+  }
+
+  get abapLanguageVersion(): string | undefined {
+    return this.metadata?.blueSource?.abapLanguageVersion;
+  }
+
+  get package(): string | undefined {
+    return this.metadata?.blueSource?.packageRef?.name;
   }
 
   private get contract(): any {
@@ -50,6 +71,15 @@ export class AdkBehaviorDefinition {
   async getSource(): Promise<string> {
     const result = await this.contract.source.main.get(this.name);
     return toText(result);
+  }
+
+  async load(): Promise<this> {
+    const [metadata] = await Promise.all([
+      this.contract.get(this.name),
+      this.getSource(),
+    ]);
+    this.metadata = metadata;
+    return this;
   }
 
   async saveMainSource(
@@ -180,3 +210,7 @@ export class AdkBehaviorDefinition {
     });
   }
 }
+
+registerObjectType('BDEF', BehaviorDefinition, AdkBehaviorDefinition as any, {
+  endpoint: 'bo/behaviordefinitions',
+});

@@ -1,20 +1,19 @@
 /**
  * SRVD (RAP Service Definition) object handler for abapGit format
  *
- * SRVD is source-driven: the semantic content lives in a `.asrvd` file
- * (CDS-like service definition) and abapGit stores it alongside
- * a minimal SKEY metadata block.
+ * SRVD is source-driven: the semantic content lives in an `.acds` file and
+ * the official ABAP File Format stores its metadata in a `.json` sidecar.
  *
  * File layout:
- *   src/zui_foo.srvd.asrvd   — service source (.asrvd text)
- *   src/zui_foo.srvd.xml     — minimal metadata wrapper
+ *   src/zui_foo.srvd.acds — service source text
+ *   src/zui_foo.srvd.json — ABAP File Formats metadata
  *
  * The handler uses the string form of `createHandler` ('SRVD') because
  * the ADK object (`AdkServiceDefinition`) is a lightweight class without
  * the AdkObject save/lock machinery — all lifecycle is source-based.
  *
- * We override `serialize` so the source file gets the `.asrvd` extension
- * instead of the default `.abap`.
+ * We override `serialize` because this AFF layout is JSON rather than the
+ * legacy abapGit XML envelope.
  */
 
 import { srvd } from '../../../schemas/generated';
@@ -66,7 +65,7 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       },
     }),
 
-    // Source is `.asrvd` text retrieved from ADT `source/main`.
+    // Source is `.acds` text retrieved from ADT `source/main`.
     getSource: (obj) =>
       typeof obj?.getSource === 'function'
         ? obj.getSource()
@@ -76,7 +75,7 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       name: String(SKEY?.NAME ?? '').toUpperCase(),
     }),
 
-    // Custom serialize — file extension for SRVD source is `.asrvd`, not `.abap`.
+    // Custom serialize — official SRVD AFF is `.acds` plus `.json`.
     async serialize(
       object,
       ctx,
@@ -85,19 +84,46 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       const files: SerializedFile[] = [];
       const objectName = ctx.getObjectName(object);
 
-      // Source: <name>.srvd.asrvd. When a source map is supplied it is
+      // Source: <name>.srvd.acds. When a source map is supplied it is
       // authoritative; otherwise fall back to the mutable object getter.
       const source = await resolveSrvdSource(object, options?.sources);
       if (shouldIncludeSource(source, options?.sources?.main)) {
         files.push(
-          ctx.createFile(`${objectName}.${ctx.fileExtension}.asrvd`, source),
+          ctx.createFile(`${objectName}.${ctx.fileExtension}.acds`, source),
         );
       }
 
-      // Metadata: <name>.srvd.xml
-      const xmlContent = ctx.toAbapGitXml(object);
+      // Metadata: <name>.srvd.json
+      const metadata = object as {
+        description?: string;
+        originalLanguage?: string;
+        abapLanguageVersion?: string;
+        sourceOrigin?: string;
+        sourceType?: string;
+      };
+      const header = {
+        description: metadata.description || String(object?.name ?? ''),
+        originalLanguage: (metadata.originalLanguage ?? 'en').toLowerCase(),
+        ...(metadata.abapLanguageVersion
+          ? { abapLanguageVersion: metadata.abapLanguageVersion }
+          : {}),
+      };
       files.push(
-        ctx.createFile(`${objectName}.${ctx.fileExtension}.xml`, xmlContent),
+        ctx.createFile(
+          `${objectName}.${ctx.fileExtension}.json`,
+          `${JSON.stringify(
+            {
+              formatVersion: '1',
+              header,
+              generalInformation: {
+                sourceOrigin: metadata.sourceOrigin ?? 'abapDevelopmentTools',
+                sourceType: metadata.sourceType ?? 'definition',
+              },
+            },
+            null,
+            2,
+          )}\n`,
+        ),
       );
 
       return files;

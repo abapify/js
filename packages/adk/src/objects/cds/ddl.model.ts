@@ -14,10 +14,24 @@
 import { getGlobalContext } from '../../base/global-context';
 import type { AdkContext } from '../../base/context';
 import { toText } from '../../base/fetch-utils';
+import { DdlSource } from '../../base/kinds';
+import { registerObjectType } from '../../base/registry';
 
 export class AdkDdlSource {
+  static readonly kind = DdlSource;
+  readonly kind = AdkDdlSource.kind;
   readonly name: string;
   protected readonly ctx: AdkContext;
+  private metadata?: {
+    ddlSource?: {
+      description?: string;
+      masterLanguage?: string;
+      abapLanguageVersion?: string;
+      packageRef?: { name?: string };
+      source_origin?: string;
+      source_type?: string;
+    };
+  };
 
   constructor(ctx: AdkContext, name: string) {
     this.ctx = ctx;
@@ -30,7 +44,22 @@ export class AdkDdlSource {
 
   /** Placeholder description — full metadata requires additional SAP fetch */
   get description(): string {
-    return this.name;
+    return this.metadata?.ddlSource?.description ?? this.name;
+  }
+  get originalLanguage(): string | undefined {
+    return this.metadata?.ddlSource?.masterLanguage;
+  }
+  get abapLanguageVersion(): string | undefined {
+    return this.metadata?.ddlSource?.abapLanguageVersion;
+  }
+  get package(): string | undefined {
+    return this.metadata?.ddlSource?.packageRef?.name;
+  }
+  get sourceOrigin(): string | undefined {
+    return this.metadata?.ddlSource?.source_origin;
+  }
+  get sourceType(): string | undefined {
+    return this.metadata?.ddlSource?.source_type;
   }
 
   private get contract(): any {
@@ -42,6 +71,15 @@ export class AdkDdlSource {
   async getSource(): Promise<string> {
     const result = await this.contract.source.main.get(this.name);
     return toText(result);
+  }
+
+  async load(): Promise<this> {
+    const [metadata] = await Promise.all([
+      this.contract.get(this.name),
+      this.getSource(),
+    ]);
+    this.metadata = metadata;
+    return this;
   }
 
   async saveMainSource(
@@ -167,3 +205,7 @@ export class AdkDdlSource {
     });
   }
 }
+
+registerObjectType('DDLS', DdlSource, AdkDdlSource as any, {
+  endpoint: 'ddic/ddl/sources',
+});

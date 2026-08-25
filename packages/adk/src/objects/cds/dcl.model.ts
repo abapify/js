@@ -14,10 +14,21 @@
 import { getGlobalContext } from '../../base/global-context';
 import type { AdkContext } from '../../base/context';
 import { toText } from '../../base/fetch-utils';
+import { DclSource } from '../../base/kinds';
+import { registerObjectType } from '../../base/registry';
 
 export class AdkDclSource {
+  static readonly kind = DclSource;
+  readonly kind = AdkDclSource.kind;
   readonly name: string;
   protected readonly ctx: AdkContext;
+  private metadata?: {
+    dclSource?: {
+      description?: string;
+      masterLanguage?: string;
+      packageRef?: { name?: string };
+    };
+  };
 
   constructor(ctx: AdkContext, name: string) {
     this.ctx = ctx;
@@ -30,7 +41,14 @@ export class AdkDclSource {
 
   /** Placeholder description — full metadata requires additional SAP fetch */
   get description(): string {
-    return this.name;
+    return this.metadata?.dclSource?.description ?? this.name;
+  }
+
+  get originalLanguage(): string | undefined {
+    return this.metadata?.dclSource?.masterLanguage;
+  }
+  get package(): string | undefined {
+    return this.metadata?.dclSource?.packageRef?.name;
   }
 
   private get contract(): any {
@@ -42,6 +60,15 @@ export class AdkDclSource {
   async getSource(): Promise<string> {
     const result = await this.contract.source.main.get(this.name);
     return toText(result);
+  }
+
+  async load(): Promise<this> {
+    const [metadata] = await Promise.all([
+      this.contract.get(this.name),
+      this.getSource(),
+    ]);
+    this.metadata = metadata;
+    return this;
   }
 
   async saveMainSource(
@@ -160,3 +187,7 @@ export class AdkDclSource {
     });
   }
 }
+
+registerObjectType('DCLS', DclSource, AdkDclSource as any, {
+  endpoint: 'acm/dcl/sources',
+});

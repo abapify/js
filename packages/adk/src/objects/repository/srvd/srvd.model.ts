@@ -14,14 +14,26 @@
 import { getGlobalContext } from '../../../base/global-context';
 import type { AdkContext } from '../../../base/context';
 import { toText } from '../../../base/fetch-utils';
+import { ServiceDefinition } from '../../../base/kinds';
+import { registerObjectType } from '../../../base/registry';
 
 export class AdkServiceDefinition {
   /** Static ADK kind marker — used by abapGit handler registry if needed. */
-  static readonly kind = 'ServiceDefinition' as const;
+  static readonly kind = ServiceDefinition;
   readonly kind = AdkServiceDefinition.kind;
 
   readonly name: string;
   protected readonly ctx: AdkContext;
+  private metadata?: {
+    srvdSource?: {
+      description?: string;
+      masterLanguage?: string;
+      abapLanguageVersion?: string;
+      packageRef?: { name?: string };
+      sourceOrigin?: string;
+      srvdSourceType?: string;
+    };
+  };
 
   constructor(ctx: AdkContext, name: string) {
     this.ctx = ctx;
@@ -32,9 +44,28 @@ export class AdkServiceDefinition {
     return `/sap/bc/adt/ddic/srvd/sources/${encodeURIComponent(this.name.toLowerCase())}`;
   }
 
-  /** Placeholder description — full metadata requires additional SAP fetch */
   get description(): string {
-    return this.name;
+    return this.metadata?.srvdSource?.description ?? this.name;
+  }
+
+  get originalLanguage(): string | undefined {
+    return this.metadata?.srvdSource?.masterLanguage;
+  }
+
+  get abapLanguageVersion(): string | undefined {
+    return this.metadata?.srvdSource?.abapLanguageVersion;
+  }
+
+  get package(): string | undefined {
+    return this.metadata?.srvdSource?.packageRef?.name;
+  }
+
+  get sourceOrigin(): string | undefined {
+    return this.metadata?.srvdSource?.sourceOrigin;
+  }
+
+  get sourceType(): string | undefined {
+    return this.metadata?.srvdSource?.srvdSourceType;
   }
 
   private get contract(): any {
@@ -46,6 +77,15 @@ export class AdkServiceDefinition {
   async getSource(): Promise<string> {
     const result = await this.contract.source.main.get(this.name);
     return toText(result);
+  }
+
+  async load(): Promise<this> {
+    const [metadata] = await Promise.all([
+      this.contract.get(this.name),
+      this.getSource(),
+    ]);
+    this.metadata = metadata;
+    return this;
   }
 
   async saveMainSource(
@@ -176,3 +216,7 @@ export class AdkServiceDefinition {
     });
   }
 }
+
+registerObjectType('SRVD', ServiceDefinition, AdkServiceDefinition as any, {
+  endpoint: 'ddic/srvd/sources',
+});

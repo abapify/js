@@ -29,6 +29,24 @@ export const DataElement = 'DataElement' as const;
 export const Domain = 'Domain' as const;
 export const TableType = 'TableType' as const;
 
+// CDS and RAP source objects
+export const DdlSource = 'DdlSource' as const;
+export const DclSource = 'DclSource' as const;
+export const DdlExtension = 'DdlExtension' as const;
+export const CdsAspect = 'CdsAspect' as const;
+export const CdsType = 'CdsType' as const;
+export const ScalarFunctionDefinition = 'ScalarFunctionDefinition' as const;
+export const ScalarFunctionImplementation =
+  'ScalarFunctionImplementation' as const;
+export const EntityBuffer = 'EntityBuffer' as const;
+export const DynamicCache = 'DynamicCache' as const;
+export const TuningIndex = 'TuningIndex' as const;
+export const StaticCache = 'StaticCache' as const;
+export const ExternalSchema = 'ExternalSchema' as const;
+export const BehaviorDefinition = 'BehaviorDefinition' as const;
+export const ServiceDefinition = 'ServiceDefinition' as const;
+export const ServiceBinding = 'ServiceBinding' as const;
+
 // Other
 export const MessageClass = 'MessageClass' as const;
 export const EnhancementSpot = 'EnhancementSpot' as const;
@@ -49,6 +67,21 @@ export type AdkKind =
   | typeof DataElement
   | typeof Domain
   | typeof TableType
+  | typeof DdlSource
+  | typeof DclSource
+  | typeof DdlExtension
+  | typeof CdsAspect
+  | typeof CdsType
+  | typeof ScalarFunctionDefinition
+  | typeof ScalarFunctionImplementation
+  | typeof EntityBuffer
+  | typeof DynamicCache
+  | typeof TuningIndex
+  | typeof StaticCache
+  | typeof ExternalSchema
+  | typeof BehaviorDefinition
+  | typeof ServiceDefinition
+  | typeof ServiceBinding
   | typeof MessageClass
   | typeof EnhancementSpot;
 

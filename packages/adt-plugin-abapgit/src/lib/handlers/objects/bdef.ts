@@ -1,20 +1,19 @@
 /**
  * BDEF (RAP Behavior Definition) object handler for abapGit format
  *
- * BDEF is source-driven: the semantic content lives in a `.abdl` file
- * (the RAP behavior definition language) and abapGit stores it alongside
- * a minimal SKEY metadata block.
+ * BDEF is source-driven: the semantic content lives in an `.abdl` file and
+ * the official ABAP File Format stores its metadata in a `.json` sidecar.
  *
  * File layout:
- *   src/zbp_foo.bdef.abdl   — behavior source (.abdl text)
- *   src/zbp_foo.bdef.xml    — minimal metadata wrapper
+ *   src/zbp_foo.bdef.abdl — behavior source text
+ *   src/zbp_foo.bdef.json — ABAP File Formats metadata
  *
  * The handler uses the string form of `createHandler` ('BDEF') because
  * the ADK object (`AdkBehaviorDefinition`) is a lightweight class without
  * the AdkObject save/lock machinery — all lifecycle is source-based.
  *
- * We override `serialize` so the source file gets the `.abdl` extension
- * instead of the default `.abap`.
+ * We override `serialize` because this AFF layout is JSON rather than the
+ * legacy abapGit XML envelope.
  */
 
 import { bdef } from '../../../schemas/generated';
@@ -76,7 +75,7 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
       name: String(SKEY?.NAME ?? '').toUpperCase(),
     }),
 
-    // Custom serialize — file extension for BDEF source is `.abdl`, not `.abap`.
+    // Custom serialize — official BDEF AFF is `.abdl` plus `.json`.
     async serialize(
       object,
       ctx,
@@ -94,10 +93,24 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
         );
       }
 
-      // Metadata: <name>.bdef.xml
-      const xmlContent = ctx.toAbapGitXml(object);
+      // Metadata: <name>.bdef.json
+      const metadata = object as {
+        description?: string;
+        originalLanguage?: string;
+        abapLanguageVersion?: string;
+      };
+      const header = {
+        description: metadata.description || String(object?.name ?? ''),
+        originalLanguage: (metadata.originalLanguage ?? 'en').toLowerCase(),
+        ...(metadata.abapLanguageVersion
+          ? { abapLanguageVersion: metadata.abapLanguageVersion }
+          : {}),
+      };
       files.push(
-        ctx.createFile(`${objectName}.${ctx.fileExtension}.xml`, xmlContent),
+        ctx.createFile(
+          `${objectName}.${ctx.fileExtension}.json`,
+          `${JSON.stringify({ formatVersion: '1', header }, null, 2)}\n`,
+        ),
       );
 
       return files;
