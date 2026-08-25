@@ -1,7 +1,10 @@
 import { ddls } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
-import { shouldIncludeSource } from '../source-inclusion';
-import { resolveMainSource } from '../source-resolver';
+import {
+  resolveMainSource,
+  buildAffJsonWithExtra,
+  createAffSourceFile,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DdlsLike = {
@@ -28,29 +31,26 @@ export const ddlSourceHandler = createHandler<DdlsLike, typeof ddls>('DDLS', {
     options?: FormatSerializeOptions,
   ): Promise<SerializedFile[]> {
     const source = await resolveMainSource(object, options?.sources, 'DDLS');
-    const name = ctx.getObjectName(object);
+    const objectName = ctx.getObjectName(object);
     return [
-      ...(shouldIncludeSource(source, options?.sources?.main)
-        ? [ctx.createFile(`${name}.ddls.acds`, source)]
-        : []),
+      ...createAffSourceFile(
+        ctx,
+        object,
+        source,
+        options?.sources?.main,
+        'acds',
+      ),
       ctx.createFile(
-        `${name}.ddls.json`,
-        `${JSON.stringify(
+        `${objectName}.ddls.json`,
+        buildAffJsonWithExtra(
+          object.description || String(object.name ?? ''),
+          object.originalLanguage ?? 'en',
+          object.abapLanguageVersion,
           {
-            formatVersion: '1',
-            header: {
-              description: object.description || String(object.name ?? ''),
-              originalLanguage: (object.originalLanguage ?? 'en').toLowerCase(),
-              ...(object.abapLanguageVersion
-                ? { abapLanguageVersion: object.abapLanguageVersion }
-                : {}),
-            },
             sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools',
             sourceType: object.sourceType ?? 'unknown',
           },
-          null,
-          2,
-        )}\n`,
+        ),
       ),
     ];
   },

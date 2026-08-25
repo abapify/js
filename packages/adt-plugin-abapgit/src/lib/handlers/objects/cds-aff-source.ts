@@ -1,7 +1,10 @@
 import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
-import { shouldIncludeSource } from '../source-inclusion';
-import { resolveMainSource, buildAffJsonMetadata } from '../source-resolver';
+import {
+  resolveMainSource,
+  buildAffJsonMetadata,
+  createAffSourceFile,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type CdsAffSourceObject = {
@@ -30,13 +33,17 @@ export function createCdsAffSourceHandler(
       options?: FormatSerializeOptions,
     ): Promise<SerializedFile[]> {
       const source = await resolveMainSource(object, options?.sources, type);
-      const name = ctx.getObjectName(object);
+      const objectName = ctx.getObjectName(object);
       return [
-        ...(shouldIncludeSource(source, options?.sources?.main)
-          ? [ctx.createFile(`${name}.${ctx.fileExtension}.acds`, source)]
-          : []),
+        ...createAffSourceFile(
+          ctx,
+          object,
+          source,
+          options?.sources?.main,
+          'acds',
+        ),
         ctx.createFile(
-          `${name}.${ctx.fileExtension}.json`,
+          `${objectName}.${ctx.fileExtension}.json`,
           buildAffJsonMetadata(
             object.description || String(object.name ?? ''),
             object.originalLanguage ?? 'EN',

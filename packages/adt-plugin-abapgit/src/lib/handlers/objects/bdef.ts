@@ -18,10 +18,10 @@
 
 import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
-import { shouldIncludeSource } from '../source-inclusion';
 import {
   resolveMainSource,
   buildAffJsonMetadata,
+  createAffSourceFile,
   affGetSource,
   affFromAbapGit,
   affSetSources,
@@ -62,20 +62,16 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
       ctx,
       options?: FormatSerializeOptions,
     ): Promise<SerializedFile[]> {
-      const files: SerializedFile[] = [];
-      const objectName = ctx.getObjectName(object);
-
-      // Source: <name>.bdef.abdl. When a source map is supplied it is
-      // authoritative; otherwise fall back to the mutable object getter.
       const source = await resolveMainSource(object, options?.sources, 'BDEF');
-      if (shouldIncludeSource(source, options?.sources?.main)) {
-        files.push(
-          ctx.createFile(`${objectName}.${ctx.fileExtension}.abdl`, source),
-        );
-      }
-
-      // Metadata: <name>.bdef.json
-      files.push(
+      const objectName = ctx.getObjectName(object);
+      return [
+        ...createAffSourceFile(
+          ctx,
+          object,
+          source,
+          options?.sources?.main,
+          'abdl',
+        ),
         ctx.createFile(
           `${objectName}.${ctx.fileExtension}.json`,
           buildAffJsonMetadata(
@@ -84,9 +80,7 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
             object.abapLanguageVersion,
           ),
         ),
-      );
-
-      return files;
+      ];
     },
 
     setSources: affSetSources,

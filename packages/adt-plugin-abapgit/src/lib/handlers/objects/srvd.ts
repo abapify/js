@@ -18,9 +18,10 @@
 
 import { srvd } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
-import { shouldIncludeSource } from '../source-inclusion';
 import {
   resolveMainSource,
+  buildAffJsonWithExtra,
+  createAffSourceFile,
   affGetSource,
   affFromAbapGit,
   affSetSources,
@@ -63,45 +64,31 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       ctx,
       options?: FormatSerializeOptions,
     ): Promise<SerializedFile[]> {
-      const files: SerializedFile[] = [];
-      const objectName = ctx.getObjectName(object);
-
-      // Source: <name>.srvd.acds. When a source map is supplied it is
-      // authoritative; otherwise fall back to the mutable object getter.
       const source = await resolveMainSource(object, options?.sources, 'SRVD');
-      if (shouldIncludeSource(source, options?.sources?.main)) {
-        files.push(
-          ctx.createFile(`${objectName}.${ctx.fileExtension}.acds`, source),
-        );
-      }
-
-      // Metadata: <name>.srvd.json (SRVD includes generalInformation)
-      const header = {
-        description: object.description || String(object?.name ?? ''),
-        originalLanguage: (object.originalLanguage ?? 'en').toLowerCase(),
-        ...(object.abapLanguageVersion
-          ? { abapLanguageVersion: object.abapLanguageVersion }
-          : {}),
-      };
-      files.push(
+      const objectName = ctx.getObjectName(object);
+      return [
+        ...createAffSourceFile(
+          ctx,
+          object,
+          source,
+          options?.sources?.main,
+          'acds',
+        ),
         ctx.createFile(
           `${objectName}.${ctx.fileExtension}.json`,
-          `${JSON.stringify(
+          buildAffJsonWithExtra(
+            object.description || String(object?.name ?? ''),
+            object.originalLanguage ?? 'en',
+            object.abapLanguageVersion,
             {
-              formatVersion: '1',
-              header,
               generalInformation: {
                 sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools',
                 sourceType: object.sourceType ?? 'definition',
               },
             },
-            null,
-            2,
-          )}\n`,
+          ),
         ),
-      );
-
-      return files;
+      ];
     },
 
     setSources: affSetSources,
