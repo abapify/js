@@ -16,8 +16,22 @@ interface DsfiDefinition {
 
 type DsfiLike = {
   name: string;
-  getSource?: () => Promise<unknown> | unknown;
+  getSource?: () => Promise<unknown>;
 };
+
+const VALID_ENGINES = new Set(['analyticalEngine', 'sqlEngine']);
+
+function isDsfiDefinition(value: unknown): value is DsfiDefinition {
+  const candidate = value as Partial<DsfiDefinition> | undefined;
+  return (
+    !!candidate &&
+    candidate.formatVersion === '1' &&
+    typeof candidate.scalarFunctionName === 'string' &&
+    VALID_ENGINES.has(candidate.engine ?? '') &&
+    typeof candidate.header?.description === 'string' &&
+    typeof candidate.header?.originalLanguage === 'string'
+  );
+}
 
 function parseDsfiDefinition(value: unknown): DsfiDefinition {
   let parsed: unknown;
@@ -29,22 +43,13 @@ function parseDsfiDefinition(value: unknown): DsfiDefinition {
       'DSFI source/main did not return valid JSON.',
     );
   }
-  const candidate = parsed as Partial<DsfiDefinition> | undefined;
-  if (
-    !candidate ||
-    candidate.formatVersion !== '1' ||
-    typeof candidate.scalarFunctionName !== 'string' ||
-    (candidate.engine !== 'analyticalEngine' &&
-      candidate.engine !== 'sqlEngine') ||
-    typeof candidate.header?.description !== 'string' ||
-    typeof candidate.header?.originalLanguage !== 'string'
-  ) {
+  if (!isDsfiDefinition(parsed)) {
     throw new FormatMaterializationError(
       'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
       'DSFI source/main did not return the required ABAP File Format JSON document.',
     );
   }
-  return candidate as DsfiDefinition;
+  return parsed;
 }
 
 export const scalarFunctionImplementationHandler = createHandler<

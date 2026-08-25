@@ -11,7 +11,6 @@
  */
 
 import type { AdkContext } from './context';
-import type { AdkObject } from './model';
 import type { AdkKind } from './kinds';
 import * as kinds from './kinds';
 
@@ -34,7 +33,7 @@ export interface AdkRegistrable {
 /** Constructor signature for ADK objects */
 
 export type AdkObjectConstructor<T extends AdkRegistrable = AdkRegistrable> =
-  new (ctx: AdkContext, nameOrData: string | any) => T;
+  new (ctx: AdkContext, nameOrData: string | unknown) => T;
 
 /** How to transform object name for the URI path segment */
 export type NameTransform = 'lowercase' | 'preserve';
