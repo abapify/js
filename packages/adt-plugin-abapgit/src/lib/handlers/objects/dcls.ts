@@ -1,10 +1,8 @@
 import { dcls } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
-import {
-  FormatMaterializationError,
-  type FormatSerializeOptions,
-} from '@abapify/adt-plugin';
+import { resolveMainSource, buildAffJsonMetadata } from '../source-resolver';
+import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DclsLike = {
   name: string;
@@ -13,24 +11,6 @@ type DclsLike = {
   abapLanguageVersion?: string;
   getSource?: () => Promise<string> | string;
 };
-
-/** Resolve the source component, rejecting keys other than `main`. */
-async function resolveDclsSource(
-  object: DclsLike,
-  sources: Readonly<Record<string, string | undefined>> | undefined,
-): Promise<string | undefined> {
-  if (sources !== undefined) {
-    const keys = Object.keys(sources);
-    if (keys.some((key) => key !== 'main')) {
-      throw new FormatMaterializationError(
-        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-        `DCLS only supports the 'main' source component; received ${keys.join(', ')}.`,
-      );
-    }
-    return sources.main;
-  }
-  return typeof object.getSource === 'function' ? await object.getSource() : '';
-}
 
 export const dclSourceHandler = createHandler<DclsLike, typeof dcls>('DCLS', {
   schema: dcls,
@@ -45,22 +25,19 @@ export const dclSourceHandler = createHandler<DclsLike, typeof dcls>('DCLS', {
     ctx,
     options?: FormatSerializeOptions,
   ): Promise<SerializedFile[]> {
-    const source = await resolveDclsSource(object, options?.sources);
+    const source = await resolveMainSource(object, options?.sources, 'DCLS');
     const name = ctx.getObjectName(object);
-    const header = {
-      description: object.description || String(object.name ?? ''),
-      originalLanguage: (object.originalLanguage ?? 'en').toLowerCase(),
-      ...(object.abapLanguageVersion
-        ? { abapLanguageVersion: object.abapLanguageVersion }
-        : {}),
-    };
     return [
       ...(shouldIncludeSource(source, options?.sources?.main)
         ? [ctx.createFile(`${name}.dcls.acds`, source)]
         : []),
       ctx.createFile(
         `${name}.dcls.json`,
-        `${JSON.stringify({ formatVersion: '1', header }, null, 2)}\n`,
+        buildAffJsonMetadata(
+          object.description || String(object.name ?? ''),
+          object.originalLanguage ?? 'EN',
+          object.abapLanguageVersion,
+        ),
       ),
     ];
   },

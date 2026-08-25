@@ -110,7 +110,6 @@ export class AdkBehaviorDefinition extends AdkCrudSourceObject<BdefMetadata> {
     return AdkCrudSourceObject.deleteSource(
       name,
       options,
-      ctx,
       context.client.adt.bo.behaviordefinitions.delete.bind(
         context.client.adt.bo.behaviordefinitions,
       ),

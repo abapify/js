@@ -216,13 +216,11 @@ export abstract class AdkCrudSourceObject<
   protected static async deleteSource(
     name: string,
     options: { transport?: string; lockHandle?: string } | undefined,
-    ctx: AdkContext | undefined,
     deleteFn: (
       name: string,
       options: Record<string, string>,
     ) => Promise<unknown>,
   ): Promise<void> {
-    const context = AdkCrudSourceObject.resolveContext(ctx);
     await deleteFn(name.toUpperCase(), {
       ...(options?.transport ? { corrNr: options.transport } : {}),
       ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),

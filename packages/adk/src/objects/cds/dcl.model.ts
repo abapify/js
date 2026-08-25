@@ -92,7 +92,6 @@ export class AdkDclSource extends AdkCrudSourceObject<DclMetadata> {
     return AdkCrudSourceObject.deleteSource(
       name,
       options,
-      ctx,
       context.client.adt.ddic.dcl.sources.delete.bind(
         context.client.adt.ddic.dcl.sources,
       ),

@@ -19,10 +19,8 @@
 import { srvd } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
-import {
-  FormatMaterializationError,
-  type FormatSerializeOptions,
-} from '@abapify/adt-plugin';
+import { resolveMainSource } from '../source-resolver';
+import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type SrvdLike = {
   name: string;
@@ -33,27 +31,6 @@ type SrvdLike = {
   sourceType?: string;
   getSource?: () => Promise<string> | string;
 };
-
-type SrvdSourceObject = { getSource?: () => Promise<string> | string };
-
-async function resolveSrvdSource(
-  object: SrvdSourceObject,
-  sources: Readonly<Record<string, string | undefined>> | undefined,
-): Promise<string | undefined> {
-  if (sources !== undefined) {
-    const keys = Object.keys(sources);
-    if (keys.some((key) => key !== 'main')) {
-      throw new FormatMaterializationError(
-        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-        `SRVD only supports the 'main' source component; received ${keys.join(', ')}.`,
-      );
-    }
-    return sources.main;
-  }
-  return typeof object?.getSource === 'function'
-    ? await object.getSource()
-    : '';
-}
 
 export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
   'SRVD',
@@ -91,26 +68,19 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
 
       // Source: <name>.srvd.acds. When a source map is supplied it is
       // authoritative; otherwise fall back to the mutable object getter.
-      const source = await resolveSrvdSource(object, options?.sources);
+      const source = await resolveMainSource(object, options?.sources, 'SRVD');
       if (shouldIncludeSource(source, options?.sources?.main)) {
         files.push(
           ctx.createFile(`${objectName}.${ctx.fileExtension}.acds`, source),
         );
       }
 
-      // Metadata: <name>.srvd.json
-      const metadata = object as {
-        description?: string;
-        originalLanguage?: string;
-        abapLanguageVersion?: string;
-        sourceOrigin?: string;
-        sourceType?: string;
-      };
+      // Metadata: <name>.srvd.json (SRVD includes generalInformation)
       const header = {
-        description: metadata.description || String(object?.name ?? ''),
-        originalLanguage: (metadata.originalLanguage ?? 'en').toLowerCase(),
-        ...(metadata.abapLanguageVersion
-          ? { abapLanguageVersion: metadata.abapLanguageVersion }
+        description: object.description || String(object?.name ?? ''),
+        originalLanguage: (object.originalLanguage ?? 'en').toLowerCase(),
+        ...(object.abapLanguageVersion
+          ? { abapLanguageVersion: object.abapLanguageVersion }
           : {}),
       };
       files.push(
@@ -121,8 +91,8 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
               formatVersion: '1',
               header,
               generalInformation: {
-                sourceOrigin: metadata.sourceOrigin ?? 'abapDevelopmentTools',
-                sourceType: metadata.sourceType ?? 'definition',
+                sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools',
+                sourceType: object.sourceType ?? 'definition',
               },
             },
             null,

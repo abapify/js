@@ -116,7 +116,6 @@ export class AdkServiceDefinition extends AdkCrudSourceObject<SrvdMetadata> {
     return AdkCrudSourceObject.deleteSource(
       name,
       options,
-      ctx,
       context.client.adt.ddic.srvd.sources.delete.bind(
         context.client.adt.ddic.srvd.sources,
       ),
