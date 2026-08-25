@@ -133,4 +133,36 @@ export abstract class AdkCrudSourceObject<
   protected static resolveContext(ctx?: AdkContext): AdkContext {
     return ctx ?? getGlobalContext();
   }
+
+  /**
+   * Get a source object (validates it exists by fetching source).
+   * Generic helper used by static `get()` on subclasses.
+   */
+  protected static async getSourceObject<T extends AdkCrudSourceObject>(
+    this: new (ctx: AdkContext, name: string) => T,
+    name: string,
+    ctx?: AdkContext,
+  ): Promise<T> {
+    const context = AdkCrudSourceObject.resolveContext(ctx);
+    const obj = new this(context, name);
+    await obj.getSource();
+    return obj;
+  }
+
+  /**
+   * Check if a source object exists.
+   * Generic helper used by static `exists()` on subclasses.
+   */
+  protected static async sourceObjectExists<T extends AdkCrudSourceObject>(
+    this: new (ctx: AdkContext, name: string) => T,
+    name: string,
+    ctx?: AdkContext,
+  ): Promise<boolean> {
+    try {
+      await this.getSourceObject(name, ctx);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }

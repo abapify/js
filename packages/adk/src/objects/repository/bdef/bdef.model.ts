@@ -57,20 +57,15 @@ export class AdkBehaviorDefinition extends AdkCrudSourceObject<BdefMetadata> {
     name: string,
     ctx?: AdkContext,
   ): Promise<AdkBehaviorDefinition> {
-    const context = AdkCrudSourceObject.resolveContext(ctx);
-    const obj = new AdkBehaviorDefinition(context, name);
-    // Validate it exists by fetching source
-    await obj.getSource();
-    return obj;
+    return AdkCrudSourceObject.getSourceObject.call(
+      this,
+      name,
+      ctx,
+    ) as Promise<AdkBehaviorDefinition>;
   }
 
   static async exists(name: string, ctx?: AdkContext): Promise<boolean> {
-    try {
-      await AdkBehaviorDefinition.get(name, ctx);
-      return true;
-    } catch {
-      return false;
-    }
+    return AdkCrudSourceObject.sourceObjectExists.call(this, name, ctx);
   }
 
   /**

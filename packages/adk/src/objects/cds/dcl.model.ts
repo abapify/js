@@ -44,19 +44,15 @@ export class AdkDclSource extends AdkCrudSourceObject<DclMetadata> {
   // ─── Static Factory Methods ─────────────────────────────────────────────────
 
   static async get(name: string, ctx?: AdkContext): Promise<AdkDclSource> {
-    const context = AdkCrudSourceObject.resolveContext(ctx);
-    const obj = new AdkDclSource(context, name);
-    await obj.getSource();
-    return obj;
+    return AdkCrudSourceObject.getSourceObject.call(
+      this,
+      name,
+      ctx,
+    ) as Promise<AdkDclSource>;
   }
 
   static async exists(name: string, ctx?: AdkContext): Promise<boolean> {
-    try {
-      await AdkDclSource.get(name, ctx);
-      return true;
-    } catch {
-      return false;
-    }
+    return AdkCrudSourceObject.sourceObjectExists.call(this, name, ctx);
   }
 
   /**

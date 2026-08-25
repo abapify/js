@@ -63,20 +63,15 @@ export class AdkServiceDefinition extends AdkCrudSourceObject<SrvdMetadata> {
     name: string,
     ctx?: AdkContext,
   ): Promise<AdkServiceDefinition> {
-    const context = AdkCrudSourceObject.resolveContext(ctx);
-    const obj = new AdkServiceDefinition(context, name);
-    // Validate it exists by fetching source
-    await obj.getSource();
-    return obj;
+    return AdkCrudSourceObject.getSourceObject.call(
+      this,
+      name,
+      ctx,
+    ) as Promise<AdkServiceDefinition>;
   }
 
   static async exists(name: string, ctx?: AdkContext): Promise<boolean> {
-    try {
-      await AdkServiceDefinition.get(name, ctx);
-      return true;
-    } catch {
-      return false;
-    }
+    return AdkCrudSourceObject.sourceObjectExists.call(this, name, ctx);
   }
 
   /**

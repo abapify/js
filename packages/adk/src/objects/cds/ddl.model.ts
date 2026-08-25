@@ -57,20 +57,15 @@ export class AdkDdlSource extends AdkCrudSourceObject<DdlMetadata> {
    * Get a DDL source (does not fetch metadata, just returns handle)
    */
   static async get(name: string, ctx?: AdkContext): Promise<AdkDdlSource> {
-    const context = AdkCrudSourceObject.resolveContext(ctx);
-    const obj = new AdkDdlSource(context, name);
-    // Validate it exists by fetching source
-    await obj.getSource();
-    return obj;
+    return AdkCrudSourceObject.getSourceObject.call(
+      this,
+      name,
+      ctx,
+    ) as Promise<AdkDdlSource>;
   }
 
   static async exists(name: string, ctx?: AdkContext): Promise<boolean> {
-    try {
-      await AdkDdlSource.get(name, ctx);
-      return true;
-    } catch {
-      return false;
-    }
+    return AdkCrudSourceObject.sourceObjectExists.call(this, name, ctx);
   }
 
   /**
