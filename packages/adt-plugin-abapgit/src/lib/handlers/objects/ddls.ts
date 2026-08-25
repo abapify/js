@@ -1,6 +1,8 @@
 import { ddls } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
+import { resolveMainSource, buildAffJsonMetadata } from '../source-resolver';
+import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DdlsLike = {
   name: string;
@@ -20,24 +22,35 @@ export const ddlSourceHandler = createHandler<DdlsLike, typeof ddls>('DDLS', {
   toAbapGit: (obj) => ({
     SKEY: { TYPE: 'DDLS', NAME: String(obj?.name ?? '').toUpperCase() },
   }),
-  async serialize(object, ctx): Promise<SerializedFile[]> {
-    const source =
-      typeof object.getSource === 'function' ? await object.getSource() : '';
+  async serialize(
+    object,
+    ctx,
+    options?: FormatSerializeOptions,
+  ): Promise<SerializedFile[]> {
+    const source = await resolveMainSource(object, options?.sources, 'DDLS');
     const name = ctx.getObjectName(object);
-    const header = {
-      description: object.description || String(object.name ?? ''),
-      originalLanguage: (object.originalLanguage ?? 'en').toLowerCase(),
-      ...(object.abapLanguageVersion
-        ? { abapLanguageVersion: object.abapLanguageVersion }
-        : {}),
-    };
     return [
-      ...(shouldIncludeSource(source)
+      ...(shouldIncludeSource(source, options?.sources?.main)
         ? [ctx.createFile(`${name}.ddls.acds`, source)]
         : []),
       ctx.createFile(
         `${name}.ddls.json`,
-        `${JSON.stringify({ formatVersion: '1', header, sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools', sourceType: object.sourceType ?? 'unknown' }, null, 2)}\n`,
+        `${JSON.stringify(
+          {
+            formatVersion: '1',
+            header: {
+              description: object.description || String(object.name ?? ''),
+              originalLanguage: (object.originalLanguage ?? 'en').toLowerCase(),
+              ...(object.abapLanguageVersion
+                ? { abapLanguageVersion: object.abapLanguageVersion }
+                : {}),
+            },
+            sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools',
+            sourceType: object.sourceType ?? 'unknown',
+          },
+          null,
+          2,
+        )}\n`,
       ),
     ];
   },
