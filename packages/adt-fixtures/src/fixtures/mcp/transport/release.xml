@@ -1,7 +1,18 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <!-- Sanitized SAP response from POST /sap/bc/adt/cts/transportrequests/{id}/newreleasejobs -->
-<tm:root xmlns:tm="http://www.sap.com/cts/adt/tm" xmlns:chkrun="http://www.sap.com/adt/checkrun" tm:useraction="newreleasejobs" tm:releasetimestamp="20260803172655 " tm:number="DEVK900001">
+<tm:root
+  xmlns:tm="http://www.sap.com/cts/adt/tm"
+  xmlns:chkrun="http://www.sap.com/adt/checkrun"
+  tm:useraction="newreleasejobs"
+  tm:releasetimestamp="20260803172655 "
+  tm:number="DEVK900001"
+>
   <tm:releasereports>
-    <chkrun:checkReport chkrun:reporter="transportrelease" chkrun:triggeringUri="/sap/bc/adt/cts/transportrequests/DEVK900001" chkrun:status="released" chkrun:statusText="Transport request/task DEVK900001 was successfully released"/>
+    <chkrun:checkReport
+      chkrun:reporter="transportrelease"
+      chkrun:triggeringUri="/sap/bc/adt/cts/transportrequests/DEVK900001"
+      chkrun:status="released"
+      chkrun:statusText="Transport request/task DEVK900001 was successfully released"
+    />
   </tm:releasereports>
 </tm:root>

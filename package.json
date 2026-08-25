@@ -65,6 +65,7 @@
     "@nx/vite": "23.1.0",
     "@nx/vitest": "23.1.0",
     "@nx/web": "23.1.0",
+    "@prettier/plugin-xml": "^3.4.2",
     "@swc-node/register": "~1.12.1",
     "@swc/cli": "0.8.1",
     "@swc/core": "~1.15.46",
