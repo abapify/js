@@ -63,15 +63,22 @@ export function createAffSourceFile(
     fileExtension: string;
     createFile: (path: string, content: string) => SerializedFile;
   },
-  object: unknown,
-  source: string | undefined,
-  suppliedSource: string | undefined,
-  sourceExt: string,
+  params: {
+    object: unknown;
+    source: string | undefined;
+    suppliedSource: string | undefined;
+    sourceExt: string;
+  },
 ): SerializedFile[] {
-  if (source === undefined) return [];
-  if (suppliedSource === undefined && source === '') return [];
-  const name = ctx.getObjectName(object);
-  return [ctx.createFile(`${name}.${ctx.fileExtension}.${sourceExt}`, source)];
+  if (params.source === undefined) return [];
+  if (params.suppliedSource === undefined && params.source === '') return [];
+  const name = ctx.getObjectName(params.object);
+  return [
+    ctx.createFile(
+      `${name}.${ctx.fileExtension}.${params.sourceExt}`,
+      params.source,
+    ),
+  ];
 }
 
 /**
@@ -107,13 +114,12 @@ export async function serializeAffSource(
   const source = await resolveMainSource(object, options, config.typeLabel);
   const name = ctx.getObjectName(object);
   return [
-    ...createAffSourceFile(
-      ctx,
+    ...createAffSourceFile(ctx, {
       object,
       source,
-      options?.main,
-      config.sourceExt,
-    ),
+      suppliedSource: options?.main,
+      sourceExt: config.sourceExt,
+    }),
     ctx.createFile(
       `${name}.${config.jsonExt}`,
       buildAffJson(
