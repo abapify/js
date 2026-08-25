@@ -21,7 +21,7 @@ for (const type of [
         description: `${type} fixture`,
         originalLanguage: 'EN',
         getSource: async () => `define ${type.toLowerCase()} Z_AFF_${type}`,
-      } as any);
+      });
       assert.deepEqual(files.map((file) => file.path).sort(), [
         `z_aff_${type.toLowerCase()}.${type.toLowerCase()}.acds`,
         `z_aff_${type.toLowerCase()}.${type.toLowerCase()}.json`,

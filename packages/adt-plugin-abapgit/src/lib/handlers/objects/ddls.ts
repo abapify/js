@@ -3,7 +3,7 @@ import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
 
 type DdlsLike = {
-  name?: string;
+  name: string;
   description?: string;
   originalLanguage?: string;
   abapLanguageVersion?: string;

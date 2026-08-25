@@ -24,10 +24,15 @@ import {
   type FormatSerializeOptions,
 } from '@abapify/adt-plugin';
 
-// SRVD is not derived from AdkObject — we cast to the minimal handler shape
-// via the string form of createHandler.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SrvdLike = any;
+type SrvdLike = {
+  name: string;
+  description?: string;
+  originalLanguage?: string;
+  abapLanguageVersion?: string;
+  sourceOrigin?: string;
+  sourceType?: string;
+  getSource?: () => Promise<string> | string;
+};
 
 type SrvdSourceObject = { getSource?: () => Promise<string> | string };
 

@@ -1,7 +1,7 @@
 import type { AdkContext } from '../../base/context';
 import { EntityBuffer } from '../../base/kinds';
 import { registerObjectType } from '../../base/registry';
-import { AdkCdsSourceObject } from './source-object';
+import { AdkCdsSourceObject, type AdkCdsSourceContract } from './source-object';
 
 export class AdkEntityBuffer extends AdkCdsSourceObject {
   static readonly kind = EntityBuffer;
@@ -10,11 +10,11 @@ export class AdkEntityBuffer extends AdkCdsSourceObject {
   constructor(ctx: AdkContext, name: string) {
     super(ctx, name);
   }
-  protected get contract(): any {
-    return this.ctx.client.adt.ddic.dteb.sources;
+  protected get contract(): AdkCdsSourceContract {
+    return this.ctx.client.adt.ddic.dteb.sources as AdkCdsSourceContract;
   }
 }
 
-registerObjectType('DTEB', EntityBuffer, AdkEntityBuffer as any, {
+registerObjectType('DTEB', EntityBuffer, AdkEntityBuffer, {
   endpoint: 'ddic/dteb/sources',
 });

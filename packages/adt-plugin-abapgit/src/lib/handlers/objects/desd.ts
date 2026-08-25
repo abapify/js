@@ -2,7 +2,7 @@ import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 
 type DesdLike = {
-  name?: string;
+  name: string;
   description?: string;
   originalLanguage?: string;
 };

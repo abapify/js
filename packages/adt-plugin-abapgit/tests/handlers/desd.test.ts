@@ -11,7 +11,7 @@ describe('DESD AFF handler', () => {
       name: 'Z_AFF_DESD',
       description: 'External schema',
       originalLanguage: 'EN',
-    } as any);
+    });
     assert.deepEqual(
       files.map((file) => file.path),
       ['z_aff_desd.desd.json'],

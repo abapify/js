@@ -1,6 +1,7 @@
 import type { AdkContext } from '../../base/context';
 import { ScalarFunctionImplementation } from '../../base/kinds';
 import { registerObjectType } from '../../base/registry';
+import type { AdkCdsSourceContract } from './source-object';
 
 export class AdkScalarFunctionImplementation {
   static readonly kind = ScalarFunctionImplementation;
@@ -18,8 +19,8 @@ export class AdkScalarFunctionImplementation {
     return `/sap/bc/adt/ddic/dsfi/${encodeURIComponent(this.name.toLowerCase())}`;
   }
 
-  private get contract(): any {
-    return this.ctx.client.adt.ddic.dsfi;
+  private get contract(): AdkCdsSourceContract {
+    return this.ctx.client.adt.ddic.dsfi as unknown as AdkCdsSourceContract;
   }
 
   async getSource(): Promise<unknown> {
@@ -39,7 +40,7 @@ export class AdkScalarFunctionImplementation {
 registerObjectType(
   'DSFI',
   ScalarFunctionImplementation,
-  AdkScalarFunctionImplementation as any,
+  AdkScalarFunctionImplementation,
   {
     endpoint: 'ddic/dsfi',
   },

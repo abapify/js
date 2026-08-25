@@ -16,6 +16,7 @@ import type { AdkContext } from '../../base/context';
 import { toText } from '../../base/fetch-utils';
 import { DdlSource } from '../../base/kinds';
 import { registerObjectType } from '../../base/registry';
+import type { AdkCrudSourceContract } from './source-object';
 
 export class AdkDdlSource {
   static readonly kind = DdlSource;
@@ -62,8 +63,8 @@ export class AdkDdlSource {
     return this.metadata?.ddlSource?.source_type;
   }
 
-  private get contract(): any {
-    return this.ctx.client.adt.ddic.ddl.sources;
+  private get contract(): AdkCrudSourceContract {
+    return this.ctx.client.adt.ddic.ddl.sources as AdkCrudSourceContract;
   }
 
   // ─── Source ────────────────────────────────────────────────────────────────
@@ -206,6 +207,6 @@ export class AdkDdlSource {
   }
 }
 
-registerObjectType('DDLS', DdlSource, AdkDdlSource as any, {
+registerObjectType('DDLS', DdlSource, AdkDdlSource, {
   endpoint: 'ddic/ddl/sources',
 });

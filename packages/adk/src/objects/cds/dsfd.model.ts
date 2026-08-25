@@ -1,7 +1,7 @@
 import type { AdkContext } from '../../base/context';
 import { ScalarFunctionDefinition } from '../../base/kinds';
 import { registerObjectType } from '../../base/registry';
-import { AdkCdsSourceObject } from './source-object';
+import { AdkCdsSourceObject, type AdkCdsSourceContract } from './source-object';
 
 export class AdkScalarFunctionDefinition extends AdkCdsSourceObject {
   static readonly kind = ScalarFunctionDefinition;
@@ -10,15 +10,15 @@ export class AdkScalarFunctionDefinition extends AdkCdsSourceObject {
   constructor(ctx: AdkContext, name: string) {
     super(ctx, name);
   }
-  protected get contract(): any {
-    return this.ctx.client.adt.ddic.dsfd.sources;
+  protected get contract(): AdkCdsSourceContract {
+    return this.ctx.client.adt.ddic.dsfd.sources as AdkCdsSourceContract;
   }
 }
 
 registerObjectType(
   'DSFD',
   ScalarFunctionDefinition,
-  AdkScalarFunctionDefinition as any,
+  AdkScalarFunctionDefinition,
   {
     endpoint: 'ddic/dsfd/sources',
   },

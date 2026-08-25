@@ -11,6 +11,6 @@ export class AdkStaticCache extends AdkSourceOnlyCdsObject {
     super(ctx, name);
   }
 }
-registerObjectType('DTSC', StaticCache, AdkStaticCache as any, {
+registerObjectType('DTSC', StaticCache, AdkStaticCache, {
   endpoint: 'ddic/dtsc/sources',
 });

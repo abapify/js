@@ -11,6 +11,6 @@ export class AdkDynamicCache extends AdkSourceOnlyCdsObject {
     super(ctx, name);
   }
 }
-registerObjectType('DTDC', DynamicCache, AdkDynamicCache as any, {
+registerObjectType('DTDC', DynamicCache, AdkDynamicCache, {
   endpoint: 'ddic/dtdc/sources',
 });

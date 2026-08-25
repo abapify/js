@@ -11,6 +11,6 @@ export class AdkTuningIndex extends AdkSourceOnlyCdsObject {
     super(ctx, name);
   }
 }
-registerObjectType('DTIX', TuningIndex, AdkTuningIndex as any, {
+registerObjectType('DTIX', TuningIndex, AdkTuningIndex, {
   endpoint: 'ddic/dtix/sources',
 });

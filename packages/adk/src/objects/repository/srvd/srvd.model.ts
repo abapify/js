@@ -16,6 +16,7 @@ import type { AdkContext } from '../../../base/context';
 import { toText } from '../../../base/fetch-utils';
 import { ServiceDefinition } from '../../../base/kinds';
 import { registerObjectType } from '../../../base/registry';
+import type { AdkCrudSourceContract } from '../../cds/source-object';
 
 export class AdkServiceDefinition {
   /** Static ADK kind marker — used by abapGit handler registry if needed. */
@@ -68,8 +69,9 @@ export class AdkServiceDefinition {
     return this.metadata?.srvdSource?.srvdSourceType;
   }
 
-  private get contract(): any {
-    return this.ctx.client.adt.ddic.srvd.sources;
+  private get contract(): AdkCrudSourceContract {
+    return this.ctx.client.adt.ddic.srvd
+      .sources as unknown as AdkCrudSourceContract;
   }
 
   // ─── Source ────────────────────────────────────────────────────────────────
@@ -185,7 +187,7 @@ export class AdkServiceDefinition {
     await context.client.adt.ddic.srvd.sources.post(
       options?.transport ? { corrNr: options.transport } : {},
       {
-        source: {
+        srvdSource: {
           name: nameU,
           type: 'SRVD/SRV',
           description,
@@ -217,6 +219,6 @@ export class AdkServiceDefinition {
   }
 }
 
-registerObjectType('SRVD', ServiceDefinition, AdkServiceDefinition as any, {
+registerObjectType('SRVD', ServiceDefinition, AdkServiceDefinition, {
   endpoint: 'ddic/srvd/sources',
 });

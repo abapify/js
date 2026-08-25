@@ -209,6 +209,6 @@ export class AdkServiceBinding {
   }
 }
 
-registerObjectType('SRVB', ServiceBinding, AdkServiceBinding as any, {
+registerObjectType('SRVB', ServiceBinding, AdkServiceBinding, {
   endpoint: 'businessservices/bindings',
 });

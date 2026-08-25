@@ -20,6 +20,7 @@ import type { AdkContext } from '../../../base/context';
 import { toText } from '../../../base/fetch-utils';
 import { BehaviorDefinition } from '../../../base/kinds';
 import { registerObjectType } from '../../../base/registry';
+import type { AdkCrudSourceContract } from '../../cds/source-object';
 
 export class AdkBehaviorDefinition {
   /** Static ADK kind marker — used by abapGit handler registry if needed. */
@@ -62,8 +63,9 @@ export class AdkBehaviorDefinition {
     return this.metadata?.blueSource?.packageRef?.name;
   }
 
-  private get contract(): any {
-    return this.ctx.client.adt.bo.behaviordefinitions;
+  private get contract(): AdkCrudSourceContract {
+    return this.ctx.client.adt.bo
+      .behaviordefinitions as unknown as AdkCrudSourceContract;
   }
 
   // ─── Source ────────────────────────────────────────────────────────────────
@@ -211,6 +213,6 @@ export class AdkBehaviorDefinition {
   }
 }
 
-registerObjectType('BDEF', BehaviorDefinition, AdkBehaviorDefinition as any, {
+registerObjectType('BDEF', BehaviorDefinition, AdkBehaviorDefinition, {
   endpoint: 'bo/behaviordefinitions',
 });

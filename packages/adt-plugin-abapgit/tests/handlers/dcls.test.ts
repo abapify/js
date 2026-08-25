@@ -13,7 +13,7 @@ describe('DCLS AFF handler', () => {
       originalLanguage: 'EN',
       getSource: async () =>
         'define role Z_AFF_DCL { grant select on ZI_AFF; }',
-    } as any);
+    });
     assert.deepEqual(files.map((file) => file.path).sort(), [
       'z_aff_dcl.dcls.acds',
       'z_aff_dcl.dcls.json',

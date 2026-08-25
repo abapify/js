@@ -24,10 +24,13 @@ import {
   type FormatSerializeOptions,
 } from '@abapify/adt-plugin';
 
-// BDEF is not derived from AdkObject — we cast to the minimal handler shape
-// via the string form of createHandler.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type BdefLike = any;
+type BdefLike = {
+  name: string;
+  description?: string;
+  originalLanguage?: string;
+  abapLanguageVersion?: string;
+  getSource?: () => Promise<string> | string;
+};
 
 type BdefSourceObject = { getSource?: () => Promise<string> | string };
 

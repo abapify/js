@@ -2,6 +2,7 @@ import type { AdkContext } from '../../base/context';
 import { toText } from '../../base/fetch-utils';
 import { DdlExtension } from '../../base/kinds';
 import { registerObjectType } from '../../base/registry';
+import type { AdkCdsSourceContract } from './source-object';
 
 export class AdkDdlExtension {
   static readonly kind = DdlExtension;
@@ -35,8 +36,8 @@ export class AdkDdlExtension {
   get package() {
     return this.metadata?.ddlxSource?.packageRef?.name;
   }
-  private get contract(): any {
-    return this.ctx.client.adt.ddic.ddlx.sources;
+  private get contract(): AdkCdsSourceContract {
+    return this.ctx.client.adt.ddic.ddlx.sources as AdkCdsSourceContract;
   }
   async getSource() {
     return toText(await this.contract.source.main.get(this.name));
@@ -50,6 +51,6 @@ export class AdkDdlExtension {
     return this;
   }
 }
-registerObjectType('DDLX', DdlExtension, AdkDdlExtension as any, {
+registerObjectType('DDLX', DdlExtension, AdkDdlExtension, {
   endpoint: 'ddic/ddlx/sources',
 });

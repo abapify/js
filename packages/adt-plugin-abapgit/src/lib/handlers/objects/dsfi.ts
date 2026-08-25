@@ -15,12 +15,20 @@ interface DsfiDefinition {
 }
 
 type DsfiLike = {
-  name?: string;
+  name: string;
   getSource?: () => Promise<unknown> | unknown;
 };
 
 function parseDsfiDefinition(value: unknown): DsfiDefinition {
-  const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+  let parsed: unknown;
+  try {
+    parsed = typeof value === 'string' ? JSON.parse(value) : value;
+  } catch {
+    throw new FormatMaterializationError(
+      'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
+      'DSFI source/main did not return valid JSON.',
+    );
+  }
   const candidate = parsed as Partial<DsfiDefinition> | undefined;
   if (
     !candidate ||

@@ -12,6 +12,6 @@ export class AdkCdsAspect extends AdkSourceOnlyCdsObject {
   }
 }
 
-registerObjectType('DRAS', CdsAspect, AdkCdsAspect as any, {
+registerObjectType('DRAS', CdsAspect, AdkCdsAspect, {
   endpoint: 'ddic/dras/sources',
 });

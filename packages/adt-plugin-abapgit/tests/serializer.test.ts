@@ -32,7 +32,7 @@ describe('AbapGitSerializer', () => {
         kind: 'BehaviorDefinition',
         getSource: async () =>
           'managed implementation in class zbp_acr unique;',
-      } as any,
+      } as never,
       targetPath,
       '',
     );

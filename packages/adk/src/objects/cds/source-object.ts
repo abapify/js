@@ -1,6 +1,35 @@
 import type { AdkContext } from '../../base/context';
 import { toText } from '../../base/fetch-utils';
 
+/**
+ * Structural type for the ADT source contract used by CDS source objects.
+ * Captures the `get` and `source.main.get` members used by {@link getSource}
+ * and {@link load}, so incompatible contract shapes are rejected at compile
+ * time instead of failing at runtime.
+ */
+export interface AdkCdsSourceContract {
+  get(name: string): Promise<unknown>;
+  source: {
+    main: {
+      get(name: string): Promise<unknown>;
+      put(
+        name: string,
+        options: Record<string, unknown>,
+        body: string,
+      ): Promise<unknown>;
+    };
+  };
+}
+
+/**
+ * Broader CRUD contract for standalone source objects that also support
+ * create (POST) and delete. Used by DDL, DCL, BDEF, SRVD, etc.
+ */
+export interface AdkCrudSourceContract extends AdkCdsSourceContract {
+  post(options: Record<string, unknown>, body: unknown): Promise<unknown>;
+  delete(name: string, options: Record<string, unknown>): Promise<unknown>;
+}
+
 /** Minimal shared implementation for CDS source objects used by import. */
 export abstract class AdkCdsSourceObject {
   readonly name: string;
@@ -40,7 +69,7 @@ export abstract class AdkCdsSourceObject {
     return this.metadata?.blueSource?.packageRef?.name;
   }
 
-  protected abstract get contract(): any;
+  protected abstract get contract(): AdkCdsSourceContract;
 
   async getSource(): Promise<string> {
     return toText(await this.contract.source.main.get(this.name));
@@ -51,7 +80,14 @@ export abstract class AdkCdsSourceObject {
       this.contract.get(this.name),
       this.getSource(),
     ]);
-    this.metadata = metadata;
+    this.metadata = metadata as {
+      blueSource?: {
+        description?: string;
+        masterLanguage?: string;
+        abapLanguageVersion?: string;
+        packageRef?: { name?: string };
+      };
+    };
     return this;
   }
 }

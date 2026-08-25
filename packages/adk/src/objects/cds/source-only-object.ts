@@ -31,13 +31,11 @@ export abstract class AdkSourceOnlyCdsObject {
   }
 
   async getSource(): Promise<string> {
-    if (this.source === undefined) {
-      this.source = await this.ctx.client.readTextBounded(
-        `${this.objectUri}/source/main`,
-        5 * 1024 * 1024,
-        { headers: { Accept: 'text/plain' } },
-      );
-    }
+    this.source ??= await this.ctx.client.readTextBounded(
+      `${this.objectUri}/source/main`,
+      5 * 1024 * 1024,
+      { headers: { Accept: 'text/plain' } },
+    );
     return this.source;
   }
 

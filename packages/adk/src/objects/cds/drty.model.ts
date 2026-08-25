@@ -12,6 +12,6 @@ export class AdkCdsType extends AdkSourceOnlyCdsObject {
   }
 }
 
-registerObjectType('DRTY', CdsType, AdkCdsType as any, {
+registerObjectType('DRTY', CdsType, AdkCdsType, {
   endpoint: 'ddic/drty/sources',
 });

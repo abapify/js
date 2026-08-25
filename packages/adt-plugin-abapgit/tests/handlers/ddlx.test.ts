@@ -13,7 +13,7 @@ describe('DDLX AFF handler', () => {
       originalLanguage: 'EN',
       getSource: async () =>
         '@Metadata.layer: #CORE\nannotate view ZI_ACR with { }',
-    } as any);
+    });
 
     assert.deepEqual(files.map((file) => file.path).sort(), [
       'z_aff_ddlx.ddlx.acds',

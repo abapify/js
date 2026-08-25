@@ -27,6 +27,6 @@ export class AdkExternalSchema {
     return this;
   }
 }
-registerObjectType('DESD', ExternalSchema, AdkExternalSchema as any, {
+registerObjectType('DESD', ExternalSchema, AdkExternalSchema, {
   endpoint: 'ddic/desd',
 });
