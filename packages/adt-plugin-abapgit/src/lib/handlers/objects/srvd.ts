@@ -7,21 +7,12 @@
  * File layout:
  *   src/zui_foo.srvd.acds — service source text
  *   src/zui_foo.srvd.json — ABAP File Formats metadata
- *
- * The handler uses the string form of `createHandler` ('SRVD') because
- * the ADK object (`AdkServiceDefinition`) is a lightweight class without
- * the AdkObject save/lock machinery — all lifecycle is source-based.
- *
- * We override `serialize` because this AFF layout is JSON rather than the
- * legacy abapGit XML envelope.
  */
 
 import { srvd } from '../../../schemas/generated';
-import { createHandler, type SerializedFile } from '../base';
+import { createHandler } from '../base';
 import {
-  resolveMainSource,
-  buildAffJson,
-  createAffSourceFile,
+  serializeAffSource,
   affGetSource,
   affFromAbapGit,
   affSetSources,
@@ -53,43 +44,21 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       },
     }),
 
-    // Source is `.acds` text retrieved from ADT `source/main`.
     getSource: affGetSource,
-
     fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
 
-    // Custom serialize — official SRVD AFF is `.acds` plus `.json`.
-    async serialize(
-      object,
-      ctx,
-      options?: FormatSerializeOptions,
-    ): Promise<SerializedFile[]> {
-      const source = await resolveMainSource(object, options?.sources, 'SRVD');
-      const objectName = ctx.getObjectName(object);
-      return [
-        ...createAffSourceFile(
-          ctx,
-          object,
-          source,
-          options?.sources?.main,
-          'acds',
-        ),
-        ctx.createFile(
-          `${objectName}.${ctx.fileExtension}.json`,
-          buildAffJson(
-            object.description || String(object?.name ?? ''),
-            object.originalLanguage ?? 'en',
-            object.abapLanguageVersion,
-            {
-              generalInformation: {
-                sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools',
-                sourceType: object.sourceType ?? 'definition',
-              },
-            },
-          ),
-        ),
-      ];
-    },
+    serialize: (object, ctx, options?: FormatSerializeOptions) =>
+      serializeAffSource(object, ctx, options?.sources, {
+        typeLabel: 'SRVD',
+        sourceExt: 'acds',
+        jsonExt: `${ctx.fileExtension}.json`,
+        extra: {
+          generalInformation: {
+            sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools',
+            sourceType: object.sourceType ?? 'definition',
+          },
+        },
+      }),
 
     setSources: affSetSources,
   },

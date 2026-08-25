@@ -68,13 +68,62 @@ export function createAffSourceFile(
   suppliedSource: string | undefined,
   sourceExt: string,
 ): SerializedFile[] {
-  if (source !== undefined && (suppliedSource !== undefined || source !== '')) {
-    const name = ctx.getObjectName(object);
-    return [
-      ctx.createFile(`${name}.${ctx.fileExtension}.${sourceExt}`, source),
-    ];
-  }
-  return [];
+  if (source === undefined) return [];
+  if (suppliedSource === undefined && source === '') return [];
+  const name = ctx.getObjectName(object);
+  return [ctx.createFile(`${name}.${ctx.fileExtension}.${sourceExt}`, source)];
+}
+
+/**
+ * Full serialize implementation for AFF source handlers.
+ *
+ * Handles the complete source+metadata file layout in one call:
+ *   `<name>.<ext>.<sourceExt>` — source text (when included)
+ *   `<name>.<jsonExt>` — metadata JSON
+ *
+ * `extra` is merged into the JSON body for handler-specific fields
+ * (e.g. SRVD's `generalInformation`, DDLS's `sourceOrigin`).
+ */
+export async function serializeAffSource(
+  object: SourceObject & {
+    name: string;
+    description?: string;
+    originalLanguage?: string;
+    abapLanguageVersion?: string;
+  },
+  ctx: {
+    getObjectName: (obj: unknown) => string;
+    fileExtension: string;
+    createFile: (path: string, content: string) => SerializedFile;
+  },
+  options: Readonly<Record<string, string | undefined>> | undefined,
+  config: {
+    typeLabel: string;
+    sourceExt: string;
+    jsonExt: string;
+    extra?: Record<string, unknown>;
+  },
+): Promise<SerializedFile[]> {
+  const source = await resolveMainSource(object, options, config.typeLabel);
+  const name = ctx.getObjectName(object);
+  return [
+    ...createAffSourceFile(
+      ctx,
+      object,
+      source,
+      options?.main,
+      config.sourceExt,
+    ),
+    ctx.createFile(
+      `${name}.${config.jsonExt}`,
+      buildAffJson(
+        object.description || String(object.name ?? ''),
+        object.originalLanguage ?? 'en',
+        object.abapLanguageVersion,
+        config.extra,
+      ),
+    ),
+  ];
 }
 
 /**

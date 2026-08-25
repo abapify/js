@@ -7,21 +7,12 @@
  * File layout:
  *   src/zbp_foo.bdef.abdl — behavior source text
  *   src/zbp_foo.bdef.json — ABAP File Formats metadata
- *
- * The handler uses the string form of `createHandler` ('BDEF') because
- * the ADK object (`AdkBehaviorDefinition`) is a lightweight class without
- * the AdkObject save/lock machinery — all lifecycle is source-based.
- *
- * We override `serialize` because this AFF layout is JSON rather than the
- * legacy abapGit XML envelope.
  */
 
 import { bdef } from '../../../schemas/generated';
-import { createHandler, type SerializedFile } from '../base';
+import { createHandler } from '../base';
 import {
-  resolveMainSource,
-  buildAffJson,
-  createAffSourceFile,
+  serializeAffSource,
   affGetSource,
   affFromAbapGit,
   affSetSources,
@@ -51,37 +42,15 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
       },
     }),
 
-    // Source is `.abdl` text retrieved from ADT `source/main`.
     getSource: affGetSource,
-
     fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
 
-    // Custom serialize — official BDEF AFF is `.abdl` plus `.json`.
-    async serialize(
-      object,
-      ctx,
-      options?: FormatSerializeOptions,
-    ): Promise<SerializedFile[]> {
-      const source = await resolveMainSource(object, options?.sources, 'BDEF');
-      const objectName = ctx.getObjectName(object);
-      return [
-        ...createAffSourceFile(
-          ctx,
-          object,
-          source,
-          options?.sources?.main,
-          'abdl',
-        ),
-        ctx.createFile(
-          `${objectName}.${ctx.fileExtension}.json`,
-          buildAffJson(
-            object.description || String(object?.name ?? ''),
-            object.originalLanguage ?? 'en',
-            object.abapLanguageVersion,
-          ),
-        ),
-      ];
-    },
+    serialize: (object, ctx, options?: FormatSerializeOptions) =>
+      serializeAffSource(object, ctx, options?.sources, {
+        typeLabel: 'BDEF',
+        sourceExt: 'abdl',
+        jsonExt: `${ctx.fileExtension}.json`,
+      }),
 
     setSources: affSetSources,
   },

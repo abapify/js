@@ -1,10 +1,6 @@
 import { ddlx } from '../../../schemas/generated';
-import { createHandler, type SerializedFile } from '../base';
-import {
-  resolveMainSource,
-  buildAffJson,
-  createAffSourceFile,
-} from '../source-resolver';
+import { createHandler } from '../base';
+import { serializeAffSource } from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DdlxLike = {
@@ -25,30 +21,11 @@ export const ddlExtensionHandler = createHandler<DdlxLike, typeof ddlx>(
     toAbapGit: (obj) => ({
       SKEY: { TYPE: 'DDLX', NAME: String(obj?.name ?? '').toUpperCase() },
     }),
-    async serialize(
-      object,
-      ctx,
-      options?: FormatSerializeOptions,
-    ): Promise<SerializedFile[]> {
-      const source = await resolveMainSource(object, options?.sources, 'DDLX');
-      const objectName = ctx.getObjectName(object);
-      return [
-        ...createAffSourceFile(
-          ctx,
-          object,
-          source,
-          options?.sources?.main,
-          'acds',
-        ),
-        ctx.createFile(
-          `${objectName}.ddlx.json`,
-          buildAffJson(
-            object.description || String(object.name ?? ''),
-            object.originalLanguage ?? 'en',
-            object.abapLanguageVersion,
-          ),
-        ),
-      ];
-    },
+    serialize: (object, ctx, options?: FormatSerializeOptions) =>
+      serializeAffSource(object, ctx, options?.sources, {
+        typeLabel: 'DDLX',
+        sourceExt: 'acds',
+        jsonExt: 'ddlx.json',
+      }),
   },
 );
