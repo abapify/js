@@ -1,7 +1,7 @@
 import { ddls } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
-import { resolveMainSource, buildAffJsonMetadata } from '../source-resolver';
+import { resolveMainSource } from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DdlsLike = {
