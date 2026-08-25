@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<usagereferences:usageReferenceResult numberOfResults="1" resultDescription="[MOCK] Where-Used List: ZCL_EXAMPLE (Class)" referencedObjectIdentifier="" xmlns:usagereferences="http://www.sap.com/adt/ris/usageReferences" xmlns:adtcore="http://www.sap.com/adt/core">
+<usagereferences:usageReferenceResult xmlns:usagereferences="http://www.sap.com/adt/ris/usageReferences" xmlns:adtcore="http://www.sap.com/adt/core" numberOfResults="1" resultDescription="[MOCK] Where-Used List: ZCL_EXAMPLE (Class)" referencedObjectIdentifier="">
   <usagereferences:scope>
     <usagereferences:objectIdentifier displayName="ZCL_EXAMPLE (Class)" globalType="CLAS/OC"/>
     <usagereferences:grade definitions="false" elements="false" indirectReferences="true"/>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<usagereferences:usageScopeResult localUsage="false" xmlns:usagereferences="http://www.sap.com/adt/ris/usageReferences">
+<usagereferences:usageScopeResult xmlns:usagereferences="http://www.sap.com/adt/ris/usageReferences" localUsage="false">
   <usagereferences:objectIdentifier displayName="ZCL_EXAMPLE (Class)" globalType="CLAS/OC"/>
   <usagereferences:grade definitions="false" elements="false" indirectReferences="true"/>
   <usagereferences:objectTypes>

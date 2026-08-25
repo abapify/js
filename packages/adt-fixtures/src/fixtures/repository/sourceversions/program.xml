@@ -11,15 +11,9 @@
     <atom:author>
       <atom:name>TESTUSER</atom:name>
     </atom:author>
-    <atom:content
-      type="text/plain"
-      src="/sap/bc/adt/programs/programs/ztest_gcts_program/source/main/versions/00042" />
+    <atom:content type="text/plain" src="/sap/bc/adt/programs/programs/ztest_gcts_program/source/main/versions/00042"/>
     <atom:id>00042</atom:id>
-    <atom:link
-      href="/sap/bc/adt/cts/transportrequests/MOCK900236"
-      rel="http://www.sap.com/adt/relations/transport/request"
-      title="test code review"
-      type="application/vnd.sap.adt.transportrequests.v1+xml" />
+    <atom:link href="/sap/bc/adt/cts/transportrequests/MOCK900236" rel="http://www.sap.com/adt/relations/transport/request" title="test code review" type="application/vnd.sap.adt.transportrequests.v1+xml"/>
     <atom:title>Version 42</atom:title>
     <atom:updated>2026-07-17T10:00:00Z</atom:updated>
   </atom:entry>

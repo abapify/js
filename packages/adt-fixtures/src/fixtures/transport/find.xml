@@ -19,7 +19,7 @@
         <AS4TIME>12:00:00</AS4TIME>
         <AS4TEXT>Mock workbench request (modifiable)</AS4TEXT>
         <CLIENT>100</CLIENT>
-        <REPOID></REPOID>
+        <REPOID/>
       </CTS_REQ_HEADER>
       <CTS_REQ_HEADER>
         <TRKORR>MOCK900002</TRKORR>
@@ -31,7 +31,7 @@
         <AS4TIME>13:00:00</AS4TIME>
         <AS4TEXT>Mock workbench request (released)</AS4TEXT>
         <CLIENT>100</CLIENT>
-        <REPOID></REPOID>
+        <REPOID/>
       </CTS_REQ_HEADER>
     </DATA>
   </asx:values>
