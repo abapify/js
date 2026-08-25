@@ -1,55 +1,33 @@
 /**
  * SRVD (RAP Service Definition) object handler for abapGit format
  *
- * SRVD is source-driven: the semantic content lives in a `.asrvd` file
- * (CDS-like service definition) and abapGit stores it alongside
- * a minimal SKEY metadata block.
+ * SRVD is source-driven: the semantic content lives in an `.acds` file and
+ * the official ABAP File Format stores its metadata in a `.json` sidecar.
  *
  * File layout:
- *   src/zui_foo.srvd.asrvd   — service source (.asrvd text)
- *   src/zui_foo.srvd.xml     — minimal metadata wrapper
- *
- * The handler uses the string form of `createHandler` ('SRVD') because
- * the ADK object (`AdkServiceDefinition`) is a lightweight class without
- * the AdkObject save/lock machinery — all lifecycle is source-based.
- *
- * We override `serialize` so the source file gets the `.asrvd` extension
- * instead of the default `.abap`.
+ *   src/zui_foo.srvd.acds — service source text
+ *   src/zui_foo.srvd.json — ABAP File Formats metadata
  */
 
 import { srvd } from '../../../schemas/generated';
-import { createHandler, type SerializedFile } from '../base';
-import { shouldIncludeSource } from '../source-inclusion';
+import { createHandler } from '../base';
 import {
-  FormatMaterializationError,
-  type FormatSerializeOptions,
-} from '@abapify/adt-plugin';
+  serializeAffSource,
+  affGetSource,
+  affFromAbapGit,
+  affSetSources,
+} from '../source-resolver';
+import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
-// SRVD is not derived from AdkObject — we cast to the minimal handler shape
-// via the string form of createHandler.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SrvdLike = any;
-
-type SrvdSourceObject = { getSource?: () => Promise<string> | string };
-
-async function resolveSrvdSource(
-  object: SrvdSourceObject,
-  sources: Readonly<Record<string, string | undefined>> | undefined,
-): Promise<string | undefined> {
-  if (sources !== undefined) {
-    const keys = Object.keys(sources);
-    if (keys.some((key) => key !== 'main')) {
-      throw new FormatMaterializationError(
-        'FORMAT_SOURCE_COMPONENT_UNSUPPORTED',
-        `SRVD only supports the 'main' source component; received ${keys.join(', ')}.`,
-      );
-    }
-    return sources.main;
-  }
-  return typeof object?.getSource === 'function'
-    ? await object.getSource()
-    : '';
-}
+type SrvdLike = {
+  name: string;
+  description?: string;
+  originalLanguage?: string;
+  abapLanguageVersion?: string;
+  sourceOrigin?: string;
+  sourceType?: string;
+  getSource?: () => Promise<string> | string;
+};
 
 export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
   'SRVD',
@@ -66,48 +44,22 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       },
     }),
 
-    // Source is `.asrvd` text retrieved from ADT `source/main`.
-    getSource: (obj) =>
-      typeof obj?.getSource === 'function'
-        ? obj.getSource()
-        : Promise.resolve(''),
+    getSource: affGetSource,
+    fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
 
-    fromAbapGit: ({ SKEY }) => ({
-      name: String(SKEY?.NAME ?? '').toUpperCase(),
-    }),
+    serialize: (object, ctx, options?: FormatSerializeOptions) =>
+      serializeAffSource(object, ctx, options?.sources, {
+        typeLabel: 'SRVD',
+        sourceExt: 'acds',
+        jsonExt: `${ctx.fileExtension}.json`,
+        extra: {
+          generalInformation: {
+            sourceOrigin: object.sourceOrigin ?? 'abapDevelopmentTools',
+            sourceType: object.sourceType ?? 'definition',
+          },
+        },
+      }),
 
-    // Custom serialize — file extension for SRVD source is `.asrvd`, not `.abap`.
-    async serialize(
-      object,
-      ctx,
-      options?: FormatSerializeOptions,
-    ): Promise<SerializedFile[]> {
-      const files: SerializedFile[] = [];
-      const objectName = ctx.getObjectName(object);
-
-      // Source: <name>.srvd.asrvd. When a source map is supplied it is
-      // authoritative; otherwise fall back to the mutable object getter.
-      const source = await resolveSrvdSource(object, options?.sources);
-      if (shouldIncludeSource(source, options?.sources?.main)) {
-        files.push(
-          ctx.createFile(`${objectName}.${ctx.fileExtension}.asrvd`, source),
-        );
-      }
-
-      // Metadata: <name>.srvd.xml
-      const xmlContent = ctx.toAbapGitXml(object);
-      files.push(
-        ctx.createFile(`${objectName}.${ctx.fileExtension}.xml`, xmlContent),
-      );
-
-      return files;
-    },
-
-    setSources: (obj, sources) => {
-      if (sources.main !== undefined) {
-        (obj as unknown as { _pendingSource: string })._pendingSource =
-          sources.main;
-      }
-    },
+    setSources: affSetSources,
   },
 );
