@@ -13,134 +13,42 @@
 
 import { getGlobalContext } from '../../base/global-context';
 import type { AdkContext } from '../../base/context';
-import { toText } from '../../base/fetch-utils';
 import { DdlSource } from '../../base/kinds';
 import { registerObjectType } from '../../base/registry';
 import type { AdkCrudSourceContract } from './source-object';
+import { AdkCrudSourceObject } from './crud-source-object';
 
-export class AdkDdlSource {
+interface DdlMetadata {
+  ddlSource?: {
+    description?: string;
+    masterLanguage?: string;
+    abapLanguageVersion?: string;
+    packageRef?: { name?: string };
+    source_origin?: string;
+    source_type?: string;
+  };
+}
+
+export class AdkDdlSource extends AdkCrudSourceObject<DdlMetadata> {
   static readonly kind = DdlSource;
   readonly kind = AdkDdlSource.kind;
-  readonly name: string;
-  protected readonly ctx: AdkContext;
-  private metadata?: {
-    ddlSource?: {
-      description?: string;
-      masterLanguage?: string;
-      abapLanguageVersion?: string;
-      packageRef?: { name?: string };
-      source_origin?: string;
-      source_type?: string;
-    };
-  };
 
-  constructor(ctx: AdkContext, name: string) {
-    this.ctx = ctx;
-    this.name = name.toUpperCase();
-  }
-
-  get objectUri(): string {
-    return `/sap/bc/adt/ddic/ddl/sources/${encodeURIComponent(this.name.toLowerCase())}`;
-  }
-
-  /** Placeholder description — full metadata requires additional SAP fetch */
-  get description(): string {
-    return this.metadata?.ddlSource?.description ?? this.name;
-  }
-  get originalLanguage(): string | undefined {
-    return this.metadata?.ddlSource?.masterLanguage;
-  }
-  get abapLanguageVersion(): string | undefined {
-    return this.metadata?.ddlSource?.abapLanguageVersion;
-  }
-  get package(): string | undefined {
-    return this.metadata?.ddlSource?.packageRef?.name;
-  }
-  get sourceOrigin(): string | undefined {
-    return this.metadata?.ddlSource?.source_origin;
-  }
-  get sourceType(): string | undefined {
-    return this.metadata?.ddlSource?.source_type;
-  }
+  protected readonly objectType = 'DDLS';
+  protected readonly endpoint = 'ddic/ddl/sources';
 
   private get contract(): AdkCrudSourceContract {
     return this.ctx.client.adt.ddic.ddl.sources as AdkCrudSourceContract;
   }
 
-  // ─── Source ────────────────────────────────────────────────────────────────
-
-  async getSource(): Promise<string> {
-    const result = await this.contract.source.main.get(this.name);
-    return toText(result);
+  protected getMetadataKey(): 'ddlSource' {
+    return 'ddlSource';
   }
 
-  async load(): Promise<this> {
-    const [metadata] = await Promise.all([
-      this.contract.get(this.name),
-      this.getSource(),
-    ]);
-    this.metadata = metadata as {
-      ddlSource?: {
-        description?: string;
-        masterLanguage?: string;
-        abapLanguageVersion?: string;
-        packageRef?: { name?: string };
-        source_origin?: string;
-        source_type?: string;
-      };
-    };
-    return this;
+  get sourceOrigin(): string | undefined {
+    return this.metadata?.ddlSource?.source_origin;
   }
-
-  async saveMainSource(
-    source: string,
-    options?: { lockHandle?: string; transport?: string },
-  ): Promise<void> {
-    await this.contract.source.main.put(
-      this.name,
-      {
-        ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
-        ...(options?.transport ? { corrNr: options.transport } : {}),
-      },
-      source,
-    );
-  }
-
-  // ─── Lock / Unlock ─────────────────────────────────────────────────────────
-
-  async lock(transport?: string): Promise<{ handle: string }> {
-    const lockService = this.ctx.lockService;
-    if (!lockService) {
-      throw new Error(
-        'Lock not available: no lockService in context. Did you call initializeAdk()?',
-      );
-    }
-    return lockService.lock(this.objectUri, {
-      transport,
-      objectName: this.name,
-      objectType: 'DDLS',
-    });
-  }
-
-  async unlock(lockHandle: string): Promise<void> {
-    const lockService = this.ctx.lockService;
-    if (!lockService) {
-      throw new Error(
-        'Unlock not available: no lockService in context. Did you call initializeAdk()?',
-      );
-    }
-    await lockService.unlock(this.objectUri, { lockHandle });
-  }
-
-  // ─── Activate ──────────────────────────────────────────────────────────────
-
-  async activate(): Promise<this> {
-    await this.ctx.client.adt.activation.activate.post({}, {
-      objectReferences: {
-        objectReference: [{ uri: this.objectUri, name: this.name }],
-      },
-    } as any);
-    return this;
+  get sourceType(): string | undefined {
+    return this.metadata?.ddlSource?.source_type;
   }
 
   // ─── Static Factory Methods ─────────────────────────────────────────────────
@@ -149,7 +57,7 @@ export class AdkDdlSource {
    * Get a DDL source (does not fetch metadata, just returns handle)
    */
   static async get(name: string, ctx?: AdkContext): Promise<AdkDdlSource> {
-    const context = ctx ?? getGlobalContext();
+    const context = AdkCrudSourceObject.resolveContext(ctx);
     const obj = new AdkDdlSource(context, name);
     // Validate it exists by fetching source
     await obj.getSource();
@@ -197,7 +105,7 @@ export class AdkDdlSource {
             uri: `/sap/bc/adt/packages/${pkgU.toLowerCase()}`,
           },
         },
-      } as any,
+      } as never,
     );
 
     return new AdkDdlSource(context, nameU);

@@ -13,52 +13,37 @@
 
 import { getGlobalContext } from '../../../base/global-context';
 import type { AdkContext } from '../../../base/context';
-import { toText } from '../../../base/fetch-utils';
 import { ServiceDefinition } from '../../../base/kinds';
 import { registerObjectType } from '../../../base/registry';
 import type { AdkCrudSourceContract } from '../../cds/source-object';
+import { AdkCrudSourceObject } from '../../cds/crud-source-object';
 
-export class AdkServiceDefinition {
+interface SrvdMetadata {
+  srvdSource?: {
+    description?: string;
+    masterLanguage?: string;
+    abapLanguageVersion?: string;
+    packageRef?: { name?: string };
+    sourceOrigin?: string;
+    srvdSourceType?: string;
+  };
+}
+
+export class AdkServiceDefinition extends AdkCrudSourceObject<SrvdMetadata> {
   /** Static ADK kind marker — used by abapGit handler registry if needed. */
   static readonly kind = ServiceDefinition;
   readonly kind = AdkServiceDefinition.kind;
 
-  readonly name: string;
-  protected readonly ctx: AdkContext;
-  private metadata?: {
-    srvdSource?: {
-      description?: string;
-      masterLanguage?: string;
-      abapLanguageVersion?: string;
-      packageRef?: { name?: string };
-      sourceOrigin?: string;
-      srvdSourceType?: string;
-    };
-  };
+  protected readonly objectType = 'SRVD';
+  protected readonly endpoint = 'ddic/srvd/sources';
 
-  constructor(ctx: AdkContext, name: string) {
-    this.ctx = ctx;
-    this.name = name.toUpperCase();
+  private get contract(): AdkCrudSourceContract {
+    return this.ctx.client.adt.ddic.srvd
+      .sources as unknown as AdkCrudSourceContract;
   }
 
-  get objectUri(): string {
-    return `/sap/bc/adt/ddic/srvd/sources/${encodeURIComponent(this.name.toLowerCase())}`;
-  }
-
-  get description(): string {
-    return this.metadata?.srvdSource?.description ?? this.name;
-  }
-
-  get originalLanguage(): string | undefined {
-    return this.metadata?.srvdSource?.masterLanguage;
-  }
-
-  get abapLanguageVersion(): string | undefined {
-    return this.metadata?.srvdSource?.abapLanguageVersion;
-  }
-
-  get package(): string | undefined {
-    return this.metadata?.srvdSource?.packageRef?.name;
+  protected getMetadataKey(): 'srvdSource' {
+    return 'srvdSource';
   }
 
   get sourceOrigin(): string | undefined {
@@ -67,87 +52,6 @@ export class AdkServiceDefinition {
 
   get sourceType(): string | undefined {
     return this.metadata?.srvdSource?.srvdSourceType;
-  }
-
-  private get contract(): AdkCrudSourceContract {
-    return this.ctx.client.adt.ddic.srvd
-      .sources as unknown as AdkCrudSourceContract;
-  }
-
-  // ─── Source ────────────────────────────────────────────────────────────────
-
-  async getSource(): Promise<string> {
-    const result = await this.contract.source.main.get(this.name);
-    return toText(result);
-  }
-
-  async load(): Promise<this> {
-    const [metadata] = await Promise.all([
-      this.contract.get(this.name),
-      this.getSource(),
-    ]);
-    this.metadata = metadata as {
-      srvdSource?: {
-        description?: string;
-        masterLanguage?: string;
-        abapLanguageVersion?: string;
-        packageRef?: { name?: string };
-        sourceOrigin?: string;
-        srvdSourceType?: string;
-      };
-    };
-    return this;
-  }
-
-  async saveMainSource(
-    source: string,
-    options?: { lockHandle?: string; transport?: string },
-  ): Promise<void> {
-    await this.contract.source.main.put(
-      this.name,
-      {
-        ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
-        ...(options?.transport ? { corrNr: options.transport } : {}),
-      },
-      source,
-    );
-  }
-
-  // ─── Lock / Unlock ─────────────────────────────────────────────────────────
-
-  async lock(transport?: string): Promise<{ handle: string }> {
-    const lockService = this.ctx.lockService;
-    if (!lockService) {
-      throw new Error(
-        'Lock not available: no lockService in context. Did you call initializeAdk()?',
-      );
-    }
-    return lockService.lock(this.objectUri, {
-      transport,
-      objectName: this.name,
-      objectType: 'SRVD',
-    });
-  }
-
-  async unlock(lockHandle: string): Promise<void> {
-    const lockService = this.ctx.lockService;
-    if (!lockService) {
-      throw new Error(
-        'Unlock not available: no lockService in context. Did you call initializeAdk()?',
-      );
-    }
-    await lockService.unlock(this.objectUri, { lockHandle });
-  }
-
-  // ─── Activate ──────────────────────────────────────────────────────────────
-
-  async activate(): Promise<this> {
-    await this.ctx.client.adt.activation.activate.post({}, {
-      objectReferences: {
-        objectReference: [{ uri: this.objectUri, name: this.name }],
-      },
-    } as any);
-    return this;
   }
 
   // ─── Static Factory Methods ─────────────────────────────────────────────────
@@ -159,7 +63,7 @@ export class AdkServiceDefinition {
     name: string,
     ctx?: AdkContext,
   ): Promise<AdkServiceDefinition> {
-    const context = ctx ?? getGlobalContext();
+    const context = AdkCrudSourceObject.resolveContext(ctx);
     const obj = new AdkServiceDefinition(context, name);
     // Validate it exists by fetching source
     await obj.getSource();
@@ -209,7 +113,7 @@ export class AdkServiceDefinition {
             uri: `/sap/bc/adt/packages/${pkgU.toLowerCase()}`,
           },
         },
-      } as any,
+      } as never,
     );
 
     return new AdkServiceDefinition(context, nameU);
