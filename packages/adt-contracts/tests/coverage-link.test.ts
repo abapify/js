@@ -59,7 +59,7 @@ describe('extractCoverageMeasurementId', () => {
     );
   });
 
-  it('preserves the external coverage URI returned by S0D', async () => {
+  it('preserves an external coverage URI returned by the system', async () => {
     const xml = await fixtures.aunit.runResultCoverageExternal.load();
     const parsed = aunitResult.parse(xml);
 
