@@ -20,7 +20,7 @@ import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import {
   resolveMainSource,
-  buildAffJsonMetadata,
+  buildAffJson,
   createAffSourceFile,
   affGetSource,
   affFromAbapGit,
@@ -74,7 +74,7 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
         ),
         ctx.createFile(
           `${objectName}.${ctx.fileExtension}.json`,
-          buildAffJsonMetadata(
+          buildAffJson(
             object.description || String(object?.name ?? ''),
             object.originalLanguage ?? 'en',
             object.abapLanguageVersion,

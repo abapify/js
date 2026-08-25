@@ -20,7 +20,7 @@ import { srvd } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import {
   resolveMainSource,
-  buildAffJsonWithExtra,
+  buildAffJson,
   createAffSourceFile,
   affGetSource,
   affFromAbapGit,
@@ -76,7 +76,7 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
         ),
         ctx.createFile(
           `${objectName}.${ctx.fileExtension}.json`,
-          buildAffJsonWithExtra(
+          buildAffJson(
             object.description || String(object?.name ?? ''),
             object.originalLanguage ?? 'en',
             object.abapLanguageVersion,

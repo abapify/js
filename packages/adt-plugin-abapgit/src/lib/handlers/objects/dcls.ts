@@ -2,7 +2,7 @@ import { dcls } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import {
   resolveMainSource,
-  buildAffJsonMetadata,
+  buildAffJson,
   createAffSourceFile,
 } from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
@@ -40,7 +40,7 @@ export const dclSourceHandler = createHandler<DclsLike, typeof dcls>('DCLS', {
       ),
       ctx.createFile(
         `${objectName}.dcls.json`,
-        buildAffJsonMetadata(
+        buildAffJson(
           object.description || String(object.name ?? ''),
           object.originalLanguage ?? 'EN',
           object.abapLanguageVersion,

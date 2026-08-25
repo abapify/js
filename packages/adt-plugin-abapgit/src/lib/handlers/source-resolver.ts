@@ -29,38 +29,28 @@ export async function resolveMainSource(
 }
 
 /**
- * Build the standard AFF JSON metadata file content for a CDS/RAP
- * source object.
+ * Build an AFF JSON metadata file. `extra` fields are merged at the
+ * top level alongside `formatVersion` and `header`.
  */
-export function buildAffJsonMetadata(
-  description: string,
-  originalLanguage: string,
-  abapLanguageVersion?: string,
-): string {
-  const header = {
-    description,
-    originalLanguage: originalLanguage.toLowerCase(),
-    ...(abapLanguageVersion ? { abapLanguageVersion } : {}),
-  };
-  return `${JSON.stringify({ formatVersion: '1', header }, null, 2)}\n`;
-}
-
-/**
- * Build an AFF JSON metadata file with extra top-level fields.
- * Used by SRVD (generalInformation) and DDLS (sourceOrigin/sourceType).
- */
-export function buildAffJsonWithExtra(
+export function buildAffJson(
   description: string,
   originalLanguage: string,
   abapLanguageVersion: string | undefined,
-  extra: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
 ): string {
-  const header = {
-    description,
-    originalLanguage: originalLanguage.toLowerCase(),
-    ...(abapLanguageVersion ? { abapLanguageVersion } : {}),
-  };
-  return `${JSON.stringify({ formatVersion: '1', header, ...extra }, null, 2)}\n`;
+  return `${JSON.stringify(
+    {
+      formatVersion: '1',
+      header: {
+        description,
+        originalLanguage: originalLanguage.toLowerCase(),
+        ...(abapLanguageVersion ? { abapLanguageVersion } : {}),
+      },
+      ...extra,
+    },
+    null,
+    2,
+  )}\n`;
 }
 
 /**
