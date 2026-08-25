@@ -43,3 +43,34 @@ export function buildAffJsonMetadata(
   };
   return `${JSON.stringify({ formatVersion: '1', header }, null, 2)}\n`;
 }
+
+/**
+ * Shared `getSource` handler function for source-driven AFF objects
+ * (BDEF, SRVD). Delegates to `obj.getSource()` when available.
+ */
+export function affGetSource(obj: SourceObject): Promise<string> {
+  return typeof obj?.getSource === 'function'
+    ? Promise.resolve(obj.getSource())
+    : Promise.resolve('');
+}
+
+/**
+ * Shared `fromAbapGit` handler function for source-driven AFF objects.
+ * Extracts the uppercased name from the SKEY envelope.
+ */
+export function affFromAbapGit(SKEY: { NAME?: string } | undefined): {
+  name: string;
+} {
+  return { name: String(SKEY?.NAME ?? '').toUpperCase() };
+}
+
+/**
+ * Shared `setSources` handler function for source-driven AFF objects.
+ * Stores the `main` source on a `_pendingSource` property.
+ */
+export function affSetSources(obj: unknown, sources: { main?: string }): void {
+  if (sources.main !== undefined) {
+    (obj as unknown as { _pendingSource: string })._pendingSource =
+      sources.main;
+  }
+}

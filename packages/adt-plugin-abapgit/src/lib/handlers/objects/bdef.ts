@@ -19,7 +19,13 @@
 import { bdef } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
-import { resolveMainSource, buildAffJsonMetadata } from '../source-resolver';
+import {
+  resolveMainSource,
+  buildAffJsonMetadata,
+  affGetSource,
+  affFromAbapGit,
+  affSetSources,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type BdefLike = {
@@ -46,14 +52,9 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
     }),
 
     // Source is `.abdl` text retrieved from ADT `source/main`.
-    getSource: (obj) =>
-      typeof obj?.getSource === 'function'
-        ? obj.getSource()
-        : Promise.resolve(''),
+    getSource: affGetSource,
 
-    fromAbapGit: ({ SKEY }) => ({
-      name: String(SKEY?.NAME ?? '').toUpperCase(),
-    }),
+    fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
 
     // Custom serialize — official BDEF AFF is `.abdl` plus `.json`.
     async serialize(
@@ -88,11 +89,6 @@ export const behaviorDefinitionHandler = createHandler<BdefLike, typeof bdef>(
       return files;
     },
 
-    setSources: (obj, sources) => {
-      if (sources.main !== undefined) {
-        (obj as unknown as { _pendingSource: string })._pendingSource =
-          sources.main;
-      }
-    },
+    setSources: affSetSources,
   },
 );

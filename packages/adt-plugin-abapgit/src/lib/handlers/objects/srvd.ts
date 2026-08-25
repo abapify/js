@@ -19,7 +19,12 @@
 import { srvd } from '../../../schemas/generated';
 import { createHandler, type SerializedFile } from '../base';
 import { shouldIncludeSource } from '../source-inclusion';
-import { resolveMainSource } from '../source-resolver';
+import {
+  resolveMainSource,
+  affGetSource,
+  affFromAbapGit,
+  affSetSources,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type SrvdLike = {
@@ -48,14 +53,9 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
     }),
 
     // Source is `.acds` text retrieved from ADT `source/main`.
-    getSource: (obj) =>
-      typeof obj?.getSource === 'function'
-        ? obj.getSource()
-        : Promise.resolve(''),
+    getSource: affGetSource,
 
-    fromAbapGit: ({ SKEY }) => ({
-      name: String(SKEY?.NAME ?? '').toUpperCase(),
-    }),
+    fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
 
     // Custom serialize — official SRVD AFF is `.acds` plus `.json`.
     async serialize(
@@ -104,11 +104,6 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
       return files;
     },
 
-    setSources: (obj, sources) => {
-      if (sources.main !== undefined) {
-        (obj as unknown as { _pendingSource: string })._pendingSource =
-          sources.main;
-      }
-    },
+    setSources: affSetSources,
   },
 );
