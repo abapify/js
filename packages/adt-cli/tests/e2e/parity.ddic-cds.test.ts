@@ -22,11 +22,31 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
+  mkdtempSync,
+  existsSync,
+  readdirSync,
+  rmSync,
+  readFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
   startAdtHarness,
   runCliCommand,
   callMcpTool,
   type AdtHarness,
 } from './index';
+
+/** Recursively collect all file paths under `dir` (relative to `dir`). */
+function walkFiles(dir: string, prefix = ''): string[] {
+  const out: string[] = [];
+  for (const ent of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(prefix, ent.name);
+    if (ent.isDirectory()) out.push(...walkFiles(join(dir, ent.name), p));
+    else out.push(p);
+  }
+  return out;
+}
 
 describe('CLI + MCP parity: DDIC & CDS', () => {
   let harness: AdtHarness;
@@ -345,4 +365,98 @@ describe('CLI + MCP parity: DDIC & CDS', () => {
     expect(mcp.isError).toBe(false);
     expect(mcp.json).toBeDefined();
   });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 17. Import DDL (CDS) — CLI `import object` + MCP `import_object`
+  // ─────────────────────────────────────────────────────────────────────
+  it('17. imports a CDS DDL source via `import object` (CLI + MCP)', async () => {
+    // CLI path
+    const cliDir = mkdtempSync(join(tmpdir(), 'cds-import-ddls-cli-'));
+    try {
+      const cli = await runCliCommand(harness, [
+        'import',
+        'object',
+        'Z_AFF_DDLS',
+        cliDir,
+      ]);
+      expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+
+      const cliFiles = walkFiles(cliDir);
+      // abapGit layout: .abapgit.xml + src/<name>.ddls.acds + src/<name>.ddls.json
+      expect(cliFiles.some((f) => f.endsWith('.ddls.acds'))).toBe(true);
+      expect(cliFiles.some((f) => f.endsWith('.ddls.json'))).toBe(true);
+      expect(existsSync(join(cliDir, '.abapgit.xml'))).toBe(true);
+
+      // Source file must not be empty
+      const sourceFile = cliFiles.find((f) => f.endsWith('.ddls.acds'));
+      expect(sourceFile).toBeDefined();
+      const sourceContent = readFileSync(join(cliDir, sourceFile!), 'utf8');
+      expect(sourceContent.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(cliDir, { recursive: true, force: true });
+    }
+
+    // MCP path
+    const mcpDir = mkdtempSync(join(tmpdir(), 'cds-import-ddls-mcp-'));
+    try {
+      const mcp = await callMcpTool(harness, 'import_object', {
+        objectType: 'DDLS',
+        objectName: 'Z_AFF_DDLS',
+        outputDir: mcpDir,
+      });
+      expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
+
+      const mcpFiles = walkFiles(mcpDir);
+      expect(mcpFiles.some((f) => f.endsWith('.ddls.acds'))).toBe(true);
+      expect(mcpFiles.some((f) => f.endsWith('.ddls.json'))).toBe(true);
+    } finally {
+      rmSync(mcpDir, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 18. Import DCL (CDS) — CLI `import object` + MCP `import_object`
+  // ─────────────────────────────────────────────────────────────────────
+  it('18. imports a CDS DCL source via `import object` (CLI + MCP)', async () => {
+    // CLI path
+    const cliDir = mkdtempSync(join(tmpdir(), 'cds-import-dcls-cli-'));
+    try {
+      const cli = await runCliCommand(harness, [
+        'import',
+        'object',
+        'Z_AFF_DCLS',
+        cliDir,
+      ]);
+      expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+
+      const cliFiles = walkFiles(cliDir);
+      expect(cliFiles.some((f) => f.endsWith('.dcls.acds'))).toBe(true);
+      expect(cliFiles.some((f) => f.endsWith('.dcls.json'))).toBe(true);
+      expect(existsSync(join(cliDir, '.abapgit.xml'))).toBe(true);
+
+      const sourceFile = cliFiles.find((f) => f.endsWith('.dcls.acds'));
+      expect(sourceFile).toBeDefined();
+      const sourceContent = readFileSync(join(cliDir, sourceFile!), 'utf8');
+      expect(sourceContent.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(cliDir, { recursive: true, force: true });
+    }
+
+    // MCP path
+    const mcpDir = mkdtempSync(join(tmpdir(), 'cds-import-dcls-mcp-'));
+    try {
+      const mcp = await callMcpTool(harness, 'import_object', {
+        objectType: 'DCLS',
+        objectName: 'Z_AFF_DCLS',
+        outputDir: mcpDir,
+      });
+      expect(mcp.isError, JSON.stringify(mcp.json)).toBe(false);
+
+      const mcpFiles = walkFiles(mcpDir);
+      expect(mcpFiles.some((f) => f.endsWith('.dcls.acds'))).toBe(true);
+      expect(mcpFiles.some((f) => f.endsWith('.dcls.json'))).toBe(true);
+    } finally {
+      rmSync(mcpDir, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

@@ -13,6 +13,20 @@
       "uri": "/sap/bc/adt/oo/interfaces/zif_example",
       "description": "Example interface",
       "packageName": "ZPACKAGE"
+    },
+    {
+      "name": "Z_AFF_DDLS",
+      "type": "DDLS/DF",
+      "uri": "/sap/bc/adt/ddic/ddl/sources/z_aff_ddls",
+      "description": "Sample CDS view",
+      "packageName": "$TMP"
+    },
+    {
+      "name": "Z_AFF_DCLS",
+      "type": "DCLS/DL",
+      "uri": "/sap/bc/adt/acm/dcl/sources/z_aff_dcls",
+      "description": "Sample access control",
+      "packageName": "$TMP"
     }
   ]
 }
