@@ -86,7 +86,16 @@ export class AdkServiceDefinition {
       this.contract.get(this.name),
       this.getSource(),
     ]);
-    this.metadata = metadata;
+    this.metadata = metadata as {
+      srvdSource?: {
+        description?: string;
+        masterLanguage?: string;
+        abapLanguageVersion?: string;
+        packageRef?: { name?: string };
+        sourceOrigin?: string;
+        srvdSourceType?: string;
+      };
+    };
     return this;
   }
 

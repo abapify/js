@@ -79,7 +79,16 @@ export class AdkDdlSource {
       this.contract.get(this.name),
       this.getSource(),
     ]);
-    this.metadata = metadata;
+    this.metadata = metadata as {
+      ddlSource?: {
+        description?: string;
+        masterLanguage?: string;
+        abapLanguageVersion?: string;
+        packageRef?: { name?: string };
+        source_origin?: string;
+        source_type?: string;
+      };
+    };
     return this;
   }
 

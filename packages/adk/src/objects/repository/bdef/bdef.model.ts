@@ -80,7 +80,14 @@ export class AdkBehaviorDefinition {
       this.contract.get(this.name),
       this.getSource(),
     ]);
-    this.metadata = metadata;
+    this.metadata = metadata as {
+      blueSource?: {
+        description?: string;
+        masterLanguage?: string;
+        abapLanguageVersion?: string;
+        packageRef?: { name?: string };
+      };
+    };
     return this;
   }
 
