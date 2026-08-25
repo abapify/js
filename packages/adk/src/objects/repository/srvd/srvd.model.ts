@@ -89,29 +89,22 @@ export class AdkServiceDefinition extends AdkCrudSourceObject<SrvdMetadata> {
     ctx?: AdkContext,
   ): Promise<AdkServiceDefinition> {
     const context = ctx ?? getGlobalContext();
-    const nameU = name.toUpperCase();
-    const pkgU = packageName.toUpperCase();
-
-    await context.client.adt.ddic.srvd.sources.post(
-      options?.transport ? { corrNr: options.transport } : {},
+    return AdkCrudSourceObject.createSourceSkeleton.call(
+      this,
       {
-        srvdSource: {
-          name: nameU,
-          type: 'SRVD/SRV',
-          description,
-          language: 'EN',
-          masterLanguage: 'EN',
-          responsible: pkgU,
-          packageRef: {
-            name: pkgU,
-            type: 'DEVC/K',
-            uri: `/sap/bc/adt/packages/${pkgU.toLowerCase()}`,
-          },
-        },
-      } as never,
-    );
-
-    return new AdkServiceDefinition(context, nameU);
+        name,
+        description,
+        packageName,
+        transport: options?.transport,
+        ctx,
+        rootKey: 'srvdSource',
+        objectTypeCode: 'SRVD/SRV',
+        responsible: packageName.toUpperCase(),
+      },
+      context.client.adt.ddic.srvd.sources.post.bind(
+        context.client.adt.ddic.srvd.sources,
+      ),
+    ) as Promise<AdkServiceDefinition>;
   }
 
   static async delete(
@@ -120,10 +113,14 @@ export class AdkServiceDefinition extends AdkCrudSourceObject<SrvdMetadata> {
     ctx?: AdkContext,
   ): Promise<void> {
     const context = ctx ?? getGlobalContext();
-    await context.client.adt.ddic.srvd.sources.delete(name.toUpperCase(), {
-      ...(options?.transport ? { corrNr: options.transport } : {}),
-      ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
-    });
+    return AdkCrudSourceObject.deleteSource(
+      name,
+      options,
+      ctx,
+      context.client.adt.ddic.srvd.sources.delete.bind(
+        context.client.adt.ddic.srvd.sources,
+      ),
+    );
   }
 }
 

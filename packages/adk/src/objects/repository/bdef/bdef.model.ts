@@ -83,29 +83,22 @@ export class AdkBehaviorDefinition extends AdkCrudSourceObject<BdefMetadata> {
     ctx?: AdkContext,
   ): Promise<AdkBehaviorDefinition> {
     const context = ctx ?? getGlobalContext();
-    const nameU = name.toUpperCase();
-    const pkgU = packageName.toUpperCase();
-
-    await context.client.adt.bo.behaviordefinitions.post(
-      options?.transport ? { corrNr: options.transport } : {},
+    return AdkCrudSourceObject.createSourceSkeleton.call(
+      this,
       {
-        blueSource: {
-          name: nameU,
-          type: 'BDEF/BDO',
-          description,
-          language: 'EN',
-          masterLanguage: 'EN',
-          responsible: pkgU,
-          packageRef: {
-            name: pkgU,
-            type: 'DEVC/K',
-            uri: `/sap/bc/adt/packages/${pkgU.toLowerCase()}`,
-          },
-        },
-      } as never,
-    );
-
-    return new AdkBehaviorDefinition(context, nameU);
+        name,
+        description,
+        packageName,
+        transport: options?.transport,
+        ctx,
+        rootKey: 'blueSource',
+        objectTypeCode: 'BDEF/BDO',
+        responsible: packageName.toUpperCase(),
+      },
+      context.client.adt.bo.behaviordefinitions.post.bind(
+        context.client.adt.bo.behaviordefinitions,
+      ),
+    ) as Promise<AdkBehaviorDefinition>;
   }
 
   static async delete(
@@ -114,10 +107,14 @@ export class AdkBehaviorDefinition extends AdkCrudSourceObject<BdefMetadata> {
     ctx?: AdkContext,
   ): Promise<void> {
     const context = ctx ?? getGlobalContext();
-    await context.client.adt.bo.behaviordefinitions.delete(name.toUpperCase(), {
-      ...(options?.transport ? { corrNr: options.transport } : {}),
-      ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
-    });
+    return AdkCrudSourceObject.deleteSource(
+      name,
+      options,
+      ctx,
+      context.client.adt.bo.behaviordefinitions.delete.bind(
+        context.client.adt.bo.behaviordefinitions,
+      ),
+    );
   }
 }
 

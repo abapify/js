@@ -165,4 +165,67 @@ export abstract class AdkCrudSourceObject<
       return false;
     }
   }
+
+  /**
+   * Shared skeleton-creation helper. Subclasses pass their contract's `post`
+   * function and the root element name + type that their AFF schema expects.
+   */
+  protected static async createSourceSkeleton<T extends AdkCrudSourceObject>(
+    this: new (ctx: AdkContext, name: string) => T,
+    params: {
+      name: string;
+      description: string;
+      packageName: string;
+      transport?: string;
+      ctx?: AdkContext;
+      rootKey: string;
+      objectTypeCode: string;
+      responsible?: string;
+    },
+    post: (
+      query: Record<string, string>,
+      body: Record<string, unknown>,
+    ) => Promise<unknown>,
+  ): Promise<T> {
+    const context = AdkCrudSourceObject.resolveContext(params.ctx);
+    const nameU = params.name.toUpperCase();
+    const pkgU = params.packageName.toUpperCase();
+
+    await post(params.transport ? { corrNr: params.transport } : {}, {
+      [params.rootKey]: {
+        name: nameU,
+        ...(params.objectTypeCode ? { type: params.objectTypeCode } : {}),
+        description: params.description,
+        language: 'EN',
+        masterLanguage: 'EN',
+        responsible: params.responsible ?? '$TMP',
+        packageRef: {
+          name: pkgU,
+          type: 'DEVC/K',
+          uri: `/sap/bc/adt/packages/${pkgU.toLowerCase()}`,
+        },
+      },
+    } as never);
+
+    return new this(context, nameU);
+  }
+
+  /**
+   * Shared delete helper. Subclasses pass their contract's `delete` function.
+   */
+  protected static async deleteSource(
+    name: string,
+    options: { transport?: string; lockHandle?: string } | undefined,
+    ctx: AdkContext | undefined,
+    deleteFn: (
+      name: string,
+      options: Record<string, string>,
+    ) => Promise<unknown>,
+  ): Promise<void> {
+    const context = AdkCrudSourceObject.resolveContext(ctx);
+    await deleteFn(name.toUpperCase(), {
+      ...(options?.transport ? { corrNr: options.transport } : {}),
+      ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
+    });
+  }
 }

@@ -66,28 +66,21 @@ export class AdkDclSource extends AdkCrudSourceObject<DclMetadata> {
     ctx?: AdkContext,
   ): Promise<AdkDclSource> {
     const context = ctx ?? getGlobalContext();
-    const nameU = name.toUpperCase();
-    const pkgU = packageName.toUpperCase();
-
-    await context.client.adt.ddic.dcl.sources.post(
-      options?.transport ? { corrNr: options.transport } : {},
+    return AdkCrudSourceObject.createSourceSkeleton.call(
+      this,
       {
-        source: {
-          name: nameU,
-          description,
-          language: 'EN',
-          masterLanguage: 'EN',
-          responsible: '$TMP',
-          packageRef: {
-            name: pkgU,
-            type: 'DEVC/K',
-            uri: `/sap/bc/adt/packages/${pkgU.toLowerCase()}`,
-          },
-        },
-      } as never,
-    );
-
-    return new AdkDclSource(context, nameU);
+        name,
+        description,
+        packageName,
+        transport: options?.transport,
+        ctx,
+        rootKey: 'source',
+        objectTypeCode: '',
+      },
+      context.client.adt.ddic.dcl.sources.post.bind(
+        context.client.adt.ddic.dcl.sources,
+      ),
+    ) as Promise<AdkDclSource>;
   }
 
   static async delete(
@@ -96,10 +89,14 @@ export class AdkDclSource extends AdkCrudSourceObject<DclMetadata> {
     ctx?: AdkContext,
   ): Promise<void> {
     const context = ctx ?? getGlobalContext();
-    await context.client.adt.ddic.dcl.sources.delete(name.toUpperCase(), {
-      ...(options?.transport ? { corrNr: options.transport } : {}),
-      ...(options?.lockHandle ? { lockHandle: options.lockHandle } : {}),
-    });
+    return AdkCrudSourceObject.deleteSource(
+      name,
+      options,
+      ctx,
+      context.client.adt.ddic.dcl.sources.delete.bind(
+        context.client.adt.ddic.dcl.sources,
+      ),
+    );
   }
 }
 
