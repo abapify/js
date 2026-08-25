@@ -1,4 +1,4 @@
-import { describe } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { fixtures } from '@abapify/adt-fixtures';
 import { blueSource, ddlxSource, dtebSource } from '../../src/schemas';
 import { ContractScenario, runScenario, type ContractOperation } from './base';
@@ -63,5 +63,10 @@ class CdsRapSourcesScenario extends ContractScenario {
 }
 
 describe('CDS/RAP source contracts', () => {
+  it('defines at least one contract operation', () => {
+    const scenario = new CdsRapSourcesScenario();
+    expect(scenario.operations.length).toBeGreaterThan(0);
+  });
+
   runScenario(new CdsRapSourcesScenario());
 });

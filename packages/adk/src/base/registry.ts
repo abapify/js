@@ -33,7 +33,7 @@ export interface AdkRegistrable {
 /** Constructor signature for ADK objects */
 
 export type AdkObjectConstructor<T extends AdkRegistrable = AdkRegistrable> =
-  new (ctx: AdkContext, nameOrData: string | unknown) => T;
+  new (ctx: AdkContext, nameOrData: string | Record<string, unknown>) => T;
 
 /** How to transform object name for the URI path segment */
 export type NameTransform = 'lowercase' | 'preserve';
