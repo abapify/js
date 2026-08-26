@@ -11,6 +11,14 @@ export type ObjectSearchOptions = {
   objectType?: string;
 };
 
+type SearchObjectResolutionContext = {
+  objects: SearchObject[];
+  options: ObjectSearchOptions;
+  exactMatches: SearchObject[];
+  availableExactTypes: string[];
+  requestedObjectType: string | undefined;
+};
+
 function normalizeObjectType(type: string): string {
   return type.toUpperCase().split('/')[0] ?? '';
 }
@@ -69,12 +77,16 @@ function createObjectNotFoundError(
 }
 
 function createSearchObjectResolutionError(
-  objects: SearchObject[],
-  options: ObjectSearchOptions,
-  exactMatches: SearchObject[],
-  availableExactTypes: string[],
-  requestedObjectType: string | undefined,
+  context: SearchObjectResolutionContext,
 ): Error {
+  const {
+    objects,
+    options,
+    exactMatches,
+    availableExactTypes,
+    requestedObjectType,
+  } = context;
+
   if (requestedObjectType && exactMatches.length > 0) {
     return new Error(
       `Object '${options.objectName}' with type '${requestedObjectType}' was not found. Available types: ${availableExactTypes.join(', ') || 'none'}.`,
@@ -109,11 +121,11 @@ export function selectSearchObject(
     return exactMatch;
   }
 
-  throw createSearchObjectResolutionError(
+  throw createSearchObjectResolutionError({
     objects,
     options,
     exactMatches,
     availableExactTypes,
     requestedObjectType,
-  );
+  });
 }
