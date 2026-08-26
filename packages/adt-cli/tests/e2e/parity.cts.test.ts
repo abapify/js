@@ -117,6 +117,29 @@ describe('parity: cts', () => {
     expect(JSON.stringify(mcp.json)).toContain('DEVK900001');
   });
 
+  it('transport metadata: CLI JSON and MCP return the same CTS unit', async () => {
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'metadata',
+      'DEVK900001',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    const cliMetadata = extractJson<{
+      requestedTransport: string;
+      units: Array<{ number: string }>;
+    }>(cli);
+    expect(cliMetadata?.requestedTransport).toBe('DEVK900001');
+
+    const mcp = await callMcpTool<{
+      requestedTransport: string;
+      units: Array<{ number: string }>;
+    }>(harness, 'cts_transport_metadata', { transport: 'DEVK900001' });
+    expect(mcp.isError).toBe(false);
+    expect(mcp.json).toEqual(cliMetadata);
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // 3. Create transport (CLI + MCP parity)
   // ──────────────────────────────────────────────────────────────────────────

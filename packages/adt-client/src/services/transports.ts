@@ -20,13 +20,19 @@ export interface Transport {
   status?: string;
   type?: string;
   target?: string;
+  parent?: string;
+  lastChangedTimestamp?: string;
   tasks?: TransportTask[];
 }
 
 export interface TransportTask {
   number: string;
+  desc?: string;
   owner?: string;
   status?: string;
+  type?: string;
+  parent?: string;
+  lastChangedTimestamp?: string;
 }
 
 /**
@@ -83,7 +89,9 @@ export class TransportService {
         ? (data.root as Record<string, unknown>)
         : data;
     const request =
-      (unwrapped?.request as Record<string, unknown> | undefined) ?? unwrapped;
+      (unwrapped?.request as Record<string, unknown> | undefined) ??
+      (unwrapped?.task as Record<string, unknown> | undefined) ??
+      unwrapped;
     return this.mapToTransport(request);
   }
 
@@ -179,6 +187,10 @@ export class TransportService {
       target:
         (data.tarsystem as string | undefined) ??
         (data.target as string | undefined),
+      parent: data.parent as string | undefined,
+      lastChangedTimestamp:
+        (data.lastchanged_timestamp as string | undefined) ??
+        (data.lastChangedTimestamp as string | undefined),
       tasks: this.extractTasks(data),
     };
   }
@@ -206,6 +218,15 @@ export class TransportService {
         status:
           (t.trstatus as string | undefined) ??
           (t.status as string | undefined),
+        desc:
+          (t.as4text as string | undefined) ?? (t.desc as string | undefined),
+        type:
+          (t.trfunction as string | undefined) ??
+          (t.type as string | undefined),
+        parent: t.parent as string | undefined,
+        lastChangedTimestamp:
+          (t.lastchanged_timestamp as string | undefined) ??
+          (t.lastChangedTimestamp as string | undefined),
       };
     });
   }
