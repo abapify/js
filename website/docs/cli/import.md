@@ -27,6 +27,7 @@ support.
 | `<objectName>`                | ABAP object name to import (e.g. `ZAGE_DOMA_CASE_SENSITIVE`).                  |
 | `[targetFolder]`              | Target folder for output.                                                      |
 | `-o, --output <path>`         | Output directory (overrides `targetFolder`).                                   |
+| `-t, --object-type <type>`    | Exact ABAP object type for same-named objects, e.g. `DDLX`.                    |
 | `--format <format>`           | Output format: `abapgit` \| `@abapify/adt-plugin-abapgit`. Default: `abapgit`. |
 | `--format-option <key=value>` | Format-specific option (repeatable), e.g. `--format-option folderLogic=full`.  |
 | `--debug`                     | Enable debug output.                                                           |
@@ -62,6 +63,9 @@ support.
 ```bash
 # Single class, abapGit
 adt import object ZCL_DEMO ./src
+
+# Disambiguate same-named objects across ABAP object types
+adt import object Z_SHARED ./src --object-type DDLX
 
 # Package with type filter and subpackages excluded
 adt import package $ZDEMO ./repo \

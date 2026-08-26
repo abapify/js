@@ -1153,7 +1153,7 @@ export function matchRoute(
       status: 200,
       body: f.srvbSingle,
       contentType:
-        'application/vnd.sap.adt.businessservices.servicebinding.v1+xml',
+        'application/vnd.sap.adt.businessservices.servicebinding.v2+xml',
     };
   }
   if (

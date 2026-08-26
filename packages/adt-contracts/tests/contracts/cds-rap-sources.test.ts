@@ -16,7 +16,7 @@ class CdsRapSourcesScenario extends ContractScenario {
       contract: () => ddlxSourcesContract.get('Z_AFF_DDLX'),
       method: 'GET',
       path: '/sap/bc/adt/ddic/ddlx/sources/z_aff_ddlx',
-      headers: { Accept: 'application/vnd.sap.adt.ddlxSource+xml' },
+      headers: { Accept: 'application/vnd.sap.adt.ddic.ddlx.v1+xml' },
       response: {
         status: 200,
         schema: ddlxSource,
@@ -52,7 +52,7 @@ class CdsRapSourcesScenario extends ContractScenario {
       contract: () => dtebSourcesContract.get('Z_AFF_DTEB'),
       method: 'GET',
       path: '/sap/bc/adt/ddic/dteb/sources/z_aff_dteb',
-      headers: { Accept: 'application/vnd.sap.adt.dtebSource+xml' },
+      headers: { Accept: 'application/vnd.sap.adt.ddic.dteb.v1+xml' },
       response: {
         status: 200,
         schema: dtebSource,
