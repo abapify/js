@@ -2,7 +2,7 @@
  * ADT RAP Service Binding (SRVB) Contract
  *
  * Endpoint: /sap/bc/adt/businessservices/bindings
- * Content-Type: application/vnd.sap.adt.businessservices.servicebinding.v1+xml
+ * Content-Type: application/vnd.sap.adt.businessservices.servicebinding.v2+xml
  * Object type: SRVB/SVB
  *
  * RAP Service Binding — binds a Service Definition (SRVD) to a runtime
