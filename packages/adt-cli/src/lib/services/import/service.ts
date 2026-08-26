@@ -43,6 +43,14 @@ async function resolvePackagePath(packageName: string): Promise<string[]> {
   return path;
 }
 
+type SearchObject = {
+  name?: string;
+  type?: string;
+  uri?: string;
+  description?: string;
+  packageName?: string;
+};
+
 /**
  * Options for importing a single object by name (search-based)
  */
@@ -59,6 +67,67 @@ export interface ObjectImportOptions {
   formatOptions?: Record<string, FormatOptionValue>;
   /** Enable debug output */
   debug?: boolean;
+}
+
+function selectSearchObject(
+  objects: SearchObject[],
+  options: Pick<ObjectImportOptions, 'objectName' | 'objectType'>,
+): SearchObject {
+  const objectName = options.objectName.toUpperCase();
+  const exactMatches = objects.filter(
+    (obj) => String(obj.name || '').toUpperCase() === objectName,
+  );
+  const normalizeObjectType = (type: string): string =>
+    type.toUpperCase().split('/')[0] ?? '';
+  const availableExactTypes = [
+    ...new Set(
+      exactMatches.map((obj) => normalizeObjectType(String(obj.type || ''))),
+    ),
+  ].filter(Boolean);
+  const requestedObjectType = options.objectType
+    ? normalizeObjectType(options.objectType.trim())
+    : undefined;
+  const exactMatch = requestedObjectType
+    ? exactMatches.find(
+        (obj) =>
+          normalizeObjectType(String(obj.type || '')) === requestedObjectType,
+      )
+    : availableExactTypes.length <= 1
+      ? exactMatches[0]
+      : undefined;
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  if (requestedObjectType && exactMatches.length > 0) {
+    throw new Error(
+      `Object '${options.objectName}' with type '${requestedObjectType}' was not found. Available types: ${availableExactTypes.join(', ') || 'none'}.`,
+    );
+  }
+
+  if (!requestedObjectType && availableExactTypes.length > 1) {
+    throw new Error(
+      `Object '${options.objectName}' is ambiguous. Use --object-type to select one of: ${availableExactTypes.join(', ')}.`,
+    );
+  }
+
+  const similar = objects
+    .filter((obj) =>
+      String(obj.name || '')
+        .toUpperCase()
+        .includes(objectName),
+    )
+    .slice(0, 5);
+  const similarList = similar
+    .map((obj) => `   • ${obj.name} (${obj.type}) – ${obj.packageName}`)
+    .join('\n');
+  const hint =
+    similar.length > 0 ? `\n💡 Similar objects:\n${similarList}` : '';
+
+  throw new Error(
+    `Object '${options.objectName}' not found in the system.${hint}`,
+  );
 }
 
 /**
@@ -694,14 +763,6 @@ export class ImportService {
         maxResults: 10,
       });
 
-    type SearchObject = {
-      name?: string;
-      type?: string;
-      uri?: string;
-      description?: string;
-      packageName?: string;
-    };
-
     // Handle different response shapes from quickSearch
     const resultsAny = searchResult as Record<string, unknown>;
     if (options.debug) {
@@ -732,68 +793,9 @@ export class ImportService {
         : [rawObjects]
       : [];
 
-    // Step 2: Find exact match (case-insensitive). Object names are not
-    // globally unique across ABAP object types, so callers may provide an
-    // exact type to select the intended object deterministically.
-    const exactMatches = objects.filter(
-      (obj: SearchObject) =>
-        String(obj.name || '').toUpperCase() ===
-        options.objectName.toUpperCase(),
-    );
-
-    const normalizeObjectType = (type: string): string =>
-      type.toUpperCase().split('/')[0] ?? '';
-    const availableExactTypes = [
-      ...new Set(
-        exactMatches.map((obj) => normalizeObjectType(String(obj.type || ''))),
-      ),
-    ].filter(Boolean);
-    const requestedObjectType = options.objectType
-      ? normalizeObjectType(options.objectType.trim())
-      : undefined;
-    const exactMatch = requestedObjectType
-      ? exactMatches.find(
-          (obj) =>
-            normalizeObjectType(String(obj.type || '')) === requestedObjectType,
-        )
-      : availableExactTypes.length <= 1
-        ? exactMatches[0]
-        : undefined;
-
-    if (!exactMatch) {
-      if (requestedObjectType && exactMatches.length > 0) {
-        throw new Error(
-          `Object '${options.objectName}' with type '${requestedObjectType}' was not found. Available types: ${availableExactTypes.join(', ') || 'none'}.`,
-        );
-      }
-
-      if (!requestedObjectType && availableExactTypes.length > 1) {
-        throw new Error(
-          `Object '${options.objectName}' is ambiguous. Use --object-type to select one of: ${availableExactTypes.join(', ')}.`,
-        );
-      }
-
-      // Show similar objects as a hint
-      const similar = objects
-        .filter((obj: SearchObject) =>
-          String(obj.name || '')
-            .toUpperCase()
-            .includes(options.objectName.toUpperCase()),
-        )
-        .slice(0, 5);
-
-      const similarList = similar
-        .map(
-          (o: SearchObject) => `   • ${o.name} (${o.type}) – ${o.packageName}`,
-        )
-        .join('\n');
-      const hint =
-        similar.length > 0 ? `\n💡 Similar objects:\n${similarList}` : '';
-
-      throw new Error(
-        `Object '${options.objectName}' not found in the system.${hint}`,
-      );
-    }
+    // Step 2: Resolve the exact match. Object names are not globally unique
+    // across ABAP object types, so a caller can select the intended type.
+    const exactMatch = selectSearchObject(objects, options);
 
     // Extract base type (e.g. "DOMA/DD" → "DOMA")
     const fullType = String(exactMatch.type || '');
