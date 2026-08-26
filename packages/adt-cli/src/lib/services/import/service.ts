@@ -49,6 +49,8 @@ async function resolvePackagePath(packageName: string): Promise<string[]> {
 export interface ObjectImportOptions {
   /** Object name to search for (e.g., 'ZAGE_DOMA_CASE_SENSITIVE') */
   objectName: string;
+  /** Exact ABAP object type used to disambiguate same-named objects */
+  objectType?: string;
   /** Output directory for serialized files */
   outputPath: string;
   /** Format plugin name or package (e.g., 'abapgit', '@abapify/adt-plugin-abapgit') */
@@ -730,14 +732,47 @@ export class ImportService {
         : [rawObjects]
       : [];
 
-    // Step 2: Find exact match (case-insensitive)
-    const exactMatch = objects.find(
+    // Step 2: Find exact match (case-insensitive). Object names are not
+    // globally unique across ABAP object types, so callers may provide an
+    // exact type to select the intended object deterministically.
+    const exactMatches = objects.filter(
       (obj: SearchObject) =>
         String(obj.name || '').toUpperCase() ===
         options.objectName.toUpperCase(),
     );
 
+    const normalizeObjectType = (type: string): string =>
+      type.toUpperCase().split('/')[0] ?? '';
+    const availableExactTypes = [
+      ...new Set(
+        exactMatches.map((obj) => normalizeObjectType(String(obj.type || ''))),
+      ),
+    ].filter(Boolean);
+    const requestedObjectType = options.objectType
+      ? normalizeObjectType(options.objectType.trim())
+      : undefined;
+    const exactMatch = requestedObjectType
+      ? exactMatches.find(
+          (obj) =>
+            normalizeObjectType(String(obj.type || '')) === requestedObjectType,
+        )
+      : availableExactTypes.length <= 1
+        ? exactMatches[0]
+        : undefined;
+
     if (!exactMatch) {
+      if (requestedObjectType && exactMatches.length > 0) {
+        throw new Error(
+          `Object '${options.objectName}' with type '${requestedObjectType}' was not found. Available types: ${availableExactTypes.join(', ') || 'none'}.`,
+        );
+      }
+
+      if (!requestedObjectType && availableExactTypes.length > 1) {
+        throw new Error(
+          `Object '${options.objectName}' is ambiguous. Use --object-type to select one of: ${availableExactTypes.join(', ')}.`,
+        );
+      }
+
       // Show similar objects as a hint
       const similar = objects
         .filter((obj: SearchObject) =>

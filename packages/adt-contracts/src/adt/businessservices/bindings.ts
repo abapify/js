@@ -30,13 +30,14 @@ export type ServiceBindingResponse = InferTypedSchema<
 >;
 
 const basePath = '/sap/bc/adt/businessservices/bindings';
-const nameTransform = (n: string) => n.toLowerCase();
+const nameTransform = (n: string) => encodeURIComponent(n.toLowerCase());
 
 const baseContract = crud({
   basePath,
   schema: servicebindingSchema,
-  contentType: 'application/vnd.sap.adt.businessservices.servicebinding.v1+xml',
-  accept: 'application/vnd.sap.adt.businessservices.servicebinding.v1+xml',
+  contentType: 'application/vnd.sap.adt.businessservices.servicebinding.v2+xml',
+  accept: 'application/vnd.sap.adt.businessservices.servicebinding.v2+xml',
+  nameTransform,
 });
 
 /**
