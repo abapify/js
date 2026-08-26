@@ -69,54 +69,52 @@ export interface ObjectImportOptions {
   debug?: boolean;
 }
 
-function selectSearchObject(
+function normalizeObjectType(type: string): string {
+  return type.toUpperCase().split('/')[0] ?? '';
+}
+
+function getExactSearchMatches(
   objects: SearchObject[],
-  options: Pick<ObjectImportOptions, 'objectName' | 'objectType'>,
-): SearchObject {
-  const objectName = options.objectName.toUpperCase();
-  const exactMatches = objects.filter(
-    (obj) => String(obj.name || '').toUpperCase() === objectName,
+  objectName: string,
+): SearchObject[] {
+  const normalizedName = objectName.toUpperCase();
+  return objects.filter(
+    (obj) => String(obj.name || '').toUpperCase() === normalizedName,
   );
-  const normalizeObjectType = (type: string): string =>
-    type.toUpperCase().split('/')[0] ?? '';
-  const availableExactTypes = [
+}
+
+function getSearchObjectTypes(objects: SearchObject[]): string[] {
+  return [
     ...new Set(
-      exactMatches.map((obj) => normalizeObjectType(String(obj.type || ''))),
+      objects.map((obj) => normalizeObjectType(String(obj.type || ''))),
     ),
   ].filter(Boolean);
-  const requestedObjectType = options.objectType
-    ? normalizeObjectType(options.objectType.trim())
-    : undefined;
-  const exactMatch = requestedObjectType
-    ? exactMatches.find(
-        (obj) =>
-          normalizeObjectType(String(obj.type || '')) === requestedObjectType,
-      )
-    : availableExactTypes.length <= 1
-      ? exactMatches[0]
-      : undefined;
+}
 
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  if (requestedObjectType && exactMatches.length > 0) {
-    throw new Error(
-      `Object '${options.objectName}' with type '${requestedObjectType}' was not found. Available types: ${availableExactTypes.join(', ') || 'none'}.`,
+function findExactSearchMatch(
+  exactMatches: SearchObject[],
+  requestedObjectType: string | undefined,
+  availableExactTypes: string[],
+): SearchObject | undefined {
+  if (requestedObjectType) {
+    return exactMatches.find(
+      (obj) =>
+        normalizeObjectType(String(obj.type || '')) === requestedObjectType,
     );
   }
 
-  if (!requestedObjectType && availableExactTypes.length > 1) {
-    throw new Error(
-      `Object '${options.objectName}' is ambiguous. Use --object-type to select one of: ${availableExactTypes.join(', ')}.`,
-    );
-  }
+  return availableExactTypes.length <= 1 ? exactMatches[0] : undefined;
+}
 
+function createObjectNotFoundError(
+  objects: SearchObject[],
+  objectName: string,
+): Error {
   const similar = objects
     .filter((obj) =>
       String(obj.name || '')
         .toUpperCase()
-        .includes(objectName),
+        .includes(objectName.toUpperCase()),
     )
     .slice(0, 5);
   const similarList = similar
@@ -125,8 +123,56 @@ function selectSearchObject(
   const hint =
     similar.length > 0 ? `\n💡 Similar objects:\n${similarList}` : '';
 
-  throw new Error(
-    `Object '${options.objectName}' not found in the system.${hint}`,
+  return new Error(`Object '${objectName}' not found in the system.${hint}`);
+}
+
+function createSearchObjectResolutionError(
+  objects: SearchObject[],
+  options: Pick<ObjectImportOptions, 'objectName' | 'objectType'>,
+  exactMatches: SearchObject[],
+  availableExactTypes: string[],
+  requestedObjectType: string | undefined,
+): Error {
+  if (requestedObjectType && exactMatches.length > 0) {
+    return new Error(
+      `Object '${options.objectName}' with type '${requestedObjectType}' was not found. Available types: ${availableExactTypes.join(', ') || 'none'}.`,
+    );
+  }
+
+  if (!requestedObjectType && availableExactTypes.length > 1) {
+    return new Error(
+      `Object '${options.objectName}' is ambiguous. Use --object-type to select one of: ${availableExactTypes.join(', ')}.`,
+    );
+  }
+
+  return createObjectNotFoundError(objects, options.objectName);
+}
+
+function selectSearchObject(
+  objects: SearchObject[],
+  options: Pick<ObjectImportOptions, 'objectName' | 'objectType'>,
+): SearchObject {
+  const exactMatches = getExactSearchMatches(objects, options.objectName);
+  const availableExactTypes = getSearchObjectTypes(exactMatches);
+  const requestedObjectType = options.objectType
+    ? normalizeObjectType(options.objectType.trim())
+    : undefined;
+  const exactMatch = findExactSearchMatch(
+    exactMatches,
+    requestedObjectType,
+    availableExactTypes,
+  );
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  throw createSearchObjectResolutionError(
+    objects,
+    options,
+    exactMatches,
+    availableExactTypes,
+    requestedObjectType,
   );
 }
 
