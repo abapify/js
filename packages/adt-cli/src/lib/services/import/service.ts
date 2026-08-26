@@ -14,6 +14,7 @@ import type { AdkTransportObjectRef } from '@abapify/adk';
 import { Readable } from 'node:stream';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { selectSearchObject, type SearchObject } from './object-selection';
 
 /** Default number of concurrent SAP requests during import */
 const IMPORT_CONCURRENCY = 5;
@@ -43,14 +44,6 @@ async function resolvePackagePath(packageName: string): Promise<string[]> {
   return path;
 }
 
-type SearchObject = {
-  name?: string;
-  type?: string;
-  uri?: string;
-  description?: string;
-  packageName?: string;
-};
-
 /**
  * Options for importing a single object by name (search-based)
  */
@@ -67,113 +60,6 @@ export interface ObjectImportOptions {
   formatOptions?: Record<string, FormatOptionValue>;
   /** Enable debug output */
   debug?: boolean;
-}
-
-function normalizeObjectType(type: string): string {
-  return type.toUpperCase().split('/')[0] ?? '';
-}
-
-function getExactSearchMatches(
-  objects: SearchObject[],
-  objectName: string,
-): SearchObject[] {
-  const normalizedName = objectName.toUpperCase();
-  return objects.filter(
-    (obj) => String(obj.name || '').toUpperCase() === normalizedName,
-  );
-}
-
-function getSearchObjectTypes(objects: SearchObject[]): string[] {
-  return [
-    ...new Set(
-      objects.map((obj) => normalizeObjectType(String(obj.type || ''))),
-    ),
-  ].filter(Boolean);
-}
-
-function findExactSearchMatch(
-  exactMatches: SearchObject[],
-  requestedObjectType: string | undefined,
-  availableExactTypes: string[],
-): SearchObject | undefined {
-  if (requestedObjectType) {
-    return exactMatches.find(
-      (obj) =>
-        normalizeObjectType(String(obj.type || '')) === requestedObjectType,
-    );
-  }
-
-  return availableExactTypes.length <= 1 ? exactMatches[0] : undefined;
-}
-
-function createObjectNotFoundError(
-  objects: SearchObject[],
-  objectName: string,
-): Error {
-  const similar = objects
-    .filter((obj) =>
-      String(obj.name || '')
-        .toUpperCase()
-        .includes(objectName.toUpperCase()),
-    )
-    .slice(0, 5);
-  const similarList = similar
-    .map((obj) => `   • ${obj.name} (${obj.type}) – ${obj.packageName}`)
-    .join('\n');
-  const hint =
-    similar.length > 0 ? `\n💡 Similar objects:\n${similarList}` : '';
-
-  return new Error(`Object '${objectName}' not found in the system.${hint}`);
-}
-
-function createSearchObjectResolutionError(
-  objects: SearchObject[],
-  options: Pick<ObjectImportOptions, 'objectName' | 'objectType'>,
-  exactMatches: SearchObject[],
-  availableExactTypes: string[],
-  requestedObjectType: string | undefined,
-): Error {
-  if (requestedObjectType && exactMatches.length > 0) {
-    return new Error(
-      `Object '${options.objectName}' with type '${requestedObjectType}' was not found. Available types: ${availableExactTypes.join(', ') || 'none'}.`,
-    );
-  }
-
-  if (!requestedObjectType && availableExactTypes.length > 1) {
-    return new Error(
-      `Object '${options.objectName}' is ambiguous. Use --object-type to select one of: ${availableExactTypes.join(', ')}.`,
-    );
-  }
-
-  return createObjectNotFoundError(objects, options.objectName);
-}
-
-function selectSearchObject(
-  objects: SearchObject[],
-  options: Pick<ObjectImportOptions, 'objectName' | 'objectType'>,
-): SearchObject {
-  const exactMatches = getExactSearchMatches(objects, options.objectName);
-  const availableExactTypes = getSearchObjectTypes(exactMatches);
-  const requestedObjectType = options.objectType
-    ? normalizeObjectType(options.objectType.trim())
-    : undefined;
-  const exactMatch = findExactSearchMatch(
-    exactMatches,
-    requestedObjectType,
-    availableExactTypes,
-  );
-
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  throw createSearchObjectResolutionError(
-    objects,
-    options,
-    exactMatches,
-    availableExactTypes,
-    requestedObjectType,
-  );
 }
 
 /**
