@@ -140,6 +140,35 @@ describe('parity: cts', () => {
     expect(mcp.json).toEqual(cliMetadata);
   });
 
+  it('transport metadata for a task returns the task, not its parent request', async () => {
+    // SAP returns the parent request and the requested task as siblings;
+    // metadata must project the task (DEVK900002), not the parent (DEVK900001).
+    const cli = await runCliCommand(harness, [
+      'cts',
+      'tr',
+      'metadata',
+      'DEVK900002',
+      '--json',
+    ]);
+    expect(cli.exitCode, cli.stderr || cli.stdout).toBe(0);
+    const cliMetadata = extractJson<{
+      requestedTransport: string;
+      units: Array<{ number: string; kind: string }>;
+    }>(cli);
+    expect(cliMetadata?.requestedTransport).toBe('DEVK900002');
+    expect(cliMetadata?.units).toHaveLength(1);
+    expect(cliMetadata?.units[0]?.number).toBe('DEVK900002');
+    expect(cliMetadata?.units[0]?.kind).toBe('task');
+
+    const mcp = await callMcpTool<{
+      requestedTransport: string;
+      units: Array<{ number: string; kind: string }>;
+    }>(harness, 'cts_transport_metadata', { transport: 'DEVK900002' });
+    expect(mcp.isError).toBe(false);
+    expect(mcp.json).toEqual(cliMetadata);
+    expect(mcp.json.units[0]?.number).toBe('DEVK900002');
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // 3. Create transport (CLI + MCP parity)
   // ──────────────────────────────────────────────────────────────────────────

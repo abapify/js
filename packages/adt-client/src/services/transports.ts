@@ -88,7 +88,14 @@ export class TransportService {
       data?.root && typeof data.root === 'object'
         ? (data.root as Record<string, unknown>)
         : data;
+    // SAP returns the parent request and the requested task as siblings
+    // (e.g. GET .../DEVK900002 yields root.request=DEVK900001 and
+    // root.task=DEVK900002). Prefer the unit whose number matches the
+    // requested trkorr so a task fetch does not map its parent request.
+    const wanted = trkorr.trim().toUpperCase();
     const request =
+      this.findUnit(unwrapped?.task, wanted) ??
+      this.findUnit(unwrapped?.request, wanted) ??
       (unwrapped?.request as Record<string, unknown> | undefined) ??
       (unwrapped?.task as Record<string, unknown> | undefined) ??
       unwrapped;
@@ -127,6 +134,22 @@ export class TransportService {
   async release(_trkorr: string): Promise<void> {
     // NOTE: Release action not yet implemented via service layer
     throw new Error('Transport release via service layer not yet implemented.');
+  }
+
+  /**
+   * Find a request/task unit whose number matches the wanted transport id.
+   * Handles both single-object and array shapes from ts-xsd.
+   */
+  private findUnit(
+    node: unknown,
+    wanted: string,
+  ): Record<string, unknown> | undefined {
+    if (!node) return undefined;
+    const arr = Array.isArray(node) ? node : [node];
+    return arr.find((item) => {
+      const u = item as Record<string, unknown>;
+      return String(u?.trkorr ?? u?.number ?? '').toUpperCase() === wanted;
+    }) as Record<string, unknown> | undefined;
   }
 
   /**
