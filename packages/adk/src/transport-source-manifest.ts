@@ -666,13 +666,27 @@ function repositoryNameFromUri(
   }
 }
 
-/** Resolve a LIMU leaf to the repository object that owns its source. */
+/** Resolve a CTS object to the repository object that owns its source. */
 function repositoryObjectReference(
   reference: TransportObjectReference,
 ): RepositoryObjectReference {
   const pgmid = reference.pgmid.trim().toUpperCase();
   const rawTypeFull = reference.type.trim().toUpperCase();
   const rawType = rawTypeFull.split('/')[0] ?? '';
+  // Some SAP releases expose a function-module change as R3TR/FUNC rather
+  // than LIMU/FUNC. Function-module source history belongs to its function
+  // group, whose identity is supplied by the ADT URI.
+  if (rawType === 'FUNC') {
+    const ownerName = repositoryNameFromUri(reference.uri, 'FUGR');
+    if (ownerName) {
+      return {
+        pgmid: 'R3TR',
+        type: 'FUGR',
+        name: ownerName,
+        isDeleted: false,
+      };
+    }
+  }
   if (pgmid === 'LIMU') {
     const ownerType = reference.wbtype?.trim().toUpperCase();
     const ownerName = ownerType
