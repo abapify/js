@@ -118,15 +118,17 @@ function contextWithVersions(
   listVersions: (versionsUri: string) => Promise<SourceVersionRef[]>,
 ) {
   const readVersionSource = vi.fn();
+  const quickSearch = vi.fn();
   const ctx = {
     client: {
+      adt: { repository: { informationsystem: { search: { quickSearch } } } },
       services: {
         sourceHistory: { listVersions, readVersionSource },
       },
     },
   } as unknown as AdkContext;
 
-  return { ctx, readVersionSource };
+  return { ctx, readVersionSource, quickSearch };
 }
 
 describe('selectTransportSourceVersions', () => {
@@ -881,6 +883,32 @@ describe('buildTransportSourceManifest', () => {
         exact: true,
       }),
     ]);
+  });
+
+  it('resolves real LIMU FUNC FUGR/FF inventory through its searched group URI', async () => {
+    const functionModule = transportObject({
+      name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      pgmid: 'LIMU',
+      type: 'FUNC',
+      wbtype: 'FUGR/FF',
+      objectUri: '',
+      factoryName: 'ZFG_PY_LEAN',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution([functionModule], ['S0DK955760'], ['S0DK955760']);
+    const { ctx, quickSearch } = contextWithVersions(
+      vi.fn().mockResolvedValue([version('00001', 0, ['S0DK955760'])]),
+    );
+    quickSearch.mockResolvedValue({
+      objectReferences: {
+        objectReference: {
+          name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+          uri: '/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/zfm_py_lean_paymedium_event_21',
+        },
+      },
+    });
+    await buildTransportSourceManifest(['S0DK955760'], {}, ctx);
+    expect(factoryGet).toHaveBeenCalledWith('ZFG_PY_LEAN', 'FUGR');
   });
 
   it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {
