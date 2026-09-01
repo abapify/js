@@ -838,6 +838,51 @@ describe('buildTransportSourceManifest', () => {
     );
   });
 
+  it('canonicalizes an R3TR function module to its owning function group', async () => {
+    const functionModule = transportObject({
+      name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      type: 'FUNC',
+      objectUri:
+        '/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/zfm_py_lean_paymedium_event_21',
+      factoryName: 'ZFG_PY_LEAN',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution([functionModule], ['DEVK900003'], ['DEVK900003']);
+    const { ctx } = contextWithVersions(
+      vi
+        .fn()
+        .mockResolvedValue([
+          version('00002', 0, ['DEVK900003']),
+          version('00001', 1, ['DEVK800001']),
+        ]),
+    );
+
+    const manifest = await buildTransportSourceManifest(
+      ['DEVK900003'],
+      {},
+      ctx,
+    );
+
+    expect(factoryGet).toHaveBeenCalledWith('ZFG_PY_LEAN', 'FUGR');
+    expect(manifest.entries).toEqual([
+      expect.objectContaining({
+        object: {
+          pgmid: 'R3TR',
+          type: 'FUNC',
+          name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+          packageName: 'ZPACKAGE',
+        },
+        repositoryObject: {
+          pgmid: 'R3TR',
+          type: 'FUGR',
+          name: 'ZFG_PY_LEAN',
+          packageName: 'ZPACKAGE',
+        },
+        exact: true,
+      }),
+    ]);
+  });
+
   it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {
     const authorizationAssignment = transportObject({
       name: 'Z_CONCUR_RECON',

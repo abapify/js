@@ -666,43 +666,80 @@ function repositoryNameFromUri(
   }
 }
 
-/** Resolve a LIMU leaf to the repository object that owns its source. */
-function repositoryObjectReference(
+// Some SAP releases expose a function-module change as R3TR/FUNC rather
+// than LIMU/FUNC. Function-module source history belongs to its function
+// group, whose identity is supplied by the ADT URI.
+function resolveFuncGroupReference(
   reference: TransportObjectReference,
-): RepositoryObjectReference {
-  const pgmid = reference.pgmid.trim().toUpperCase();
-  const rawTypeFull = reference.type.trim().toUpperCase();
-  const rawType = rawTypeFull.split('/')[0] ?? '';
-  if (pgmid === 'LIMU') {
-    const ownerType = reference.wbtype?.trim().toUpperCase();
-    const ownerName = ownerType
-      ? repositoryNameFromUri(reference.uri, ownerType)
-      : undefined;
-    if (ownerType && ownerName) {
-      return {
-        pgmid: 'R3TR',
-        type: ownerType,
-        name: ownerName,
-        // A deleted leaf changes its owner. Only REPS preserves the legacy
-        // whole-program deletion behavior when no R3TR parent is present.
-        isDeleted: rawType === 'REPS' && reference.isDeleted,
-      };
-    }
-    if (rawType === 'REPS') {
-      return {
-        pgmid: 'R3TR',
-        type: 'PROG',
-        name: reference.name.trim().toUpperCase(),
-        isDeleted: reference.isDeleted,
-      };
-    }
+  rawType: string,
+): RepositoryObjectReference | undefined {
+  if (rawType !== 'FUNC') return undefined;
+  const ownerName = repositoryNameFromUri(reference.uri, 'FUGR');
+  if (!ownerName) return undefined;
+  return {
+    pgmid: 'R3TR',
+    type: 'FUGR',
+    name: ownerName,
+    isDeleted: false,
+  };
+}
+
+function resolveLimuReference(
+  reference: TransportObjectReference,
+  pgmid: string,
+  rawType: string,
+): RepositoryObjectReference | undefined {
+  if (pgmid !== 'LIMU') return undefined;
+  const ownerType = reference.wbtype?.trim().toUpperCase();
+  const ownerName = ownerType
+    ? repositoryNameFromUri(reference.uri, ownerType)
+    : undefined;
+  if (ownerType && ownerName) {
+    return {
+      pgmid: 'R3TR',
+      type: ownerType,
+      name: ownerName,
+      // A deleted leaf changes its owner. Only REPS preserves the legacy
+      // whole-program deletion behavior when no R3TR parent is present.
+      isDeleted: rawType === 'REPS' && reference.isDeleted,
+    };
   }
+  if (rawType === 'REPS') {
+    return {
+      pgmid: 'R3TR',
+      type: 'PROG',
+      name: reference.name.trim().toUpperCase(),
+      isDeleted: reference.isDeleted,
+    };
+  }
+  return undefined;
+}
+
+function fallbackReference(
+  reference: TransportObjectReference,
+  pgmid: string,
+  rawTypeFull: string,
+): RepositoryObjectReference {
   return {
     pgmid,
     type: rawTypeFull,
     name: reference.name.trim().toUpperCase(),
     isDeleted: reference.isDeleted,
   };
+}
+
+/** Resolve a CTS object to the repository object that owns its source. */
+function repositoryObjectReference(
+  reference: TransportObjectReference,
+): RepositoryObjectReference {
+  const pgmid = reference.pgmid.trim().toUpperCase();
+  const rawTypeFull = reference.type.trim().toUpperCase();
+  const rawType = rawTypeFull.split('/')[0] ?? '';
+  return (
+    resolveFuncGroupReference(reference, rawType) ??
+    resolveLimuReference(reference, pgmid, rawType) ??
+    fallbackReference(reference, pgmid, rawTypeFull)
+  );
 }
 
 function selectorValues(value: string | string[] | undefined): string[] {
