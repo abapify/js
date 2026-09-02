@@ -134,7 +134,12 @@ function checkoutTrCommand(
         );
       }
       const client = (await ctx.getAdtClient()) as AdtClient;
-      const report = partialReportPath(args['partial-report'], ctx.cwd);
+      // Commander normalizes --partial-report to partialReport at runtime;
+      // retain the dashed spelling for direct plugin callers and tests.
+      const report = partialReportPath(
+        args.partialReport ?? args['partial-report'],
+        ctx.cwd,
+      );
       if (report && args['partial'] !== true) {
         throw new AdtFlowError(
           'invalid_input',

@@ -141,7 +141,7 @@ describe('flow CLI command', () => {
 
     try {
       await leaf(command).execute?.(
-        { transport: 'DEVK900001', partial: true, 'partial-report': report },
+        { transport: 'DEVK900001', partial: true, partialReport: report },
         ctx,
       );
 
