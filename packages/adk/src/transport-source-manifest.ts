@@ -430,7 +430,24 @@ async function discoverObjectSourceHistory(
 
   const { metadata, objectUri } = ensureObjectMetadata(model, object);
 
-  const packageName = packageNameFrom(metadata);
+  let packageName = packageNameFrom(metadata);
+  // Function-module metadata has no top-level packageRef; inherit the
+  // owning function group's package so the manifest entry stays scoped.
+  if (!packageName && functionGroupName) {
+    const fugrModel = createAdkFactory(ctx).get(functionGroupName, 'FUGR');
+    const fugrLoad = ensureObjectLoadable(asRecord(fugrModel), {
+      name: functionGroupName,
+      type: 'FUGR',
+    });
+    await loadObjectModel(fugrModel, fugrLoad, {
+      name: functionGroupName,
+      type: 'FUGR',
+    });
+    const fugrMetadata = loadedMetadata(fugrModel);
+    if (fugrMetadata) {
+      packageName = packageNameFrom(fugrMetadata);
+    }
+  }
   const normalizedObject = {
     ...object,
     ...(packageName ? { packageName } : {}),
@@ -742,7 +759,7 @@ async function resolveFuncGroupBySearch(
           type: 'FUGR/FF',
           name: reference.name.trim().toUpperCase(),
           functionGroupName: ownerName,
-          isDeleted: false,
+          isDeleted: reference.isDeleted,
         }
       : undefined;
   } catch {
@@ -832,6 +849,8 @@ function manifestSelectorMatches(
   selector: TransportObjectSelector | undefined,
 ): boolean {
   if (!selector) return true;
+  const repositoryType = repository.type.trim().toUpperCase();
+  const repositoryMainType = repositoryType.split('/')[0] ?? '';
   return (
     selectorDimensionMatches(
       [original.objFunc.trim().toUpperCase()],
@@ -842,7 +861,13 @@ function manifestSelectorMatches(
       selector.pgmid,
     ) &&
     selectorDimensionMatches(
-      [original.type.trim().toUpperCase(), repository.type.toUpperCase()],
+      [
+        original.type.trim().toUpperCase(),
+        repositoryType,
+        ...(repositoryMainType && repositoryMainType !== repositoryType
+          ? [repositoryMainType]
+          : []),
+      ],
       selector.type,
     )
   );

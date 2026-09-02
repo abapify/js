@@ -67,7 +67,11 @@ const functionModuleObjects = new Map<string, unknown>();
 function functionModuleObject(
   groupName: string,
   name: string,
-  metadata: Record<string, unknown> = rootSourceMetadata(),
+  metadata: Record<string, unknown> = Object.fromEntries(
+    Object.entries(rootSourceMetadata()).filter(
+      ([key]) => key !== 'packageRef',
+    ),
+  ),
 ) {
   const model = {
     objectUri: `/sap/bc/adt/functions/groups/${groupName.toLowerCase()}/fmodules/${name.toLowerCase()}`,
@@ -920,6 +924,7 @@ describe('buildTransportSourceManifest', () => {
       wbtype: 'FUGR/FF',
       objectUri: '',
       factoryName: 'ZFG_PY_LEAN',
+      metadata: rootSourceMetadata(),
     });
     functionModuleObject('ZFG_PY_LEAN', 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21');
     mockResolution([functionModule], ['S0DK955760'], ['S0DK955760']);
@@ -958,17 +963,20 @@ describe('buildTransportSourceManifest', () => {
       'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
       ctx,
     );
+    expect(factoryGet).toHaveBeenCalledWith('ZFG_PY_LEAN', 'FUGR');
     expect(manifest.entries).toEqual([
       expect.objectContaining({
         object: expect.objectContaining({
           pgmid: 'LIMU',
           type: 'FUNC',
           name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+          packageName: 'ZPACKAGE',
         }),
         repositoryObject: expect.objectContaining({
           pgmid: 'R3TR',
           type: 'FUGR',
           name: 'ZFG_PY_LEAN',
+          packageName: 'ZPACKAGE',
         }),
       }),
     ]);
