@@ -107,7 +107,7 @@ describe('flow CLI command', () => {
 
   it('writes a deterministic partial report only after a successful partial checkout', async () => {
     const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
-    const report = join(root, 'tmp', 'analysis', 'import-gaps.json');
+    const report = 'tmp/analysis/import-gaps.json';
     const checkout = vi.fn(async () => ({
       mode: 'head' as const,
       requestedTransports: ['DEVK900001'],
@@ -148,7 +148,7 @@ describe('flow CLI command', () => {
       expect(checkout).toHaveBeenCalledWith(
         expect.objectContaining({ partial: true }),
       );
-      expect(JSON.parse(await readFile(report, 'utf8'))).toEqual({
+      expect(JSON.parse(await readFile(join(root, report), 'utf8'))).toEqual({
         schemaVersion: 1,
         requestedTransports: ['DEVK900001'],
         skipped: [
@@ -199,6 +199,110 @@ describe('flow CLI command', () => {
         ),
       ).rejects.toMatchObject({ code: 'invalid_input' });
       expect(checkout).not.toHaveBeenCalled();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an absolute --partial-report path', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+    const checkout = vi.fn(async () => ({
+      mode: 'head' as const,
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      changed: [],
+      moved: [],
+      removed: [],
+      unchanged: [],
+      descriptors: [],
+      skipped: [],
+      sapCalls: { manifest: 1, metadata: 1, source: 1 },
+      fastPath: 'none' as const,
+    }));
+    const command = createFlowCommand({
+      getFormat: vi.fn(() => format),
+      createService: vi.fn(() => ({ checkout })),
+    });
+    const ctx = {
+      cwd: root,
+      config: { flow: { format: { id: 'abapgit' } } },
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      getAdtClient: vi.fn(async () => ({}) as AdtClient),
+    } satisfies CliContext;
+
+    try {
+      await expect(
+        leaf(command).execute?.(
+          {
+            transport: 'DEVK900001',
+            partial: true,
+            partialReport: join(root, 'escape.json'),
+          },
+          ctx,
+        ),
+      ).rejects.toMatchObject({ code: 'invalid_input' });
+      expect(checkout).not.toHaveBeenCalled();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('serializes skipped records in deterministic order', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+    const report = 'import-gaps.json';
+    const checkout = vi.fn(async () => ({
+      mode: 'head' as const,
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      changed: [],
+      moved: [],
+      removed: [],
+      unchanged: [],
+      descriptors: [],
+      skipped: [
+        {
+          object: 'CLAS/ZCL_B',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+        },
+        {
+          object: 'CLAS/ZCL_A',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+        },
+      ],
+      sapCalls: { manifest: 1, metadata: 1, source: 1 },
+      fastPath: 'none' as const,
+    }));
+    const command = createFlowCommand({
+      getFormat: vi.fn(() => format),
+      createService: vi.fn(() => ({ checkout })),
+    });
+    const ctx = {
+      cwd: root,
+      config: { flow: { format: { id: 'abapgit' } } },
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      getAdtClient: vi.fn(async () => ({}) as AdtClient),
+    } satisfies CliContext;
+
+    try {
+      await leaf(command).execute?.(
+        { transport: 'DEVK900001', partial: true, partialReport: report },
+        ctx,
+      );
+      const parsed = JSON.parse(await readFile(join(root, report), 'utf8'));
+      expect(parsed.skipped).toEqual([
+        {
+          object: 'CLAS/ZCL_A',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+        },
+        {
+          object: 'CLAS/ZCL_B',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+        },
+      ]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

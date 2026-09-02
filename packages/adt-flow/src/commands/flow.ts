@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { AdtClient } from '@abapify/adt-client';
 import type { FlowConfig } from '@abapify/adt-config';
 import {
@@ -10,6 +10,7 @@ import {
   type FormatPlugin,
 } from '@abapify/adt-plugin';
 import { createAdtFlowDependencies } from '../adt-client-adapter';
+import { compareStrings } from '../deterministic';
 import { createAdtFlowService, type AdtFlowService } from '../service';
 import { flowConfigSchema } from '../schemas';
 import { AdtFlowError } from '../types';
@@ -60,6 +61,12 @@ function partialReportPath(value: unknown, root: string): string | undefined {
       '--partial-report requires a non-empty repository-relative file path.',
     );
   }
+  if (isAbsolute(value)) {
+    throw new AdtFlowError(
+      'invalid_input',
+      '--partial-report must be a repository-relative path, not absolute.',
+    );
+  }
   const target = resolve(root, value);
   const fromRoot = relative(root, target);
   if (fromRoot === '') {
@@ -69,6 +76,7 @@ function partialReportPath(value: unknown, root: string): string | undefined {
     );
   }
   if (
+    isAbsolute(fromRoot) ||
     fromRoot === '..' ||
     fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
   ) {
@@ -84,11 +92,18 @@ async function writePartialReport(
   output: string,
   result: Awaited<ReturnType<AdtFlowService['checkout']>>,
 ): Promise<void> {
+  const skipped = [...result.skipped].sort((a, b) => {
+    return (
+      compareStrings(a.object, b.object) ||
+      compareStrings(a.component, b.component) ||
+      compareStrings(a.diagnostic, b.diagnostic)
+    );
+  });
   const payload = `${JSON.stringify(
     {
       schemaVersion: 1,
       requestedTransports: result.requestedTransports,
-      skipped: result.skipped,
+      skipped,
     },
     null,
     2,
