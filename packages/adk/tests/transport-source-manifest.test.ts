@@ -967,8 +967,8 @@ describe('buildTransportSourceManifest', () => {
         }),
         repositoryObject: expect.objectContaining({
           pgmid: 'R3TR',
-          type: 'FUGR/FF',
-          name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+          type: 'FUGR',
+          name: 'ZFG_PY_LEAN',
         }),
       }),
     ]);

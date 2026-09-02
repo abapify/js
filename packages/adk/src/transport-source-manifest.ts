@@ -904,8 +904,8 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
           ...entry,
           repositoryObject: {
             pgmid: repository.pgmid,
-            type: repository.type,
-            name: repository.name,
+            type: repository.functionGroupName ? 'FUGR' : repository.type,
+            name: repository.functionGroupName ?? repository.name,
             ...(packageName ? { packageName } : {}),
           },
         }
