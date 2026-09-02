@@ -699,21 +699,27 @@ async function resolveFuncGroupBySearch(
       (await context.client.adt.repository.informationsystem.search.quickSearch(
         { query: reference.name, maxResults: 10 },
       )) as Record<string, unknown>;
+    // The quick-search response may nest references under
+    // `objectReferences` or `mainObject`, or expose a top-level
+    // `objectReference`. Accept all three shapes.
     const container =
       asRecord(result['objectReferences']) ?? asRecord(result['mainObject']);
-    const raw = container?.['objectReference'];
+    const raw = container?.['objectReference'] ?? result['objectReference'];
     const matches = (Array.isArray(raw) ? raw : [raw])
       .map(asRecord)
       .filter((item): item is Record<string, unknown> => Boolean(item));
-    const match = matches.find(
-      (item) =>
-        nonEmptyString(item['name'])?.toUpperCase() ===
-        reference.name.trim().toUpperCase(),
-    );
-    const ownerName = repositoryNameFromUri(
-      nonEmptyString(match?.['uri']),
-      'FUGR',
-    );
+    // Match by exact function-module name, then pick the first result
+    // whose URI resolves to a FUGR owner. This avoids a same-named
+    // non-FUGR object (e.g. FUGR/F) masking the valid function-group
+    // result when it appears earlier in the response.
+    const ownerName = matches
+      .filter(
+        (item) =>
+          nonEmptyString(item['name'])?.toUpperCase() ===
+          reference.name.trim().toUpperCase(),
+      )
+      .map((item) => repositoryNameFromUri(nonEmptyString(item['uri']), 'FUGR'))
+      .find((name): name is string => Boolean(name));
     return ownerName
       ? { pgmid: 'R3TR', type: 'FUGR', name: ownerName, isDeleted: false }
       : undefined;
@@ -770,7 +776,7 @@ function fallbackReference(
 async function repositoryObjectReference(
   reference: TransportObjectReference,
   context: AdkContext,
-): RepositoryObjectReference {
+): Promise<RepositoryObjectReference> {
   const pgmid = reference.pgmid.trim().toUpperCase();
   const rawTypeFull = reference.type.trim().toUpperCase();
   const rawType = rawTypeFull.split('/')[0] ?? '';

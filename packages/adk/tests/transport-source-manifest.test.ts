@@ -899,16 +899,48 @@ describe('buildTransportSourceManifest', () => {
     const { ctx, quickSearch } = contextWithVersions(
       vi.fn().mockResolvedValue([version('00001', 0, ['S0DK955760'])]),
     );
+    // A same-named non-FUGR result (e.g. a program) appears before the
+    // valid function-module result. The resolver must skip the non-FUGR
+    // URI and select the function-module URI whose path resolves to the
+    // owning function group.
     quickSearch.mockResolvedValue({
       objectReferences: {
-        objectReference: {
-          name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
-          uri: '/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/zfm_py_lean_paymedium_event_21',
-        },
+        objectReference: [
+          {
+            name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+            uri: '/sap/bc/adt/programs/zfm_py_lean_paymedium_event_21',
+          },
+          {
+            name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+            uri: '/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/zfm_py_lean_paymedium_event_21',
+          },
+        ],
       },
     });
-    await buildTransportSourceManifest(['S0DK955760'], {}, ctx);
+    const manifest = await buildTransportSourceManifest(
+      ['S0DK955760'],
+      {},
+      ctx,
+    );
+    expect(quickSearch).toHaveBeenCalledWith({
+      query: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      maxResults: 10,
+    });
     expect(factoryGet).toHaveBeenCalledWith('ZFG_PY_LEAN', 'FUGR');
+    expect(manifest.entries).toEqual([
+      expect.objectContaining({
+        object: expect.objectContaining({
+          pgmid: 'LIMU',
+          type: 'FUNC',
+          name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+        }),
+        repositoryObject: expect.objectContaining({
+          pgmid: 'R3TR',
+          type: 'FUGR',
+          name: 'ZFG_PY_LEAN',
+        }),
+      }),
+    ]);
   });
 
   it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {
