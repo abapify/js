@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import type { AdtClient } from '@abapify/adt-client';
 import type {
   CliCommandPlugin,
@@ -69,13 +72,14 @@ describe('flow CLI command', () => {
       root: '/workspace',
       transports: ['DEVK900002', 'DEVK900001'],
       mode: 'base',
+      partial: false,
       config: ctx.config.flow,
     });
     expect(info).toHaveBeenCalledWith(
       expect.stringContaining('1 changed, 0 moved, 0 removed'),
     );
     expect(warn).toHaveBeenCalledWith(
-      'Skipped unsupported object TABD/PAYHX01 (object; OBJECT_TYPE_UNSUPPORTED).',
+      'Skipped object TABD/PAYHX01 (object; OBJECT_TYPE_UNSUPPORTED).',
     );
     expect(warn).toHaveBeenCalledTimes(1);
   });
@@ -99,5 +103,65 @@ describe('flow CLI command', () => {
       leaf(command).execute?.({ transport: 'DEVK900001' }, ctx),
     ).rejects.toMatchObject({ code: 'configuration_invalid' });
     expect(getAdtClient).not.toHaveBeenCalled();
+  });
+
+  it('writes a deterministic partial report only after a successful partial checkout', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+    const report = join(root, 'tmp', 'analysis', 'import-gaps.json');
+    const checkout = vi.fn(async () => ({
+      mode: 'head' as const,
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      changed: ['src/zcl_sample.clas.abap'],
+      moved: [],
+      removed: [],
+      unchanged: [],
+      descriptors: [],
+      skipped: [
+        {
+          object: 'CLAS/ZCL_INEXACT',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900001',
+        },
+      ],
+      sapCalls: { manifest: 1, metadata: 1, source: 1 },
+      fastPath: 'none' as const,
+    }));
+    const command = createFlowCommand({
+      getFormat: vi.fn(() => format),
+      createService: vi.fn(() => ({ checkout })),
+    });
+    const ctx = {
+      cwd: root,
+      config: { flow: { format: { id: 'abapgit' } } },
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      getAdtClient: vi.fn(async () => ({}) as AdtClient),
+    } satisfies CliContext;
+
+    try {
+      await leaf(command).execute?.(
+        { transport: 'DEVK900001', partial: true, 'partial-report': report },
+        ctx,
+      );
+
+      expect(checkout).toHaveBeenCalledWith(
+        expect.objectContaining({ partial: true }),
+      );
+      expect(JSON.parse(await readFile(report, 'utf8'))).toEqual({
+        schemaVersion: 1,
+        requestedTransports: ['DEVK900001'],
+        skipped: [
+          {
+            object: 'CLAS/ZCL_INEXACT',
+            component: 'main',
+            diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+            sourceTransport: 'DEVK900001',
+          },
+        ],
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

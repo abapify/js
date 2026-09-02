@@ -711,6 +711,51 @@ describe('transport checkout', () => {
     expect(ports.loadObject).not.toHaveBeenCalled();
   });
 
+  it('materializes the exact subset only when partial mode explicitly opts in', async () => {
+    const workspace = await root();
+    const current = manifest('modified', version('before'), version('after'));
+    current.entries.push({
+      object: {
+        pgmid: 'R3TR',
+        type: 'CLAS',
+        name: 'ZCL_ZZZ_INEXACT',
+        packageName: 'ZROOT_FEATURE',
+      },
+      component: { id: 'main' },
+      sourceTransport: 'DEVK900001',
+      changeKind: 'ambiguous',
+      exact: false,
+      diagnostic: {
+        code: 'SOURCE_HISTORY_INTERVENING_VERSION',
+        message: 'A version from another transport occurs inside this scope.',
+      },
+    });
+    const ports = dependencies(() => current);
+
+    const result = await createAdtFlowService(ports).checkout({
+      root: workspace,
+      transports: ['DEVK900001'],
+      config,
+      partial: true,
+    });
+
+    expect(result.changed).toContain('src/feature/zcl_sample.clas.abap');
+    expect(result.skipped).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          object: 'CLAS/ZCL_ZZZ_INEXACT',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900001',
+        }),
+      ]),
+    );
+    const descriptor = JSON.parse(
+      await readFile(join(workspace, '.adt/tr/DEVK900001.json'), 'utf8'),
+    );
+    expect(descriptor.incomplete).toBe(true);
+  });
+
   it('skips unsupported objects while materializing supported objects from the same transport', async () => {
     const workspace = await root();
     const current = manifest('modified', version('before'), version('after'));

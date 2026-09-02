@@ -152,6 +152,8 @@ export const transportDescriptorSchema = z.object({
   objects: z.array(z.string().min(1)),
   configDigest: z.string().regex(/^[a-f0-9]{64}$/),
   formatDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  /** Present only when at least one object was deliberately omitted. */
+  incomplete: z.boolean().optional(),
 });
 
 export type ObjectDescriptor = z.infer<typeof objectDescriptorSchema>;

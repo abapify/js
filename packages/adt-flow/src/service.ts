@@ -334,6 +334,7 @@ async function exactHeadFastPath(
     descriptors.some(
       (descriptor, index) =>
         !descriptor ||
+        descriptor.incomplete === true ||
         descriptor.configDigest !== configDigest ||
         descriptor.formatDigest !== formatDigest ||
         descriptor.inventory === undefined ||
@@ -880,6 +881,7 @@ export interface AdtFlowService {
 interface CheckoutContext {
   root: string;
   mode: 'base' | 'head';
+  partial: boolean;
   requested: string[];
   config: FlowConfig;
   configDigest: string;
@@ -913,6 +915,7 @@ function createCheckoutContext(
   return {
     root: input.root,
     mode: input.mode ?? 'head',
+    partial: input.partial === true,
     requested: normalizeTransports(input.transports),
     config,
     configDigest: digest(config),
@@ -989,6 +992,32 @@ function prepareGroups(
     for (const entry of group.entries) selectedVersion(entry, mode);
   }
   return groups;
+}
+
+function inexactEntries(
+  entries: readonly TransportSourceManifestEntry[],
+  partial: boolean,
+): TransportSourceManifestEntry[] {
+  const inexact = entries.filter(
+    (entry) => !entry.exact && !isUnsupportedEntry(entry),
+  );
+  if (inexact.length > 0 && !partial) {
+    // Preserve the original all-or-nothing safety contract for every caller
+    // which has not explicitly elected to publish an incomplete boundary.
+    selectedVersion(inexact[0]!, 'head');
+  }
+  return inexact;
+}
+
+function skippedInexactEntries(
+  entries: readonly TransportSourceManifestEntry[],
+): FlowCheckoutResult['skipped'] {
+  return entries.map((entry) => ({
+    object: `${entry.object.type}/${entry.object.name}`,
+    component: entry.component.id,
+    diagnostic: entry.diagnostic?.code ?? 'MANIFEST_INEXACT',
+    sourceTransport: entry.sourceTransport,
+  }));
 }
 
 async function unsupportedEntries(
@@ -1086,7 +1115,11 @@ async function buildManifestAndGroups(
     metadataLimiter,
     hasApplicationComponentFilter,
   );
-  const entries = scopedEntries.filter((entry) => !isUnsupportedEntry(entry));
+  const inexact = inexactEntries(scopedEntries, ctx.partial);
+  skipped.push(...skippedInexactEntries(inexact));
+  const entries = scopedEntries.filter(
+    (entry) => !isUnsupportedEntry(entry) && !inexact.includes(entry),
+  );
   const sourceLimiter = new Limiter(
     ctx.config.concurrency?.sources ?? DEFAULT_SOURCE_CONCURRENCY,
   );
@@ -1243,6 +1276,7 @@ async function addTransportDescriptors(
   ctx: CheckoutContext,
   manifest: TransportSourceManifest,
   accum: CheckoutAccumulator,
+  incomplete: boolean,
 ): Promise<void> {
   const { descriptorPaths, desired, ownedPaths, ownedOwners } = accum;
   const relevantObjectDescriptors = [...new Set(descriptorPaths)].sort(
@@ -1286,6 +1320,7 @@ async function addTransportDescriptors(
         objects: relevantObjectDescriptors,
         configDigest: ctx.configDigest,
         formatDigest: ctx.formatDigest,
+        ...(incomplete ? { incomplete: true } : {}),
       };
       desired.push({
         path,
@@ -1350,7 +1385,12 @@ async function checkoutFlow(
     manifestContext,
     pendingOwnership,
   );
-  await addTransportDescriptors(ctx, manifestContext.manifest, processed);
+  await addTransportDescriptors(
+    ctx,
+    manifestContext.manifest,
+    processed,
+    manifestContext.skipped.length > 0,
+  );
   processed.desired.sort((left, right) =>
     compareStrings(left.path, right.path),
   );

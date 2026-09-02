@@ -49,6 +49,47 @@ function flowConfig(ctx: CliContext): FlowConfig {
   }
 }
 
+function partialReportPath(value: unknown, root: string): string | undefined {
+  if (value === undefined || value === false) return undefined;
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new AdtFlowError(
+      'invalid_input',
+      '--partial-report requires a non-empty repository-relative file path.',
+    );
+  }
+  const target = resolve(root, value);
+  const fromRoot = relative(root, target);
+  if (
+    fromRoot === '..' ||
+    fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
+  ) {
+    throw new AdtFlowError(
+      'invalid_input',
+      '--partial-report must remain inside the checkout root.',
+    );
+  }
+  return target;
+}
+
+async function writePartialReport(
+  output: string,
+  result: Awaited<ReturnType<AdtFlowService['checkout']>>,
+): Promise<void> {
+  const payload = `${JSON.stringify(
+    {
+      schemaVersion: 1,
+      requestedTransports: result.requestedTransports,
+      skipped: result.skipped,
+    },
+    null,
+    2,
+  )}\n`;
+  await mkdir(dirname(output), { recursive: true });
+  const temporary = `${output}.${process.pid}.tmp`;
+  await writeFile(temporary, payload, 'utf8');
+  await rename(temporary, output);
+}
+
 function checkoutTrCommand(
   dependencies: FlowCommandDependencies,
 ): CliCommandPlugin {
@@ -65,6 +106,16 @@ function checkoutTrCommand(
       {
         flags: '--base',
         description: 'Checkout the version immediately before the scope',
+      },
+      {
+        flags: '--partial',
+        description:
+          'Materialize only objects with exact source-history boundaries',
+      },
+      {
+        flags: '--partial-report <file>',
+        description:
+          'Write skipped-object JSON after a successful partial checkout',
       },
     ],
     async execute(args, ctx) {
@@ -83,12 +134,21 @@ function checkoutTrCommand(
         );
       }
       const client = (await ctx.getAdtClient()) as AdtClient;
+      const report = partialReportPath(args['partial-report'], ctx.cwd);
+      if (report && args['partial'] !== true) {
+        throw new AdtFlowError(
+          'invalid_input',
+          '--partial-report requires the explicit --partial opt-in.',
+        );
+      }
       const result = await dependencies.createService(client, format).checkout({
         root: ctx.cwd,
         transports: transports(args['transport']),
         mode: args['base'] === true ? 'base' : 'head',
+        partial: args['partial'] === true,
         config,
       });
+      if (report) await writePartialReport(report, result);
       ctx.logger.info(
         `Checked out ${result.mode} for ${result.requestedTransports.join(', ')}: ` +
           `${result.changed.length} changed, ${result.moved.length} moved, ` +
@@ -96,7 +156,7 @@ function checkoutTrCommand(
       );
       for (const skipped of result.skipped) {
         ctx.logger.warn(
-          `Skipped unsupported object ${skipped.object} (${skipped.component}; ${skipped.diagnostic}).`,
+          `Skipped object ${skipped.object} (${skipped.component}; ${skipped.diagnostic}).`,
         );
       }
       ctx.logger.info(
@@ -126,3 +186,5 @@ export function createFlowCommand(
 
 export const flowCommand = createFlowCommand();
 export default flowCommand;
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { dirname, relative, resolve } from 'node:path';
