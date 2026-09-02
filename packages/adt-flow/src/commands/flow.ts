@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import type { AdtClient } from '@abapify/adt-client';
@@ -61,6 +62,12 @@ function partialReportPath(value: unknown, root: string): string | undefined {
   }
   const target = resolve(root, value);
   const fromRoot = relative(root, target);
+  if (fromRoot === '') {
+    throw new AdtFlowError(
+      'invalid_input',
+      '--partial-report must not target the checkout root directory.',
+    );
+  }
   if (
     fromRoot === '..' ||
     fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
@@ -87,7 +94,7 @@ async function writePartialReport(
     2,
   )}\n`;
   await mkdir(dirname(output), { recursive: true });
-  const temporary = `${output}.${process.pid}.tmp`;
+  const temporary = `${output}.${randomUUID()}.tmp`;
   await writeFile(temporary, payload, 'utf8');
   await rename(temporary, output);
 }

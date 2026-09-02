@@ -164,4 +164,43 @@ describe('flow CLI command', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('rejects --partial-report targeting the checkout root directory', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+    const checkout = vi.fn(async () => ({
+      mode: 'head' as const,
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      changed: [],
+      moved: [],
+      removed: [],
+      unchanged: [],
+      descriptors: [],
+      skipped: [],
+      sapCalls: { manifest: 1, metadata: 1, source: 1 },
+      fastPath: 'none' as const,
+    }));
+    const command = createFlowCommand({
+      getFormat: vi.fn(() => format),
+      createService: vi.fn(() => ({ checkout })),
+    });
+    const ctx = {
+      cwd: root,
+      config: { flow: { format: { id: 'abapgit' } } },
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      getAdtClient: vi.fn(async () => ({}) as AdtClient),
+    } satisfies CliContext;
+
+    try {
+      await expect(
+        leaf(command).execute?.(
+          { transport: 'DEVK900001', partial: true, partialReport: '.' },
+          ctx,
+        ),
+      ).rejects.toMatchObject({ code: 'invalid_input' });
+      expect(checkout).not.toHaveBeenCalled();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
