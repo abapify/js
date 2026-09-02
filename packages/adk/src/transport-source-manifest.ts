@@ -3,6 +3,7 @@ import type { AdkContext } from './base/context';
 import { getGlobalContext } from './base/global-context';
 import { getEndpointForType, normalizeObjectName } from './base/registry';
 import { createAdkFactory } from './factory';
+import { AdkFunctionModule } from './objects/repository/fugr';
 import {
   resolveTransportObjects,
   type ResolvedTransportObjects,
@@ -405,13 +406,27 @@ async function discoverObjectSourceHistory(
   objectType: string,
   ctx: AdkContext,
   normalizeIdentity = true,
+  functionGroupName?: string,
 ): Promise<ObjectSourceDiscovery> {
   const object = normalizeIdentity
     ? normalizeSourceHistoryIdentity(objectName, objectType)
     : { name: objectName, type: objectType };
-  const model = createAdkFactory(ctx).get(object.name, object.type);
-  const load = ensureObjectLoadable(asRecord(model), object);
-  await loadObjectModel(model, load, object);
+  let model: unknown;
+  if (object.type === 'FUGR/FF' && functionGroupName) {
+    try {
+      model = await AdkFunctionModule.get(functionGroupName, object.name, ctx);
+    } catch {
+      throw new ObjectSourceHistoryError(
+        'OBJECT_METADATA_LOAD_FAILED',
+        'SAP ADT rejected repository object metadata retrieval.',
+        object,
+      );
+    }
+  } else {
+    model = createAdkFactory(ctx).get(object.name, object.type);
+    const load = ensureObjectLoadable(asRecord(model), object);
+    await loadObjectModel(model, load, object);
+  }
 
   const { metadata, objectUri } = ensureObjectMetadata(model, object);
 
@@ -645,6 +660,7 @@ interface RepositoryObjectReference {
   type: string;
   name: string;
   isDeleted: boolean;
+  functionGroupName?: string;
 }
 
 function repositoryNameFromUri(
@@ -721,7 +737,13 @@ async function resolveFuncGroupBySearch(
       .map((item) => repositoryNameFromUri(nonEmptyString(item['uri']), 'FUGR'))
       .find((name): name is string => Boolean(name));
     return ownerName
-      ? { pgmid: 'R3TR', type: 'FUGR', name: ownerName, isDeleted: false }
+      ? {
+          pgmid: 'R3TR',
+          type: 'FUGR/FF',
+          name: reference.name.trim().toUpperCase(),
+          functionGroupName: ownerName,
+          isDeleted: false,
+        }
       : undefined;
   } catch {
     return undefined;
@@ -895,6 +917,7 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
       sourceHistoryDiscoveryType(repository),
       ctx,
       false,
+      repository.functionGroupName,
     );
   } catch (error) {
     if (!(error instanceof ObjectSourceHistoryError)) throw error;
