@@ -3,6 +3,7 @@ import type { AdkContext } from './base/context';
 import { getGlobalContext } from './base/global-context';
 import { getEndpointForType, normalizeObjectName } from './base/registry';
 import { createAdkFactory } from './factory';
+import { AdkFunctionModule } from './objects/repository/fugr';
 import {
   resolveTransportObjects,
   type ResolvedTransportObjects,
@@ -405,17 +406,48 @@ async function discoverObjectSourceHistory(
   objectType: string,
   ctx: AdkContext,
   normalizeIdentity = true,
+  functionGroupName?: string,
 ): Promise<ObjectSourceDiscovery> {
   const object = normalizeIdentity
     ? normalizeSourceHistoryIdentity(objectName, objectType)
     : { name: objectName, type: objectType };
-  const model = createAdkFactory(ctx).get(object.name, object.type);
-  const load = ensureObjectLoadable(asRecord(model), object);
-  await loadObjectModel(model, load, object);
+  let model: unknown;
+  if (object.type === 'FUGR/FF' && functionGroupName) {
+    try {
+      model = await AdkFunctionModule.get(functionGroupName, object.name, ctx);
+    } catch {
+      throw new ObjectSourceHistoryError(
+        'OBJECT_METADATA_LOAD_FAILED',
+        'SAP ADT rejected repository object metadata retrieval.',
+        object,
+      );
+    }
+  } else {
+    model = createAdkFactory(ctx).get(object.name, object.type);
+    const load = ensureObjectLoadable(asRecord(model), object);
+    await loadObjectModel(model, load, object);
+  }
 
   const { metadata, objectUri } = ensureObjectMetadata(model, object);
 
-  const packageName = packageNameFrom(metadata);
+  let packageName = packageNameFrom(metadata);
+  // Function-module metadata has no top-level packageRef; inherit the
+  // owning function group's package so the manifest entry stays scoped.
+  if (!packageName && functionGroupName) {
+    const fugrModel = createAdkFactory(ctx).get(functionGroupName, 'FUGR');
+    const fugrLoad = ensureObjectLoadable(asRecord(fugrModel), {
+      name: functionGroupName,
+      type: 'FUGR',
+    });
+    await loadObjectModel(fugrModel, fugrLoad, {
+      name: functionGroupName,
+      type: 'FUGR',
+    });
+    const fugrMetadata = loadedMetadata(fugrModel);
+    if (fugrMetadata) {
+      packageName = packageNameFrom(fugrMetadata);
+    }
+  }
   const normalizedObject = {
     ...object,
     ...(packageName ? { packageName } : {}),
@@ -645,6 +677,7 @@ interface RepositoryObjectReference {
   type: string;
   name: string;
   isDeleted: boolean;
+  functionGroupName?: string;
 }
 
 function repositoryNameFromUri(
@@ -721,7 +754,13 @@ async function resolveFuncGroupBySearch(
       .map((item) => repositoryNameFromUri(nonEmptyString(item['uri']), 'FUGR'))
       .find((name): name is string => Boolean(name));
     return ownerName
-      ? { pgmid: 'R3TR', type: 'FUGR', name: ownerName, isDeleted: false }
+      ? {
+          pgmid: 'R3TR',
+          type: 'FUGR/FF',
+          name: reference.name.trim().toUpperCase(),
+          functionGroupName: ownerName,
+          isDeleted: reference.isDeleted,
+        }
       : undefined;
   } catch {
     return undefined;
@@ -810,6 +849,8 @@ function manifestSelectorMatches(
   selector: TransportObjectSelector | undefined,
 ): boolean {
   if (!selector) return true;
+  const repositoryType = repository.type.trim().toUpperCase();
+  const repositoryMainType = repositoryType.split('/')[0] ?? '';
   return (
     selectorDimensionMatches(
       [original.objFunc.trim().toUpperCase()],
@@ -820,7 +861,13 @@ function manifestSelectorMatches(
       selector.pgmid,
     ) &&
     selectorDimensionMatches(
-      [original.type.trim().toUpperCase(), repository.type.toUpperCase()],
+      [
+        original.type.trim().toUpperCase(),
+        repositoryType,
+        ...(repositoryMainType && repositoryMainType !== repositoryType
+          ? [repositoryMainType]
+          : []),
+      ],
       selector.type,
     )
   );
@@ -882,8 +929,8 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
           ...entry,
           repositoryObject: {
             pgmid: repository.pgmid,
-            type: repository.type,
-            name: repository.name,
+            type: repository.functionGroupName ? 'FUGR' : repository.type,
+            name: repository.functionGroupName ?? repository.name,
             ...(packageName ? { packageName } : {}),
           },
         }
@@ -895,6 +942,7 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
       sourceHistoryDiscoveryType(repository),
       ctx,
       false,
+      repository.functionGroupName,
     );
   } catch (error) {
     if (!(error instanceof ObjectSourceHistoryError)) throw error;

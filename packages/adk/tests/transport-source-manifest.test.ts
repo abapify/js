@@ -4,6 +4,7 @@ import type { AdkContext } from '../src/base/context';
 
 const resolveTransportObjectsMock = vi.hoisted(() => vi.fn());
 const createAdkFactoryMock = vi.hoisted(() => vi.fn());
+const functionModuleGetMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../src/objects/cts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/objects/cts')>()),
@@ -13,6 +14,11 @@ vi.mock('../src/objects/cts', async (importOriginal) => ({
 vi.mock('../src/factory', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/factory')>()),
   createAdkFactory: createAdkFactoryMock,
+}));
+
+vi.mock('../src/objects/repository/fugr', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/objects/repository/fugr')>()),
+  AdkFunctionModule: { get: functionModuleGetMock },
 }));
 
 import {
@@ -56,6 +62,25 @@ interface FakeTransportObjectOptions {
 
 const factoryObjects = new Map<string, unknown>();
 const factoryGet = vi.fn();
+const functionModuleObjects = new Map<string, unknown>();
+
+function functionModuleObject(
+  groupName: string,
+  name: string,
+  metadata: Record<string, unknown> = Object.fromEntries(
+    Object.entries(rootSourceMetadata()).filter(
+      ([key]) => key !== 'packageRef',
+    ),
+  ),
+) {
+  const model = {
+    objectUri: `/sap/bc/adt/functions/groups/${groupName.toLowerCase()}/fmodules/${name.toLowerCase()}`,
+    dataSync: metadata,
+    load: vi.fn().mockResolvedValue(undefined),
+  };
+  functionModuleObjects.set(`${groupName}/${name}`, model);
+  return model;
+}
 
 function transportObject({
   name,
@@ -564,6 +589,12 @@ describe('buildTransportSourceManifest', () => {
     createAdkFactoryMock.mockReturnValue({
       get: factoryGet,
     });
+    functionModuleObjects.clear();
+    functionModuleGetMock.mockReset();
+    functionModuleGetMock.mockImplementation(
+      async (groupName: string, name: string) =>
+        functionModuleObjects.get(`${groupName}/${name}`),
+    );
   });
 
   it('builds an exact metadata-only manifest with concrete task provenance', async () => {
@@ -895,6 +926,7 @@ describe('buildTransportSourceManifest', () => {
       factoryName: 'ZFG_PY_LEAN',
       metadata: rootSourceMetadata(),
     });
+    functionModuleObject('ZFG_PY_LEAN', 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21');
     mockResolution([functionModule], ['S0DK955760'], ['S0DK955760']);
     const { ctx, quickSearch } = contextWithVersions(
       vi.fn().mockResolvedValue([version('00001', 0, ['S0DK955760'])]),
@@ -926,6 +958,11 @@ describe('buildTransportSourceManifest', () => {
       query: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
       maxResults: 10,
     });
+    expect(functionModuleGetMock).toHaveBeenCalledWith(
+      'ZFG_PY_LEAN',
+      'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      ctx,
+    );
     expect(factoryGet).toHaveBeenCalledWith('ZFG_PY_LEAN', 'FUGR');
     expect(manifest.entries).toEqual([
       expect.objectContaining({
@@ -933,11 +970,13 @@ describe('buildTransportSourceManifest', () => {
           pgmid: 'LIMU',
           type: 'FUNC',
           name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+          packageName: 'ZPACKAGE',
         }),
         repositoryObject: expect.objectContaining({
           pgmid: 'R3TR',
           type: 'FUGR',
           name: 'ZFG_PY_LEAN',
+          packageName: 'ZPACKAGE',
         }),
       }),
     ]);
