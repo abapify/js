@@ -30,4 +30,5 @@ export {
   type FlowErrorCode,
   type FlowObjectIdentity,
   type FlowObjectModel,
+  type FlowSkippedObject,
 } from './types';

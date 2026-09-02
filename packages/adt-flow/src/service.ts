@@ -1009,15 +1009,77 @@ function inexactEntries(
   return inexact;
 }
 
-function skippedInexactEntries(
+async function skippedInexactEntries(
   entries: readonly TransportSourceManifestEntry[],
-): FlowCheckoutResult['skipped'] {
-  return entries.map((entry) => ({
-    object: `${entry.object.type}/${entry.object.name}`,
-    component: entry.component.id,
-    diagnostic: entry.diagnostic?.code ?? 'MANIFEST_INEXACT',
-    sourceTransport: entry.sourceTransport,
-  }));
+  ctx: CheckoutContext,
+  limiter: Limiter,
+  hasApplicationComponentFilter: boolean,
+): Promise<FlowCheckoutResult['skipped']> {
+  if (!hasApplicationComponentFilter) {
+    return entries.map((entry) => ({
+      object: `${entry.object.type}/${entry.object.name}`,
+      component: entry.component.id,
+      diagnostic: entry.diagnostic?.code ?? 'MANIFEST_INEXACT',
+      sourceTransport: entry.sourceTransport,
+    }));
+  }
+
+  const byIdentity = new Map<
+    string,
+    { identity: FlowObjectIdentity; entries: TransportSourceManifestEntry[] }
+  >();
+  for (const entry of entries) {
+    const identity = objectIdentity(materializedObject(entry));
+    const existing = byIdentity.get(identity.canonical);
+    if (existing) {
+      existing.entries.push(entry);
+    } else {
+      byIdentity.set(identity.canonical, { identity, entries: [entry] });
+    }
+  }
+
+  const skipped: FlowCheckoutResult['skipped'] = [];
+  const pushSkipped = (identityEntries: TransportSourceManifestEntry[]) => {
+    for (const entry of identityEntries) {
+      skipped.push({
+        object: `${entry.object.type}/${entry.object.name}`,
+        component: entry.component.id,
+        diagnostic: entry.diagnostic?.code ?? 'MANIFEST_INEXACT',
+        sourceTransport: entry.sourceTransport,
+      });
+    }
+  };
+
+  await Promise.all(
+    [...byIdentity.values()].map(
+      async ({ identity, entries: identityEntries }) => {
+        if (
+          identityEntries.some(
+            (entry) => entry.diagnostic?.code === 'OBJECT_METADATA_LOAD_FAILED',
+          )
+        ) {
+          pushSkipped(identityEntries);
+          return;
+        }
+
+        try {
+          const model = await limiter.run(() =>
+            ctx.dependencies.loadObject(identity),
+          );
+          ctx.calls.metadata += model.metadataCalls ?? 1;
+          if (isApplicationComponentExcluded(ctx.config, model)) return;
+          pushSkipped(identityEntries);
+        } catch (error) {
+          if (error instanceof AdtFlowError) {
+            pushSkipped(identityEntries);
+            return;
+          }
+          throw error;
+        }
+      },
+    ),
+  );
+  return skipped;
 }
 
 async function unsupportedEntries(
@@ -1116,7 +1178,14 @@ async function buildManifestAndGroups(
     hasApplicationComponentFilter,
   );
   const inexact = inexactEntries(scopedEntries, ctx.partial);
-  skipped.push(...skippedInexactEntries(inexact));
+  skipped.push(
+    ...(await skippedInexactEntries(
+      inexact,
+      ctx,
+      metadataLimiter,
+      hasApplicationComponentFilter,
+    )),
+  );
   const entries = scopedEntries.filter(
     (entry) => !isUnsupportedEntry(entry) && !inexact.includes(entry),
   );

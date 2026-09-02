@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { AdtClient } from '@abapify/adt-client';
@@ -303,6 +303,38 @@ describe('flow CLI command', () => {
           diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
         },
       ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not write a partial report when checkout rejects', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+    const report = 'import-gaps.json';
+    const checkout = vi.fn(async () => {
+      throw new Error('checkout failed');
+    });
+    const command = createFlowCommand({
+      getFormat: vi.fn(() => format),
+      createService: vi.fn(() => ({ checkout })),
+    });
+    const ctx = {
+      cwd: root,
+      config: { flow: { format: { id: 'abapgit' } } },
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      getAdtClient: vi.fn(async () => ({}) as AdtClient),
+    } satisfies CliContext;
+
+    try {
+      await expect(
+        leaf(command).execute?.(
+          { transport: 'DEVK900001', partial: true, partialReport: report },
+          ctx,
+        ),
+      ).rejects.toThrow('checkout failed');
+      await expect(readFile(join(root, report), 'utf8')).rejects.toThrow();
+      const tmpFiles = await readdir(root);
+      expect(tmpFiles.filter((f) => f.endsWith('.tmp'))).toEqual([]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
