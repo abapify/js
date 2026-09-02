@@ -118,15 +118,17 @@ function contextWithVersions(
   listVersions: (versionsUri: string) => Promise<SourceVersionRef[]>,
 ) {
   const readVersionSource = vi.fn();
+  const quickSearch = vi.fn();
   const ctx = {
     client: {
+      adt: { repository: { informationsystem: { search: { quickSearch } } } },
       services: {
         sourceHistory: { listVersions, readVersionSource },
       },
     },
   } as unknown as AdkContext;
 
-  return { ctx, readVersionSource };
+  return { ctx, readVersionSource, quickSearch };
 }
 
 describe('selectTransportSourceVersions', () => {
@@ -879,6 +881,64 @@ describe('buildTransportSourceManifest', () => {
           packageName: 'ZPACKAGE',
         },
         exact: true,
+      }),
+    ]);
+  });
+
+  it('resolves real LIMU FUNC FUGR/FF inventory through its searched group URI', async () => {
+    const functionModule = transportObject({
+      name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      pgmid: 'LIMU',
+      type: 'FUNC',
+      wbtype: 'FUGR/FF',
+      objectUri: '',
+      factoryName: 'ZFG_PY_LEAN',
+      metadata: rootSourceMetadata(),
+    });
+    mockResolution([functionModule], ['S0DK955760'], ['S0DK955760']);
+    const { ctx, quickSearch } = contextWithVersions(
+      vi.fn().mockResolvedValue([version('00001', 0, ['S0DK955760'])]),
+    );
+    // A same-named non-FUGR result (e.g. a program) appears before the
+    // valid function-module result. The resolver must skip the non-FUGR
+    // URI and select the function-module URI whose path resolves to the
+    // owning function group.
+    quickSearch.mockResolvedValue({
+      objectReferences: {
+        objectReference: [
+          {
+            name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+            uri: '/sap/bc/adt/programs/zfm_py_lean_paymedium_event_21',
+          },
+          {
+            name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+            uri: '/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/zfm_py_lean_paymedium_event_21',
+          },
+        ],
+      },
+    });
+    const manifest = await buildTransportSourceManifest(
+      ['S0DK955760'],
+      {},
+      ctx,
+    );
+    expect(quickSearch).toHaveBeenCalledWith({
+      query: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      maxResults: 10,
+    });
+    expect(factoryGet).toHaveBeenCalledWith('ZFG_PY_LEAN', 'FUGR');
+    expect(manifest.entries).toEqual([
+      expect.objectContaining({
+        object: expect.objectContaining({
+          pgmid: 'LIMU',
+          type: 'FUNC',
+          name: 'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+        }),
+        repositoryObject: expect.objectContaining({
+          pgmid: 'R3TR',
+          type: 'FUGR',
+          name: 'ZFG_PY_LEAN',
+        }),
       }),
     ]);
   });

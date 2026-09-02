@@ -684,6 +684,50 @@ function resolveFuncGroupReference(
   };
 }
 
+async function resolveFuncGroupBySearch(
+  reference: TransportObjectReference,
+  context: AdkContext,
+): Promise<RepositoryObjectReference | undefined> {
+  if (
+    reference.pgmid.trim().toUpperCase() !== 'LIMU' ||
+    reference.type.trim().toUpperCase() !== 'FUNC' ||
+    reference.wbtype?.trim().toUpperCase().split('/')[0] !== 'FUGR'
+  )
+    return undefined;
+  try {
+    const result =
+      (await context.client.adt.repository.informationsystem.search.quickSearch(
+        { query: reference.name, maxResults: 10 },
+      )) as Record<string, unknown>;
+    // The quick-search response may nest references under
+    // `objectReferences` or `mainObject`, or expose a top-level
+    // `objectReference`. Accept all three shapes.
+    const container =
+      asRecord(result['objectReferences']) ?? asRecord(result['mainObject']);
+    const raw = container?.['objectReference'] ?? result['objectReference'];
+    const matches = (Array.isArray(raw) ? raw : [raw])
+      .map(asRecord)
+      .filter((item): item is Record<string, unknown> => Boolean(item));
+    // Match by exact function-module name, then pick the first result
+    // whose URI resolves to a FUGR owner. This avoids a same-named
+    // non-FUGR object (e.g. FUGR/F) masking the valid function-group
+    // result when it appears earlier in the response.
+    const ownerName = matches
+      .filter(
+        (item) =>
+          nonEmptyString(item['name'])?.toUpperCase() ===
+          reference.name.trim().toUpperCase(),
+      )
+      .map((item) => repositoryNameFromUri(nonEmptyString(item['uri']), 'FUGR'))
+      .find((name): name is string => Boolean(name));
+    return ownerName
+      ? { pgmid: 'R3TR', type: 'FUGR', name: ownerName, isDeleted: false }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function resolveLimuReference(
   reference: TransportObjectReference,
   pgmid: string,
@@ -729,14 +773,16 @@ function fallbackReference(
 }
 
 /** Resolve a CTS object to the repository object that owns its source. */
-function repositoryObjectReference(
+async function repositoryObjectReference(
   reference: TransportObjectReference,
-): RepositoryObjectReference {
+  context: AdkContext,
+): Promise<RepositoryObjectReference> {
   const pgmid = reference.pgmid.trim().toUpperCase();
   const rawTypeFull = reference.type.trim().toUpperCase();
   const rawType = rawTypeFull.split('/')[0] ?? '';
   return (
     resolveFuncGroupReference(reference, rawType) ??
+    (await resolveFuncGroupBySearch(reference, context)) ??
     resolveLimuReference(reference, pgmid, rawType) ??
     fallbackReference(reference, pgmid, rawTypeFull)
   );
@@ -1071,14 +1117,18 @@ export async function buildTransportSourceManifest(
         compareText(left.name, right.name),
     );
   const seenRepositoryObjects = new Set<string>();
-  const objects = resolved.objects
-    .filter((reference) => !isNonSourceCtsObject(reference))
-    .map((original) => ({
-      original,
-      repository: repositoryObjectReference(original),
-      sourceTransport:
-        resolved.sourceTransportMap.get(original.key) ?? requested[0] ?? '',
-    }))
+  const objects = (
+    await mapOrdered(
+      resolved.objects.filter((reference) => !isNonSourceCtsObject(reference)),
+      normalizeConcurrency(options.concurrency),
+      async (original) => ({
+        original,
+        repository: await repositoryObjectReference(original, context),
+        sourceTransport:
+          resolved.sourceTransportMap.get(original.key) ?? requested[0] ?? '',
+      }),
+    )
+  )
     .filter(({ original, repository }) =>
       manifestSelectorMatches(original, repository, options.selector),
     )
