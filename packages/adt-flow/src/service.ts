@@ -935,6 +935,10 @@ async function tryExactHeadFastPath(
   ctx: CheckoutContext,
 ): Promise<FlowCheckoutResult | undefined> {
   if (ctx.mode !== 'head') return undefined;
+  // Partial checkouts must rebuild the manifest to know which objects
+  // were skipped; the fast path returns an empty skipped list and would
+  // omit gaps from the partial report.
+  if (ctx.partial) return undefined;
   const fast = await exactHeadFastPath(
     ctx.root,
     ctx.requested,

@@ -252,8 +252,8 @@ describe('flow CLI command', () => {
     const report = 'import-gaps.json';
     const checkout = vi.fn(async () => ({
       mode: 'head' as const,
-      requestedTransports: ['DEVK900001'],
-      scopeTransports: ['DEVK900001'],
+      requestedTransports: ['DEVK900001', 'DEVK900002'],
+      scopeTransports: ['DEVK900001', 'DEVK900002'],
       changed: [],
       moved: [],
       removed: [],
@@ -264,11 +264,19 @@ describe('flow CLI command', () => {
           object: 'CLAS/ZCL_B',
           component: 'main',
           diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900002',
         },
         {
           object: 'CLAS/ZCL_A',
           component: 'main',
           diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900001',
+        },
+        {
+          object: 'CLAS/ZCL_A',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900002',
         },
       ],
       sapCalls: { manifest: 1, metadata: 1, source: 1 },
@@ -287,7 +295,11 @@ describe('flow CLI command', () => {
 
     try {
       await leaf(command).execute?.(
-        { transport: 'DEVK900001', partial: true, partialReport: report },
+        {
+          transport: 'DEVK900001,DEVK900002',
+          partial: true,
+          partialReport: report,
+        },
         ctx,
       );
       const parsed = JSON.parse(await readFile(join(root, report), 'utf8'));
@@ -296,11 +308,19 @@ describe('flow CLI command', () => {
           object: 'CLAS/ZCL_A',
           component: 'main',
           diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900001',
+        },
+        {
+          object: 'CLAS/ZCL_A',
+          component: 'main',
+          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900002',
         },
         {
           object: 'CLAS/ZCL_B',
           component: 'main',
           diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+          sourceTransport: 'DEVK900002',
         },
       ]);
     } finally {
@@ -379,53 +399,61 @@ describe('flow CLI command', () => {
     }
   });
 
-  it('rejects --partial-report escaping via a dangling symlink', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
-    const external = await mkdtemp(join(tmpdir(), 'adt-flow-external-'));
-    // Create a dangling symlink inside root pointing to an external dir
-    // that will be deleted to make it dangling.
-    const linkPath = join(root, 'linked');
-    await symlink(external, linkPath);
-    await rm(external, { recursive: true, force: true });
+  it.skipIf(process.platform === 'win32')(
+    'rejects --partial-report escaping via a dangling symlink',
+    async () => {
+      const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+      const external = await mkdtemp(join(tmpdir(), 'adt-flow-external-'));
+      // Create a dangling symlink inside root pointing to an external dir
+      // that will be deleted to make it dangling.
+      const linkPath = join(root, 'linked');
+      await symlink(external, linkPath);
+      await rm(external, { recursive: true, force: true });
 
-    const checkout = vi.fn(async () => ({
-      mode: 'head' as const,
-      requestedTransports: ['DEVK900001'],
-      scopeTransports: ['DEVK900001'],
-      changed: [],
-      moved: [],
-      removed: [],
-      unchanged: [],
-      descriptors: [],
-      skipped: [],
-      sapCalls: { manifest: 1, metadata: 1, source: 1 },
-      fastPath: 'none' as const,
-    }));
-    const command = createFlowCommand({
-      getFormat: vi.fn(() => format),
-      createService: vi.fn(() => ({ checkout })),
-    });
-    const ctx = {
-      cwd: root,
-      config: { flow: { format: { id: 'abapgit' } } },
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      getAdtClient: vi.fn(async () => ({}) as AdtClient),
-    } satisfies CliContext;
+      const checkout = vi.fn(async () => ({
+        mode: 'head' as const,
+        requestedTransports: ['DEVK900001'],
+        scopeTransports: ['DEVK900001'],
+        changed: [],
+        moved: [],
+        removed: [],
+        unchanged: [],
+        descriptors: [],
+        skipped: [],
+        sapCalls: { manifest: 1, metadata: 1, source: 1 },
+        fastPath: 'none' as const,
+      }));
+      const command = createFlowCommand({
+        getFormat: vi.fn(() => format),
+        createService: vi.fn(() => ({ checkout })),
+      });
+      const ctx = {
+        cwd: root,
+        config: { flow: { format: { id: 'abapgit' } } },
+        logger: {
+          debug: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+        },
+        getAdtClient: vi.fn(async () => ({}) as AdtClient),
+      } satisfies CliContext;
 
-    try {
-      await expect(
-        leaf(command).execute?.(
-          {
-            transport: 'DEVK900001',
-            partial: true,
-            partialReport: 'linked/new/report.json',
-          },
-          ctx,
-        ),
-      ).rejects.toMatchObject({ code: 'invalid_input' });
-      expect(checkout).not.toHaveBeenCalled();
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
-  });
+      try {
+        await expect(
+          leaf(command).execute?.(
+            {
+              transport: 'DEVK900001',
+              partial: true,
+              partialReport: 'linked/new/report.json',
+            },
+            ctx,
+          ),
+        ).rejects.toMatchObject({ code: 'invalid_input' });
+        expect(checkout).not.toHaveBeenCalled();
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 });
