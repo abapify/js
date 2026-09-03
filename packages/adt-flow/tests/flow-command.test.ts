@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { AdtClient } from '@abapify/adt-client';
@@ -370,6 +370,56 @@ describe('flow CLI command', () => {
       await expect(
         leaf(command).execute?.(
           { transport: 'DEVK900001', partialReport: 'report.json' },
+          ctx,
+        ),
+      ).rejects.toMatchObject({ code: 'invalid_input' });
+      expect(checkout).not.toHaveBeenCalled();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects --partial-report escaping via a dangling symlink', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+    const external = await mkdtemp(join(tmpdir(), 'adt-flow-external-'));
+    // Create a dangling symlink inside root pointing to an external dir
+    // that will be deleted to make it dangling.
+    const linkPath = join(root, 'linked');
+    await symlink(external, linkPath);
+    await rm(external, { recursive: true, force: true });
+
+    const checkout = vi.fn(async () => ({
+      mode: 'head' as const,
+      requestedTransports: ['DEVK900001'],
+      scopeTransports: ['DEVK900001'],
+      changed: [],
+      moved: [],
+      removed: [],
+      unchanged: [],
+      descriptors: [],
+      skipped: [],
+      sapCalls: { manifest: 1, metadata: 1, source: 1 },
+      fastPath: 'none' as const,
+    }));
+    const command = createFlowCommand({
+      getFormat: vi.fn(() => format),
+      createService: vi.fn(() => ({ checkout })),
+    });
+    const ctx = {
+      cwd: root,
+      config: { flow: { format: { id: 'abapgit' } } },
+      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      getAdtClient: vi.fn(async () => ({}) as AdtClient),
+    } satisfies CliContext;
+
+    try {
+      await expect(
+        leaf(command).execute?.(
+          {
+            transport: 'DEVK900001',
+            partial: true,
+            partialReport: 'linked/new/report.json',
+          },
           ctx,
         ),
       ).rejects.toMatchObject({ code: 'invalid_input' });

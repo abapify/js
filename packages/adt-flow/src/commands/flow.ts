@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { realpathSync } from 'node:fs';
+import { lstatSync, readlinkSync, realpathSync } from 'node:fs';
 import { mkdir, rename, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { AdtClient } from '@abapify/adt-client';
@@ -93,9 +93,10 @@ function partialReportPath(
   // Resolve symlinks in the parent directory to detect in-root symlinks
   // that point outside the checkout. The target file itself may not exist
   // yet, so we resolve its parent. If the parent doesn't exist either,
-  // walk up to the nearest existing ancestor, resolve that, and re-append
-  // the remaining path segments — this catches symlinks in existing
-  // ancestors that would be followed by mkdir/writeFile.
+  // walk up to the nearest existing ancestor, resolving that, and
+  // re-append the remaining path segments. At each step, check for
+  // dangling symlinks (existing lstat but realpath fails) that point
+  // outside the checkout — mkdir/writeFile would follow them.
   const parent = dirname(target);
   const base = basename(target);
   let realParent: string;
@@ -107,6 +108,31 @@ function partialReportPath(
     let current = parent;
     const segments: string[] = [];
     for (;;) {
+      // Check if current is a dangling symlink — it exists as a
+      // symlink but its target doesn't resolve. Reject if the link
+      // target escapes the checkout root.
+      try {
+        const stat = lstatSync(current);
+        if (stat.isSymbolicLink()) {
+          const linkTarget = resolve(dirname(current), readlinkSync(current));
+          const fromRootLink = relative(realRoot, linkTarget);
+          if (
+            isAbsolute(fromRootLink) ||
+            fromRootLink === '..' ||
+            fromRootLink.startsWith(
+              `..${process.platform === 'win32' ? '\\' : '/'}`,
+            )
+          ) {
+            throw new AdtFlowError(
+              'invalid_input',
+              '--partial-report must not escape the checkout root via symlinks.',
+            );
+          }
+        }
+      } catch (error) {
+        if (error instanceof AdtFlowError) throw error;
+        // lstat failed — path doesn't exist at all, continue walking up.
+      }
       try {
         realParent = resolve(realpathSync(current), ...segments.reverse());
         break;
