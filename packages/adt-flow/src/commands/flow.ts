@@ -92,16 +92,36 @@ function partialReportPath(
   }
   // Resolve symlinks in the parent directory to detect in-root symlinks
   // that point outside the checkout. The target file itself may not exist
-  // yet, so we resolve its parent and re-append the basename.
+  // yet, so we resolve its parent. If the parent doesn't exist either,
+  // walk up to the nearest existing ancestor, resolve that, and re-append
+  // the remaining path segments — this catches symlinks in existing
+  // ancestors that would be followed by mkdir/writeFile.
   const parent = dirname(target);
+  const base = basename(target);
   let realParent: string;
   try {
     realParent = realpathSync(parent);
   } catch {
-    // Parent doesn't exist yet — no symlink can be there, so it's safe.
-    realParent = parent;
+    // Parent doesn't exist — walk up to the nearest existing ancestor
+    // and re-append the non-existent segments.
+    let current = parent;
+    const segments: string[] = [];
+    for (;;) {
+      try {
+        realParent = resolve(realpathSync(current), ...segments.reverse());
+        break;
+      } catch {
+        segments.push(basename(current));
+        const next = dirname(current);
+        if (next === current) {
+          realParent = parent;
+          break;
+        }
+        current = next;
+      }
+    }
   }
-  const realTarget = resolve(realParent, basename(target));
+  const realTarget = resolve(realParent, base);
   const fromRealRoot = relative(realRoot, realTarget);
   if (
     fromRealRoot === '' ||
@@ -144,7 +164,9 @@ async function writePartialReport(
     await writeFile(temporary, payload, 'utf8');
     await rename(temporary, output);
   } catch (error) {
-    await unlink(temporary).catch(() => {});
+    await unlink(temporary).catch(() => {
+      // Ignore cleanup failures — the original error is more important.
+    });
     throw error;
   }
 }

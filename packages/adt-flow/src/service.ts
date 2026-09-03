@@ -1422,7 +1422,7 @@ async function checkoutFlow(
     ctx,
     manifestContext.manifest,
     processed,
-    manifestContext.skipped.length > 0,
+    manifestContext.skipped.length > 0 && ctx.partial,
   );
   processed.desired.sort((left, right) =>
     compareStrings(left.path, right.path),
