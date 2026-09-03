@@ -54,6 +54,45 @@ function flowConfig(ctx: CliContext): FlowConfig {
   }
 }
 
+function escapeRoot(realRoot: string, path: string): boolean {
+  const fromRoot = relative(realRoot, path);
+  return (
+    isAbsolute(fromRoot) ||
+    fromRoot === '..' ||
+    fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
+  );
+}
+
+function assertNoSymlinkEscape(path: string, realRoot: string): void {
+  let linkCurrent = path;
+  const seen = new Set<string>();
+  for (;;) {
+    if (seen.has(linkCurrent)) {
+      throw new AdtFlowError(
+        'invalid_input',
+        '--partial-report path contains a symlink loop.',
+      );
+    }
+    seen.add(linkCurrent);
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+      stat = lstatSync(linkCurrent);
+    } catch {
+      // Dangling symlink target — already checked the hop, stop.
+      return;
+    }
+    if (!stat?.isSymbolicLink()) return;
+    const linkTarget = resolve(dirname(linkCurrent), readlinkSync(linkCurrent));
+    if (escapeRoot(realRoot, linkTarget)) {
+      throw new AdtFlowError(
+        'invalid_input',
+        '--partial-report must not escape the checkout root via symlinks.',
+      );
+    }
+    linkCurrent = linkTarget;
+  }
+}
+
 function partialReportPath(
   value: unknown,
   root: string,
@@ -80,11 +119,7 @@ function partialReportPath(
       '--partial-report must not target the checkout root directory.',
     );
   }
-  if (
-    isAbsolute(fromRoot) ||
-    fromRoot === '..' ||
-    fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
-  ) {
+  if (escapeRoot(root, target)) {
     throw new AdtFlowError(
       'invalid_input',
       '--partial-report must remain inside the checkout root.',
@@ -108,51 +143,10 @@ function partialReportPath(
     let current = parent;
     const segments: string[] = [];
     for (;;) {
-      // Check if current is a symlink (including dangling ones). Follow
-      // the entire symlink chain, resolving each hop, and reject if any
-      // hop escapes the checkout root.
+      // Check if current is a symlink (including dangling ones) whose
+      // chain escapes the checkout root.
       try {
-        const stat = lstatSync(current);
-        if (stat.isSymbolicLink()) {
-          let linkCurrent = current;
-          const seen = new Set<string>();
-          for (;;) {
-            if (seen.has(linkCurrent)) {
-              // Symlink loop — reject to avoid infinite recursion.
-              throw new AdtFlowError(
-                'invalid_input',
-                '--partial-report path contains a symlink loop.',
-              );
-            }
-            seen.add(linkCurrent);
-            let stat2: ReturnType<typeof lstatSync>;
-            try {
-              stat2 = lstatSync(linkCurrent);
-            } catch {
-              // Dangling symlink target — check where it points.
-              break;
-            }
-            if (!stat2?.isSymbolicLink()) break;
-            const linkTarget = resolve(
-              dirname(linkCurrent),
-              readlinkSync(linkCurrent),
-            );
-            const fromRootLink = relative(realRoot, linkTarget);
-            if (
-              isAbsolute(fromRootLink) ||
-              fromRootLink === '..' ||
-              fromRootLink.startsWith(
-                `..${process.platform === 'win32' ? '\\' : '/'}`,
-              )
-            ) {
-              throw new AdtFlowError(
-                'invalid_input',
-                '--partial-report must not escape the checkout root via symlinks.',
-              );
-            }
-            linkCurrent = linkTarget;
-          }
-        }
+        assertNoSymlinkEscape(current, realRoot);
       } catch (error) {
         if (error instanceof AdtFlowError) throw error;
         // lstat failed — path doesn't exist at all, continue walking up.
@@ -172,13 +166,7 @@ function partialReportPath(
     }
   }
   const realTarget = resolve(realParent, base);
-  const fromRealRoot = relative(realRoot, realTarget);
-  if (
-    fromRealRoot === '' ||
-    isAbsolute(fromRealRoot) ||
-    fromRealRoot === '..' ||
-    fromRealRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
-  ) {
+  if (escapeRoot(realRoot, realTarget)) {
     throw new AdtFlowError(
       'invalid_input',
       '--partial-report must not escape the checkout root via symlinks.',
