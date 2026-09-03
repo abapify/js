@@ -78,7 +78,18 @@ function assertNoSymlinkEscape(path: string, realRoot: string): void {
     try {
       stat = lstatSync(linkCurrent);
     } catch {
-      // Dangling symlink target — already checked the hop, stop.
+      // Dangling or non-existent target. The direct escape check for
+      // this hop was already done. But the resolved path may contain
+      // intermediate symlink components in its parent chain — walk
+      // up the parent to check those.
+      const parent = dirname(linkCurrent);
+      if (parent !== linkCurrent) {
+        try {
+          assertNoSymlinkEscape(parent, realRoot);
+        } catch (error) {
+          if (error instanceof AdtFlowError) throw error;
+        }
+      }
       return;
     }
     if (!stat?.isSymbolicLink()) return;
@@ -172,6 +183,9 @@ function partialReportPath(
       '--partial-report must not escape the checkout root via symlinks.',
     );
   }
+  // Validate the target file itself — if it already exists as a symlink,
+  // the report write would replace it or follow it outside the checkout.
+  assertNoSymlinkEscape(target, realRoot);
   return target;
 }
 

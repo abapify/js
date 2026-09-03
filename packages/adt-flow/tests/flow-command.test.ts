@@ -10,16 +10,61 @@ import type {
 } from '@abapify/adt-plugin';
 import { createFlowCommand } from '../src/commands/flow';
 
-function leaf(command: CliCommandPlugin): CliCommandPlugin {
-  return command.subcommands?.[0]?.subcommands?.[0] as CliCommandPlugin;
-}
-
 const format = {
   id: 'abapgit',
   description: 'test',
   supportedTypes: ['CLAS'],
   getHandler: vi.fn(),
 } satisfies FormatPlugin;
+
+function leaf(command: CliCommandPlugin): CliCommandPlugin {
+  return command.subcommands?.[0]?.subcommands?.[0] as CliCommandPlugin;
+}
+
+const emptyCheckoutResult = {
+  mode: 'head' as const,
+  requestedTransports: ['DEVK900001'],
+  scopeTransports: ['DEVK900001'],
+  changed: [],
+  moved: [],
+  removed: [],
+  unchanged: [],
+  descriptors: [],
+  skipped: [],
+  sapCalls: { manifest: 1, metadata: 1, source: 1 },
+  fastPath: 'none' as const,
+};
+
+function makeCheckout(
+  overrides: Partial<typeof emptyCheckoutResult> = {},
+): ReturnType<typeof vi.fn> {
+  return vi.fn(async () => ({ ...emptyCheckoutResult, ...overrides }));
+}
+
+function makeCommand(checkout: ReturnType<typeof vi.fn>) {
+  return createFlowCommand({
+    getFormat: vi.fn(() => format),
+    createService: vi.fn(() => ({ checkout })),
+  });
+}
+
+function makeContext(root: string): CliContext {
+  return {
+    cwd: root,
+    config: { flow: { format: { id: 'abapgit' } } },
+    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    getAdtClient: vi.fn(async () => ({}) as AdtClient),
+  } satisfies CliContext;
+}
+
+async function withTempRoot<T>(fn: (root: string) => Promise<T>): Promise<T> {
+  const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+  try {
+    return await fn(root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
 
 describe('flow CLI command', () => {
   it('exposes an explicit flow checkout tr hierarchy and applies base mode', async () => {
@@ -106,40 +151,23 @@ describe('flow CLI command', () => {
   });
 
   it('writes a deterministic partial report only after a successful partial checkout', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
     const report = 'tmp/analysis/import-gaps.json';
-    const checkout = vi.fn(async () => ({
-      mode: 'head' as const,
-      requestedTransports: ['DEVK900001'],
-      scopeTransports: ['DEVK900001'],
+    const skipped = [
+      {
+        object: 'CLAS/ZCL_INEXACT',
+        component: 'main',
+        diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
+        sourceTransport: 'DEVK900001',
+      },
+    ];
+    const checkout = makeCheckout({
       changed: ['src/zcl_sample.clas.abap'],
-      moved: [],
-      removed: [],
-      unchanged: [],
-      descriptors: [],
-      skipped: [
-        {
-          object: 'CLAS/ZCL_INEXACT',
-          component: 'main',
-          diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
-          sourceTransport: 'DEVK900001',
-        },
-      ],
-      sapCalls: { manifest: 1, metadata: 1, source: 1 },
-      fastPath: 'none' as const,
-    }));
-    const command = createFlowCommand({
-      getFormat: vi.fn(() => format),
-      createService: vi.fn(() => ({ checkout })),
+      skipped,
     });
-    const ctx = {
-      cwd: root,
-      config: { flow: { format: { id: 'abapgit' } } },
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      getAdtClient: vi.fn(async () => ({}) as AdtClient),
-    } satisfies CliContext;
+    const command = makeCommand(checkout);
 
-    try {
+    await withTempRoot(async (root) => {
+      const ctx = makeContext(root);
       await leaf(command).execute?.(
         { transport: 'DEVK900001', partial: true, partialReport: report },
         ctx,
@@ -151,47 +179,17 @@ describe('flow CLI command', () => {
       expect(JSON.parse(await readFile(join(root, report), 'utf8'))).toEqual({
         schemaVersion: 1,
         requestedTransports: ['DEVK900001'],
-        skipped: [
-          {
-            object: 'CLAS/ZCL_INEXACT',
-            component: 'main',
-            diagnostic: 'SOURCE_HISTORY_INTERVENING_VERSION',
-            sourceTransport: 'DEVK900001',
-          },
-        ],
+        skipped,
       });
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('rejects --partial-report targeting the checkout root directory', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
-    const checkout = vi.fn(async () => ({
-      mode: 'head' as const,
-      requestedTransports: ['DEVK900001'],
-      scopeTransports: ['DEVK900001'],
-      changed: [],
-      moved: [],
-      removed: [],
-      unchanged: [],
-      descriptors: [],
-      skipped: [],
-      sapCalls: { manifest: 1, metadata: 1, source: 1 },
-      fastPath: 'none' as const,
-    }));
-    const command = createFlowCommand({
-      getFormat: vi.fn(() => format),
-      createService: vi.fn(() => ({ checkout })),
-    });
-    const ctx = {
-      cwd: root,
-      config: { flow: { format: { id: 'abapgit' } } },
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      getAdtClient: vi.fn(async () => ({}) as AdtClient),
-    } satisfies CliContext;
+    const checkout = makeCheckout();
+    const command = makeCommand(checkout);
 
-    try {
+    await withTempRoot(async (root) => {
+      const ctx = makeContext(root);
       await expect(
         leaf(command).execute?.(
           { transport: 'DEVK900001', partial: true, partialReport: '.' },
@@ -199,38 +197,15 @@ describe('flow CLI command', () => {
         ),
       ).rejects.toMatchObject({ code: 'invalid_input' });
       expect(checkout).not.toHaveBeenCalled();
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('rejects an absolute --partial-report path', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
-    const checkout = vi.fn(async () => ({
-      mode: 'head' as const,
-      requestedTransports: ['DEVK900001'],
-      scopeTransports: ['DEVK900001'],
-      changed: [],
-      moved: [],
-      removed: [],
-      unchanged: [],
-      descriptors: [],
-      skipped: [],
-      sapCalls: { manifest: 1, metadata: 1, source: 1 },
-      fastPath: 'none' as const,
-    }));
-    const command = createFlowCommand({
-      getFormat: vi.fn(() => format),
-      createService: vi.fn(() => ({ checkout })),
-    });
-    const ctx = {
-      cwd: root,
-      config: { flow: { format: { id: 'abapgit' } } },
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      getAdtClient: vi.fn(async () => ({}) as AdtClient),
-    } satisfies CliContext;
+    const checkout = makeCheckout();
+    const command = makeCommand(checkout);
 
-    try {
+    await withTempRoot(async (root) => {
+      const ctx = makeContext(root);
       await expect(
         leaf(command).execute?.(
           {
@@ -242,23 +217,14 @@ describe('flow CLI command', () => {
         ),
       ).rejects.toMatchObject({ code: 'invalid_input' });
       expect(checkout).not.toHaveBeenCalled();
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('serializes skipped records in deterministic order', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
     const report = 'import-gaps.json';
-    const checkout = vi.fn(async () => ({
-      mode: 'head' as const,
+    const checkout = makeCheckout({
       requestedTransports: ['DEVK900001', 'DEVK900002'],
       scopeTransports: ['DEVK900001', 'DEVK900002'],
-      changed: [],
-      moved: [],
-      removed: [],
-      unchanged: [],
-      descriptors: [],
       skipped: [
         {
           object: 'CLAS/ZCL_B',
@@ -279,21 +245,11 @@ describe('flow CLI command', () => {
           sourceTransport: 'DEVK900002',
         },
       ],
-      sapCalls: { manifest: 1, metadata: 1, source: 1 },
-      fastPath: 'none' as const,
-    }));
-    const command = createFlowCommand({
-      getFormat: vi.fn(() => format),
-      createService: vi.fn(() => ({ checkout })),
     });
-    const ctx = {
-      cwd: root,
-      config: { flow: { format: { id: 'abapgit' } } },
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      getAdtClient: vi.fn(async () => ({}) as AdtClient),
-    } satisfies CliContext;
+    const command = makeCommand(checkout);
 
-    try {
+    await withTempRoot(async (root) => {
+      const ctx = makeContext(root);
       await leaf(command).execute?.(
         {
           transport: 'DEVK900001,DEVK900002',
@@ -323,29 +279,18 @@ describe('flow CLI command', () => {
           sourceTransport: 'DEVK900002',
         },
       ]);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('does not write a partial report when checkout rejects', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
     const report = 'import-gaps.json';
     const checkout = vi.fn(async () => {
       throw new Error('checkout failed');
     });
-    const command = createFlowCommand({
-      getFormat: vi.fn(() => format),
-      createService: vi.fn(() => ({ checkout })),
-    });
-    const ctx = {
-      cwd: root,
-      config: { flow: { format: { id: 'abapgit' } } },
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      getAdtClient: vi.fn(async () => ({}) as AdtClient),
-    } satisfies CliContext;
+    const command = makeCommand(checkout);
 
-    try {
+    await withTempRoot(async (root) => {
+      const ctx = makeContext(root);
       await expect(
         leaf(command).execute?.(
           { transport: 'DEVK900001', partial: true, partialReport: report },
@@ -355,38 +300,15 @@ describe('flow CLI command', () => {
       await expect(readFile(join(root, report), 'utf8')).rejects.toThrow();
       const tmpFiles = await readdir(root);
       expect(tmpFiles.filter((f) => f.endsWith('.tmp'))).toEqual([]);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it('rejects --partial-report without --partial opt-in', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
-    const checkout = vi.fn(async () => ({
-      mode: 'head' as const,
-      requestedTransports: ['DEVK900001'],
-      scopeTransports: ['DEVK900001'],
-      changed: [],
-      moved: [],
-      removed: [],
-      unchanged: [],
-      descriptors: [],
-      skipped: [],
-      sapCalls: { manifest: 1, metadata: 1, source: 1 },
-      fastPath: 'none' as const,
-    }));
-    const command = createFlowCommand({
-      getFormat: vi.fn(() => format),
-      createService: vi.fn(() => ({ checkout })),
-    });
-    const ctx = {
-      cwd: root,
-      config: { flow: { format: { id: 'abapgit' } } },
-      logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      getAdtClient: vi.fn(async () => ({}) as AdtClient),
-    } satisfies CliContext;
+    const checkout = makeCheckout();
+    const command = makeCommand(checkout);
 
-    try {
+    await withTempRoot(async (root) => {
+      const ctx = makeContext(root);
       await expect(
         leaf(command).execute?.(
           { transport: 'DEVK900001', partialReport: 'report.json' },
@@ -394,52 +316,23 @@ describe('flow CLI command', () => {
         ),
       ).rejects.toMatchObject({ code: 'invalid_input' });
       expect(checkout).not.toHaveBeenCalled();
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    });
   });
 
   it.skipIf(process.platform === 'win32')(
     'rejects --partial-report escaping via a dangling symlink',
     async () => {
+      const checkout = makeCheckout();
+      const command = makeCommand(checkout);
+
       const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
       const external = await mkdtemp(join(tmpdir(), 'adt-flow-external-'));
-      // Create a dangling symlink inside root pointing to an external dir
-      // that will be deleted to make it dangling.
       const linkPath = join(root, 'linked');
       await symlink(external, linkPath);
       await rm(external, { recursive: true, force: true });
 
-      const checkout = vi.fn(async () => ({
-        mode: 'head' as const,
-        requestedTransports: ['DEVK900001'],
-        scopeTransports: ['DEVK900001'],
-        changed: [],
-        moved: [],
-        removed: [],
-        unchanged: [],
-        descriptors: [],
-        skipped: [],
-        sapCalls: { manifest: 1, metadata: 1, source: 1 },
-        fastPath: 'none' as const,
-      }));
-      const command = createFlowCommand({
-        getFormat: vi.fn(() => format),
-        createService: vi.fn(() => ({ checkout })),
-      });
-      const ctx = {
-        cwd: root,
-        config: { flow: { format: { id: 'abapgit' } } },
-        logger: {
-          debug: vi.fn(),
-          info: vi.fn(),
-          warn: vi.fn(),
-          error: vi.fn(),
-        },
-        getAdtClient: vi.fn(async () => ({}) as AdtClient),
-      } satisfies CliContext;
-
       try {
+        const ctx = makeContext(root);
         await expect(
           leaf(command).execute?.(
             {
