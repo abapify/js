@@ -74,25 +74,14 @@ function assertNoSymlinkEscape(path: string, realRoot: string): void {
       );
     }
     seen.add(linkCurrent);
-    let stat: ReturnType<typeof lstatSync>;
-    try {
-      stat = lstatSync(linkCurrent);
-    } catch {
-      // Dangling or non-existent target. The direct escape check for
-      // this hop was already done. But the resolved path may contain
-      // intermediate symlink components in its parent chain — walk
-      // up the parent to check those.
-      const parent = dirname(linkCurrent);
-      if (parent !== linkCurrent) {
-        try {
-          assertNoSymlinkEscape(parent, realRoot);
-        } catch (error) {
-          if (error instanceof AdtFlowError) throw error;
-        }
-      }
+    const stat = tryLstat(linkCurrent);
+    if (stat === undefined) {
+      // Dangling or non-existent target — check parent chain for
+      // intermediate symlink components that escape the checkout.
+      assertParentChainSafe(linkCurrent, realRoot);
       return;
     }
-    if (!stat?.isSymbolicLink()) return;
+    if (!stat.isSymbolicLink()) return;
     const linkTarget = resolve(dirname(linkCurrent), readlinkSync(linkCurrent));
     if (escapeRoot(realRoot, linkTarget)) {
       throw new AdtFlowError(
@@ -101,6 +90,24 @@ function assertNoSymlinkEscape(path: string, realRoot: string): void {
       );
     }
     linkCurrent = linkTarget;
+  }
+}
+
+function tryLstat(path: string): ReturnType<typeof lstatSync> | undefined {
+  try {
+    return lstatSync(path);
+  } catch {
+    return undefined;
+  }
+}
+
+function assertParentChainSafe(path: string, realRoot: string): void {
+  const parent = dirname(path);
+  if (parent === path) return;
+  try {
+    assertNoSymlinkEscape(parent, realRoot);
+  } catch (error) {
+    if (error instanceof AdtFlowError) throw error;
   }
 }
 
