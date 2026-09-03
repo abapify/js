@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { mkdir, rename, unlink, writeFile } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { AdtClient } from '@abapify/adt-client';
 import type { FlowConfig } from '@abapify/adt-config';
 import {
@@ -53,7 +54,11 @@ function flowConfig(ctx: CliContext): FlowConfig {
   }
 }
 
-function partialReportPath(value: unknown, root: string): string | undefined {
+function partialReportPath(
+  value: unknown,
+  root: string,
+  realRoot: string,
+): string | undefined {
   if (value === undefined || value === false) return undefined;
   if (typeof value !== 'string' || !value.trim()) {
     throw new AdtFlowError(
@@ -85,6 +90,30 @@ function partialReportPath(value: unknown, root: string): string | undefined {
       '--partial-report must remain inside the checkout root.',
     );
   }
+  // Resolve symlinks in the parent directory to detect in-root symlinks
+  // that point outside the checkout. The target file itself may not exist
+  // yet, so we resolve its parent and re-append the basename.
+  const parent = dirname(target);
+  let realParent: string;
+  try {
+    realParent = realpathSync(parent);
+  } catch {
+    // Parent doesn't exist yet — no symlink can be there, so it's safe.
+    realParent = parent;
+  }
+  const realTarget = resolve(realParent, basename(target));
+  const fromRealRoot = relative(realRoot, realTarget);
+  if (
+    fromRealRoot === '' ||
+    isAbsolute(fromRealRoot) ||
+    fromRealRoot === '..' ||
+    fromRealRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
+  ) {
+    throw new AdtFlowError(
+      'invalid_input',
+      '--partial-report must not escape the checkout root via symlinks.',
+    );
+  }
   return target;
 }
 
@@ -96,7 +125,8 @@ async function writePartialReport(
     return (
       compareStrings(a.object, b.object) ||
       compareStrings(a.component, b.component) ||
-      compareStrings(a.diagnostic, b.diagnostic)
+      compareStrings(a.diagnostic, b.diagnostic) ||
+      compareStrings(a.sourceTransport ?? '', b.sourceTransport ?? '')
     );
   });
   const payload = `${JSON.stringify(
@@ -110,8 +140,13 @@ async function writePartialReport(
   )}\n`;
   await mkdir(dirname(output), { recursive: true });
   const temporary = `${output}.${randomUUID()}.tmp`;
-  await writeFile(temporary, payload, 'utf8');
-  await rename(temporary, output);
+  try {
+    await writeFile(temporary, payload, 'utf8');
+    await rename(temporary, output);
+  } catch (error) {
+    await unlink(temporary).catch(() => {});
+    throw error;
+  }
 }
 
 function checkoutTrCommand(
@@ -158,11 +193,20 @@ function checkoutTrCommand(
         );
       }
       const client = (await ctx.getAdtClient()) as AdtClient;
+      // Resolve the real checkout root once to detect symlink escapes
+      // in --partial-report paths. Fall back to cwd if realpath fails.
+      let realRoot: string;
+      try {
+        realRoot = realpathSync(ctx.cwd);
+      } catch {
+        realRoot = ctx.cwd;
+      }
       // Commander normalizes --partial-report to partialReport at runtime;
       // retain the dashed spelling for direct plugin callers and tests.
       const report = partialReportPath(
         args.partialReport ?? args['partial-report'],
         ctx.cwd,
+        realRoot,
       );
       if (report && args['partial'] !== true) {
         throw new AdtFlowError(

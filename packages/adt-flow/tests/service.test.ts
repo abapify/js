@@ -778,6 +778,7 @@ describe('transport checkout', () => {
         object: 'TABD/PAYHX01',
         component: 'object',
         diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
+        sourceTransport: 'DEVK900001',
       },
     ]);
     expect(result.changed).toContain('src/feature/zcl_sample.clas.abap');
@@ -806,6 +807,7 @@ describe('transport checkout', () => {
         object: 'METH/ZCL_TR_LOAN_CUSTOM_ENTITY FETCH_DATA_LIST',
         component: 'object',
         diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
+        sourceTransport: 'DEVK900001',
       },
     ]);
     expect(result.changed).toEqual([
@@ -997,6 +999,7 @@ describe('transport checkout', () => {
         object: 'TABD/PAYHX01',
         component: 'object',
         diagnostic: 'OBJECT_METADATA_LOAD_FAILED',
+        sourceTransport: 'DEVK900001',
       },
     ]);
     expect(ports.loadObject).not.toHaveBeenCalled();
@@ -1033,6 +1036,7 @@ describe('transport checkout', () => {
         object: 'TABD/PAYHX01',
         component: 'object',
         diagnostic: 'OBJECT_TYPE_UNSUPPORTED',
+        sourceTransport: 'DEVK900001',
       },
     ]);
     expect(ports.loadObject).toHaveBeenCalledTimes(1);

@@ -1104,6 +1104,9 @@ async function unsupportedEntries(
     object: `${entry.object.type}/${entry.object.name}`,
     component: entry.component.id,
     diagnostic: entry.diagnostic?.code ?? 'UNSUPPORTED',
+    ...(entry.sourceTransport
+      ? { sourceTransport: entry.sourceTransport }
+      : {}),
   });
   if (!hasApplicationComponentFilter) {
     return unsupported.map(toSkipped);
