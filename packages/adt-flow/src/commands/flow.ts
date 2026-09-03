@@ -191,6 +191,7 @@ function partialReportPath(
 
 async function writePartialReport(
   output: string,
+  realRoot: string,
   result: Awaited<ReturnType<AdtFlowService['checkout']>>,
 ): Promise<void> {
   const skipped = [...result.skipped].sort((a, b) => {
@@ -210,6 +211,11 @@ async function writePartialReport(
     null,
     2,
   )}\n`;
+  // Re-validate the output path right before writing to mitigate
+  // TOCTOU: a parent directory could be replaced with a symlink
+  // between partialReportPath validation and the actual write.
+  assertNoSymlinkEscape(output, realRoot);
+  assertNoSymlinkEscape(dirname(output), realRoot);
   await mkdir(dirname(output), { recursive: true });
   const temporary = `${output}.${randomUUID()}.tmp`;
   try {
@@ -295,7 +301,7 @@ function checkoutTrCommand(
         partial: args['partial'] === true,
         config,
       });
-      if (report) await writePartialReport(report, result);
+      if (report) await writePartialReport(report, realRoot, result);
       ctx.logger.info(
         `Checked out ${result.mode} for ${result.requestedTransports.join(', ')}: ` +
           `${result.changed.length} changed, ${result.moved.length} moved, ` +

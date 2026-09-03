@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtemp, readFile, readdir, rm, symlink } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { AdtClient } from '@abapify/adt-client';
@@ -339,6 +346,70 @@ describe('flow CLI command', () => {
               transport: 'DEVK900001',
               partial: true,
               partialReport: 'linked/new/report.json',
+            },
+            ctx,
+          ),
+        ).rejects.toMatchObject({ code: 'invalid_input' });
+        expect(checkout).not.toHaveBeenCalled();
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects --partial-report when the target file is a symlink escaping the checkout',
+    async () => {
+      const checkout = makeCheckout();
+      const command = makeCommand(checkout);
+
+      const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+      const external = await mkdtemp(join(tmpdir(), 'adt-flow-external-'));
+      const reportPath = join(root, 'report.json');
+      // Pre-create the report file as a symlink pointing outside root.
+      await symlink(join(external, 'evil.json'), reportPath);
+
+      try {
+        const ctx = makeContext(root);
+        await expect(
+          leaf(command).execute?.(
+            {
+              transport: 'DEVK900001',
+              partial: true,
+              partialReport: 'report.json',
+            },
+            ctx,
+          ),
+        ).rejects.toMatchObject({ code: 'invalid_input' });
+        expect(checkout).not.toHaveBeenCalled();
+      } finally {
+        await rm(root, { recursive: true, force: true });
+        await rm(external, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects --partial-report path containing a symlink loop',
+    async () => {
+      const checkout = makeCheckout();
+      const command = makeCommand(checkout);
+
+      const root = await mkdtemp(join(tmpdir(), 'adt-flow-command-'));
+      // Create a symlink loop: root/loop/a -> root/loop/b, root/loop/b -> root/loop/a
+      const loopDir = join(root, 'loop');
+      await mkdir(loopDir);
+      await symlink(join(loopDir, 'b'), join(loopDir, 'a'));
+      await symlink(join(loopDir, 'a'), join(loopDir, 'b'));
+
+      try {
+        const ctx = makeContext(root);
+        await expect(
+          leaf(command).execute?.(
+            {
+              transport: 'DEVK900001',
+              partial: true,
+              partialReport: 'loop/a/report.json',
             },
             ctx,
           ),
