@@ -982,6 +982,61 @@ describe('buildTransportSourceManifest', () => {
     ]);
   });
 
+  it('keeps separate source components for two function modules in one group', async () => {
+    const functionNames = [
+      'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      'ZFM_PY_LEAN_PAYMEDIUM_EVENT_41',
+    ];
+    const functionModules = functionNames.map((name) => {
+      const functionModule = transportObject({
+        name,
+        pgmid: 'LIMU',
+        type: 'FUNC',
+        wbtype: 'FUGR/FF',
+        objectUri: '',
+        factoryName: 'ZFG_PY_LEAN',
+        metadata: rootSourceMetadata(),
+      });
+      functionModuleObject('ZFG_PY_LEAN', name);
+      return functionModule;
+    });
+    mockResolution(
+      functionModules,
+      ['S0DK955760', 'S0DK955760'],
+      ['S0DK955760'],
+    );
+    const { ctx, quickSearch } = contextWithVersions(
+      vi.fn().mockResolvedValue([version('00001', 0, ['S0DK955760'])]),
+    );
+    quickSearch.mockImplementation(async ({ query }: { query: string }) => ({
+      objectReferences: {
+        objectReference: [
+          {
+            name: query,
+            uri: `/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/${query.toLowerCase()}`,
+          },
+        ],
+      },
+    }));
+
+    const manifest = await buildTransportSourceManifest(
+      ['S0DK955760'],
+      {},
+      ctx,
+    );
+
+    expect(manifest.entries).toHaveLength(2);
+    expect(manifest.entries.map((entry) => entry.component.id)).toEqual(
+      functionNames.map((name) => name.toLowerCase()),
+    );
+    expect(manifest.entries.map((entry) => entry.component.sourceUri)).toEqual(
+      functionNames.map(
+        (name) =>
+          `/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/${name.toLowerCase()}/source/main`,
+      ),
+    );
+  });
+
   it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {
     const authorizationAssignment = transportObject({
       name: 'Z_CONCUR_RECON',

@@ -452,7 +452,18 @@ async function discoverObjectSourceHistory(
     ...object,
     ...(packageName ? { packageName } : {}),
   };
-  const components = discoverSourceComponents(metadata, objectUri);
+  const components = discoverSourceComponents(metadata, objectUri).map(
+    (component) =>
+      component.id === 'main' && object.type === 'FUGR/FF'
+        ? {
+            ...component,
+            // A function module is a child of its function group. The
+            // generic root-source id is only unique within one object, so
+            // use the FM name before the flow source map is assembled.
+            id: object.name.toLowerCase(),
+          }
+        : component,
+  );
   if (components.length === 0) {
     throw new ObjectSourceHistoryError(
       'SOURCE_COMPONENTS_UNAVAILABLE',
