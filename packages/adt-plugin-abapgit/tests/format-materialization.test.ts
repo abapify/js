@@ -139,6 +139,54 @@ describe('abapGit format materialization', () => {
     );
   });
 
+  it('materializes separate function module sources in a function group', async () => {
+    const fm21 = 'function zfm_py_lean_paymedium_event_21.';
+    const fm41 = 'function zfm_py_lean_paymedium_event_41.';
+    const result = await abapgitFormatPlugin.materialize!({
+      object: {
+        name: 'ZFG_PY_LEAN',
+        description: 'Payment medium events',
+        dataSync: {
+          name: 'ZFG_PY_LEAN',
+          description: 'Payment medium events',
+          fixPointArithmetic: false,
+        },
+        getSource: async () => {
+          throw new Error('TOP source must not be read');
+        },
+      },
+      objectType: 'FUGR',
+      packagePath: ['ZROOT', 'ZROOT_FEATURE'],
+      sources: {
+        zfm_py_lean_paymedium_event_21: fm21,
+        zfm_py_lean_paymedium_event_41: fm41,
+      },
+      formatOptions: { folderLogic: 'prefix' },
+    });
+
+    assert.deepStrictEqual(
+      result.files
+        .filter(({ path }) => path.includes('.fugr.zfm_'))
+        .map(({ path, sourceComponent, content }) => ({
+          path,
+          sourceComponent,
+          content,
+        })),
+      [
+        {
+          path: 'src/feature/zfg_py_lean.fugr.zfm_py_lean_paymedium_event_21.abap',
+          sourceComponent: 'zfm_py_lean_paymedium_event_21',
+          content: fm21,
+        },
+        {
+          path: 'src/feature/zfg_py_lean.fugr.zfm_py_lean_paymedium_event_41.abap',
+          sourceComponent: 'zfm_py_lean_paymedium_event_41',
+          content: fm41,
+        },
+      ],
+    );
+  });
+
   it('materializes only supplied class components with deterministic paths', async () => {
     const object = {
       name: 'ZCL_FLOW_EXAMPLE',

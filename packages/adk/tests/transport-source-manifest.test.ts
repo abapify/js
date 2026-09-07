@@ -513,6 +513,31 @@ describe('listObjectSourceVersions', () => {
     expect(listVersions).not.toHaveBeenCalled();
   });
 
+  it('keeps the root component id "main" for a FUGR/FF function module', async () => {
+    transportObject({
+      name: 'ZFM_KEEP_MAIN',
+      type: 'FUGR/FF',
+      objectUri:
+        '/sap/bc/adt/functions/groups/zfg_keep_main/fmodules/zfm_keep_main',
+      metadata: rootSourceMetadata(),
+    });
+    const head = version('00001', 0, ['DEVK900002']);
+    const listVersions = vi.fn().mockResolvedValue([head]);
+    const { ctx } = contextWithVersions(listVersions);
+
+    const result = await listObjectSourceVersions(
+      'ZFM_KEEP_MAIN',
+      'FUGR/FF',
+      { component: 'main' },
+      ctx,
+    );
+
+    expect(result.components.map((component) => component.id)).toEqual([
+      'main',
+    ]);
+    expect(result.components[0]?.versions).toEqual([head]);
+  });
+
   it('returns a stable diagnostic for a component without version history', async () => {
     transportObject({
       name: 'ZNO_HISTORY',
@@ -980,6 +1005,61 @@ describe('buildTransportSourceManifest', () => {
         }),
       }),
     ]);
+  });
+
+  it('keeps separate source components for two function modules in one group', async () => {
+    const functionNames = [
+      'ZFM_PY_LEAN_PAYMEDIUM_EVENT_21',
+      'ZFM_PY_LEAN_PAYMEDIUM_EVENT_41',
+    ];
+    const functionModules = functionNames.map((name) => {
+      const functionModule = transportObject({
+        name,
+        pgmid: 'LIMU',
+        type: 'FUNC',
+        wbtype: 'FUGR/FF',
+        objectUri: '',
+        factoryName: 'ZFG_PY_LEAN',
+        metadata: rootSourceMetadata(),
+      });
+      functionModuleObject('ZFG_PY_LEAN', name);
+      return functionModule;
+    });
+    mockResolution(
+      functionModules,
+      ['S0DK955760', 'S0DK955760'],
+      ['S0DK955760'],
+    );
+    const { ctx, quickSearch } = contextWithVersions(
+      vi.fn().mockResolvedValue([version('00001', 0, ['S0DK955760'])]),
+    );
+    quickSearch.mockImplementation(async ({ query }: { query: string }) => ({
+      objectReferences: {
+        objectReference: [
+          {
+            name: query,
+            uri: `/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/${query.toLowerCase()}`,
+          },
+        ],
+      },
+    }));
+
+    const manifest = await buildTransportSourceManifest(
+      ['S0DK955760'],
+      {},
+      ctx,
+    );
+
+    expect(manifest.entries).toHaveLength(2);
+    expect(manifest.entries.map((entry) => entry.component.id)).toEqual(
+      functionNames.map((name) => name.toLowerCase()),
+    );
+    expect(manifest.entries.map((entry) => entry.component.sourceUri)).toEqual(
+      functionNames.map(
+        (name) =>
+          `/sap/bc/adt/functions/groups/zfg_py_lean/fmodules/${name.toLowerCase()}/source/main`,
+      ),
+    );
   });
 
   it('ignores R3TR SUSK authorization-maintenance assignments as non-source entries', async () => {

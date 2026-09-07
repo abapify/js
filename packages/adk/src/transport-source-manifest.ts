@@ -975,8 +975,22 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
       : {}),
   };
 
+  // A function module is a child of its function group. The generic
+  // root-source id is only unique within one object, so use the FM name
+  // as the source-map key. This rename is scoped to the transport
+  // manifest (the flow source map) so the public
+  // listObjectSourceVersions API keeps returning the real root id.
+  const manifestComponents =
+    repository.type === 'FUGR/FF'
+      ? discovery.components.map((component) =>
+          component.id === 'main'
+            ? { ...component, id: repository.name.toLowerCase() }
+            : component,
+        )
+      : discovery.components;
+
   const entries: TransportSourceManifestEntry[] = [];
-  for (const component of discovery.components) {
+  for (const component of manifestComponents) {
     const publicComponent: TransportSourceManifestComponent = {
       id: component.id,
       ...(component.sourceUri ? { sourceUri: component.sourceUri } : {}),
