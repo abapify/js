@@ -513,6 +513,31 @@ describe('listObjectSourceVersions', () => {
     expect(listVersions).not.toHaveBeenCalled();
   });
 
+  it('keeps the root component id "main" for a FUGR/FF function module', async () => {
+    transportObject({
+      name: 'ZFM_KEEP_MAIN',
+      type: 'FUGR/FF',
+      objectUri:
+        '/sap/bc/adt/functions/groups/zfg_keep_main/fmodules/zfm_keep_main',
+      metadata: rootSourceMetadata(),
+    });
+    const head = version('00001', 0, ['DEVK900002']);
+    const listVersions = vi.fn().mockResolvedValue([head]);
+    const { ctx } = contextWithVersions(listVersions);
+
+    const result = await listObjectSourceVersions(
+      'ZFM_KEEP_MAIN',
+      'FUGR/FF',
+      { component: 'main' },
+      ctx,
+    );
+
+    expect(result.components.map((component) => component.id)).toEqual([
+      'main',
+    ]);
+    expect(result.components[0]?.versions).toEqual([head]);
+  });
+
   it('returns a stable diagnostic for a component without version history', async () => {
     transportObject({
       name: 'ZNO_HISTORY',

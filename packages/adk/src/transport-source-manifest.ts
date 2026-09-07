@@ -452,18 +452,7 @@ async function discoverObjectSourceHistory(
     ...object,
     ...(packageName ? { packageName } : {}),
   };
-  const components = discoverSourceComponents(metadata, objectUri).map(
-    (component) =>
-      component.id === 'main' && object.type === 'FUGR/FF'
-        ? {
-            ...component,
-            // A function module is a child of its function group. The
-            // generic root-source id is only unique within one object, so
-            // use the FM name before the flow source map is assembled.
-            id: object.name.toLowerCase(),
-          }
-        : component,
-  );
+  const components = discoverSourceComponents(metadata, objectUri);
   if (components.length === 0) {
     throw new ObjectSourceHistoryError(
       'SOURCE_COMPONENTS_UNAVAILABLE',
@@ -986,8 +975,22 @@ async function buildObjectEntries( // NOSONAR - SAP object manifest construction
       : {}),
   };
 
+  // A function module is a child of its function group. The generic
+  // root-source id is only unique within one object, so use the FM name
+  // as the source-map key. This rename is scoped to the transport
+  // manifest (the flow source map) so the public
+  // listObjectSourceVersions API keeps returning the real root id.
+  const manifestComponents =
+    repository.type === 'FUGR/FF'
+      ? discovery.components.map((component) =>
+          component.id === 'main'
+            ? { ...component, id: repository.name.toLowerCase() }
+            : component,
+        )
+      : discovery.components;
+
   const entries: TransportSourceManifestEntry[] = [];
-  for (const component of discovery.components) {
+  for (const component of manifestComponents) {
     const publicComponent: TransportSourceManifestComponent = {
       id: component.id,
       ...(component.sourceUri ? { sourceUri: component.sourceUri } : {}),
