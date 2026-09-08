@@ -52,13 +52,14 @@ function createAbapGitFixture(): string {
   return repositoryRoot;
 }
 
-function resolveWithLocation(
-  resolver: FindingResolver,
-  objectType: string,
-  objectName: string,
-  line: number,
-  location: string,
-) {
+interface ResolveOptions {
+  objectType: string;
+  objectName: string;
+  line: number;
+  location: string;
+}
+
+function resolveWithLocation(resolver: FindingResolver, opts: ResolveOptions) {
   return (
     resolver.resolve as unknown as (
       type: string,
@@ -67,7 +68,7 @@ function resolveWithLocation(
       methodName: string | undefined,
       atcLocation: string,
     ) => Promise<Awaited<ReturnType<FindingResolver['resolve']>>>
-  )(objectType, objectName, line, undefined, location);
+  )(opts.objectType, opts.objectName, opts.line, undefined, opts.location);
 }
 
 describe('abapGit ATC finding resolver', () => {
@@ -77,13 +78,13 @@ describe('abapGit ATC finding resolver', () => {
     process.env.ADT_CONFIG_PATH = join(repositoryRoot, 'adt.config.ts');
 
     const resolver = createAbapGitResolver();
-    const resolved = await resolveWithLocation(
-      resolver,
-      'FUGR',
-      'ZFG_TAX_CUSTLINE',
-      211,
-      '/sap/bc/adt/functions/groups/zfg_tax_custline/fmodules/zfm_tax_custline/source/main#start=211,0',
-    );
+    const resolved = await resolveWithLocation(resolver, {
+      objectType: 'FUGR',
+      objectName: 'ZFG_TAX_CUSTLINE',
+      line: 211,
+      location:
+        '/sap/bc/adt/functions/groups/zfg_tax_custline/fmodules/zfm_tax_custline/source/main#start=211,0',
+    });
 
     assert.deepEqual(resolved, {
       path: 'abap/fugr/zfg_tax_custline.fugr.zfm_tax_custline.abap',
@@ -169,13 +170,12 @@ describe('abapGit ATC finding resolver', () => {
 
     process.env.CI_PROJECT_DIR = repositoryRoot;
     const resolver = createAbapGitResolver();
-    const resolved = await resolveWithLocation(
-      resolver,
-      'CLAS',
-      'ZCL_SECRET',
-      1,
-      '/sap/bc/adt/oo/classes/zcl_secret/source/main',
-    );
+    const resolved = await resolveWithLocation(resolver, {
+      objectType: 'CLAS',
+      objectName: 'ZCL_SECRET',
+      line: 1,
+      location: '/sap/bc/adt/oo/classes/zcl_secret/source/main',
+    });
 
     // The traversal must be blocked — the file outside the repo must not
     // resolve. The resolver falls back to `src/` which has no files.
@@ -215,13 +215,12 @@ describe('abapGit ATC finding resolver', () => {
 
     // Finding at line 2 without a method name — the line is already
     // class-file-relative and must not be shifted into any method.
-    const resolved = await resolveWithLocation(
-      resolver,
-      'CLAS',
-      'ZCL_TEST',
-      2,
-      '/sap/bc/adt/oo/classes/zcl_test/source/main',
-    );
+    const resolved = await resolveWithLocation(resolver, {
+      objectType: 'CLAS',
+      objectName: 'ZCL_TEST',
+      line: 2,
+      location: '/sap/bc/adt/oo/classes/zcl_test/source/main',
+    });
 
     assert.deepEqual(resolved, { path: 'src/zcl_test.clas.abap', line: 2 });
   });
