@@ -6,7 +6,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import { afterEach, describe, it } from 'vitest';
 import { outputGitLabCodeQuality } from '../../src/formatters/gitlab';
 import { createAbapGitResolver } from '../../src/resolvers/abapgit';
@@ -14,17 +15,21 @@ import { adtUriToAbapGitPath } from '../../src/resolvers/adt-uri-to-abapgit-path
 import type { AtcResult, FindingResolver } from '../../src/types';
 
 const temporaryDirectories: string[] = [];
+const savedEnv: Record<string, string | undefined> = {};
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
-  delete process.env.CI_PROJECT_DIR;
-  delete process.env.ADT_CONFIG_PATH;
+  for (const key of ['CI_PROJECT_DIR', 'ADT_CONFIG_PATH']) {
+    if (savedEnv[key] === undefined) delete process.env[key];
+    else process.env[key] = savedEnv[key];
+    delete savedEnv[key];
+  }
 });
 
 function createAbapGitFixture(): string {
-  const repositoryRoot = mkdtempSync(join('/tmp', 'adt-atc-abapgit-'));
+  const repositoryRoot = mkdtempSync(join(tmpdir(), 'adt-atc-abapgit-'));
   temporaryDirectories.push(repositoryRoot);
 
   mkdirSync(join(repositoryRoot, 'abap', 'fugr'), { recursive: true });
@@ -152,20 +157,24 @@ describe('abapGit ATC finding resolver', () => {
   });
 
   it('rejects path traversal in STARTING_FOLDER', async () => {
-    const repositoryRoot = mkdtempSync(join('/tmp', 'adt-atc-traversal-'));
+    const repositoryRoot = mkdtempSync(join(tmpdir(), 'adt-atc-traversal-'));
     temporaryDirectories.push(repositoryRoot);
 
-    // Write a file outside the repo that should never be indexed.
-    const outsideDir = join(repositoryRoot, '..', 'adt-atc-outside');
-    mkdirSync(outsideDir, { recursive: true });
+    // Write a file outside the repo that should never be indexed. Use a
+    // unique sibling directory and the matching basename so the test
+    // would fail if the containment guard were removed.
+    const outsideDir = mkdtempSync(join(tmpdir(), 'adt-atc-outside-'));
+    temporaryDirectories.push(outsideDir);
     writeFileSync(
-      join(outsideDir, 'secret.clas.abap'),
+      join(outsideDir, 'zcl_secret.clas.abap'),
       'METHOD foo.\nENDMETHOD.\n',
     );
 
+    // Point STARTING_FOLDER at the sibling directory via a relative path.
+    const relativePath = join('..', basename(outsideDir));
     writeFileSync(
       join(repositoryRoot, '.abapgit.xml'),
-      '<STARTING_FOLDER>../../adt-atc-outside</STARTING_FOLDER><FOLDER_LOGIC>PREFIX</FOLDER_LOGIC>',
+      `<STARTING_FOLDER>${relativePath}</STARTING_FOLDER><FOLDER_LOGIC>PREFIX</FOLDER_LOGIC>`,
     );
 
     process.env.CI_PROJECT_DIR = repositoryRoot;
@@ -180,12 +189,10 @@ describe('abapGit ATC finding resolver', () => {
     // The traversal must be blocked — the file outside the repo must not
     // resolve. The resolver falls back to `src/` which has no files.
     assert.equal(resolved, null);
-
-    rmSync(outsideDir, { recursive: true, force: true });
   });
 
   it('does not shift class lines into a random method when no method name is given', async () => {
-    const repositoryRoot = mkdtempSync(join('/tmp', 'adt-atc-method-'));
+    const repositoryRoot = mkdtempSync(join(tmpdir(), 'adt-atc-method-'));
     temporaryDirectories.push(repositoryRoot);
 
     mkdirSync(join(repositoryRoot, 'src'), { recursive: true });
@@ -251,5 +258,56 @@ describe('adtUriToAbapGitPath — abapGit file extensions', () => {
       adtUriToAbapGitPath('/sap/bc/adt/packages/zmy_package'),
       'src/package.devc.xml',
     );
+  });
+
+  it('maps function-group /source/main to the l<group>top.abap include', () => {
+    assert.equal(
+      adtUriToAbapGitPath('/sap/bc/adt/functions/groups/zfg_foo/source/main'),
+      'src/zfg_foo.fugr.lzfg_footop.abap',
+    );
+  });
+
+  it('maps class /includes/main to the primary class source', () => {
+    assert.equal(
+      adtUriToAbapGitPath('/sap/bc/adt/oo/classes/zcl_foo/includes/main'),
+      'src/zcl_foo.clas.abap',
+    );
+  });
+
+  it('returns null for malformed percent-encoded URIs without throwing', () => {
+    assert.equal(adtUriToAbapGitPath('/sap/bc/adt/oo/classes/%E0%A4%A'), null);
+  });
+});
+
+describe('abapGit resolver — ambiguous basenames', () => {
+  it('rejects ambiguous package.devc.xml matches across multiple packages', async () => {
+    const repositoryRoot = mkdtempSync(join(tmpdir(), 'adt-atc-ambiguous-'));
+    temporaryDirectories.push(repositoryRoot);
+
+    mkdirSync(join(repositoryRoot, 'src', 'pkg_a'), { recursive: true });
+    mkdirSync(join(repositoryRoot, 'src', 'pkg_b'), { recursive: true });
+    writeFileSync(
+      join(repositoryRoot, 'src', 'pkg_a', 'package.devc.xml'),
+      '<root/>',
+    );
+    writeFileSync(
+      join(repositoryRoot, 'src', 'pkg_b', 'package.devc.xml'),
+      '<root/>',
+    );
+    writeFileSync(
+      join(repositoryRoot, '.abapgit.xml'),
+      '<STARTING_FOLDER>src</STARTING_FOLDER><FOLDER_LOGIC>PREFIX</FOLDER_LOGIC>',
+    );
+
+    process.env.CI_PROJECT_DIR = repositoryRoot;
+    const resolver = createAbapGitResolver();
+    const resolved = await resolveWithLocation(resolver, {
+      objectType: 'DEVC',
+      objectName: 'ZPKG_A',
+      line: 1,
+      location: '/sap/bc/adt/packages/zpkg_a',
+    });
+
+    assert.equal(resolved, null);
   });
 });

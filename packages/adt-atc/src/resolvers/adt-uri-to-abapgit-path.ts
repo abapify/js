@@ -24,6 +24,7 @@ function stripFragment(uri: string): string {
 
 // Class include → abapGit suffix. Kept here so the built-in ATC package does
 // not depend on the format plugin (which depends on @abapify/adt-atc).
+// `main` maps to the primary class source (no suffix).
 const CLASS_INCLUDE_TO_SUFFIX: Record<string, string | undefined> = {
   testclasses: 'testclasses',
   definitions: 'locals_def',
@@ -44,6 +45,7 @@ const RULES: Rule[] = [
     build: (match) => {
       const name = applyNamespace(decodeURIComponent(match[1]));
       const include = match[2].toLowerCase();
+      if (include === 'main') return `src/${name}.clas.abap`;
       const suffix = CLASS_INCLUDE_TO_SUFFIX[include];
       return suffix
         ? `src/${name}.clas.${suffix}.abap`
@@ -76,6 +78,13 @@ const RULES: Rule[] = [
   },
 
   // Function group metadata and source components
+  {
+    test: /^\/sap\/bc\/adt\/functions\/groups\/([^/]+)\/source\/main$/,
+    build: (match) => {
+      const group = applyNamespace(decodeURIComponent(match[1]));
+      return `src/${group}.fugr.l${group.replace(/\(/g, '').replace(/\)/g, '')}top.abap`;
+    },
+  },
   {
     test: /^\/sap\/bc\/adt\/functions\/groups\/([^/]+)$/,
     build: (match) =>
@@ -160,7 +169,14 @@ export function adtUriToAbapGitPath(uri: string): string | null {
   const clean = stripFragment(uri).trim();
   for (const rule of RULES) {
     const match = rule.test.exec(clean);
-    if (match) return rule.build(match);
+    if (match) {
+      try {
+        return rule.build(match);
+      } catch (error) {
+        if (error instanceof URIError) return null;
+        throw error;
+      }
+    }
   }
   return null;
 }

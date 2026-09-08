@@ -7,7 +7,13 @@
  * the path that actually exists in Git.
  */
 
-import { existsSync, readFileSync, readdirSync, type Dirent } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  type Dirent,
+} from 'node:fs';
 import {
   basename,
   join,
@@ -133,11 +139,13 @@ function resolveRepository(srcRoot: string): ResolverRepository {
     : resolvePath(process.cwd(), srcRoot);
 
   // Guard against path traversal via STARTING_FOLDER — the resolved source
-  // root must stay inside the repository root. If it escapes, fall back to
+  // root must stay inside the repository root. Use realpath to resolve
+  // symlinks before the containment check. If it escapes, fall back to
   // the default `src` folder.
+  const realRoot = realpathSync(root);
+  const realSourcePath = realpathSync(sourcePath);
   const safeSourcePath =
-    resolvePath(sourcePath).startsWith(resolvePath(root) + sep) ||
-    resolvePath(sourcePath) === resolvePath(root)
+    realSourcePath === realRoot || realSourcePath.startsWith(realRoot + sep)
       ? sourcePath
       : join(root, 'src');
 
@@ -284,10 +292,16 @@ export function createAbapGitResolver(srcRoot = 'src/'): FindingResolver {
         (left, right) => left.localeCompare(right),
       );
 
+      const ambiguous = new Set<string>();
       for (const filePath of files) {
         const name = basename(filePath).toLowerCase();
-        if (!lookup.has(name)) lookup.set(name, filePath);
+        if (lookup.has(name)) {
+          ambiguous.add(name);
+        } else {
+          lookup.set(name, filePath);
+        }
       }
+      for (const name of ambiguous) lookup.delete(name);
     }
   } catch {
     // Source scan failed — resolver will return null for all findings.
