@@ -300,7 +300,7 @@ npx nx codegen my-package
 
 # Programmatically
 import { runCodegen } from '@abapify/ts-xsd/generators';
-const result = await runCodegen(config, { rootDir: __dirname });
+const result = await runCodegen(config, { rootDir: process.cwd() });
 ```
 
 ## Usage Example
@@ -387,7 +387,7 @@ Ensure generated schemas work correctly:
 
 ```typescript
 import { parseXml, buildXml } from '@abapify/ts-xsd';
-import orders from './generated/schemas/orders';
+import orders from './src/generated/orders';
 
 const data = parseXml(orders, xmlString);
 const rebuilt = buildXml(orders, data);
