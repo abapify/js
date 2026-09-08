@@ -15,21 +15,34 @@ import { AdkDataElement } from '@abapify/adk';
 import { createHandler } from '../base';
 import type { DtelAff } from '../../../schemas/generated';
 
-function buildDataTypeInformation(data: Record<string, unknown>): Record<string, unknown> {
+// TODO: Replace Record<string, unknown> with generated ADK DTEL types once
+// adt-schemas exports a typed DataelementsSchema interface. Dynamic access is
+// required because AdkDataElement.dataSync returns a generic record today.
+// Cleanup issue: https://github.com/abapify/adt-cli/issues/195
+function buildDataTypeInformation(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
   const typeKind = data.typeKind as string | undefined;
   if (typeKind === 'domain' && data.typeName) {
     return { domainName: data.typeName };
   }
   if (data.dataType) {
     const predefinedType: Record<string, unknown> = { dataType: data.dataType };
-    if (typeof data.dataTypeLength === 'number') predefinedType.length = data.dataTypeLength;
-    if (typeof data.dataTypeDecimals === 'number') predefinedType.decimals = data.dataTypeDecimals;
+    if (typeof data.dataTypeLength === 'number') {
+      predefinedType.length = data.dataTypeLength;
+    }
+    if (typeof data.dataTypeDecimals === 'number') {
+      predefinedType.decimals = data.dataTypeDecimals;
+    }
     return { predefinedType };
   }
   return {};
 }
 
-function buildFieldLabels(data: Record<string, unknown>): Record<string, unknown> {
+// TODO: Same as above — replace with typed access once ADK exports DTEL types.
+function buildFieldLabels(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
   const labels: Record<string, unknown> = {};
   const fields: [string, string, string][] = [
     ['shortFieldLabel', 'short', 'shortFieldLength'],
@@ -40,7 +53,9 @@ function buildFieldLabels(data: Record<string, unknown>): Record<string, unknown
   for (const [src, dst, lenKey] of fields) {
     if (data[src]) {
       labels[dst] = data[src];
-      if (typeof data[lenKey] === 'number') labels[`${dst}Length`] = data[lenKey];
+      if (typeof data[lenKey] === 'number') {
+        labels[`${dst}Length`] = data[lenKey];
+      }
     }
   }
   return labels;
@@ -56,8 +71,8 @@ export const dataElementHandler = createHandler(AdkDataElement, {
     ).toLowerCase();
 
     const result: Record<string, unknown> = {
-      formatVersion: '1',
       header: {
+        formatVersion: '1.0',
         description: dtel.description ?? '',
         originalLanguage: lang,
       },
