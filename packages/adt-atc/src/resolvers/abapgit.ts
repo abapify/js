@@ -154,6 +154,12 @@ function resolveRepository(srcRoot: string): ResolverRepository {
 
 const fileCache = new Map<string, string[]>();
 
+const SOURCE_EXTENSIONS = ['.abap', '.xml', '.acds', '.abdl'];
+
+function hasSourceExtension(filename: string): boolean {
+  return SOURCE_EXTENSIONS.some((ext) => filename.endsWith(ext));
+}
+
 function collectSourceFiles(root: string): string[] {
   const result: string[] = [];
   const stack: string[] = [root];
@@ -172,13 +178,7 @@ function collectSourceFiles(root: string): string[] {
       const fullPath = join(current, entry.name);
       if (entry.isDirectory()) {
         stack.push(fullPath);
-      } else if (
-        entry.isFile() &&
-        (entry.name.endsWith('.abap') ||
-          entry.name.endsWith('.xml') ||
-          entry.name.endsWith('.acds') ||
-          entry.name.endsWith('.abdl'))
-      ) {
+      } else if (entry.isFile() && hasSourceExtension(entry.name)) {
         result.push(fullPath);
       }
     }
