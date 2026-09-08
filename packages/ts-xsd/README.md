@@ -1,7 +1,7 @@
 # ts-xsd
 
 [![npm version](https://img.shields.io/npm/v/@abapify/ts-xsd)](https://www.npmjs.com/package/@abapify/ts-xsd)
-[![license](https://img.shields.io/npm/l/@abapify/ts-xsd)](./LICENSE)
+[![license](https://img.shields.io/npm/l/@abapify/ts-xsd)](https://github.com/abapify/adt-cli/blob/main/LICENSE)
 
 **W3C XSD 1.1 parser, builder, and TypeScript type inference** — a 1:1 TypeScript representation of XML Schema Definition.
 
@@ -114,6 +114,7 @@ import {
   parseXsd,
   buildXsd,
   resolveImports,
+  loadSchema,
   type Schema,
 } from '@abapify/ts-xsd';
 ```
@@ -134,19 +135,25 @@ const xsd = buildXsd(schema, {
 });
 ```
 
-#### `resolveImports(schema, resolver): Schema`
+#### `resolveImports(schema, availableSchemas): Schema`
 
-Resolve and link imported schemas for cross-schema type resolution.
+Resolve and link imported schemas by matching `import.schemaLocation` to `$filename`. Returns a new schema with `$imports` populated.
 
 ```typescript
-const linked = resolveImports(schema, (location) =>
-  parseXsd(fs.readFileSync(location, 'utf-8')),
-);
+const base = { ...parseXsd(baseXsd), $filename: 'base.xsd' };
+const orders = { ...parseXsd(ordersXsd), $filename: 'orders.xsd' };
+
+const linked = resolveImports(orders, [base]);
+// linked.$imports = [base]
 ```
 
-#### `loadSchema(path): Promise<Schema>`
+#### `loadSchema(schemaPath: string, options?: LoaderOptions): Schema`
 
-Load and parse an XSD file from disk with automatic import resolution.
+Load and parse an XSD file from disk. Synchronous. Set `autoLink: true` to automatically resolve imports, or `autoResolve: true` to merge everything into one schema.
+
+```typescript
+const schema = loadSchema('/path/to/schema.xsd', { autoLink: true });
+```
 
 ### Infer Module
 
@@ -230,17 +237,16 @@ const { code } = generateInterfaces(schema, {
 
 ### CLI
 
-The package ships a CLI for batch code generation:
+The package ships a CLI for code generation:
 
 ```bash
-# Generate a schema literal
-npx ts-xsd codegen -i schema.xsd -o schema.ts
+# Config-based (recommended) — uses ts-xsd.config.ts in cwd
+npx ts-xsd codegen
 
-# With options
-npx ts-xsd codegen -i schema.xsd -o schema.ts \
-  --name mySchema \
-  --features '$xmlns,$imports,$filename' \
-  --exclude annotation
+# Single-file mode
+npx ts-xsd codegen person.xsd
+npx ts-xsd codegen person.xsd ./generated/person-schema.ts
+npx ts-xsd codegen person.xsd --name=PersonSchema
 ```
 
 ### Config-Based Generation
@@ -255,14 +261,20 @@ import {
 } from '@abapify/ts-xsd/generators';
 
 export default defineConfig({
-  schemas: [
-    { name: 'base', xsd: 'schemas/base.xsd' },
-    { name: 'orders', xsd: 'schemas/orders.xsd', imports: ['base'] },
-  ],
-  generators: [
-    rawSchema({ outputDir: 'src/generated/schemas' }),
-    interfaces({ outputDir: 'src/generated/types', flatten: true }),
-  ],
+  sources: {
+    base: {
+      xsdDir: 'schemas',
+      outputDir: 'src/generated',
+      schemas: ['base'],
+    },
+    orders: {
+      xsdDir: 'schemas',
+      outputDir: 'src/generated',
+      schemas: ['orders'],
+      autoLink: true,
+    },
+  },
+  generators: [rawSchema(), interfaces({ flatten: true })],
 });
 ```
 
@@ -298,13 +310,10 @@ interface Schema {
 Link schemas via `$imports` to resolve types across schema boundaries:
 
 ```typescript
-const base = parseXsd(baseXsd);
-const orders = parseXsd(ordersXsd);
+const base = { ...parseXsd(baseXsd), $filename: 'base.xsd' };
+const orders = { ...parseXsd(ordersXsd), $filename: 'orders.xsd' };
 
-const linked = {
-  ...orders,
-  $imports: [base],
-};
+const linked = resolveImports(orders, [base]);
 
 // InferSchema can now resolve types from `base`
 type OrderData = InferSchema<typeof linked>;
@@ -314,7 +323,7 @@ type OrderData = InferSchema<typeof linked>;
 
 1. **Pure W3C XSD 1.1** — types match the official [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd) exactly; no invented properties.
 2. **Type-safe** — full TypeScript support with compile-time inference.
-3. **Minimal dependencies** — only `@xmldom/xmldom` at runtime.
+3. **Minimal dependencies** — `@xmldom/xmldom` for DOM parsing, `ts-morph` and `zod` for codegen.
 4. **Tree-shakeable** — import only what you need.
 5. **Round-trip verified** — tested against the official W3C XMLSchema.xsd.
 
@@ -322,8 +331,8 @@ type OrderData = InferSchema<typeof linked>;
 
 - [W3C XML Schema 1.1 Part 1: Structures](https://www.w3.org/TR/xmlschema11-1/)
 - [XMLSchema.xsd](https://www.w3.org/TR/xmlschema11-1/XMLSchema.xsd)
-- [Codegen Guide](./docs/codegen.md)
+- [Codegen Guide](https://github.com/abapify/adt-cli/tree/main/packages/ts-xsd/docs/codegen.md)
 
 ## License
 
-MIT
+[MIT](https://github.com/abapify/adt-cli/blob/main/LICENSE)

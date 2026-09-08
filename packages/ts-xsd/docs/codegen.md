@@ -255,19 +255,22 @@ import {
 } from '@abapify/ts-xsd/generators';
 
 export default defineConfig({
-  schemas: [
-    { name: 'base', xsd: 'schemas/base.xsd' },
-    { name: 'orders', xsd: 'schemas/orders.xsd', imports: ['base'] },
-  ],
+  sources: {
+    base: {
+      xsdDir: 'schemas',
+      outputDir: 'src/generated',
+      schemas: ['base'],
+    },
+    orders: {
+      xsdDir: 'schemas',
+      outputDir: 'src/generated',
+      schemas: ['orders'],
+      autoLink: true,
+    },
+  },
   generators: [
-    rawSchema({
-      outputDir: 'src/generated/schemas',
-      features: { $xmlns: true, $imports: true, $filename: true },
-    }),
-    interfaces({
-      outputDir: 'src/generated/types',
-      flatten: true, // Inline all types
-    }),
+    rawSchema({ $xmlns: true, $imports: true, $filename: true }),
+    interfaces({ flatten: true }),
   ],
 });
 ```
@@ -296,8 +299,8 @@ interface Generator {
 npx nx codegen my-package
 
 # Programmatically
-import { runGenerators } from '@abapify/ts-xsd/generators';
-await runGenerators(config);
+import { runCodegen } from '@abapify/ts-xsd/generators';
+const result = await runCodegen(config, { rootDir: __dirname });
 ```
 
 ## Usage Example
@@ -376,7 +379,7 @@ Avoid TypeScript recursion limits:
 
 ```typescript
 // For schemas with 50+ types, generate interfaces
-const interfaces = generateInterfaces(schema, { generateAllTypes: true });
+const { code } = generateInterfaces(schema, { flatten: true });
 ```
 
 ### 5. Verify with Round-Trip Tests
@@ -397,14 +400,13 @@ const rebuilt = buildXml(orders, data);
 The codegen module includes a CLI for batch generation:
 
 ```bash
-# Generate schema literal
-npx ts-xsd codegen -i schema.xsd -o schema.ts
+# Config-based (recommended) — uses ts-xsd.config.ts in cwd
+npx ts-xsd codegen
 
-# With options
-npx ts-xsd codegen -i schema.xsd -o schema.ts \
-  --name mySchema \
-  --features '$xmlns,$imports,$filename' \
-  --exclude annotation
+# Single-file mode
+npx ts-xsd codegen person.xsd
+npx ts-xsd codegen person.xsd ./generated/person-schema.ts
+npx ts-xsd codegen person.xsd --name=PersonSchema
 ```
 
 ## Reference
