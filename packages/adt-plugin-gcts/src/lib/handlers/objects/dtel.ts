@@ -71,8 +71,8 @@ export const dataElementHandler = createHandler(AdkDataElement, {
     ).toLowerCase();
 
     const result: Record<string, unknown> = {
+      formatVersion: '1',
       header: {
-        formatVersion: '1.0',
         description: dtel.description ?? '',
         originalLanguage: lang,
       },
