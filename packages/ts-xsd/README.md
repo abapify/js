@@ -83,9 +83,9 @@ import { parseXml, buildXml } from '@abapify/ts-xsd';
 
 const xml = `<person><name>John</name><age>30</age></person>`;
 const data = parseXml(personSchema, xml);
-// => { name: 'John', age: 30 }
+// => { person: { name: 'John', age: 30 } }
 
-const rebuilt = buildXml(personSchema, data);
+const rebuilt = buildXml(personSchema, data, { xmlDecl: false });
 // => <person><name>John</name><age>30</age></person>
 ```
 
@@ -211,7 +211,7 @@ Generate a TypeScript `as const` schema literal from XSD content — for use wit
 ```typescript
 const code = generateSchemaLiteral(xsdContent, {
   name: 'PersonSchema',
-  features: { $xmlns: true, $imports: true, $filename: true },
+  features: { $xmlns: true, $filename: true },
   exclude: ['annotation'],
 });
 // export const PersonSchema = { ... } as const;

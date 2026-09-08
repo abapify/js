@@ -61,7 +61,7 @@ const xsd = `
 
 const code = generateSchemaLiteral(xsd, {
   name: 'person',
-  features: { $xmlns: true, $imports: true, $filename: true },
+  features: { $xmlns: true, $filename: true },
   exclude: ['annotation'],
 });
 ```
@@ -331,9 +331,8 @@ import { readFileSync, writeFileSync } from 'fs';
 const xsd = readFileSync('orders.xsd', 'utf-8');
 const schemaCode = generateSchemaLiteral(xsd, {
   name: 'orders',
-  features: { $xmlns: true, $imports: true, $filename: true },
+  features: { $xmlns: true, $filename: true },
   exclude: ['annotation'],
-  importResolver: (loc) => `./${loc.replace('.xsd', '')}`,
 });
 writeFileSync('schemas/orders.ts', schemaCode);
 
@@ -388,7 +387,7 @@ Ensure generated schemas work correctly:
 
 ```typescript
 import { parseXml, buildXml } from '@abapify/ts-xsd';
-import { orders } from './generated/orders';
+import orders from './generated/schemas/orders';
 
 const data = parseXml(orders, xmlString);
 const rebuilt = buildXml(orders, data);
