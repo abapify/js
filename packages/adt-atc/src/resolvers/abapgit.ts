@@ -68,9 +68,7 @@ function parseAbapGitMetadata(root: string): AbapGitMetadata | undefined {
         xml.match(/<FOLDER_LOGIC>\s*([^<]+?)\s*<\/FOLDER_LOGIC>/i)?.[1],
       ),
       startingFolder: normalizeStartingFolder(
-        xml.match(
-          /<STARTING_FOLDER>\s*([^<]+?)\s*<\/STARTING_FOLDER>/i,
-        )?.[1],
+        xml.match(/<STARTING_FOLDER>\s*([^<]+?)\s*<\/STARTING_FOLDER>/i)?.[1],
       ),
     };
   } catch {
@@ -89,7 +87,9 @@ function parseConfiguredFormat(root: string): {
     join(root, 'adt.config.mjs'),
   ].filter((value): value is string => Boolean(value));
 
-  for (const configPath of [...new Set(configPaths.map((value) => resolvePath(value)))]) {
+  for (const configPath of [
+    ...new Set(configPaths.map((value) => resolvePath(value))),
+  ]) {
     if (!existsSync(configPath)) continue;
     try {
       const config = readFileSync(configPath, 'utf8');
@@ -128,14 +128,22 @@ function resolveRepository(srcRoot: string): ResolverRepository {
   const metadata = parseAbapGitMetadata(root);
   const configured = parseConfiguredFormat(root);
   const configuredSourceFolder = metadata?.startingFolder ?? 'src';
-  const sourcePath =
-    usesConfiguredSourceRoot
-      ? join(root, configuredSourceFolder)
-      : resolvePath(process.cwd(), srcRoot);
+  const sourcePath = usesConfiguredSourceRoot
+    ? join(root, configuredSourceFolder)
+    : resolvePath(process.cwd(), srcRoot);
+
+  // Guard against path traversal via STARTING_FOLDER — the resolved source
+  // root must stay inside the repository root. If it escapes, fall back to
+  // the default `src` folder.
+  const safeSourcePath =
+    resolvePath(sourcePath).startsWith(resolvePath(root) + sep) ||
+    resolvePath(sourcePath) === resolvePath(root)
+      ? sourcePath
+      : join(root, 'src');
 
   return {
     root,
-    sourceRoot: sourcePath,
+    sourceRoot: safeSourcePath,
     metadata,
     configuredFormat: configured.format,
     configuredFolderLogic: configured.folderLogic,
@@ -166,7 +174,10 @@ function collectSourceFiles(root: string): string[] {
         stack.push(fullPath);
       } else if (
         entry.isFile() &&
-        (entry.name.endsWith('.abap') || entry.name.endsWith('.xml'))
+        (entry.name.endsWith('.abap') ||
+          entry.name.endsWith('.xml') ||
+          entry.name.endsWith('.acds') ||
+          entry.name.endsWith('.abdl'))
       ) {
         result.push(fullPath);
       }
@@ -234,19 +245,14 @@ function convertLine(
   if (ranges.length === 0) return atcLine;
 
   if (methodName) {
-    const method = ranges.find((range) => range.name === methodName.toLowerCase());
+    const method = ranges.find(
+      (range) => range.name === methodName.toLowerCase(),
+    );
     if (method) return method.startLine + atcLine - 1;
   }
 
-  if (ranges.length === 1) return ranges[0].startLine + atcLine - 1;
-
-  const candidates = ranges
-    .filter((range) => atcLine <= range.length)
-    .sort((left, right) => left.length - right.length);
-  if (candidates.length > 0) {
-    return candidates[0].startLine + atcLine - 1;
-  }
-
+  // Without a method name the ATC line is already relative to the class
+  // file, so return it as-is instead of guessing a method.
   return atcLine;
 }
 
@@ -266,8 +272,8 @@ export function createAbapGitResolver(srcRoot = 'src/'): FindingResolver {
 
   try {
     if (existsSync(repository.sourceRoot)) {
-      const files = collectSourceFiles(repository.sourceRoot).sort((left, right) =>
-        left.localeCompare(right),
+      const files = collectSourceFiles(repository.sourceRoot).sort(
+        (left, right) => left.localeCompare(right),
       );
 
       for (const filePath of files) {

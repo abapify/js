@@ -102,12 +102,12 @@ const RULES: Rule[] = [
   {
     test: /^\/sap\/bc\/adt\/ddic\/ddl\/sources\/([^/]+?)(?:\/source\/main)?$/,
     build: (match) =>
-      `src/${applyNamespace(decodeURIComponent(match[1]))}.ddls.asddls`,
+      `src/${applyNamespace(decodeURIComponent(match[1]))}.ddls.acds`,
   },
   {
     test: /^\/sap\/bc\/adt\/acm\/dcl\/sources\/([^/]+?)(?:\/source\/main)?$/,
     build: (match) =>
-      `src/${applyNamespace(decodeURIComponent(match[1]))}.dcls.asdcls`,
+      `src/${applyNamespace(decodeURIComponent(match[1]))}.dcls.acds`,
   },
   {
     test: /^\/sap\/bc\/adt\/bo\/behaviordefinitions\/([^/]+?)(?:\/source\/main)?$/,
@@ -117,7 +117,7 @@ const RULES: Rule[] = [
   {
     test: /^\/sap\/bc\/adt\/ddic\/srvd\/sources\/([^/]+?)(?:\/source\/main)?$/,
     build: (match) =>
-      `src/${applyNamespace(decodeURIComponent(match[1]))}.srvd.asrvd`,
+      `src/${applyNamespace(decodeURIComponent(match[1]))}.srvd.acds`,
   },
   {
     test: /^\/sap\/bc\/adt\/businessservices\/bindings\/([^/]+?)(?:\/publishedstates)?$/,
@@ -142,11 +142,11 @@ const RULES: Rule[] = [
       `src/${applyNamespace(decodeURIComponent(match[1]))}.tabl.xml`,
   },
 
-  // Package
+  // Package — abapGit serializes every package to the fixed filename
+  // `package.devc.xml`, regardless of the package name.
   {
     test: /^\/sap\/bc\/adt\/packages\/([^/]+)$/,
-    build: (match) =>
-      `src/${applyNamespace(decodeURIComponent(match[1]))}.devc.xml`,
+    build: () => 'src/package.devc.xml',
   },
 ];
 

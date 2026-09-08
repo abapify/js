@@ -52,7 +52,7 @@ adt atc -t TRLK942970 --format gitlab --output gl-code-quality.json
 | `--max-results <number>`      | Maximum number of results (default: 100)             |
 | `--format <format>`           | Output format: console, json, gitlab, sarif          |
 | `--output <file>`             | Output file (required for gitlab/sarif format)       |
-| `--resolver <name>`           | Resolve report paths (built-in: `abapgit`)            |
+| `--resolver <name>`           | Resolve report paths (built-in: `abapgit`)           |
 
 ### Programmatic Usage
 

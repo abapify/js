@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { afterEach, describe, it } from 'vitest';
 import { outputGitLabCodeQuality } from '../../src/formatters/gitlab';
 import { createAbapGitResolver } from '../../src/resolvers/abapgit';
+import { adtUriToAbapGitPath } from '../../src/resolvers/adt-uri-to-abapgit-path';
 import type { AtcResult, FindingResolver } from '../../src/types';
 
 const temporaryDirectories: string[] = [];
@@ -146,6 +147,110 @@ describe('abapGit ATC finding resolver', () => {
         ['abap/fugr/zfg_tax_custline.fugr.zfm_tax_custline.abap', 211],
         ['abap/fugr/zfg_tax_custline.fugr.zfm_tax_splititm.abap', 195],
       ],
+    );
+  });
+
+  it('rejects path traversal in STARTING_FOLDER', async () => {
+    const repositoryRoot = mkdtempSync(join('/tmp', 'adt-atc-traversal-'));
+    temporaryDirectories.push(repositoryRoot);
+
+    // Write a file outside the repo that should never be indexed.
+    const outsideDir = join(repositoryRoot, '..', 'adt-atc-outside');
+    mkdirSync(outsideDir, { recursive: true });
+    writeFileSync(
+      join(outsideDir, 'secret.clas.abap'),
+      'METHOD foo.\nENDMETHOD.\n',
+    );
+
+    writeFileSync(
+      join(repositoryRoot, '.abapgit.xml'),
+      '<STARTING_FOLDER>../../adt-atc-outside</STARTING_FOLDER><FOLDER_LOGIC>PREFIX</FOLDER_LOGIC>',
+    );
+
+    process.env.CI_PROJECT_DIR = repositoryRoot;
+    const resolver = createAbapGitResolver();
+    const resolved = await resolveWithLocation(
+      resolver,
+      'CLAS',
+      'ZCL_SECRET',
+      1,
+      '/sap/bc/adt/oo/classes/zcl_secret/source/main',
+    );
+
+    // The traversal must be blocked — the file outside the repo must not
+    // resolve. The resolver falls back to `src/` which has no files.
+    assert.equal(resolved, null);
+
+    rmSync(outsideDir, { recursive: true, force: true });
+  });
+
+  it('does not shift class lines into a random method when no method name is given', async () => {
+    const repositoryRoot = mkdtempSync(join('/tmp', 'adt-atc-method-'));
+    temporaryDirectories.push(repositoryRoot);
+
+    mkdirSync(join(repositoryRoot, 'src'), { recursive: true });
+    writeFileSync(
+      join(repositoryRoot, 'src', 'zcl_test.clas.abap'),
+      [
+        'CLASS zcl_test DEFINITION.',
+        'ENDCLASS.',
+        'CLASS zcl_test IMPLEMENTATION.',
+        '  METHOD short.',
+        '    DATA foo TYPE i.',
+        '  ENDMETHOD.',
+        '  METHOD longer_method.',
+        '    DATA bar TYPE i.',
+        '    DATA baz TYPE i.',
+        '  ENDMETHOD.',
+        'ENDCLASS.',
+      ].join('\n') + '\n',
+    );
+    writeFileSync(
+      join(repositoryRoot, '.abapgit.xml'),
+      '<STARTING_FOLDER>src</STARTING_FOLDER><FOLDER_LOGIC>PREFIX</FOLDER_LOGIC>',
+    );
+
+    process.env.CI_PROJECT_DIR = repositoryRoot;
+    const resolver = createAbapGitResolver();
+
+    // Finding at line 2 without a method name — the line is already
+    // class-file-relative and must not be shifted into any method.
+    const resolved = await resolveWithLocation(
+      resolver,
+      'CLAS',
+      'ZCL_TEST',
+      2,
+      '/sap/bc/adt/oo/classes/zcl_test/source/main',
+    );
+
+    assert.deepEqual(resolved, { path: 'src/zcl_test.clas.abap', line: 2 });
+  });
+});
+
+describe('adtUriToAbapGitPath — abapGit file extensions', () => {
+  it('maps CDS/RAP source objects to .acds / .abdl suffixes', () => {
+    assert.equal(
+      adtUriToAbapGitPath('/sap/bc/adt/ddic/ddl/sources/zi_foo'),
+      'src/zi_foo.ddls.acds',
+    );
+    assert.equal(
+      adtUriToAbapGitPath('/sap/bc/adt/acm/dcl/sources/zi_foo'),
+      'src/zi_foo.dcls.acds',
+    );
+    assert.equal(
+      adtUriToAbapGitPath('/sap/bc/adt/ddic/srvd/sources/zui_foo'),
+      'src/zui_foo.srvd.acds',
+    );
+    assert.equal(
+      adtUriToAbapGitPath('/sap/bc/adt/bo/behaviordefinitions/zbp_foo'),
+      'src/zbp_foo.bdef.abdl',
+    );
+  });
+
+  it('maps package URIs to the fixed package.devc.xml filename', () => {
+    assert.equal(
+      adtUriToAbapGitPath('/sap/bc/adt/packages/zmy_package'),
+      'src/package.devc.xml',
     );
   });
 });
