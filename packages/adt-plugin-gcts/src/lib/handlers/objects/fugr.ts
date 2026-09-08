@@ -1,34 +1,47 @@
 /**
  * FUGR (function group) handler for gCTS / AFF format.
  *
+ * Projects ADK function group data to the AFF fugr-v1.json schema shape:
+ *
+ *   {
+ *     formatVersion: "1",
+ *     header: { description, originalLanguage, abapLanguageVersion? },
+ *     fixPointArithmetic: boolean (required),
+ *     status?
+ *   }
+ *
  * AFF's FUGR representation nests function modules under the group
  * directory. This plugin emits the group metadata only — per-module files
  * are produced by individual FUNC handlers once ADK exposes them.
  */
+
 import { AdkFunctionGroup } from '@abapify/adk';
 import { createHandler } from '../base';
+import type { FugrAff } from '../../../schemas/generated';
 
 export const functionGroupHandler = createHandler(AdkFunctionGroup, {
-  toMetadata(fugr) {
+  toMetadata(fugr): FugrAff {
     const data = fugr.dataSync as Record<string, unknown>;
+    const lang = (
+      (data.language as string) ??
+      (data.masterLanguage as string) ??
+      ''
+    ).toLowerCase();
     return {
+      formatVersion: '1',
       header: {
-        formatVersion: '1.0',
         description: fugr.description ?? '',
-        originalLanguage:
-          (data.language as string) ?? (data.masterLanguage as string),
+        originalLanguage: lang,
       },
-      functionGroup: {
-        // Function-module enumeration is intentionally deferred — AFF treats
-        // FMs as separate artefacts and ADK already models them per FM.
-        fixedPointArithmetic: data.fixPointArithmetic === true,
-        unicodeChecksActive: data.activeUnicodeCheck !== false,
-      },
+      fixPointArithmetic: data.fixPointArithmetic === true,
     };
   },
 
-  fromMetadata: (meta: any) => ({
-    name: (meta?.functionGroup?.name ?? '').toUpperCase(),
-    description: meta?.header?.description,
+  fromMetadata: (meta: FugrAff) => ({
+    name: '',
+    description: meta.header.description,
+    language: meta.header.originalLanguage?.toUpperCase(),
+    masterLanguage: meta.header.originalLanguage?.toUpperCase(),
+    fixPointArithmetic: meta.fixPointArithmetic,
   }),
 });

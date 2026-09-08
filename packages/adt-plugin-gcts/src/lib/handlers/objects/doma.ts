@@ -1,35 +1,77 @@
 /**
  * DOMA (domain) handler for gCTS / AFF format.
+ *
+ * Projects ADK domain data to the AFF doma-v1.json schema shape:
+ *
+ *   {
+ *     formatVersion: "1",
+ *     header: { description, originalLanguage, abapLanguageVersion? },
+ *     format: { dataType, length, decimals? } (required),
+ *     outputCharacteristics?: { length?, caseSensitive?, conversionRoutine?, ... },
+ *     valueTable?: { name }
+ *   }
  */
+
 import { AdkDomain } from '@abapify/adk';
 import { createHandler } from '../base';
+import type { DomaAff } from '../../../schemas/generated';
 
 export const domainHandler = createHandler(AdkDomain, {
-  toMetadata(doma) {
+  toMetadata(doma): DomaAff {
     const data = doma.dataSync as Record<string, unknown>;
-    return {
-      header: {
-        formatVersion: '1.0',
-        description: doma.description ?? '',
-        originalLanguage:
-          (data.language as string) ?? (data.masterLanguage as string),
-      },
-      domain: {
-        dataType: data.dataType,
-        length: data.length,
-        decimals: data.decimals,
-        outputLength: data.outputLength,
-        caseSensitive: data.caseSensitive === true,
-        valueTable: (data.valueTableRef as { name?: string } | undefined)?.name,
-      },
+    const lang = (
+      (data.language as string) ??
+      (data.masterLanguage as string) ??
+      ''
+    ).toLowerCase();
+    const ti = (data.typeInformation ?? {}) as Record<string, unknown>;
+    const oi = (data.outputInformation ?? {}) as Record<string, unknown>;
+    const vi = (data.valueInformation ?? {}) as Record<string, unknown>;
+
+    const format: Record<string, unknown> = {
+      dataType: ti.datatype ?? 'CHAR',
+      length: ti.length ?? 1,
     };
+    if (typeof ti.decimals === 'number') {
+      format.decimals = ti.decimals;
+    }
+
+    const result: Record<string, unknown> = {
+      formatVersion: '1',
+      header: {
+        description: doma.description ?? '',
+        originalLanguage: lang,
+      },
+      format: format as DomaAff['format'],
+    };
+
+    // outputCharacteristics — only emit if we have meaningful values
+    const outChars: Record<string, unknown> = {};
+    if (typeof oi.length === 'number') outChars.length = oi.length;
+    if (typeof oi.lowercase === 'boolean') outChars.caseSensitive = !oi.lowercase;
+    if (oi.conversionExit) outChars.conversionRoutine = oi.conversionExit;
+    if (Object.keys(outChars).length > 0) {
+      result.outputCharacteristics = outChars;
+    }
+
+    // valueTable
+    const vtRef = (vi.valueTableRef ?? {}) as { name?: string };
+    if (vtRef.name) {
+      result.valueTable = { name: vtRef.name };
+    }
+
+    return result as DomaAff;
   },
 
-  fromMetadata: (meta: any) => ({
-    name: (meta?.domain?.name ?? '').toUpperCase(),
-    description: meta?.header?.description,
-    dataType: meta?.domain?.dataType,
-    length: meta?.domain?.length,
-    decimals: meta?.domain?.decimals,
+  fromMetadata: (meta: DomaAff) => ({
+    name: '',
+    description: meta.header.description,
+    language: meta.header.originalLanguage?.toUpperCase(),
+    masterLanguage: meta.header.originalLanguage?.toUpperCase(),
+    dataType: meta.format.dataType,
+    length: meta.format.length,
+    decimals: meta.format.decimals,
+    caseSensitive: meta.outputCharacteristics?.caseSensitive,
+    valueTable: meta.valueTable?.name,
   }),
 });

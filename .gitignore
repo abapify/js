@@ -166,10 +166,13 @@ e2e/adt-sdk
 .nx/migrate-runs
 
 # Gas City runtime artifacts
-.beads/
 !gascity/.beads/identity.toml
 __pycache__/
 *.pyc
 .agents/skills/.gc-skill-ownership.json
 .agents/skills/adt-tools
 .agents/skills/core.gc-*
+
+# Gas City
+.beads/*
+!.beads/identity.toml
