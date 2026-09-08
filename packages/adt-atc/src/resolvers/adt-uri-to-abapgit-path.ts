@@ -82,7 +82,7 @@ const RULES: Rule[] = [
     test: /^\/sap\/bc\/adt\/functions\/groups\/([^/]+)\/source\/main$/,
     build: (match) => {
       const group = applyNamespace(decodeURIComponent(match[1]));
-      return `src/${group}.fugr.l${group.replace(/\(/g, '').replace(/\)/g, '')}top.abap`;
+      return `src/${group}.fugr.l${group}top.abap`;
     },
   },
   {

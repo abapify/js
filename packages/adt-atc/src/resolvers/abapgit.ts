@@ -141,9 +141,12 @@ function resolveRepository(srcRoot: string): ResolverRepository {
   // Guard against path traversal via STARTING_FOLDER — the resolved source
   // root must stay inside the repository root. Use realpath to resolve
   // symlinks before the containment check. If it escapes, fall back to
-  // the default `src` folder.
-  const realRoot = realpathSync(root);
-  const realSourcePath = realpathSync(sourcePath);
+  // the default `src` folder. Guard existsSync before realpathSync so a
+  // missing source folder does not throw and abort report generation.
+  const realRoot = existsSync(root) ? realpathSync(root) : root;
+  const realSourcePath = existsSync(sourcePath)
+    ? realpathSync(sourcePath)
+    : sourcePath;
   const safeSourcePath =
     realSourcePath === realRoot || realSourcePath.startsWith(realRoot + sep)
       ? sourcePath

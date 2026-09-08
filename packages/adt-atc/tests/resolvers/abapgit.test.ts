@@ -191,6 +191,27 @@ describe('abapGit ATC finding resolver', () => {
     assert.equal(resolved, null);
   });
 
+  it('does not throw when STARTING_FOLDER points to a missing directory', async () => {
+    const repositoryRoot = mkdtempSync(join(tmpdir(), 'adt-atc-missing-'));
+    temporaryDirectories.push(repositoryRoot);
+
+    writeFileSync(
+      join(repositoryRoot, '.abapgit.xml'),
+      '<STARTING_FOLDER>does_not_exist</STARTING_FOLDER><FOLDER_LOGIC>PREFIX</FOLDER_LOGIC>',
+    );
+
+    process.env.CI_PROJECT_DIR = repositoryRoot;
+    const resolver = createAbapGitResolver();
+    const resolved = await resolveWithLocation(resolver, {
+      objectType: 'CLAS',
+      objectName: 'ZCL_FOO',
+      line: 1,
+      location: '/sap/bc/adt/oo/classes/zcl_foo/source/main',
+    });
+
+    assert.equal(resolved, null);
+  });
+
   it('does not shift class lines into a random method when no method name is given', async () => {
     const repositoryRoot = mkdtempSync(join(tmpdir(), 'adt-atc-method-'));
     temporaryDirectories.push(repositoryRoot);
@@ -264,6 +285,14 @@ describe('adtUriToAbapGitPath — abapGit file extensions', () => {
     assert.equal(
       adtUriToAbapGitPath('/sap/bc/adt/functions/groups/zfg_foo/source/main'),
       'src/zfg_foo.fugr.lzfg_footop.abap',
+    );
+    // Namespaced function groups keep the parentheses in the include name,
+    // matching the abapGit plugin's `l${objectName}top` convention.
+    assert.equal(
+      adtUriToAbapGitPath(
+        '/sap/bc/adt/functions/groups/%2FNMSPC%2Fzfg_foo/source/main',
+      ),
+      'src/(nmspc)zfg_foo.fugr.l(nmspc)zfg_footop.abap',
     );
   });
 
