@@ -307,7 +307,7 @@ const result = await runCodegen(config, { rootDir: __dirname });
 
 The codegen module powers a typical schema generation pipeline:
 
-```
+```text
 XSD Files (.xsd)
     ↓ generateSchemaLiteral
 Schema Literals (as const)

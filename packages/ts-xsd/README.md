@@ -194,9 +194,9 @@ import { parseXml, buildXml } from '@abapify/ts-xsd';
 
 Parse an XML string into a typed object using a schema definition.
 
-#### `buildXml<T>(schema, data: T): string`
+#### `buildXml<T>(schema, data: T, options?: XmlBuildOptions): string`
 
-Build an XML string from a typed object using a schema definition.
+Build an XML string from a typed object using a schema definition. Defaults to `xmlDecl: true` (includes `<?xml ...?>` declaration); pass `{ xmlDecl: false }` for bare output.
 
 ### Codegen Module
 
