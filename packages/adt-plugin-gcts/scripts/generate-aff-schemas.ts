@@ -10,7 +10,7 @@
  */
 
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
-import { mkdir, rm, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile, readFile, readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -105,6 +105,7 @@ async function main(): Promise<void> {
 
   const allTypes: { typeName: string; file: string }[] = [];
 
+  // Explicitly typed AFF types (Wave 0 + Wave 1).
   for (const [affDir, { schema, typeName }] of Object.entries(AFF_TYPES)) {
     await generateOne(affDir, schema, typeName, OUT_DIR);
     allTypes.push({ typeName, file: typeName.toLowerCase() });
@@ -115,6 +116,26 @@ async function main(): Promise<void> {
     FUGR_SUB_SCHEMAS,
   )) {
     await generateOne('fugr', schema, typeName, OUT_DIR);
+    allTypes.push({ typeName, file: typeName.toLowerCase() });
+  }
+
+  // Wave 2: auto-discover all remaining AFF types with *-v1.json schemas.
+  const handled = new Set(Object.keys(AFF_TYPES));
+  const entries = await readdir(AFF_ROOT, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const dirName = entry.name;
+    if (handled.has(dirName)) continue;
+    // Find *-v1.json (skip zif_aff_*.json interface metadata).
+    const schemaFile = `${dirName}-v1.json`;
+    const schemaPath = join(AFF_ROOT, dirName, schemaFile);
+    try {
+      await readFile(schemaPath, 'utf8');
+    } catch {
+      continue; // No schema for this type
+    }
+    const typeName = dirName.charAt(0).toUpperCase() + dirName.slice(1);
+    await generateOne(dirName, schemaFile, typeName, OUT_DIR);
     allTypes.push({ typeName, file: typeName.toLowerCase() });
   }
 
