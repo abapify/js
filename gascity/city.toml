@@ -2,7 +2,6 @@
 provider = "devin"
 [workspace.env]
 DEVIN_MODEL = "glm-5-2"
-DEVIN_PERMISSION_MODE = "dangerous"
 
 [providers]
 [providers.devin]

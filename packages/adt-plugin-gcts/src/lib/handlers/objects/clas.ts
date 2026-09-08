@@ -73,11 +73,17 @@ export const classHandler = createHandler(AdkClass, {
         description: cls.description ?? data.description ?? '',
         originalLanguage: lang,
         ...(data.abapLanguageVersion && data.abapLanguageVersion !== 'standard'
-          ? { abapLanguageVersion: data.abapLanguageVersion as ClasAff['header']['abapLanguageVersion'] }
+          ? {
+              abapLanguageVersion:
+                data.abapLanguageVersion as ClasAff['header']['abapLanguageVersion'],
+            }
           : {}),
       },
       ...(data.category
-        ? { category: (CATEGORY_TO_AFF[data.category] ?? data.category) as ClasAff['category'] }
+        ? {
+            category: (CATEGORY_TO_AFF[data.category] ??
+              'generalObjectType') as ClasAff['category'],
+          }
         : {}),
       ...(typeof data.fixPointArithmetic === 'boolean'
         ? { fixPointArithmetic: data.fixPointArithmetic }

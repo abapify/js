@@ -31,8 +31,10 @@ export const programHandler = createHandler(AdkProgram, {
     const data = prog.dataSync;
     const lang = (data.language ?? data.masterLanguage ?? '').toLowerCase();
     const generalInformation: Record<string, unknown> = {
-      programType: (data.programType ?? 'executableProgram') as ProgAff['generalInformation']['programType'],
-      programStatus: (STATUS_TO_AFF[data.sourceObjectStatus ?? ''] ?? 'unknown') as ProgAff['generalInformation']['programStatus'],
+      programType: (data.programType ??
+        'executableProgram') as ProgAff['generalInformation']['programType'],
+      programStatus: (STATUS_TO_AFF[data.sourceObjectStatus ?? ''] ??
+        'systemProgram') as ProgAff['generalInformation']['programStatus'],
     };
     if (typeof data.fixPointArithmetic === 'boolean') {
       generalInformation.fixPointArithmetic = data.fixPointArithmetic;
@@ -43,7 +45,10 @@ export const programHandler = createHandler(AdkProgram, {
         description: prog.description ?? data.description ?? '',
         originalLanguage: lang,
         ...(data.abapLanguageVersion && data.abapLanguageVersion !== 'standard'
-          ? { abapLanguageVersion: data.abapLanguageVersion as ProgAff['header']['abapLanguageVersion'] }
+          ? {
+              abapLanguageVersion:
+                data.abapLanguageVersion as ProgAff['header']['abapLanguageVersion'],
+            }
           : {}),
       },
       generalInformation: generalInformation as ProgAff['generalInformation'],

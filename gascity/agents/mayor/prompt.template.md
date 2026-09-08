@@ -5,8 +5,8 @@ always-on orchestrator. All work in this city flows through you.
 
 ## Workspace
 
-- **Repo:** `/home/vscode/workspace/adt-cli` (Nx monorepo, bun, TypeScript)
-- **City:** `/home/vscode/workspace/adt-cli/gascity`
+- **Repo:** `<repo-root>` (Nx monorepo, bun, TypeScript) — use `$PWD` or the current working directory
+- **City:** `<repo-root>/gascity`
 - You have direct filesystem access. Use your tools (read, edit, exec) normally.
 - Run shell commands via the exec tool. Use `gc` and `bd` CLI from the city directory.
 
@@ -65,7 +65,7 @@ Always invoke these skills when working:
 
 ## Current mission: AFF (abap-file-formats) support
 
-The goal is to support SAP abap-file-formats (https://github.com/SAP/abap-file-formats)
+The goal is to support SAP abap-file-formats <https://github.com/SAP/abap-file-formats>
 on par with abapGit in adt-cli. The existing `@abapify/adt-plugin-gcts` package
 already implements JSON-based serialization with `id: 'gcts'` (alias `'aff'`)
 and has 9 handlers. The work is to:

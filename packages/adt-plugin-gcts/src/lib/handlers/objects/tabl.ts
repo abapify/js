@@ -34,5 +34,10 @@ export const tableHandler = createHandler(AdkTable, {
     name: '',
     description: meta?.header?.description,
     language: meta?.header?.originalLanguage?.toUpperCase(),
+    masterLanguage: meta?.header?.originalLanguage?.toUpperCase(),
+    tableCategory: meta?.table?.tableCategory,
+    deliveryClass: meta?.table?.deliveryClass,
+    dataMaintenance: meta?.table?.dataMaintenance,
+    fields: meta?.table?.fields,
   }),
 });

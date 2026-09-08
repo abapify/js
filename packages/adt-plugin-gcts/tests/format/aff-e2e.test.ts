@@ -17,7 +17,12 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { mkdtempSync, readdirSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -38,12 +43,10 @@ describe('AFF e2e roundtrip — CLAS via gctsPlugin.format.import', () => {
           category: 'generalObjectType',
           fixPointArithmetic: true,
           abapLanguageVersion: 'cloudDevelopment',
-          include: [
-            { includeType: 'main' },
-            { includeType: 'testclasses' },
-          ],
+          include: [{ includeType: 'main' }, { includeType: 'testclasses' }],
         },
-        getSource: () => 'CLASS zcl_e2e_test DEFINITION PUBLIC FINAL.\nENDCLASS.',
+        getSource: () =>
+          'CLASS zcl_e2e_test DEFINITION PUBLIC FINAL.\nENDCLASS.',
         getIncludeSource: (type: string) =>
           type === 'testclasses'
             ? '* Test classes\n'
@@ -65,7 +68,10 @@ describe('AFF e2e roundtrip — CLAS via gctsPlugin.format.import', () => {
       );
 
       assert.strictEqual(result.success, true, 'import must succeed');
-      assert.ok(result.filesCreated.length >= 1, 'must write at least the JSON file');
+      assert.ok(
+        result.filesCreated.length >= 1,
+        'must write at least the JSON file',
+      );
 
       // AFF layout: src/<pkg>/<name>.clas.json
       const packageDir = join(dir, 'src', 'zmypkg');
@@ -75,12 +81,22 @@ describe('AFF e2e roundtrip — CLAS via gctsPlugin.format.import', () => {
 
       assert.ok(jsonFile, 'must produce a .clas.json metadata file');
       assert.strictEqual(jsonFile, 'zcl_e2e_test.clas.json');
-      assert.ok(abapFiles.length > 0, 'must produce at least one .abap source file');
+      assert.ok(
+        abapFiles.length > 0,
+        'must produce at least one .abap source file',
+      );
 
       // Verify the JSON is AFF-compliant
       const meta = JSON.parse(readFileSync(join(packageDir, jsonFile), 'utf8'));
-      assert.strictEqual(meta.formatVersion, '1', 'AFF formatVersion must be "1"');
-      assert.ok(!('formatVersion' in meta.header), 'formatVersion must be at root, not header');
+      assert.strictEqual(
+        meta.formatVersion,
+        '1',
+        'AFF formatVersion must be "1"',
+      );
+      assert.ok(
+        !('formatVersion' in meta.header),
+        'formatVersion must be at root, not header',
+      );
       assert.strictEqual(meta.header.description, 'E2E test class');
       assert.strictEqual(meta.header.originalLanguage, 'en');
       assert.strictEqual(meta.header.abapLanguageVersion, 'cloudDevelopment');
@@ -101,7 +117,7 @@ describe('AFF e2e roundtrip — CLAS via gctsPlugin.format.import', () => {
         package: 'ZMYPKG',
         dataSync: {
           language: 'EN',
-          typeInformation: { datatype: 'CHAR', length: 10 },
+          content: { typeInformation: { datatype: 'CHAR', length: 10 } },
         },
       };
 
@@ -169,7 +185,10 @@ describe('AFF e2e roundtrip — CLAS via gctsPlugin.format.import', () => {
       const meta = JSON.parse(readFileSync(join(packageDir, jsonFile), 'utf8'));
       assert.strictEqual(meta.formatVersion, '1');
       assert.strictEqual(meta.fixPointArithmetic, true);
-      assert.ok(!('functionGroup' in meta), 'must not have legacy "functionGroup" wrapper');
+      assert.ok(
+        !('functionGroup' in meta),
+        'must not have legacy "functionGroup" wrapper',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

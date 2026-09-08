@@ -38,10 +38,17 @@ function fakeObj(data: Record<string, unknown>): any {
 // ============================================================
 describe('DDLS handler — AFF ddls-v1 alignment', () => {
   it('emits formatVersion "1" with header + sourceOrigin + sourceType', async () => {
-    const m = meta(await ddlSourceHandler.serialize(fakeObj({
-      name: 'ZC_TEST', description: 'Test CDS view', originalLanguage: 'EN',
-      sourceOrigin: 'abapDevelopmentTools', sourceType: 'viewEntity',
-    })));
+    const m = meta(
+      await ddlSourceHandler.serialize(
+        fakeObj({
+          name: 'ZC_TEST',
+          description: 'Test CDS view',
+          originalLanguage: 'EN',
+          sourceOrigin: 'abapDevelopmentTools',
+          sourceType: 'viewEntity',
+        }),
+      ),
+    );
     assert.strictEqual(m.formatVersion, '1');
     assert.strictEqual(m.header.description, 'Test CDS view');
     assert.strictEqual(m.header.originalLanguage, 'en');
@@ -50,26 +57,43 @@ describe('DDLS handler — AFF ddls-v1 alignment', () => {
   });
 
   it('defaults sourceOrigin and sourceType', async () => {
-    const m = meta(await ddlSourceHandler.serialize(fakeObj({
-      name: 'ZC_TEST', description: 'Test', originalLanguage: 'EN',
-    })));
+    const m = meta(
+      await ddlSourceHandler.serialize(
+        fakeObj({
+          name: 'ZC_TEST',
+          description: 'Test',
+          originalLanguage: 'EN',
+        }),
+      ),
+    );
     assert.strictEqual(m.sourceOrigin, 'abapDevelopmentTools');
     assert.strictEqual(m.sourceType, 'unknown');
   });
 
   it('emits .asddls source file', async () => {
-    const files = await ddlSourceHandler.serialize(fakeObj({
-      name: 'ZC_TEST', description: 'Test', originalLanguage: 'EN',
-      getSource: () => 'define view entity ZC_TEST as select from ...',
-    }));
+    const files = await ddlSourceHandler.serialize(
+      fakeObj({
+        name: 'ZC_TEST',
+        description: 'Test',
+        originalLanguage: 'EN',
+        getSource: () => 'define view entity ZC_TEST as select from ...',
+      }),
+    );
     assert.ok(files.some((f) => f.path.endsWith('.asddls')));
   });
 
   it('round-trips: serialize → fromMetadata recovers fields', async () => {
-    const m = meta(await ddlSourceHandler.serialize(fakeObj({
-      name: 'ZC_TEST', description: 'Roundtrip', originalLanguage: 'EN',
-      sourceOrigin: 'abapDevelopmentTools', sourceType: 'viewEntity',
-    })));
+    const m = meta(
+      await ddlSourceHandler.serialize(
+        fakeObj({
+          name: 'ZC_TEST',
+          description: 'Roundtrip',
+          originalLanguage: 'EN',
+          sourceOrigin: 'abapDevelopmentTools',
+          sourceType: 'viewEntity',
+        }),
+      ),
+    );
     const recovered = (ddlSourceHandler as any).fromAbapGit(m);
     assert.strictEqual(recovered.description, 'Roundtrip');
     assert.strictEqual(recovered.sourceOrigin, 'abapDevelopmentTools');
@@ -82,26 +106,42 @@ describe('DDLS handler — AFF ddls-v1 alignment', () => {
 // ============================================================
 describe('DCLS handler — AFF dcls-v1 alignment', () => {
   it('emits formatVersion "1" with header', async () => {
-    const m = meta(await dclSourceHandler.serialize(fakeObj({
-      name: 'ZC_TEST', description: 'Access control', originalLanguage: 'EN',
-    })));
+    const m = meta(
+      await dclSourceHandler.serialize(
+        fakeObj({
+          name: 'ZC_TEST',
+          description: 'Access control',
+          originalLanguage: 'EN',
+        }),
+      ),
+    );
     assert.strictEqual(m.formatVersion, '1');
     assert.strictEqual(m.header.description, 'Access control');
     assert.strictEqual(m.header.originalLanguage, 'en');
   });
 
   it('emits .asdcls source file', async () => {
-    const files = await dclSourceHandler.serialize(fakeObj({
-      name: 'ZC_TEST', description: 'Test', originalLanguage: 'EN',
-      getSource: () => 'access control ZC_TEST to ...',
-    }));
+    const files = await dclSourceHandler.serialize(
+      fakeObj({
+        name: 'ZC_TEST',
+        description: 'Test',
+        originalLanguage: 'EN',
+        getSource: () => 'access control ZC_TEST to ...',
+      }),
+    );
     assert.ok(files.some((f) => f.path.endsWith('.asdcls')));
   });
 
   it('round-trips: serialize → fromMetadata recovers fields', async () => {
-    const m = meta(await dclSourceHandler.serialize(fakeObj({
-      name: 'ZC_TEST', description: 'Roundtrip', originalLanguage: 'EN',
-    })));
+    const m = meta(
+      await dclSourceHandler.serialize(
+        fakeObj({
+          name: 'ZC_TEST',
+          description: 'Roundtrip',
+          originalLanguage: 'EN',
+        }),
+      ),
+    );
     const recovered = (dclSourceHandler as any).fromAbapGit(m);
     assert.strictEqual(recovered.description, 'Roundtrip');
   });
@@ -112,26 +152,42 @@ describe('DCLS handler — AFF dcls-v1 alignment', () => {
 // ============================================================
 describe('BDEF handler — AFF bdef-v1 alignment', () => {
   it('emits formatVersion "1" with header', async () => {
-    const m = meta(await behaviorDefinitionHandler.serialize(fakeObj({
-      name: 'ZBP_TEST', description: 'Behavior def', originalLanguage: 'EN',
-    })));
+    const m = meta(
+      await behaviorDefinitionHandler.serialize(
+        fakeObj({
+          name: 'ZBP_TEST',
+          description: 'Behavior def',
+          originalLanguage: 'EN',
+        }),
+      ),
+    );
     assert.strictEqual(m.formatVersion, '1');
     assert.strictEqual(m.header.description, 'Behavior def');
     assert.strictEqual(m.header.originalLanguage, 'en');
   });
 
   it('emits .abdl source file', async () => {
-    const files = await behaviorDefinitionHandler.serialize(fakeObj({
-      name: 'ZBP_TEST', description: 'Test', originalLanguage: 'EN',
-      getSource: () => 'managed implementation in class ...',
-    }));
+    const files = await behaviorDefinitionHandler.serialize(
+      fakeObj({
+        name: 'ZBP_TEST',
+        description: 'Test',
+        originalLanguage: 'EN',
+        getSource: () => 'managed implementation in class ...',
+      }),
+    );
     assert.ok(files.some((f) => f.path.endsWith('.abdl')));
   });
 
   it('round-trips: serialize → fromMetadata recovers fields', async () => {
-    const m = meta(await behaviorDefinitionHandler.serialize(fakeObj({
-      name: 'ZBP_TEST', description: 'Roundtrip', originalLanguage: 'EN',
-    })));
+    const m = meta(
+      await behaviorDefinitionHandler.serialize(
+        fakeObj({
+          name: 'ZBP_TEST',
+          description: 'Roundtrip',
+          originalLanguage: 'EN',
+        }),
+      ),
+    );
     const recovered = (behaviorDefinitionHandler as any).fromAbapGit(m);
     assert.strictEqual(recovered.description, 'Roundtrip');
   });
@@ -142,28 +198,48 @@ describe('BDEF handler — AFF bdef-v1 alignment', () => {
 // ============================================================
 describe('SRVD handler — AFF srvd-v1 alignment', () => {
   it('emits formatVersion "1" with header + generalInformation', async () => {
-    const m = meta(await serviceDefinitionHandler.serialize(fakeObj({
-      name: 'ZUI_TEST', description: 'Service def', originalLanguage: 'EN',
-    })));
+    const m = meta(
+      await serviceDefinitionHandler.serialize(
+        fakeObj({
+          name: 'ZUI_TEST',
+          description: 'Service def',
+          originalLanguage: 'EN',
+        }),
+      ),
+    );
     assert.strictEqual(m.formatVersion, '1');
     assert.strictEqual(m.header.description, 'Service def');
-    assert.strictEqual(m.generalInformation.sourceOrigin, 'abapDevelopmentTools');
+    assert.strictEqual(
+      m.generalInformation.sourceOrigin,
+      'abapDevelopmentTools',
+    );
     assert.strictEqual(m.generalInformation.sourceType, 'definition');
   });
 
   it('emits .acds source file', async () => {
-    const files = await serviceDefinitionHandler.serialize(fakeObj({
-      name: 'ZUI_TEST', description: 'Test', originalLanguage: 'EN',
-      getSource: () => 'define service ZUI_TEST { ... }',
-    }));
+    const files = await serviceDefinitionHandler.serialize(
+      fakeObj({
+        name: 'ZUI_TEST',
+        description: 'Test',
+        originalLanguage: 'EN',
+        getSource: () => 'define service ZUI_TEST { ... }',
+      }),
+    );
     assert.ok(files.some((f) => f.path.endsWith('.acds')));
   });
 
   it('round-trips: serialize → fromMetadata recovers fields', async () => {
-    const m = meta(await serviceDefinitionHandler.serialize(fakeObj({
-      name: 'ZUI_TEST', description: 'Roundtrip', originalLanguage: 'EN',
-      sourceOrigin: 'abapDevelopmentTools', sourceType: 'extension',
-    })));
+    const m = meta(
+      await serviceDefinitionHandler.serialize(
+        fakeObj({
+          name: 'ZUI_TEST',
+          description: 'Roundtrip',
+          originalLanguage: 'EN',
+          sourceOrigin: 'abapDevelopmentTools',
+          sourceType: 'extension',
+        }),
+      ),
+    );
     const recovered = (serviceDefinitionHandler as any).fromAbapGit(m);
     assert.strictEqual(recovered.description, 'Roundtrip');
     assert.strictEqual(recovered.sourceType, 'extension');
@@ -175,11 +251,25 @@ describe('SRVD handler — AFF srvd-v1 alignment', () => {
 // ============================================================
 describe('SRVB handler — AFF srvb-v1 alignment', () => {
   it('emits formatVersion "1" with header + bindingType + services', async () => {
-    const m = meta(await serviceBindingHandler.serialize(fakeObj({
-      name: 'ZUI_BIND', description: 'Service binding', originalLanguage: 'EN',
-      bindingType: 'odataV4', bindingTypeCategory: 'ui',
-      services: [{ name: 'ZUI_BIND_SRV', versions: [{ serviceVersion: '0001', serviceDefinition: 'ZUI_TEST' }] }],
-    })));
+    const m = meta(
+      await serviceBindingHandler.serialize(
+        fakeObj({
+          name: 'ZUI_BIND',
+          description: 'Service binding',
+          originalLanguage: 'EN',
+          bindingType: 'odataV4',
+          bindingTypeCategory: 'ui',
+          services: [
+            {
+              name: 'ZUI_BIND_SRV',
+              versions: [
+                { serviceVersion: '0001', serviceDefinition: 'ZUI_TEST' },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
     assert.strictEqual(m.formatVersion, '1');
     assert.strictEqual(m.header.description, 'Service binding');
     assert.strictEqual(m.bindingType, 'odataV4');
@@ -188,18 +278,29 @@ describe('SRVB handler — AFF srvb-v1 alignment', () => {
   });
 
   it('emits .srvb.json only (no source file)', async () => {
-    const files = await serviceBindingHandler.serialize(fakeObj({
-      name: 'ZUI_BIND', description: 'Test', originalLanguage: 'EN',
-    }));
+    const files = await serviceBindingHandler.serialize(
+      fakeObj({
+        name: 'ZUI_BIND',
+        description: 'Test',
+        originalLanguage: 'EN',
+      }),
+    );
     assert.strictEqual(files.length, 1);
     assert.ok(files[0].path.endsWith('.srvb.json'));
   });
 
   it('round-trips: serialize → fromMetadata recovers fields', async () => {
-    const m = meta(await serviceBindingHandler.serialize(fakeObj({
-      name: 'ZUI_BIND', description: 'Roundtrip', originalLanguage: 'EN',
-      bindingType: 'odataV4', bindingTypeCategory: 'webApi',
-    })));
+    const m = meta(
+      await serviceBindingHandler.serialize(
+        fakeObj({
+          name: 'ZUI_BIND',
+          description: 'Roundtrip',
+          originalLanguage: 'EN',
+          bindingType: 'odataV4',
+          bindingTypeCategory: 'webApi',
+        }),
+      ),
+    );
     const recovered = (serviceBindingHandler as any).fromAbapGit(m);
     assert.strictEqual(recovered.description, 'Roundtrip');
     assert.strictEqual(recovered.bindingType, 'odataV4');
@@ -212,10 +313,16 @@ describe('SRVB handler — AFF srvb-v1 alignment', () => {
 // ============================================================
 describe('MSAG handler — AFF msag-v1 alignment', () => {
   it('emits formatVersion "1" with header + messages', async () => {
-    const m = meta(await messageClassHandler.serialize(fakeObj({
-      name: 'ZTEST', description: 'Message class', originalLanguage: 'EN',
-      messages: [{ number: '001', text: 'Hello world' }],
-    })));
+    const m = meta(
+      await messageClassHandler.serialize(
+        fakeObj({
+          name: 'ZTEST',
+          description: 'Message class',
+          originalLanguage: 'EN',
+          messages: [{ number: '001', text: 'Hello world' }],
+        }),
+      ),
+    );
     assert.strictEqual(m.formatVersion, '1');
     assert.strictEqual(m.header.description, 'Message class');
     assert.strictEqual(m.header.originalLanguage, 'en');
@@ -225,18 +332,28 @@ describe('MSAG handler — AFF msag-v1 alignment', () => {
   });
 
   it('emits .msag.json only (no source file)', async () => {
-    const files = await messageClassHandler.serialize(fakeObj({
-      name: 'ZTEST', description: 'Test', originalLanguage: 'EN',
-    }));
+    const files = await messageClassHandler.serialize(
+      fakeObj({
+        name: 'ZTEST',
+        description: 'Test',
+        originalLanguage: 'EN',
+      }),
+    );
     assert.strictEqual(files.length, 1);
     assert.ok(files[0].path.endsWith('.msag.json'));
   });
 
   it('round-trips: serialize → fromMetadata recovers fields', async () => {
-    const m = meta(await messageClassHandler.serialize(fakeObj({
-      name: 'ZTEST', description: 'Roundtrip', originalLanguage: 'EN',
-      messages: [{ number: '002', text: 'Test' }],
-    })));
+    const m = meta(
+      await messageClassHandler.serialize(
+        fakeObj({
+          name: 'ZTEST',
+          description: 'Roundtrip',
+          originalLanguage: 'EN',
+          messages: [{ number: '002', text: 'Test' }],
+        }),
+      ),
+    );
     const recovered = (messageClassHandler as any).fromAbapGit(m);
     assert.strictEqual(recovered.description, 'Roundtrip');
     assert.strictEqual(recovered.messages.length, 1);
@@ -249,13 +366,22 @@ describe('MSAG handler — AFF msag-v1 alignment', () => {
 // ============================================================
 describe('FUGR handler — per-function-module files', () => {
   it('emits per-FM .func.json + .func.abap files', async () => {
-    const files = await functionGroupHandler.serialize(fakeObj({
-      name: 'ZGRP', description: 'Test group', dataSync: { language: 'EN', fixPointArithmetic: true },
-      functionModules: [
-        { name: 'Z_FM1', description: 'FM one', processingType: 'normal', source: 'FUNCTION z_fm1. ENDFUNCTION.' },
-        { name: 'Z_FM2', description: 'FM two', processingType: 'rfc' },
-      ],
-    }));
+    const files = await functionGroupHandler.serialize(
+      fakeObj({
+        name: 'ZGRP',
+        description: 'Test group',
+        dataSync: { language: 'EN', fixPointArithmetic: true },
+        functionModules: [
+          {
+            name: 'Z_FM1',
+            description: 'FM one',
+            processingType: 'normal',
+            source: 'FUNCTION z_fm1. ENDFUNCTION.',
+          },
+          { name: 'Z_FM2', description: 'FM two', processingType: 'rfc' },
+        ],
+      }),
+    );
     const fm1Json = files.find((f) => f.path === 'z_fm1.func.json');
     const fm1Abap = files.find((f) => f.path === 'z_fm1.func.abap');
     const fm2Json = files.find((f) => f.path === 'z_fm2.func.json');
@@ -273,9 +399,13 @@ describe('FUGR handler — per-function-module files', () => {
   });
 
   it('emits no per-FM files when functionModules is absent', async () => {
-    const files = await functionGroupHandler.serialize(fakeObj({
-      name: 'ZGRP', description: 'Test group', dataSync: { language: 'EN' },
-    }));
+    const files = await functionGroupHandler.serialize(
+      fakeObj({
+        name: 'ZGRP',
+        description: 'Test group',
+        dataSync: { language: 'EN' },
+      }),
+    );
     assert.ok(!files.some((f) => f.path.endsWith('.func.json')));
   });
 });
@@ -290,8 +420,14 @@ describe('i18n .properties support', () => {
   });
 
   it('propertiesFilename produces master + per-language names', () => {
-    assert.strictEqual(propertiesFilename('zcl_foo', 'CLAS'), 'zcl_foo.clas.properties');
-    assert.strictEqual(propertiesFilename('zcl_foo', 'CLAS', 'de'), 'zcl_foo.clas.de.properties');
+    assert.strictEqual(
+      propertiesFilename('zcl_foo', 'CLAS'),
+      'zcl_foo.clas.properties',
+    );
+    assert.strictEqual(
+      propertiesFilename('zcl_foo', 'CLAS', 'de'),
+      'zcl_foo.clas.de.properties',
+    );
   });
 
   it('createPropertiesFiles emits master + per-language files', () => {

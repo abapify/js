@@ -19,14 +19,15 @@ import type { DomaAff } from '../../../schemas/generated';
 export const domainHandler = createHandler(AdkDomain, {
   toMetadata(doma): DomaAff {
     const data = doma.dataSync as Record<string, unknown>;
+    const content = (data.content ?? {}) as Record<string, unknown>;
     const lang = (
       (data.language as string) ??
       (data.masterLanguage as string) ??
       ''
     ).toLowerCase();
-    const ti = (data.typeInformation ?? {}) as Record<string, unknown>;
-    const oi = (data.outputInformation ?? {}) as Record<string, unknown>;
-    const vi = (data.valueInformation ?? {}) as Record<string, unknown>;
+    const ti = (content.typeInformation ?? {}) as Record<string, unknown>;
+    const oi = (content.outputInformation ?? {}) as Record<string, unknown>;
+    const vi = (content.valueInformation ?? {}) as Record<string, unknown>;
 
     const format: Record<string, unknown> = {
       dataType: ti.datatype ?? 'CHAR',
@@ -48,7 +49,8 @@ export const domainHandler = createHandler(AdkDomain, {
     // outputCharacteristics — only emit if we have meaningful values
     const outChars: Record<string, unknown> = {};
     if (typeof oi.length === 'number') outChars.length = oi.length;
-    if (typeof oi.lowercase === 'boolean') outChars.caseSensitive = !oi.lowercase;
+    if (typeof oi.lowercase === 'boolean')
+      outChars.caseSensitive = !oi.lowercase;
     if (oi.conversionExit) outChars.conversionRoutine = oi.conversionExit;
     if (Object.keys(outChars).length > 0) {
       result.outputCharacteristics = outChars;
@@ -63,15 +65,33 @@ export const domainHandler = createHandler(AdkDomain, {
     return result as DomaAff;
   },
 
-  fromMetadata: (meta: DomaAff) => ({
-    name: '',
-    description: meta.header.description,
-    language: meta.header.originalLanguage?.toUpperCase(),
-    masterLanguage: meta.header.originalLanguage?.toUpperCase(),
-    dataType: meta.format.dataType,
-    length: meta.format.length,
-    decimals: meta.format.decimals,
-    caseSensitive: meta.outputCharacteristics?.caseSensitive,
-    valueTable: meta.valueTable?.name,
-  }),
+  fromMetadata: (meta: DomaAff) => {
+    const result: Record<string, unknown> = {
+      name: '',
+      description: meta.header.description,
+      language: meta.header.originalLanguage?.toUpperCase(),
+      masterLanguage: meta.header.originalLanguage?.toUpperCase(),
+    };
+    const content: Record<string, unknown> = {
+      typeInformation: {
+        datatype: meta.format.dataType,
+        length: meta.format.length,
+        decimals: meta.format.decimals ?? 0,
+      },
+    };
+    if (meta.outputCharacteristics) {
+      content.outputInformation = {
+        length: meta.outputCharacteristics.length,
+        lowercase: meta.outputCharacteristics.caseSensitive ? false : undefined,
+        conversionExit: meta.outputCharacteristics.conversionRoutine,
+      };
+    }
+    if (meta.valueTable?.name) {
+      content.valueInformation = {
+        valueTableRef: { name: meta.valueTable.name },
+      };
+    }
+    result.content = content;
+    return result as { name: string } & Record<string, unknown>;
+  },
 });

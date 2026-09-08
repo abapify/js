@@ -66,7 +66,9 @@ export function createPropertiesFiles(
   const files: PropertiesFile[] = [];
   for (const [lang, entries] of Object.entries(translations)) {
     if (!entries || entries.length === 0) continue;
-    const path = lang ? propertiesFilename(name, type, lang) : propertiesFilename(name, type);
+    const path = lang
+      ? propertiesFilename(name, type, lang)
+      : propertiesFilename(name, type);
     files.push({ path, content: buildProperties(entries) });
   }
   return files;

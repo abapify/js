@@ -176,3 +176,4 @@ __pycache__/
 # Gas City
 .beads/*
 !.beads/identity.toml
+gascity/AGENTS.md

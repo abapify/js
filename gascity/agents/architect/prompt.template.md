@@ -46,7 +46,7 @@ it causes.
 
 The `@abapify/adt-plugin-gcts` package already implements JSON-based
 serialization (id: 'gcts', alias 'aff') with 9 handlers. The AFF standard
-(https://github.com/SAP/abap-file-formats) defines 106 object types with
+<https://github.com/SAP/abap-file-formats> defines 106 object types with
 JSON schemas. Key design decisions needed:
 
 - How to vendor and generate types from AFF JSON schemas (codegen pipeline)

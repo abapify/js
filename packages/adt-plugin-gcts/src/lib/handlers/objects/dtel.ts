@@ -47,19 +47,23 @@ export const dataElementHandler = createHandler(AdkDataElement, {
     const fieldLabels: Record<string, unknown> = {};
     if (data.shortFieldLabel) {
       fieldLabels.short = data.shortFieldLabel;
-      if (typeof data.shortFieldLength === 'number') fieldLabels.shortLength = data.shortFieldLength;
+      if (typeof data.shortFieldLength === 'number')
+        fieldLabels.shortLength = data.shortFieldLength;
     }
     if (data.mediumFieldLabel) {
       fieldLabels.medium = data.mediumFieldLabel;
-      if (typeof data.mediumFieldLength === 'number') fieldLabels.mediumLength = data.mediumFieldLength;
+      if (typeof data.mediumFieldLength === 'number')
+        fieldLabels.mediumLength = data.mediumFieldLength;
     }
     if (data.longFieldLabel) {
       fieldLabels.long = data.longFieldLabel;
-      if (typeof data.longFieldLength === 'number') fieldLabels.longLength = data.longFieldLength;
+      if (typeof data.longFieldLength === 'number')
+        fieldLabels.longLength = data.longFieldLength;
     }
     if (data.headingFieldLabel) {
       fieldLabels.heading = data.headingFieldLabel;
-      if (typeof data.headingFieldLength === 'number') fieldLabels.headingLength = data.headingFieldLength;
+      if (typeof data.headingFieldLength === 'number')
+        fieldLabels.headingLength = data.headingFieldLength;
     }
 
     const result: Record<string, unknown> = {

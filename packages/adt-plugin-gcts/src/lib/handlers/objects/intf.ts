@@ -26,7 +26,10 @@ export const interfaceHandler = createHandler(AdkInterface, {
         description: intf.description ?? data.description ?? '',
         originalLanguage: lang,
         ...(data.abapLanguageVersion && data.abapLanguageVersion !== 'standard'
-          ? { abapLanguageVersion: data.abapLanguageVersion as IntfAff['header']['abapLanguageVersion'] }
+          ? {
+              abapLanguageVersion:
+                data.abapLanguageVersion as IntfAff['header']['abapLanguageVersion'],
+            }
           : {}),
       },
     };

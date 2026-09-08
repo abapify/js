@@ -24,6 +24,10 @@ export const packageHandler = createHandler(AdkPackage, {
           pkg.dataSync?.masterLanguage ??
           ''
         ).toLowerCase(),
+        ...(pkg.dataSync?.abapLanguageVersion &&
+        pkg.dataSync.abapLanguageVersion !== 'standard'
+          ? { abapLanguageVersion: pkg.dataSync.abapLanguageVersion }
+          : {}),
       },
       package: {
         // DEVCLASS is carried by filename/directory, not by metadata.
@@ -38,5 +42,7 @@ export const packageHandler = createHandler(AdkPackage, {
     name: '',
     description: meta?.header?.description,
     language: meta?.header?.originalLanguage?.toUpperCase(),
+    masterLanguage: meta?.header?.originalLanguage?.toUpperCase(),
+    abapLanguageVersion: meta?.header?.abapLanguageVersion,
   }),
 });

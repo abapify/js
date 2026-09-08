@@ -112,7 +112,7 @@ async function main(): Promise<void> {
   }
 
   // FUGR sub-schemas (func, reps) live in the same fugr/ dir.
-  for (const [affDir, { schema, typeName }] of Object.entries(
+  for (const [, { schema, typeName }] of Object.entries(
     FUGR_SUB_SCHEMAS,
   )) {
     await generateOne('fugr', schema, typeName, OUT_DIR);

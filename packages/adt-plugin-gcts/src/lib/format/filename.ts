@@ -107,7 +107,14 @@ export function parseGctsFilename(
   }
 
   // Source file — suffix is optional.
-  const knownSourceExts = new Set(['abap', 'asddls', 'asdcls', 'abdl', 'acds', 'properties']);
+  const knownSourceExts = new Set([
+    'abap',
+    'asddls',
+    'asdcls',
+    'abdl',
+    'acds',
+    'properties',
+  ]);
   if (!knownSourceExts.has(extension)) {
     return undefined;
   }

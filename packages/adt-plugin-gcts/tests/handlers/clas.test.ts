@@ -25,9 +25,14 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
         fixPointArithmetic: true,
       },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
     assert.strictEqual(meta.formatVersion, '1');
-    assert.ok(!('formatVersion' in meta.header), 'formatVersion must NOT be in header');
+    assert.ok(
+      !('formatVersion' in meta.header),
+      'formatVersion must NOT be in header',
+    );
   });
 
   it('emits header with description + originalLanguage (lowercase)', async () => {
@@ -36,7 +41,9 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
       description: 'My class',
       dataSync: { language: 'EN' },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
     assert.strictEqual(meta.header.description, 'My class');
     assert.strictEqual(meta.header.originalLanguage, 'en');
   });
@@ -47,7 +54,9 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
       description: 'Test',
       dataSync: { language: 'EN', category: 'testClass' },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
     assert.strictEqual(meta.category, 'testclassAbapUnit');
   });
 
@@ -57,7 +66,9 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
       description: 'Test',
       dataSync: { language: 'EN', fixPointArithmetic: true },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
     assert.strictEqual(meta.fixPointArithmetic, true);
   });
 
@@ -67,8 +78,13 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
       description: 'Test',
       dataSync: { language: 'EN', abapLanguageVersion: 'standard' },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
-    assert.ok(!('abapLanguageVersion' in meta.header), 'standard must be omitted');
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
+    assert.ok(
+      !('abapLanguageVersion' in meta.header),
+      'standard must be omitted',
+    );
   });
 
   it('emits abapLanguageVersion when non-standard', async () => {
@@ -77,7 +93,9 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
       description: 'Test',
       dataSync: { language: 'EN', abapLanguageVersion: 'cloudDevelopment' },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
     assert.strictEqual(meta.header.abapLanguageVersion, 'cloudDevelopment');
   });
 
@@ -87,7 +105,9 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
       description: 'Test',
       dataSync: { language: 'EN', category: 'generalObjectType' },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
     assert.ok(!('class' in meta), 'must not have a "class" wrapper');
     assert.ok('header' in meta, 'must have header at root');
   });
@@ -122,11 +142,16 @@ describe('CLAS handler — AFF clas-v1 alignment', () => {
         fixPointArithmetic: true,
       },
     } as any);
-    const meta = JSON.parse(files.find((f) => f.path.endsWith('.json'))!.content);
+    const meta = JSON.parse(
+      files.find((f) => f.path.endsWith('.json'))!.content,
+    );
 
     // Core shape from the AFF example:
     assert.strictEqual(meta.formatVersion, '1');
-    assert.strictEqual(meta.header.description, 'Example class for ABAP file formats');
+    assert.strictEqual(
+      meta.header.description,
+      'Example class for ABAP file formats',
+    );
     assert.strictEqual(meta.header.originalLanguage, 'en');
     assert.strictEqual(meta.fixPointArithmetic, true);
   });
