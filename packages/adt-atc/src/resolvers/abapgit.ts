@@ -160,6 +160,20 @@ function hasSourceExtension(filename: string): boolean {
   return SOURCE_EXTENSIONS.some((ext) => filename.endsWith(ext));
 }
 
+function indexEntry(
+  entry: Dirent,
+  current: string,
+  result: string[],
+  stack: string[],
+): void {
+  const fullPath = join(current, entry.name);
+  if (entry.isDirectory()) {
+    stack.push(fullPath);
+  } else if (entry.isFile() && hasSourceExtension(entry.name)) {
+    result.push(fullPath);
+  }
+}
+
 function collectSourceFiles(root: string): string[] {
   const result: string[] = [];
   const stack: string[] = [root];
@@ -173,14 +187,8 @@ function collectSourceFiles(root: string): string[] {
     } catch {
       continue;
     }
-
     for (const entry of entries) {
-      const fullPath = join(current, entry.name);
-      if (entry.isDirectory()) {
-        stack.push(fullPath);
-      } else if (entry.isFile() && hasSourceExtension(entry.name)) {
-        result.push(fullPath);
-      }
+      indexEntry(entry, current, result, stack);
     }
   }
 
