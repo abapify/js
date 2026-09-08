@@ -5,7 +5,7 @@ import type { Schema } from '../../src/xsd/types';
 import { parseXsd } from '../../src/xsd/parse';
 
 describe('XML property names', () => {
-  for (const flatten of [false, true]) {
+  for (const flatten of [false, true] as const) {
     it(`preserves dotted and hyphenated names in ${flatten ? 'flattened types' : 'interfaces'}`, () => {
       const schema = parseXsd(`
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
