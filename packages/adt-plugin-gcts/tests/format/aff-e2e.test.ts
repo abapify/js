@@ -17,12 +17,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import {
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-} from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
