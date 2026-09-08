@@ -21,6 +21,9 @@
     "@abapify/adk": "0.4.1",
     "@abapify/adt-plugin": "0.4.1"
   },
+  "devDependencies": {
+    "json-schema-to-typescript": "15.0.4"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abapify/adt-cli.git",
