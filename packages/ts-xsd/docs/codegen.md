@@ -256,16 +256,16 @@ import {
 
 export default defineConfig({
   schemas: [
-    { name: 'adtcore', xsd: '.xsd/sap/adtcore.xsd' },
-    { name: 'classes', xsd: '.xsd/sap/classes.xsd', imports: ['adtcore'] },
+    { name: 'base', xsd: 'schemas/base.xsd' },
+    { name: 'orders', xsd: 'schemas/orders.xsd', imports: ['base'] },
   ],
   generators: [
     rawSchema({
-      outputDir: 'src/schemas/generated/schemas',
+      outputDir: 'src/generated/schemas',
       features: { $xmlns: true, $imports: true, $filename: true },
     }),
     interfaces({
-      outputDir: 'src/schemas/generated/types',
+      outputDir: 'src/generated/types',
       flatten: true, // Inline all types
     }),
   ],
@@ -300,18 +300,18 @@ import { runGenerators } from '@abapify/ts-xsd/generators';
 await runGenerators(config);
 ```
 
-## Usage in adt-schemas
+## Usage Example
 
-The codegen module powers the schema generation pipeline:
+The codegen module powers a typical schema generation pipeline:
 
 ```
-XSD Files (.xsd/model/)
+XSD Files (.xsd)
     ↓ generateSchemaLiteral
 Schema Literals (as const)
     ↓ generateInterfaces
-TypeScript Interfaces (204 types)
+TypeScript Interfaces
     ↓ typed() wrapper
-Typed Schemas (parse/build)
+Typed Schemas (parse/build XML)
 ```
 
 ### Generation Script Example
@@ -325,19 +325,19 @@ import {
 import { readFileSync, writeFileSync } from 'fs';
 
 // 1. Generate schema literal
-const xsd = readFileSync('classes.xsd', 'utf-8');
+const xsd = readFileSync('orders.xsd', 'utf-8');
 const schemaCode = generateSchemaLiteral(xsd, {
-  name: 'classes',
+  name: 'orders',
   features: { $xmlns: true, $imports: true, $filename: true },
   exclude: ['annotation'],
   importResolver: (loc) => `./${loc.replace('.xsd', '')}`,
 });
-writeFileSync('schemas/classes.ts', schemaCode);
+writeFileSync('schemas/orders.ts', schemaCode);
 
 // 2. Generate interfaces
 const schema = parseXsd(xsd);
-const interfaces = generateInterfaces(schema, { generateAllTypes: true });
-writeFileSync('types/classes.ts', interfaces);
+const { code } = generateInterfaces(schema, { flatten: true });
+writeFileSync('types/orders.ts', code);
 ```
 
 ## Best Practices
@@ -385,10 +385,10 @@ Ensure generated schemas work correctly:
 
 ```typescript
 import { parseXml, buildXml } from '@abapify/ts-xsd';
-import { classes } from './generated/classes';
+import { orders } from './generated/orders';
 
-const data = parseXml(classes, xmlString);
-const rebuilt = buildXml(classes, data);
+const data = parseXml(orders, xmlString);
+const rebuilt = buildXml(orders, data);
 // Verify rebuilt matches original structure
 ```
 
@@ -410,5 +410,4 @@ npx ts-xsd codegen -i schema.xsd -o schema.ts \
 ## Reference
 
 - [ts-xsd README](../README.md)
-- [ts-xsd AGENTS.md](../AGENTS.md)
-- [adt-schemas](../../adt-schemas/README.md) - Real-world usage
+- [W3C XML Schema 1.1](https://www.w3.org/TR/xmlschema11-1/)
