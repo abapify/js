@@ -31,7 +31,7 @@ function classifyFile(
   parsed: ParsedFilename,
   handler: FormatHandler,
 ): { role: 'metadata' } | { role: 'source'; sourceComponent: string } {
-  if (parsed.extension === 'xml') {
+  if (parsed.extension === 'xml' || parsed.extension === 'json') {
     return { role: 'metadata' };
   }
 

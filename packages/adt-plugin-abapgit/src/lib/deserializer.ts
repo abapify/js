@@ -22,36 +22,13 @@ import { extractFunctionDescriptors } from './handlers/objects/fugr';
 /**
  * abapGit file naming convention:
  * - XML metadata: {name}.{type}.xml (e.g., zcl_myclass.clas.xml)
+ * - AFF JSON metadata: {name}.{type}.json (e.g., zfoo.bdef.json)
  * - Source code: {name}.{type}.abap (e.g., zcl_myclass.clas.abap)
  * - Source includes: {name}.{type}.{suffix}.abap (e.g., zcl_myclass.clas.testclasses.abap)
+ * - AFF source files: {name}.{type}.abdl, {name}.{type}.acds, {name}.{type}.asrvd
  */
 
-/**
- * Parse abapGit filename to extract object info
- */
-export function parseAbapGitFilename(filename: string): {
-  name: string;
-  type: string;
-  suffix?: string;
-  extension: string;
-} | null {
-  // Match patterns like: name.type.xml, name.type.suffix.abap, or
-  // name.type.<suffix>.abdl/.asrvd source files.
-  const match = filename.match(
-    /^([^.]+)\.([^.]+)(?:\.([^.]+))?\.(xml|abap|abdl|asrvd)$/,
-  );
-  if (!match) return null;
-
-  const [, name, type, suffixOrExt, extension] = match;
-
-  // If 4 parts, middle is suffix; if 3 parts, no suffix
-  return {
-    name: name.toUpperCase(),
-    type: type.toUpperCase(),
-    suffix: suffixOrExt && suffixOrExt !== extension ? suffixOrExt : undefined,
-    extension,
-  };
-}
+import { parseAbapGitFilename } from './filename-parser';
 
 /**
  * Group related files by object (name + type)
@@ -59,7 +36,10 @@ export function parseAbapGitFilename(filename: string): {
 interface ObjectFiles {
   name: string;
   type: string;
+  /** Legacy XML metadata file path (if present) */
   xmlFile?: string;
+  /** AFF JSON metadata file path (if present) */
+  jsonFile?: string;
   sourceFiles: Array<{ path: string; suffix?: string }>;
 }
 
@@ -96,8 +76,11 @@ export async function* deserialize(
     }
   }
 
-  // Find all XML files (these define the objects)
-  const xmlFiles = await fileTree.glob('**/*.xml');
+  // Find all metadata files (XML = legacy, JSON = AFF)
+  const [xmlFiles, jsonFiles] = await Promise.all([
+    fileTree.glob('**/*.xml'),
+    fileTree.glob('**/*.json'),
+  ]);
 
   // Filter to supported types and group by object
   const objectMap = new Map<string, ObjectFiles>();
@@ -105,6 +88,7 @@ export async function* deserialize(
     getSupportedTypes().map((t) => t.toLowerCase()),
   );
 
+  // Process XML metadata files (legacy abapGit format)
   for (const xmlPath of xmlFiles) {
     // Skip .abapgit.xml metadata file
     if (xmlPath.endsWith('.abapgit.xml')) continue;
@@ -137,13 +121,39 @@ export async function* deserialize(
     obj.xmlFile = xmlPath;
   }
 
-  // Find source files for each object (abap + new BDEF/SRVD extensions)
-  const [abapFiles, abdlFiles, asrvdFiles] = await Promise.all([
+  // Process JSON metadata files (AFF format)
+  for (const jsonPath of jsonFiles) {
+    const filename = jsonPath.slice(jsonPath.lastIndexOf('/') + 1);
+    const parsed = parseAbapGitFilename(filename);
+
+    if (!parsed) continue;
+    if (!supportedTypes.has(parsed.type.toLowerCase())) continue;
+
+    // JSON metadata files don't have suffixes
+    if (parsed.suffix) continue;
+
+    const key = `${parsed.name}:${parsed.type}`;
+
+    if (!objectMap.has(key)) {
+      objectMap.set(key, {
+        name: parsed.name,
+        type: parsed.type,
+        sourceFiles: [],
+      });
+    }
+
+    const obj = objectMap.get(key)!;
+    obj.jsonFile = jsonPath;
+  }
+
+  // Find source files for each object (abap + AFF source extensions)
+  const [abapFiles, abdlFiles, acdsFiles, asrvdFiles] = await Promise.all([
     fileTree.glob('**/*.abap'),
     fileTree.glob('**/*.abdl'),
+    fileTree.glob('**/*.acds'),
     fileTree.glob('**/*.asrvd'),
   ]);
-  const sourceFiles = [...abapFiles, ...abdlFiles, ...asrvdFiles];
+  const sourceFiles = [...abapFiles, ...abdlFiles, ...acdsFiles, ...asrvdFiles];
 
   for (const sourcePath of sourceFiles) {
     const filename = sourcePath.slice(sourcePath.lastIndexOf('/') + 1);
@@ -161,17 +171,40 @@ export async function* deserialize(
 
   // Process each object and yield
   for (const [, objFiles] of objectMap) {
-    if (!objFiles.xmlFile) continue;
+    // Must have at least one metadata file (XML or JSON)
+    if (!objFiles.xmlFile && !objFiles.jsonFile) continue;
 
     const handler = getHandler(objFiles.type);
     if (!handler) continue;
 
     try {
-      // Read and parse XML using handler's schema
-      const xmlContent = await fileTree.read(objFiles.xmlFile);
-      const parsed = handler.schema.parse(xmlContent);
-      // Schema parses to { abapGit: { abap: { values: ... } } }
-      const values = (parsed as any)?.abapGit?.abap?.values ?? {};
+      let values: Record<string, unknown>;
+      let isAffJson = false;
+
+      if (objFiles.jsonFile) {
+        // AFF JSON metadata file
+        const jsonContent = await fileTree.read(objFiles.jsonFile);
+        const jsonData = JSON.parse(jsonContent) as Record<string, unknown>;
+        isAffJson = true;
+
+        // If handler has fromAffJson, use it; otherwise fall back to
+        // extracting values from the JSON body
+        if (handler.fromAffJson) {
+          const affPayload = handler.fromAffJson(jsonData);
+          values = affPayload as Record<string, unknown>;
+        } else {
+          // No fromAffJson — use the JSON body directly as values
+          values = jsonData;
+        }
+      } else if (objFiles.xmlFile) {
+        // Legacy XML metadata file
+        const xmlContent = await fileTree.read(objFiles.xmlFile);
+        const parsed = handler.schema.parse(xmlContent);
+        // Schema parses to { abapGit: { abap: { values: ... } } }
+        values = (parsed as any)?.abapGit?.abap?.values ?? {};
+      } else {
+        continue;
+      }
 
       // Read source files, mapping suffixes using handler's suffixToSourceKey
       const sources: Record<string, string> = {};
@@ -185,13 +218,21 @@ export async function* deserialize(
       }
 
       // Get payload from handler (pure data mapping) or build default
-      const payload: {
+      let payload: {
         name: string;
         description?: string;
         [key: string]: unknown;
-      } = handler.fromAbapGit
-        ? handler.fromAbapGit(values)
-        : { name: objFiles.name };
+      };
+
+      if (isAffJson && handler.fromAffJson) {
+        // For AFF JSON, fromAffJson was already called above and returned
+        // the full payload (not just values)
+        payload = values as { name: string; description?: string };
+      } else if (handler.fromAbapGit) {
+        payload = handler.fromAbapGit(values);
+      } else {
+        payload = { name: objFiles.name };
+      }
 
       // Use filename as fallback if name not in XML (e.g., DEVC)
       const objectName = payload.name || objFiles.name;
@@ -230,7 +271,8 @@ export async function* deserialize(
       // This metadata is always computed so the export command can auto-detect
       // the root package from SAP and resolve packages later if needed.
       if (hasAbapGitXml) {
-        const sourceDir = objFiles.xmlFile.split('/').slice(0, -1).join('/');
+        const metadataFile = objFiles.xmlFile ?? objFiles.jsonFile ?? '';
+        const sourceDir = metadataFile.split('/').slice(0, -1).join('/');
         const relDir = sourceDir.startsWith(startDir)
           ? sourceDir.slice(startDir.length).replace(/^\/+/, '')
           : sourceDir;
