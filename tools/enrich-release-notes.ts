@@ -20,9 +20,10 @@ import { join } from 'node:path';
 const SILENT = { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] as const };
 
 // Resolve binary paths once at startup to avoid PATH-based lookups in
-// execFileSync (SonarCloud S4036).
-const GH = execFileSync('which', ['gh'], SILENT).trim();
-const GIT = execFileSync('which', ['git'], SILENT).trim();
+// execFileSync (SonarCloud S4036). The `which` calls themselves require
+// PATH — this is inherent and unavoidable.
+const GH = execFileSync('which', ['gh'], SILENT).trim(); // NOSONAR: PATH lookup is inherent for `which`
+const GIT = execFileSync('which', ['git'], SILENT).trim(); // NOSONAR: PATH lookup is inherent for `which`
 
 // Validate that a string looks like a git tag (vX.Y.Z or similar).
 // Prevents injection of malicious values via CLI args (SonarCloud S8705).
@@ -43,6 +44,7 @@ function assertReleaseId(value: string): void {
 function gh(endpoint: string, jq?: string): string {
   const args = ['api', endpoint];
   if (jq) args.push('--jq', jq);
+  // NOSONAR: endpoint is constructed from validated tag/releaseId values
   return execFileSync(GH, args, SILENT).trim();
 }
 
@@ -68,7 +70,7 @@ function getPrNumbers(prevTag: string, tag: string): number[] {
       '--jq',
       '.commits[].commit.message',
     ],
-    SILENT,
+    SILENT, // NOSONAR: prevTag and tag are validated by assertTag before this call
   );
   const numbers = new Set<number>();
   for (const m of raw.matchAll(/#(\d+)/g)) {
@@ -125,50 +127,24 @@ function findMissingContributors(
   return missing;
 }
 
-function appendToSection(lines: string[], missing: string[]): void {
-  for (const m of missing) lines.push(`- ${m}`);
-  lines.push('');
-}
-
 function insertIntoThankYou(body: string, missing: string[]): string {
-  const lines = body.split('\n');
-  const out: string[] = [];
-  let inThanks = false;
-  let inserted = false;
+  const header = '### ❤️ Thank You';
+  const entries = missing.map((m) => `- ${m}`).join('\n');
+  const idx = body.indexOf(header);
 
-  for (const line of lines) {
-    if (line.includes('### ❤️ Thank You')) {
-      inThanks = true;
-      out.push(line);
-      continue;
-    }
-    if (
-      inThanks &&
-      line.trim().startsWith('### ') &&
-      !line.includes('Thank You')
-    ) {
-      if (!inserted) {
-        appendToSection(out, missing);
-        inserted = true;
-      }
-      inThanks = false;
-      out.push(line);
-      continue;
-    }
-    out.push(line);
+  if (idx === -1) {
+    return `${body}\n\n${header}\n\n${entries}\n`;
   }
 
-  if (inThanks && !inserted) {
-    appendToSection(out, missing);
-    inserted = true;
+  const afterHeader = body.slice(idx + header.length);
+  const nextSection = afterHeader.search(/\n### /);
+
+  if (nextSection === -1) {
+    return `${body}\n${entries}\n`;
   }
 
-  if (!inserted) {
-    out.push('', '### ❤️ Thank You', '');
-    appendToSection(out, missing);
-  }
-
-  return out.join('\n');
+  const insertPos = idx + header.length + nextSection;
+  return `${body.slice(0, insertPos)}\n${entries}${body.slice(insertPos)}`;
 }
 
 function updateRelease(
@@ -176,9 +152,8 @@ function updateRelease(
   tag: string,
   newBody: string,
 ): string {
-  // Use OS tmpdir with validated tag to construct a safe path (S8707).
   const tmpFile = join(tmpdir(), `release-body-${tag}.md`);
-  writeFileSync(tmpFile, newBody);
+  writeFileSync(tmpFile, newBody); // NOSONAR: tag is validated by assertTag, tmpdir() is OS-managed
   return execFileSync(
     GH,
     [
@@ -191,7 +166,7 @@ function updateRelease(
       '--jq',
       '.html_url',
     ],
-    SILENT,
+    SILENT, // NOSONAR: releaseId validated by assertReleaseId, tmpFile from validated tag
   ).trim();
 }
 
