@@ -225,19 +225,29 @@ export async function serializeDualFormat(
 ): Promise<SerializedFile[]> {
   // Legacy XML format: produce .xml metadata + source file
   if (options?.format === 'legacy') {
-    const source = await resolveMainSource(object, options?.sources, config.typeLabel);
+    const source = await resolveMainSource(
+      object,
+      options?.sources,
+      config.typeLabel,
+    );
     const name = ctx.getObjectName(object);
     const files: SerializedFile[] = [];
     // Source file — preserve explicitly supplied empty source (authoritative
     // sources contract). Only skip when source is genuinely absent.
     if (source !== undefined) {
       files.push(
-        ctx.createFile(`${name}.${ctx.fileExtension}.${config.sourceExt}`, source),
+        ctx.createFile(
+          `${name}.${ctx.fileExtension}.${config.sourceExt}`,
+          source,
+        ),
       );
     }
     // Legacy XML metadata
     files.push(
-      ctx.createFile(`${name}.${ctx.fileExtension}.xml`, ctx.toAbapGitXml(object)),
+      ctx.createFile(
+        `${name}.${ctx.fileExtension}.xml`,
+        ctx.toAbapGitXml(object),
+      ),
     );
     return files;
   }
@@ -245,4 +255,3 @@ export async function serializeDualFormat(
   // Default: AFF JSON format
   return serializeAffSource(object, ctx, options?.sources, config);
 }
-
