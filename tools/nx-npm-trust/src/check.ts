@@ -150,6 +150,11 @@ interface NpmCallOptions {
    * unknown flags (e.g. `npm trust github`, which rejects it with
    * `EUSAGE Unknown flag`). Default: true. */
   scopeRegistry?: boolean;
+  /** Inherit stdio so the user can see npm's web-auth link and approve
+   * 2FA in a browser. Use for `npm publish` / `npm trust` in prepare
+   *  mode. When true, output is not captured (stdout/stderr are null).
+   *  Default: false. */
+  interactive?: boolean;
 }
 
 /**
@@ -159,7 +164,7 @@ interface NpmCallOptions {
  * `{ scopeRegistry: false, jsonOutput: false }`.
  */
 function npm(cmdArgs: string[], opts: NpmCallOptions = {}): NpmResult {
-  const { jsonOutput = true, scopeRegistry = true } = opts;
+  const { jsonOutput = true, scopeRegistry = true, interactive = false } = opts;
   const extra = [
     `--registry=${registry}`,
     ...(scopeRegistry ? scopeFlag : []),
@@ -167,9 +172,11 @@ function npm(cmdArgs: string[], opts: NpmCallOptions = {}): NpmResult {
   ];
   const result = spawnSync('npm', [...cmdArgs, ...extra], {
     encoding: 'utf-8',
-    // Individual npm calls are short-lived; if the network (or corporate
-    // proxy) hangs, fail fast instead of wedging the whole `nx run-many`.
-    timeout: 20_000,
+    // In interactive mode, inherit stdio so the user sees npm's web-auth
+    // link and can approve 2FA in a browser. No timeout — the user needs
+    // time to click the link and approve.
+    stdio: interactive ? 'inherit' : undefined,
+    timeout: interactive ? undefined : 20_000,
   });
   let parsed: unknown = null;
   if (result.stdout) {
@@ -408,9 +415,15 @@ if (prepare && name) {
           `--registry=${registry}`,
           ...scopeFlag,
           '--access=public',
-          ...(otp ? [`--otp=${otp}`] : []),
+          '--auth-type=webauth',
         ],
-        { cwd: tmpDir, encoding: 'utf-8' },
+        {
+          cwd: tmpDir,
+          encoding: 'utf-8',
+          // Inherit stdio so the user sees npm's web-auth link and can
+          // approve 2FA in a browser. No timeout — the user needs time.
+          stdio: 'inherit',
+        },
       );
       if (publishResult.status === 0) {
         report.fixes.push(`published 0.0.0 placeholder for ${name}`);
@@ -438,7 +451,6 @@ if (prepare && name) {
             trustRepo,
             '--allow-publish',
             '--yes',
-            ...(otp ? [`--otp=${otp}`] : []),
           ]
         : trustProvider === 'gitlab'
           ? [
@@ -470,6 +482,8 @@ if (prepare && name) {
         // `firstErrorLine` handle the plain-text output.
         jsonOutput: false,
         scopeRegistry: false,
+        // Inherit stdio so the user sees npm's web-auth link for 2FA.
+        interactive: true,
       });
       if (trustResult.code === 0) {
         const trustTarget = trustRepo || `${trustNamespace}/${trustProject}`;
