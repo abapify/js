@@ -14,19 +14,42 @@
  */
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
-const SILENT = { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] } as const;
+const SILENT = { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] as const };
+
+// Resolve binary paths once at startup to avoid PATH-based lookups in
+// execFileSync (SonarCloud S4036).
+const GH = execFileSync('which', ['gh'], SILENT).trim();
+const GIT = execFileSync('which', ['git'], SILENT).trim();
+
+// Validate that a string looks like a git tag (vX.Y.Z or similar).
+// Prevents injection of malicious values via CLI args (SonarCloud S8705).
+const TAG_RE = /^v?\d+\.\d+\.\d+(?:[-+].+)?$/;
+function assertTag(value: string, label: string): void {
+  if (!TAG_RE.test(value)) {
+    throw new Error(`Invalid ${label}: ${value}`);
+  }
+}
+
+// Validate that a string is a numeric release ID (SonarCloud S8705).
+function assertReleaseId(value: string): void {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`Invalid release ID: ${value}`);
+  }
+}
 
 function gh(endpoint: string, jq?: string): string {
-  const args = ['gh', 'api', endpoint];
+  const args = ['api', endpoint];
   if (jq) args.push('--jq', jq);
-  return execFileSync('gh', args, SILENT).trim();
+  return execFileSync(GH, args, SILENT).trim();
 }
 
 function getPreviousTag(tag: string): string | null {
   try {
     return execFileSync(
-      'git',
+      GIT,
       ['describe', '--tags', '--abbrev=0', `${tag}^`],
       SILENT,
     ).trim();
@@ -37,7 +60,7 @@ function getPreviousTag(tag: string): string | null {
 
 function getPrNumbers(prevTag: string, tag: string): number[] {
   const raw = execFileSync(
-    'gh',
+    GH,
     [
       'api',
       `repos/{owner}/{repo}/compare/${prevTag}...${tag}`,
@@ -63,20 +86,23 @@ function getPrAuthor(pr: number): string | null {
 }
 
 function resolveArgs(tag: string): { tag: string; prevTag: string } | null {
+  assertTag(tag, 'tag');
   const prevTag = process.argv[3] ?? getPreviousTag(tag);
   if (!prevTag) {
     console.log('No previous tag found, skipping enrichment');
     return null;
   }
+  assertTag(prevTag, 'previous_tag');
   return { tag, prevTag };
 }
 
-function getReleaseBody(tag: string): { id: string; body: string } | null {
+function getReleaseBody(tag: string): { id: string; body: string } {
   const id = gh(`repos/{owner}/{repo}/releases/tags/${tag}`, '.id');
   if (!id) {
     console.error(`Release ${tag} not found`);
     process.exit(1);
   }
+  assertReleaseId(id);
   return { id, body: gh(`repos/{owner}/{repo}/releases/${id}`, '.body') };
 }
 
@@ -99,6 +125,11 @@ function findMissingContributors(
   return missing;
 }
 
+function appendToSection(lines: string[], missing: string[]): void {
+  for (const m of missing) lines.push(`- ${m}`);
+  lines.push('');
+}
+
 function insertIntoThankYou(body: string, missing: string[]): string {
   const lines = body.split('\n');
   const out: string[] = [];
@@ -117,8 +148,7 @@ function insertIntoThankYou(body: string, missing: string[]): string {
       !line.includes('Thank You')
     ) {
       if (!inserted) {
-        for (const m of missing) out.push(`- ${m}`);
-        out.push('');
+        appendToSection(out, missing);
         inserted = true;
       }
       inThanks = false;
@@ -129,13 +159,13 @@ function insertIntoThankYou(body: string, missing: string[]): string {
   }
 
   if (inThanks && !inserted) {
-    for (const m of missing) out.push(`- ${m}`);
+    appendToSection(out, missing);
     inserted = true;
   }
 
   if (!inserted) {
     out.push('', '### ❤️ Thank You', '');
-    for (const m of missing) out.push(`- ${m}`);
+    appendToSection(out, missing);
   }
 
   return out.join('\n');
@@ -146,10 +176,11 @@ function updateRelease(
   tag: string,
   newBody: string,
 ): string {
-  const tmpFile = `/tmp/release-body-${tag}.md`;
+  // Use OS tmpdir with validated tag to construct a safe path (S8707).
+  const tmpFile = join(tmpdir(), `release-body-${tag}.md`);
   writeFileSync(tmpFile, newBody);
   return execFileSync(
-    'gh',
+    GH,
     [
       'api',
       '--method',
