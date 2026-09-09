@@ -37,22 +37,3 @@ export { searchHelpHandler } from './shlp';
 export { transactionHandler } from './tran';
 export { typeGroupHandler } from './type';
 export { transformationHandler } from './xslt';
-
-// Phase 3: AFF-first types
-export { applicationLogObjectHandler } from './aplo';
-export { bgqcHandler } from './bgqc';
-export { cdboHandler } from './cdbo';
-export { checkCategoryHandler } from './chkc';
-export { checkObjectHandler } from './chko';
-export { checkVariantHandler } from './chkv';
-export { communicationTargetHandler } from './cota';
-export { eventBindingHandler } from './evtb';
-export { gsmpHandler } from './gsmp';
-export { objectTypeNodeHandler } from './nont';
-export { objectTypeHandler } from './ront';
-export { jobCatalogHandler } from './sajc';
-export { jobTemplateHandler } from './sajt';
-export { bcmHandler } from './smbc';
-export { launchpadAppDescriptorHandler } from './uiad';
-export { launchpadPageTemplateHandler } from './uipg';
-export { launchpadSpaceTemplateHandler } from './uist';
