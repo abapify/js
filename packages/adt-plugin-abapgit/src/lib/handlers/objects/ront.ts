@@ -1,32 +1,3 @@
-import { bdef } from '../../../schemas/generated';
-import { createHandler, type SerializedFile } from '../base';
-import { affFromAffJson } from '../source-resolver';
+import { createAffFirstHandler } from '../aff-handler';
 
-type RontLike = {
-  name: string;
-  description?: string;
-  originalLanguage?: string;
-};
-
-export const objectTypeHandler = createHandler<RontLike, typeof bdef>('RONT', {
-  schema: bdef,
-  version: 'v1.0.0',
-  serializer: 'LCL_OBJECT_RONT',
-  serializer_version: 'v1.0.0',
-  toAbapGit: (obj) => ({
-    SKEY: { TYPE: 'RONT', NAME: String(obj?.name ?? '').toUpperCase() },
-  }),
-  fromAffJson: (json) => affFromAffJson(json, ''),
-  async serialize(object, ctx): Promise<SerializedFile[]> {
-    const header = {
-      description: object.description || String(object.name ?? ''),
-      originalLanguage: (object.originalLanguage ?? 'en').toLowerCase(),
-    };
-    return [
-      ctx.createFile(
-        `${ctx.getObjectName(object)}.ront.json`,
-        `${JSON.stringify({ formatVersion: '1', header }, null, 2)}\n`,
-      ),
-    ];
-  },
-});
+export const objectTypeHandler = createAffFirstHandler('RONT', 'ront');
