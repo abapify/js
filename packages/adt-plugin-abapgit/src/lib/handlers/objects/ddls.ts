@@ -38,7 +38,12 @@ export const ddlSourceHandler = createHandler<DdlsLike, typeof ddls>('DDLS', {
   }),
   getSource: affGetSource,
   fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
-  fromAffJson: (json) => affFromAffJson(json, ''),
+  fromAffJson: (json) => ({
+    ...affFromAffJson(json, ''),
+    // Preserve DDLS-specific metadata for round-trip
+    sourceOrigin: (json as { sourceOrigin?: string })?.sourceOrigin,
+    sourceType: (json as { sourceType?: string })?.sourceType,
+  }),
   serialize: (object, ctx, options?: FormatSerializeOptions) =>
     serializeDualFormat(object, ctx, options, {
       typeLabel: 'DDLS',

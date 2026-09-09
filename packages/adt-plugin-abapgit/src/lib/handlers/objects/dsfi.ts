@@ -66,8 +66,12 @@ export const scalarFunctionImplementationHandler = createHandler<
   fromAffJson: (json) => {
     const def = json as Partial<DsfiDefinition> | undefined;
     return {
-      name: String(def?.scalarFunctionName ?? '').toUpperCase(),
+      // Use filename-derived name (injected by deserializer); scalarFunctionName
+      // is a reference, not the object identity.
+      name: '',
       description: def?.header?.description,
+      originalLanguage: def?.header?.originalLanguage,
+      abapLanguageVersion: def?.header?.abapLanguageVersion,
     };
   },
   async serialize(object, ctx): Promise<SerializedFile[]> {

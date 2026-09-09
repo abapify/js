@@ -50,10 +50,21 @@ export const serviceBindingHandler = createHandler<SrvbLike, typeof srvb>(
       name: String(SKEY?.NAME ?? '').toUpperCase(),
     }),
 
-    fromAffJson: (json) => ({
-      name: String((json as { header?: { name?: string } })?.header?.name ?? '').toUpperCase(),
-      description: (json as { header?: { description?: string } })?.header?.description,
-    }),
+    fromAffJson: (json) => {
+      const header = (json as { header?: { description?: string; originalLanguage?: string; abapLanguageVersion?: string } })?.header;
+      const binding = (json as { binding?: { bindingType?: string; bindingTypeCategory?: string; services?: unknown[] } })?.binding;
+      return {
+        // Filename-derived name (injected by deserializer)
+        name: '',
+        description: header?.description,
+        originalLanguage: header?.originalLanguage,
+        abapLanguageVersion: header?.abapLanguageVersion,
+        // Preserve binding metadata for round-trip
+        bindingType: binding?.bindingType,
+        bindingTypeCategory: binding?.bindingTypeCategory,
+        services: binding?.services,
+      };
+    },
 
     // Metadata-only: emit either .xml (legacy) or .json (AFF) depending on format option.
     async serialize(object, ctx, options?: FormatSerializeOptions): Promise<SerializedFile[]> {
@@ -61,10 +72,20 @@ export const serviceBindingHandler = createHandler<SrvbLike, typeof srvb>(
 
       // AFF JSON format
       if (options?.format === 'aff') {
+        const bindingType = String(object?.bindingType ?? object?.data?.bindingType ?? 'odataV4');
+        const bindingTypeCategory = String(object?.bindingTypeCategory ?? object?.data?.bindingTypeCategory ?? 'odata_v4_ui');
+        const services = object?.services ?? object?.data?.services ?? [];
         const jsonContent = buildAffJson(
           String(object?.description ?? object?.name ?? ''),
           String(object?.originalLanguage ?? 'en'),
           object?.abapLanguageVersion,
+          {
+            binding: {
+              bindingType,
+              bindingTypeCategory,
+              ...(Array.isArray(services) && services.length > 0 ? { services } : {}),
+            },
+          },
         );
         return [
           ctx.createFile(`${objectName}.${ctx.fileExtension}.json`, jsonContent),

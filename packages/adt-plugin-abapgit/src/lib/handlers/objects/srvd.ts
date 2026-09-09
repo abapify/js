@@ -53,7 +53,12 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
 
     getSource: affGetSource,
     fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
-    fromAffJson: (json) => affFromAffJson(json, ''),
+    fromAffJson: (json) => ({
+      ...affFromAffJson(json, ''),
+      // Preserve SRVD-specific metadata for round-trip
+      sourceOrigin: (json as { generalInformation?: { sourceOrigin?: string } })?.generalInformation?.sourceOrigin,
+      sourceType: (json as { generalInformation?: { sourceType?: string } })?.generalInformation?.sourceType,
+    }),
 
     serialize: (object, ctx, options?: FormatSerializeOptions) =>
       serializeDualFormat(object, ctx, options, {
