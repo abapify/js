@@ -61,7 +61,9 @@ export const transactionHandler = createHandler<TransactionLike, typeof tran>(
           texts.length > 0
             ? {
                 item: texts.map((t) => ({
-                  SPRSL: isoToSapLang(t.language || obj.masterLanguage || obj.language),
+                  SPRSL: isoToSapLang(
+                    t.language || obj.masterLanguage || obj.language,
+                  ),
                   TCODE: String(obj.name ?? '').toUpperCase(),
                   TTEXT: t.text ?? '',
                 })),

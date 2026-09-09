@@ -42,7 +42,9 @@ export const messageClassHandler = createHandler<MessageClassLike, typeof msag>(
           messages.length > 0
             ? {
                 item: messages.map((m) => ({
-                  SPRSL: isoToSapLang(m.language || obj.masterLanguage || obj.language),
+                  SPRSL: isoToSapLang(
+                    m.language || obj.masterLanguage || obj.language,
+                  ),
                   ARBGB: String(obj.name ?? '').toUpperCase(),
                   MSGNR: String(m.number ?? '').padStart(3, '0'),
                   TEXT: m.text ?? '',
