@@ -108,8 +108,12 @@ function findMissingContributors(
   prAuthors: Map<number, string>,
   body: string,
 ): string[] {
+  // GitHub logins are case-insensitive — normalize both sides to avoid
+  // duplicate mentions when Nx spells a login differently than the API.
   const alreadyMentioned = new Set(
-    body.match(/@[A-Za-z0-9_-]+(?:\[bot\])?/g) ?? [],
+    (body.match(/@[A-Za-z0-9_-]+(?:\[bot\])?/g) ?? []).map((m) =>
+      m.toLowerCase(),
+    ),
   );
   const missing: string[] = [];
   for (const [pr, login] of [...prAuthors.entries()].sort(
@@ -117,7 +121,7 @@ function findMissingContributors(
   )) {
     if (login.includes('[bot]')) continue;
     const mention = `@${login}`;
-    if (alreadyMentioned.has(mention)) continue;
+    if (alreadyMentioned.has(mention.toLowerCase())) continue;
     missing.push(`${mention} (#${pr})`);
   }
   return missing;
@@ -156,7 +160,7 @@ function updateRelease(
     'PATCH',
     `repos/{owner}/{repo}/releases/${releaseId}`,
     '-F',
-    `body=${tmpFile}`,
+    `body=@${tmpFile}`,
     '--jq',
     '.html_url',
   ]);
