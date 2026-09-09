@@ -101,6 +101,9 @@ const trustWorkflow = getFlag('trust-workflow', 'publish.yml');
 const trustRepo = getFlag('trust-repo', '');
 const trustNamespace = getFlag('trust-namespace', '');
 const trustProject = getFlag('trust-project', '');
+// OTP code for npm 2FA. Pass via `--otp=123456` (from `nx --args="--otp=123456"`).
+// Forwarded to `npm publish` when bootstrapping a new package placeholder.
+const otp = getFlag('otp', '');
 
 const pkgPath = join(process.cwd(), 'package.json');
 if (!existsSync(pkgPath)) {
@@ -400,7 +403,13 @@ if (prepare && name) {
       );
       const publishResult = spawnSync(
         'npm',
-        ['publish', `--registry=${registry}`, ...scopeFlag, '--access=public'],
+        [
+          'publish',
+          `--registry=${registry}`,
+          ...scopeFlag,
+          '--access=public',
+          ...(otp ? [`--otp=${otp}`] : []),
+        ],
         { cwd: tmpDir, encoding: 'utf-8' },
       );
       if (publishResult.status === 0) {
@@ -427,7 +436,9 @@ if (prepare && name) {
             trustWorkflow,
             '--repo',
             trustRepo,
+            '--allow-publish',
             '--yes',
+            ...(otp ? [`--otp=${otp}`] : []),
           ]
         : trustProvider === 'gitlab'
           ? [
