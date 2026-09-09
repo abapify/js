@@ -1,6 +1,12 @@
 import { bdef } from '../../../schemas/generated';
 import { createHandler } from '../base';
-import { serializeAffSource } from '../source-resolver';
+import {
+  serializeDualFormat,
+  affGetSource,
+  affFromAbapGit,
+  affSetSources,
+  affFromAffJson,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type CdsAffSourceObject = {
@@ -11,7 +17,8 @@ type CdsAffSourceObject = {
   getSource?: () => Promise<string> | string;
 };
 
-/** Create the shared AFF source-and-metadata layout used by CDS source types. */
+/** Create the shared dual-format source-and-metadata layout used by CDS source types.
+ * Supports both AFF JSON (default) and legacy abapGit XML metadata. */
 export function createCdsAffSourceHandler(
   type: 'DRAS' | 'DRTY' | 'DSFD' | 'DTEB' | 'DTDC' | 'DTIX' | 'DTSC',
 ) {
@@ -23,8 +30,12 @@ export function createCdsAffSourceHandler(
     toAbapGit: (obj) => ({
       SKEY: { TYPE: type, NAME: String(obj?.name ?? '').toUpperCase() },
     }),
+    getSource: affGetSource,
+    fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
+    fromAffJson: (json) => affFromAffJson(json, ''),
+    setSources: affSetSources,
     serialize: (object, ctx, options?: FormatSerializeOptions) =>
-      serializeAffSource(object, ctx, options?.sources, {
+      serializeDualFormat(object, ctx, options, {
         typeLabel: type,
         sourceExt: 'acds',
         jsonExt: `${ctx.fileExtension}.json`,

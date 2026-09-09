@@ -1,6 +1,21 @@
+/**
+ * DCLS (ABAP Data Control Language Source) object handler for abapGit format
+ *
+ * DCLS is source-driven: the semantic content lives in an `.acds` file.
+ * Supports BOTH formats:
+ *   - AFF (default): `.dcls.acds` source + `.dcls.json` metadata sidecar
+ *   - Legacy XML:    `.dcls.acds` source + `.dcls.xml` metadata
+ */
+
 import { dcls } from '../../../schemas/generated';
 import { createHandler } from '../base';
-import { serializeAffSource } from '../source-resolver';
+import {
+  serializeDualFormat,
+  affGetSource,
+  affFromAbapGit,
+  affSetSources,
+  affFromAffJson,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DclsLike = {
@@ -19,10 +34,14 @@ export const dclSourceHandler = createHandler<DclsLike, typeof dcls>('DCLS', {
   toAbapGit: (obj) => ({
     SKEY: { TYPE: 'DCLS', NAME: String(obj?.name ?? '').toUpperCase() },
   }),
+  getSource: affGetSource,
+  fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
+  fromAffJson: (json) => affFromAffJson(json, ''),
   serialize: (object, ctx, options?: FormatSerializeOptions) =>
-    serializeAffSource(object, ctx, options?.sources, {
+    serializeDualFormat(object, ctx, options, {
       typeLabel: 'DCLS',
       sourceExt: 'acds',
       jsonExt: 'dcls.json',
     }),
+  setSources: affSetSources,
 });

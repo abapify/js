@@ -63,6 +63,13 @@ export const scalarFunctionImplementationHandler = createHandler<
   toAbapGit: (obj) => ({
     SKEY: { TYPE: 'DSFI', NAME: String(obj?.name ?? '').toUpperCase() },
   }),
+  fromAffJson: (json) => {
+    const def = json as Partial<DsfiDefinition> | undefined;
+    return {
+      name: String(def?.scalarFunctionName ?? '').toUpperCase(),
+      description: def?.header?.description,
+    };
+  },
   async serialize(object, ctx): Promise<SerializedFile[]> {
     const definition = parseDsfiDefinition(
       typeof object.getSource === 'function'

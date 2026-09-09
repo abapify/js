@@ -1,6 +1,21 @@
+/**
+ * DDLX (CDS Metadata Extension) object handler for abapGit format
+ *
+ * DDLX is source-driven: the semantic content lives in an `.acds` file.
+ * Supports BOTH formats:
+ *   - AFF (default): `.ddlx.acds` source + `.ddlx.json` metadata sidecar
+ *   - Legacy XML:    `.ddlx.acds` source + `.ddlx.xml` metadata
+ */
+
 import { ddlx } from '../../../schemas/generated';
 import { createHandler } from '../base';
-import { serializeAffSource } from '../source-resolver';
+import {
+  serializeDualFormat,
+  affGetSource,
+  affFromAbapGit,
+  affSetSources,
+  affFromAffJson,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DdlxLike = {
@@ -21,11 +36,15 @@ export const ddlExtensionHandler = createHandler<DdlxLike, typeof ddlx>(
     toAbapGit: (obj) => ({
       SKEY: { TYPE: 'DDLX', NAME: String(obj?.name ?? '').toUpperCase() },
     }),
+    getSource: affGetSource,
+    fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
+    fromAffJson: (json) => affFromAffJson(json, ''),
     serialize: (object, ctx, options?: FormatSerializeOptions) =>
-      serializeAffSource(object, ctx, options?.sources, {
+      serializeDualFormat(object, ctx, options, {
         typeLabel: 'DDLX',
         sourceExt: 'acds',
         jsonExt: 'ddlx.json',
       }),
+    setSources: affSetSources,
   },
 );

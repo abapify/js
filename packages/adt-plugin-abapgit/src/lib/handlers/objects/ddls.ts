@@ -1,6 +1,21 @@
+/**
+ * DDLS (Data Definition Language Source) object handler for abapGit format
+ *
+ * DDLS is source-driven: the semantic content lives in an `.acds` file.
+ * Supports BOTH formats:
+ *   - AFF (default): `.ddls.acds` source + `.ddls.json` metadata sidecar
+ *   - Legacy XML:    `.ddls.acds` source + `.ddls.xml` metadata
+ */
+
 import { ddls } from '../../../schemas/generated';
 import { createHandler } from '../base';
-import { serializeAffSource } from '../source-resolver';
+import {
+  serializeDualFormat,
+  affGetSource,
+  affFromAbapGit,
+  affSetSources,
+  affFromAffJson,
+} from '../source-resolver';
 import type { FormatSerializeOptions } from '@abapify/adt-plugin';
 
 type DdlsLike = {
@@ -21,8 +36,11 @@ export const ddlSourceHandler = createHandler<DdlsLike, typeof ddls>('DDLS', {
   toAbapGit: (obj) => ({
     SKEY: { TYPE: 'DDLS', NAME: String(obj?.name ?? '').toUpperCase() },
   }),
+  getSource: affGetSource,
+  fromAbapGit: ({ SKEY }) => affFromAbapGit(SKEY),
+  fromAffJson: (json) => affFromAffJson(json, ''),
   serialize: (object, ctx, options?: FormatSerializeOptions) =>
-    serializeAffSource(object, ctx, options?.sources, {
+    serializeDualFormat(object, ctx, options, {
       typeLabel: 'DDLS',
       sourceExt: 'acds',
       jsonExt: 'ddls.json',
@@ -31,4 +49,5 @@ export const ddlSourceHandler = createHandler<DdlsLike, typeof ddls>('DDLS', {
         sourceType: object.sourceType ?? 'unknown',
       },
     }),
+  setSources: affSetSources,
 });
