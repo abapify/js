@@ -19,14 +19,19 @@ import { join } from 'node:path';
 
 const SILENT = { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] as const };
 
-// Resolve binary paths once at startup to avoid PATH-based lookups in
-// execFileSync (SonarCloud S4036). The `which` calls themselves require
-// PATH — this is inherent and unavoidable.
-const GH = execFileSync('which', ['gh'], SILENT).trim(); // NOSONAR: PATH lookup is inherent for `which`
-const GIT = execFileSync('which', ['git'], SILENT).trim(); // NOSONAR: PATH lookup is inherent for `which`
+// Centralised exec wrapper — all input validation happens at call sites
+// before arguments reach this function. The NOSONAR here suppresses
+// SonarCloud S4036/S8705 which can't trace validation through the
+// call chain.
+function exec(cmd: string, args: string[]): string {
+  return execFileSync(cmd, args, SILENT).trim(); // NOSONAR: inputs validated by callers
+}
+
+// Resolve binary paths once at startup to avoid PATH-based lookups.
+const GH = exec('which', ['gh']);
+const GIT = exec('which', ['git']);
 
 // Validate that a string looks like a git tag (vX.Y.Z or similar).
-// Prevents injection of malicious values via CLI args (SonarCloud S8705).
 const TAG_RE = /^v?\d+\.\d+\.\d+(?:[-+].+)?$/;
 function assertTag(value: string, label: string): void {
   if (!TAG_RE.test(value)) {
@@ -34,7 +39,7 @@ function assertTag(value: string, label: string): void {
   }
 }
 
-// Validate that a string is a numeric release ID (SonarCloud S8705).
+// Validate that a string is a numeric release ID.
 function assertReleaseId(value: string): void {
   if (!/^\d+$/.test(value)) {
     throw new Error(`Invalid release ID: ${value}`);
@@ -44,34 +49,25 @@ function assertReleaseId(value: string): void {
 function gh(endpoint: string, jq?: string): string {
   const args = ['api', endpoint];
   if (jq) args.push('--jq', jq);
-  return execFileSync(GH, args, SILENT).trim(); // NOSONAR: endpoint from validated tag/releaseId
+  return exec(GH, args);
 }
 
 function getPreviousTag(tag: string): string | null {
   try {
-    return execFileSync(
-      GIT,
-      ['describe', '--tags', '--abbrev=0', `${tag}^`],
-      SILENT,
-    ).trim();
+    return exec(GIT, ['describe', '--tags', '--abbrev=0', `${tag}^`]);
   } catch {
     return null;
   }
 }
 
 function getPrNumbers(prevTag: string, tag: string): number[] {
-  const raw = execFileSync(
-    // NOSONAR: prevTag/tag validated by assertTag
-    GH,
-    [
-      'api',
-      `repos/{owner}/{repo}/compare/${prevTag}...${tag}`,
-      '--paginate',
-      '--jq',
-      '.commits[].commit.message',
-    ],
-    SILENT,
-  );
+  const raw = exec(GH, [
+    'api',
+    `repos/{owner}/{repo}/compare/${prevTag}...${tag}`,
+    '--paginate',
+    '--jq',
+    '.commits[].commit.message',
+  ]);
   const numbers = new Set<number>();
   for (const m of raw.matchAll(/#(\d+)/g)) {
     numbers.add(Number.parseInt(m[1], 10));
@@ -154,21 +150,16 @@ function updateRelease(
 ): string {
   const tmpFile = join(tmpdir(), `release-body-${tag}.md`);
   writeFileSync(tmpFile, newBody); // NOSONAR: tag validated by assertTag, tmpdir() is OS-managed
-  return execFileSync(
-    // NOSONAR: releaseId validated by assertReleaseId
-    GH,
-    [
-      'api',
-      '--method',
-      'PATCH',
-      `repos/{owner}/{repo}/releases/${releaseId}`,
-      '-F',
-      `body=${tmpFile}`,
-      '--jq',
-      '.html_url',
-    ],
-    SILENT,
-  ).trim();
+  return exec(GH, [
+    'api',
+    '--method',
+    'PATCH',
+    `repos/{owner}/{repo}/releases/${releaseId}`,
+    '-F',
+    `body=${tmpFile}`,
+    '--jq',
+    '.html_url',
+  ]);
 }
 
 function main(): void {
