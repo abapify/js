@@ -168,18 +168,29 @@ export function affSetSources(obj: unknown, sources: { main?: string }): void {
  * Extracts the object name from the JSON header or falls back to the
  * filename-derived name passed in. The AFF JSON format stores the
  * description in `header.description` and the original language in
- * `header.originalLanguage`.
+ * `header.originalLanguage`. Both are preserved for round-trip fidelity.
  */
 export function affFromAffJson(
   json: Record<string, unknown>,
   fallbackName: string,
-): { name: string; description?: string } {
+): {
+  name: string;
+  description?: string;
+  originalLanguage?: string;
+  abapLanguageVersion?: string;
+} {
   const header = json.header as
-    | { description?: string; originalLanguage?: string }
+    | {
+        description?: string;
+        originalLanguage?: string;
+        abapLanguageVersion?: string;
+      }
     | undefined;
   return {
     name: fallbackName,
     description: header?.description,
+    originalLanguage: header?.originalLanguage,
+    abapLanguageVersion: header?.abapLanguageVersion,
   };
 }
 
@@ -217,8 +228,9 @@ export async function serializeDualFormat(
     const source = await resolveMainSource(object, options?.sources, config.typeLabel);
     const name = ctx.getObjectName(object);
     const files: SerializedFile[] = [];
-    // Source file (same extension as AFF)
-    if (source !== undefined && source !== '') {
+    // Source file — preserve explicitly supplied empty source (authoritative
+    // sources contract). Only skip when source is genuinely absent.
+    if (source !== undefined) {
       files.push(
         ctx.createFile(`${name}.${ctx.fileExtension}.${config.sourceExt}`, source),
       );

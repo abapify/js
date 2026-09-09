@@ -30,6 +30,10 @@ import { extractFunctionDescriptors } from './handlers/objects/fugr';
 
 import { parseAbapGitFilename } from './filename-parser';
 
+// Re-export for backward compatibility — format-plugin and other modules
+// import parseAbapGitFilename from deserializer.
+export { parseAbapGitFilename };
+
 /**
  * Group related files by object (name + type)
  */
@@ -184,7 +188,16 @@ export async function* deserialize(
       if (objFiles.jsonFile) {
         // AFF JSON metadata file
         const jsonContent = await fileTree.read(objFiles.jsonFile);
-        const jsonData = JSON.parse(jsonContent) as Record<string, unknown>;
+        let jsonData: Record<string, unknown>;
+        try {
+          jsonData = JSON.parse(jsonContent) as Record<string, unknown>;
+        } catch (parseError) {
+          console.error(
+            `Failed to parse AFF JSON ${objFiles.jsonFile}:`,
+            parseError,
+          );
+          continue;
+        }
         isAffJson = true;
 
         // If handler has fromAffJson, use it; otherwise fall back to
@@ -228,6 +241,10 @@ export async function* deserialize(
         // For AFF JSON, fromAffJson was already called above and returned
         // the full payload (not just values)
         payload = values as { name: string; description?: string };
+      } else if (isAffJson && !handler.fromAffJson) {
+        // No fromAffJson — use filename-derived name; JSON body is not
+        // compatible with fromAbapGit (which expects XML SKEY envelope)
+        payload = { name: objFiles.name };
       } else if (handler.fromAbapGit) {
         payload = handler.fromAbapGit(values);
       } else {

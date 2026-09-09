@@ -70,9 +70,11 @@ async function buildMaterializedFiles(
   object: unknown,
   packageDir: string,
   sources?: Readonly<Record<string, string>>,
+  format?: 'aff' | 'legacy',
 ): Promise<MaterializedFormatFile[]> {
   const serialized = await handler.serialize(object, {
     ...(sources !== undefined ? { sources } : {}),
+    ...(format !== undefined ? { format } : {}),
   });
   return serialized
     .map((file): MaterializedFormatFile => {
@@ -134,6 +136,7 @@ export const abapgitFormatPlugin: FormatPlugin = {
       input.object,
       packageDir,
       input.sources,
+      input.formatOptions?.format as 'aff' | 'legacy' | undefined,
     );
     return { files };
   },
