@@ -14,7 +14,8 @@ interface NxNpmTrustOptions {
    * Target name registered on each publishable package for the one-shot
    * bootstrap command (`--prepare` baked in). Publishes a 0.0.0 placeholder
    * for packages not yet on npm and registers the GitHub OIDC trusted
-   * publisher. Pass `--otp=<code>` via `nx --args` when 2FA is enabled.
+   * publisher. If npm 2FA is required, the script automatically triggers
+   * `npm login --auth-type=web` and prints a clickable browser link.
    * @default "prepare-for-publish"
    */
   prepareTargetName?: string;

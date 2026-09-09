@@ -101,9 +101,6 @@ const trustWorkflow = getFlag('trust-workflow', 'publish.yml');
 const trustRepo = getFlag('trust-repo', '');
 const trustNamespace = getFlag('trust-namespace', '');
 const trustProject = getFlag('trust-project', '');
-// OTP code for npm 2FA. Pass via `--otp=123456` (from `nx --args="--otp=123456"`).
-// Forwarded to `npm publish` when bootstrapping a new package placeholder.
-const otp = getFlag('otp', '');
 
 const pkgPath = join(process.cwd(), 'package.json');
 if (!existsSync(pkgPath)) {
@@ -155,6 +152,10 @@ interface NpmCallOptions {
    *  mode. When true, output is not captured (stdout/stderr are null).
    *  Default: false. */
   interactive?: boolean;
+  /** Working directory for the npm command. Default: process.cwd(). */
+  cwd?: string;
+  /** Timeout in ms for non-interactive calls. Default: 20_000. */
+  timeout?: number;
 }
 
 /**
@@ -164,7 +165,7 @@ interface NpmCallOptions {
  * `{ scopeRegistry: false, jsonOutput: false }`.
  */
 function npm(cmdArgs: string[], opts: NpmCallOptions = {}): NpmResult {
-  const { jsonOutput = true, scopeRegistry = true, interactive = false } = opts;
+  const { jsonOutput = true, scopeRegistry = true, interactive = false, cwd, timeout = 20_000 } = opts;
   const extra = [
     `--registry=${registry}`,
     ...(scopeRegistry ? scopeFlag : []),
@@ -176,7 +177,8 @@ function npm(cmdArgs: string[], opts: NpmCallOptions = {}): NpmResult {
     // link and can approve 2FA in a browser. No timeout — the user needs
     // time to click the link and approve.
     stdio: interactive ? 'inherit' : undefined,
-    timeout: interactive ? undefined : 20_000,
+    timeout: interactive ? undefined : timeout,
+    cwd,
   });
   let parsed: unknown = null;
   if (result.stdout) {
@@ -194,6 +196,41 @@ function npm(cmdArgs: string[], opts: NpmCallOptions = {}): NpmResult {
     stderr: result.stderr ?? '',
     json: parsed,
   };
+}
+
+/**
+ * Run `npm login --auth-type=web` interactively. npm prints a clickable
+ * URL and waits for the user to authenticate in a browser. Once done, the
+ * refreshed token includes 2FA clearance for sensitive operations (publish,
+ * trust). Called automatically when a command fails with EOTP.
+ */
+function npmLoginWeb(): void {
+  console.error('\nnpm requires 2FA — opening browser authentication...\n');
+  spawnSync(
+    'npm',
+    ['login', '--auth-type=web', `--registry=${registry}`, ...scopeFlag],
+    { stdio: 'inherit', encoding: 'utf-8' },
+  );
+}
+
+/**
+ * Run an npm command that requires 2FA. The command itself runs
+ * non-interactive (captured output) so we can detect EOTP in stderr.
+ * If EOTP is detected, `npm login --auth-type=web` runs interactively
+ * (inherited stdio — user sees and clicks the browser link), then the
+ * original command is retried (still non-interactive to capture result).
+ */
+function npmWith2FA(
+  cmdArgs: string[],
+  opts: NpmCallOptions = {},
+): NpmResult {
+  // Force non-interactive for the actual command so stderr is captured.
+  const result = npm(cmdArgs, { ...opts, interactive: false });
+  if (result.code !== 0 && /EOTP|one-time password/i.test(result.stderr)) {
+    npmLoginWeb();
+    return npm(cmdArgs, { ...opts, interactive: false });
+  }
+  return result;
 }
 
 type ViewJson = {
@@ -408,24 +445,11 @@ if (prepare && name) {
         join(tmpDir, 'README.md'),
         `# ${name}\n\nPlaceholder. The real release is published via CI/CD.\n`,
       );
-      const publishResult = spawnSync(
-        'npm',
-        [
-          'publish',
-          `--registry=${registry}`,
-          ...scopeFlag,
-          '--access=public',
-          '--auth-type=webauth',
-        ],
-        {
-          cwd: tmpDir,
-          encoding: 'utf-8',
-          // Inherit stdio so the user sees npm's web-auth link and can
-          // approve 2FA in a browser. No timeout — the user needs time.
-          stdio: 'inherit',
-        },
+      const publishResult = npmWith2FA(
+        ['publish', '--access=public'],
+        { cwd: tmpDir, timeout: 60_000 },
       );
-      if (publishResult.status === 0) {
+      if (publishResult.code === 0) {
         report.fixes.push(`published 0.0.0 placeholder for ${name}`);
         report.checks.exists = true;
         report.checks.latestVersion = '0.0.0';
@@ -474,7 +498,7 @@ if (prepare && name) {
         `unsupported --trust-provider=${trustProvider} (expected github|gitlab)`,
       );
     } else {
-      const trustResult = npm(trustArgs, {
+      const trustResult = npmWith2FA(trustArgs, {
         // `npm trust github` is a strict-argv command — it rejects unknown
         // flags with EUSAGE, so we must not append the scope registry
         // override here. `--json` is supported by `npm trust` on modern
@@ -482,8 +506,6 @@ if (prepare && name) {
         // `firstErrorLine` handle the plain-text output.
         jsonOutput: false,
         scopeRegistry: false,
-        // Inherit stdio so the user sees npm's web-auth link for 2FA.
-        interactive: true,
       });
       if (trustResult.code === 0) {
         const trustTarget = trustRepo || `${trustNamespace}/${trustProject}`;
