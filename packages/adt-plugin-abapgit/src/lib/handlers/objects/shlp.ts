@@ -102,48 +102,94 @@ export const searchHelpHandler = createHandler<SearchHelpLike, typeof shlp>(
       };
     },
 
-    fromAbapGit: ({ DD30V, DD31V, DD32P_TABLE, DD33V_TABLE }) => {
-      const paramItems = normalizeItems(DD32P_TABLE?.item);
-      const assignItems = normalizeItems(DD33V_TABLE?.item);
-      return {
-        name: (DD30V?.SHLPNAME ?? '').toUpperCase(),
-        type: 'SHLP/SH',
-        description: DD30V?.DDTEXT,
-        language: sapLangToIso(DD30V?.DDLANGUAGE),
-        masterLanguage: sapLangToIso(DD30V?.DDLANGUAGE),
-        helpType: DD30V?.SHLPTYPE,
-        dialogType: DD30V?.DIALOGTYPE,
-        textTable: DD31V
-          ? {
-              tableName: DD31V.TABNAME,
-              fieldName: DD31V.FIELDNAME,
-              fieldLocation: DD31V.FLDLOCATION,
-              rollName: DD31V.ROLLNAME,
-            }
-          : undefined,
-        parameters: paramItems.map((p) => ({
-          fieldName: p.FIELDNAME,
-          input: p.SHLPINPUT === 'X',
-          output: p.SHLPOUTPUT === 'X',
-          selectionPosition: p.SHLPSELPOS,
-          listPosition: p.SHLPLISPOS,
-          defaultValue: p.DEFAULTVAL,
-          rollName: p.ROLLNAME,
-          description: p.DDTEXT,
-        })),
-        fieldAssignments: assignItems.map((a) => ({
-          helpField: a.SHLPFIELD,
-          tableName: a.TABNAME,
-          fieldName: a.FIELDNAME,
-          input: a.SHLPINPUT === 'X',
-          output: a.SHLPOUTPUT === 'X',
-        })),
-      } as { name: string } & Record<string, unknown>;
-    },
+    fromAbapGit: parseSearchHelpFromAbapGit,
   },
 );
 
 function normalizeItems<T>(raw: T | T[] | undefined): T[] {
   if (!raw) return [];
   return Array.isArray(raw) ? raw : [raw];
+}
+
+function parseShlpParam(p: {
+  FIELDNAME?: string;
+  SHLPINPUT?: string;
+  SHLPOUTPUT?: string;
+  SHLPSELPOS?: string;
+  SHLPLISPOS?: string;
+  DEFAULTVAL?: string;
+  ROLLNAME?: string;
+  DDTEXT?: string;
+}) {
+  return {
+    fieldName: p.FIELDNAME,
+    input: p.SHLPINPUT === 'X',
+    output: p.SHLPOUTPUT === 'X',
+    selectionPosition: p.SHLPSELPOS,
+    listPosition: p.SHLPLISPOS,
+    defaultValue: p.DEFAULTVAL,
+    rollName: p.ROLLNAME,
+    description: p.DDTEXT,
+  };
+}
+
+function parseShlpAssign(a: {
+  SHLPFIELD?: string;
+  TABNAME?: string;
+  FIELDNAME?: string;
+  SHLPINPUT?: string;
+  SHLPOUTPUT?: string;
+}) {
+  return {
+    helpField: a.SHLPFIELD,
+    tableName: a.TABNAME,
+    fieldName: a.FIELDNAME,
+    input: a.SHLPINPUT === 'X',
+    output: a.SHLPOUTPUT === 'X',
+  };
+}
+
+function parseSearchHelpFromAbapGit({
+  DD30V,
+  DD31V,
+  DD32P_TABLE,
+  DD33V_TABLE,
+}: {
+  DD30V?: {
+    SHLPNAME?: string;
+    DDTEXT?: string;
+    DDLANGUAGE?: string;
+    SHLPTYPE?: string;
+    DIALOGTYPE?: string;
+  };
+  DD31V?: {
+    TABNAME?: string;
+    FIELDNAME?: string;
+    FLDLOCATION?: string;
+    ROLLNAME?: string;
+  };
+  DD32P_TABLE?: { item?: unknown };
+  DD33V_TABLE?: { item?: unknown };
+}): { name: string } & Record<string, unknown> {
+  const paramItems = normalizeItems(DD32P_TABLE?.item);
+  const assignItems = normalizeItems(DD33V_TABLE?.item);
+  return {
+    name: (DD30V?.SHLPNAME ?? '').toUpperCase(),
+    type: 'SHLP/SH',
+    description: DD30V?.DDTEXT,
+    language: sapLangToIso(DD30V?.DDLANGUAGE),
+    masterLanguage: sapLangToIso(DD30V?.DDLANGUAGE),
+    helpType: DD30V?.SHLPTYPE,
+    dialogType: DD30V?.DIALOGTYPE,
+    textTable: DD31V
+      ? {
+          tableName: DD31V.TABNAME,
+          fieldName: DD31V.FIELDNAME,
+          fieldLocation: DD31V.FLDLOCATION,
+          rollName: DD31V.ROLLNAME,
+        }
+      : undefined,
+    parameters: paramItems.map(parseShlpParam),
+    fieldAssignments: assignItems.map(parseShlpAssign),
+  };
 }

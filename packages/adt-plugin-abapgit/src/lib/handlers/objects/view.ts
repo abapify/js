@@ -110,49 +110,102 @@ export const viewHandler = createHandler<ViewLike, typeof view>('VIEW', {
     };
   },
 
-  fromAbapGit: ({ DD25V, DD26V_TABLE, DD27P_TABLE, DD28V_TABLE }) => {
-    const tableItems = normalizeItems(DD26V_TABLE?.item);
-    const fieldItems = normalizeItems(DD27P_TABLE?.item);
-    const condItems = normalizeItems(DD28V_TABLE?.item);
-    return {
-      name: (DD25V?.VIEWNAME ?? '').toUpperCase(),
-      type: 'VIEW/VD',
-      description: DD25V?.DDTEXT,
-      language: sapLangToIso(DD25V?.DDLANGUAGE),
-      masterLanguage: sapLangToIso(DD25V?.DDLANGUAGE),
-      viewClass: DD25V?.VIEWCLASS,
-      baseTable: DD25V?.ROOTTAB,
-      baseTableField: DD25V?.ROOTFIELD,
-      tables: tableItems.map((t) => ({
-        tableName: t.TABNAME,
-        position: t.TABPOS,
-        foreignView: t.FVIEWNAME,
-        foreignField: t.FFIELDNAME,
-        readOnly: t.READONLY === 'X',
-      })),
-      fields: fieldItems.map((f) => ({
-        viewField: f.VIEWFIELD,
-        tableName: f.TABNAME,
-        fieldName: f.FIELDNAME,
-        keyFlag: f.KEYFLAG === 'X',
-        readOnly: f.READONLY === 'X',
-        rollName: f.ROLLNAME,
-        checkTable: f.CHECKTABLE,
-        description: f.DDTEXT,
-      })),
-      selectionConditions: condItems.map((c) => ({
-        andOr: c.ANDOR,
-        leftBracket: c.LEFTBRACKET,
-        fieldName: c.FIELDNAME,
-        operator: c.OPERATOR,
-        constantValue: c.CONST_VALUE,
-        rightBracket: c.RIGHTBRACKET,
-      })),
-    } as { name: string } & Record<string, unknown>;
-  },
+  fromAbapGit: parseViewFromAbapGit,
 });
 
 function normalizeItems<T>(raw: T | T[] | undefined): T[] {
   if (!raw) return [];
   return Array.isArray(raw) ? raw : [raw];
+}
+
+function parseViewTable(t: {
+  TABNAME?: string;
+  TABPOS?: string;
+  FVIEWNAME?: string;
+  FFIELDNAME?: string;
+  READONLY?: string;
+}) {
+  return {
+    tableName: t.TABNAME,
+    position: t.TABPOS,
+    foreignView: t.FVIEWNAME,
+    foreignField: t.FFIELDNAME,
+    readOnly: t.READONLY === 'X',
+  };
+}
+
+function parseViewField(f: {
+  VIEWFIELD?: string;
+  TABNAME?: string;
+  FIELDNAME?: string;
+  KEYFLAG?: string;
+  READONLY?: string;
+  ROLLNAME?: string;
+  CHECKTABLE?: string;
+  DDTEXT?: string;
+}) {
+  return {
+    viewField: f.VIEWFIELD,
+    tableName: f.TABNAME,
+    fieldName: f.FIELDNAME,
+    keyFlag: f.KEYFLAG === 'X',
+    readOnly: f.READONLY === 'X',
+    rollName: f.ROLLNAME,
+    checkTable: f.CHECKTABLE,
+    description: f.DDTEXT,
+  };
+}
+
+function parseViewCondition(c: {
+  ANDOR?: string;
+  LEFTBRACKET?: string;
+  FIELDNAME?: string;
+  OPERATOR?: string;
+  CONST_VALUE?: string;
+  RIGHTBRACKET?: string;
+}) {
+  return {
+    andOr: c.ANDOR,
+    leftBracket: c.LEFTBRACKET,
+    fieldName: c.FIELDNAME,
+    operator: c.OPERATOR,
+    constantValue: c.CONST_VALUE,
+    rightBracket: c.RIGHTBRACKET,
+  };
+}
+
+function parseViewFromAbapGit({
+  DD25V,
+  DD26V_TABLE,
+  DD27P_TABLE,
+  DD28V_TABLE,
+}: {
+  DD25V?: {
+    VIEWNAME?: string;
+    DDTEXT?: string;
+    DDLANGUAGE?: string;
+    VIEWCLASS?: string;
+    ROOTTAB?: string;
+    ROOTFIELD?: string;
+  };
+  DD26V_TABLE?: { item?: unknown };
+  DD27P_TABLE?: { item?: unknown };
+  DD28V_TABLE?: { item?: unknown };
+}): { name: string } & Record<string, unknown> {
+  const tableItems = normalizeItems(DD26V_TABLE?.item);
+  const fieldItems = normalizeItems(DD27P_TABLE?.item);
+  const condItems = normalizeItems(DD28V_TABLE?.item);
+  return {
+    name: (DD25V?.VIEWNAME ?? '').toUpperCase(),
+    type: 'VIEW/VD',
+    description: DD25V?.DDTEXT,
+    language: sapLangToIso(DD25V?.DDLANGUAGE),
+    masterLanguage: sapLangToIso(DD25V?.DDLANGUAGE),
+    viewClass: DD25V?.VIEWCLASS,
+    baseTable: DD25V?.ROOTTAB,
+    baseTableField: DD25V?.ROOTFIELD,
+    tables: tableItems.map(parseViewTable),
+    fields: fieldItems.map(parseViewField),
+    selectionConditions: condItems.map(parseViewCondition),
+  };
 }

@@ -85,39 +85,77 @@ export const lockObjectHandler = createHandler<LockObjectLike, typeof enqu>(
       };
     },
 
-    fromAbapGit: ({ DD25V, DD26V_TABLE, DD27P_TABLE }) => {
-      const tableItems = normalizeItems(DD26V_TABLE?.item);
-      const paramItems = normalizeItems(DD27P_TABLE?.item);
-      return {
-        name: (DD25V?.VIEWNAME ?? '').toUpperCase(),
-        type: 'ENQU/LO',
-        description: DD25V?.DDTEXT,
-        language: sapLangToIso(DD25V?.DDLANGUAGE),
-        masterLanguage: sapLangToIso(DD25V?.DDLANGUAGE),
-        baseTable: DD25V?.ROOTTAB,
-        baseTableField: DD25V?.ROOTFIELD,
-        tables: tableItems.map((t) => ({
-          tableName: t.TABNAME,
-          position: t.TABPOS,
-          foreignView: t.FVIEWNAME,
-          foreignField: t.FFIELDNAME,
-          readOnly: t.READONLY === 'X',
-        })),
-        parameters: paramItems.map((p) => ({
-          viewField: p.VIEWFIELD,
-          tableName: p.TABNAME,
-          fieldName: p.FIELDNAME,
-          keyFlag: p.KEYFLAG === 'X',
-          rollName: p.ROLLNAME,
-          checkTable: p.CHECKTABLE,
-          description: p.DDTEXT,
-        })),
-      } as { name: string } & Record<string, unknown>;
-    },
+    fromAbapGit: parseLockObjectFromAbapGit,
   },
 );
 
 function normalizeItems<T>(raw: T | T[] | undefined): T[] {
   if (!raw) return [];
   return Array.isArray(raw) ? raw : [raw];
+}
+
+function parseEnquTable(t: {
+  TABNAME?: string;
+  TABPOS?: string;
+  FVIEWNAME?: string;
+  FFIELDNAME?: string;
+  READONLY?: string;
+}) {
+  return {
+    tableName: t.TABNAME,
+    position: t.TABPOS,
+    foreignView: t.FVIEWNAME,
+    foreignField: t.FFIELDNAME,
+    readOnly: t.READONLY === 'X',
+  };
+}
+
+function parseEnquParam(p: {
+  VIEWFIELD?: string;
+  TABNAME?: string;
+  FIELDNAME?: string;
+  KEYFLAG?: string;
+  ROLLNAME?: string;
+  CHECKTABLE?: string;
+  DDTEXT?: string;
+}) {
+  return {
+    viewField: p.VIEWFIELD,
+    tableName: p.TABNAME,
+    fieldName: p.FIELDNAME,
+    keyFlag: p.KEYFLAG === 'X',
+    rollName: p.ROLLNAME,
+    checkTable: p.CHECKTABLE,
+    description: p.DDTEXT,
+  };
+}
+
+function parseLockObjectFromAbapGit({
+  DD25V,
+  DD26V_TABLE,
+  DD27P_TABLE,
+}: {
+  DD25V?: {
+    VIEWNAME?: string;
+    DDTEXT?: string;
+    DDLANGUAGE?: string;
+    ROOTTAB?: string;
+    ROOTFIELD?: string;
+  };
+  DD26V_TABLE?: { item?: unknown };
+  DD27P_TABLE?: { item?: unknown };
+}): { name: string } & Record<string, unknown> {
+  const tableItems = normalizeItems(DD26V_TABLE?.item);
+  const paramItems = normalizeItems(DD27P_TABLE?.item);
+  return {
+    name: (DD25V?.VIEWNAME ?? '').toUpperCase(),
+    type: 'ENQU/LO',
+    description: DD25V?.DDTEXT,
+    language: sapLangToIso(DD25V?.DDLANGUAGE),
+    masterLanguage: sapLangToIso(DD25V?.DDLANGUAGE),
+    baseTable: DD25V?.ROOTTAB,
+    baseTableField: DD25V?.ROOTFIELD,
+    tables: tableItems.map(parseEnquTable),
+    parameters: paramItems.map(parseEnquParam),
+  };
 }
