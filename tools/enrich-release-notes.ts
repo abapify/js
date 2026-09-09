@@ -44,8 +44,7 @@ function assertReleaseId(value: string): void {
 function gh(endpoint: string, jq?: string): string {
   const args = ['api', endpoint];
   if (jq) args.push('--jq', jq);
-  // NOSONAR: endpoint is constructed from validated tag/releaseId values
-  return execFileSync(GH, args, SILENT).trim();
+  return execFileSync(GH, args, SILENT).trim(); // NOSONAR: endpoint from validated tag/releaseId
 }
 
 function getPreviousTag(tag: string): string | null {
@@ -70,8 +69,8 @@ function getPrNumbers(prevTag: string, tag: string): number[] {
       '--jq',
       '.commits[].commit.message',
     ],
-    SILENT, // NOSONAR: prevTag and tag are validated by assertTag before this call
-  );
+    SILENT,
+  ); // NOSONAR: prevTag/tag validated by assertTag
   const numbers = new Set<number>();
   for (const m of raw.matchAll(/#(\d+)/g)) {
     numbers.add(Number.parseInt(m[1], 10));
@@ -153,7 +152,7 @@ function updateRelease(
   newBody: string,
 ): string {
   const tmpFile = join(tmpdir(), `release-body-${tag}.md`);
-  writeFileSync(tmpFile, newBody); // NOSONAR: tag is validated by assertTag, tmpdir() is OS-managed
+  writeFileSync(tmpFile, newBody); // NOSONAR: tag validated by assertTag, tmpdir() is OS-managed
   return execFileSync(
     GH,
     [
@@ -166,8 +165,8 @@ function updateRelease(
       '--jq',
       '.html_url',
     ],
-    SILENT, // NOSONAR: releaseId validated by assertReleaseId, tmpFile from validated tag
-  ).trim();
+    SILENT,
+  ).trim(); // NOSONAR: releaseId validated by assertReleaseId
 }
 
 function main(): void {
