@@ -61,6 +61,7 @@ function getPreviousTag(tag: string): string | null {
 
 function getPrNumbers(prevTag: string, tag: string): number[] {
   const raw = execFileSync(
+    // NOSONAR: prevTag/tag validated by assertTag
     GH,
     [
       'api',
@@ -70,7 +71,7 @@ function getPrNumbers(prevTag: string, tag: string): number[] {
       '.commits[].commit.message',
     ],
     SILENT,
-  ); // NOSONAR: prevTag/tag validated by assertTag
+  );
   const numbers = new Set<number>();
   for (const m of raw.matchAll(/#(\d+)/g)) {
     numbers.add(Number.parseInt(m[1], 10));
@@ -154,6 +155,7 @@ function updateRelease(
   const tmpFile = join(tmpdir(), `release-body-${tag}.md`);
   writeFileSync(tmpFile, newBody); // NOSONAR: tag validated by assertTag, tmpdir() is OS-managed
   return execFileSync(
+    // NOSONAR: releaseId validated by assertReleaseId
     GH,
     [
       'api',
@@ -166,7 +168,7 @@ function updateRelease(
       '.html_url',
     ],
     SILENT,
-  ).trim(); // NOSONAR: releaseId validated by assertReleaseId
+  ).trim();
 }
 
 function main(): void {
