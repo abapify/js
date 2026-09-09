@@ -51,8 +51,24 @@ export const serviceBindingHandler = createHandler<SrvbLike, typeof srvb>(
     }),
 
     fromAffJson: (json) => {
-      const header = (json as { header?: { description?: string; originalLanguage?: string; abapLanguageVersion?: string } })?.header;
-      const binding = (json as { binding?: { bindingType?: string; bindingTypeCategory?: string; services?: unknown[] } })?.binding;
+      const header = (
+        json as {
+          header?: {
+            description?: string;
+            originalLanguage?: string;
+            abapLanguageVersion?: string;
+          };
+        }
+      )?.header;
+      const binding = (
+        json as {
+          binding?: {
+            bindingType?: string;
+            bindingTypeCategory?: string;
+            services?: unknown[];
+          };
+        }
+      )?.binding;
       return {
         // Filename-derived name (injected by deserializer)
         name: '',
@@ -67,13 +83,23 @@ export const serviceBindingHandler = createHandler<SrvbLike, typeof srvb>(
     },
 
     // Metadata-only: emit either .xml (legacy) or .json (AFF) depending on format option.
-    async serialize(object, ctx, options?: FormatSerializeOptions): Promise<SerializedFile[]> {
+    async serialize(
+      object,
+      ctx,
+      options?: FormatSerializeOptions,
+    ): Promise<SerializedFile[]> {
       const objectName = ctx.getObjectName(object);
 
       // AFF JSON format
       if (options?.format === 'aff') {
-        const bindingType = String(object?.bindingType ?? object?.data?.bindingType ?? 'odataV4');
-        const bindingTypeCategory = String(object?.bindingTypeCategory ?? object?.data?.bindingTypeCategory ?? 'odata_v4_ui');
+        const bindingType = String(
+          object?.bindingType ?? object?.data?.bindingType ?? 'odataV4',
+        );
+        const bindingTypeCategory = String(
+          object?.bindingTypeCategory ??
+            object?.data?.bindingTypeCategory ??
+            'odata_v4_ui',
+        );
         const services = object?.services ?? object?.data?.services ?? [];
         const jsonContent = buildAffJson(
           String(object?.description ?? object?.name ?? ''),
@@ -83,12 +109,17 @@ export const serviceBindingHandler = createHandler<SrvbLike, typeof srvb>(
             binding: {
               bindingType,
               bindingTypeCategory,
-              ...(Array.isArray(services) && services.length > 0 ? { services } : {}),
+              ...(Array.isArray(services) && services.length > 0
+                ? { services }
+                : {}),
             },
           },
         );
         return [
-          ctx.createFile(`${objectName}.${ctx.fileExtension}.json`, jsonContent),
+          ctx.createFile(
+            `${objectName}.${ctx.fileExtension}.json`,
+            jsonContent,
+          ),
         ];
       }
 

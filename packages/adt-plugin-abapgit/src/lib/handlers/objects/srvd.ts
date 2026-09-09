@@ -56,8 +56,10 @@ export const serviceDefinitionHandler = createHandler<SrvdLike, typeof srvd>(
     fromAffJson: (json) => ({
       ...affFromAffJson(json, ''),
       // Preserve SRVD-specific metadata for round-trip
-      sourceOrigin: (json as { generalInformation?: { sourceOrigin?: string } })?.generalInformation?.sourceOrigin,
-      sourceType: (json as { generalInformation?: { sourceType?: string } })?.generalInformation?.sourceType,
+      sourceOrigin: (json as { generalInformation?: { sourceOrigin?: string } })
+        ?.generalInformation?.sourceOrigin,
+      sourceType: (json as { generalInformation?: { sourceType?: string } })
+        ?.generalInformation?.sourceType,
     }),
 
     serialize: (object, ctx, options?: FormatSerializeOptions) =>
