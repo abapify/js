@@ -121,6 +121,9 @@ jobs:
         # section then skips them. This step cross-references PR authors via
         # the GitHub API (which always knows the login) and appends any
         # missing @mentions to the release notes.
+        # Non-blocking: enrichment is best-effort and must not prevent the
+        # publish workflow from dispatching on failure.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx tsx tools/enrich-release-notes.ts "${{ steps.get_tag.outputs.tag }}"
