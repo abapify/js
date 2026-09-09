@@ -12,35 +12,40 @@
  *
  * Usage: npx tsx tools/enrich-release-notes.ts <tag> [previous_tag]
  */
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+
+const SILENT = { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] } as const;
 
 function gh(endpoint: string, jq?: string): string {
   const args = ['gh', 'api', endpoint];
   if (jq) args.push('--jq', jq);
-  return execSync(args.join(' '), {
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe'],
-  }).trim();
+  return execFileSync('gh', args, SILENT).trim();
 }
 
 function getPreviousTag(tag: string): string | null {
   try {
-    return execSync(`git describe --tags --abbrev=0 ${tag}^`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
+    return execFileSync(
+      'git',
+      ['describe', '--tags', '--abbrev=0', `${tag}^`],
+      SILENT,
+    ).trim();
   } catch {
     return null;
   }
 }
 
 function getPrNumbers(prevTag: string, tag: string): number[] {
-  // --paginate concatenates all pages of the compare response, which can
-  // exceed 250 commits on large releases. We extract PR refs from each page.
-  const raw = execSync(
-    `gh api repos/{owner}/{repo}/compare/${prevTag}...${tag} --paginate --jq '.commits[].commit.message'`,
-    { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
+  const raw = execFileSync(
+    'gh',
+    [
+      'api',
+      `repos/{owner}/{repo}/compare/${prevTag}...${tag}`,
+      '--paginate',
+      '--jq',
+      '.commits[].commit.message',
+    ],
+    SILENT,
   );
   const numbers = new Set<number>();
   for (const m of raw.matchAll(/#(\d+)/g)) {
@@ -57,50 +62,31 @@ function getPrAuthor(pr: number): string | null {
   }
 }
 
-function main(): void {
-  const tag = process.argv[2];
-  if (!tag) {
-    console.error('Usage: enrich-release-notes.ts <tag> [previous_tag]');
-    process.exit(1);
-  }
-
+function resolveArgs(tag: string): { tag: string; prevTag: string } | null {
   const prevTag = process.argv[3] ?? getPreviousTag(tag);
   if (!prevTag) {
     console.log('No previous tag found, skipping enrichment');
-    return;
+    return null;
   }
+  return { tag, prevTag };
+}
 
-  console.log(`Enriching release ${tag} (range: ${prevTag}..${tag})`);
-
-  const releaseId = gh(`repos/{owner}/{repo}/releases/tags/${tag}`, '.id');
-  if (!releaseId) {
+function getReleaseBody(tag: string): { id: string; body: string } | null {
+  const id = gh(`repos/{owner}/{repo}/releases/tags/${tag}`, '.id');
+  if (!id) {
     console.error(`Release ${tag} not found`);
     process.exit(1);
   }
+  return { id, body: gh(`repos/{owner}/{repo}/releases/${id}`, '.body') };
+}
 
-  const body = gh(`repos/{owner}/{repo}/releases/${releaseId}`, '.body');
-
-  const prNumbers = getPrNumbers(prevTag, tag);
-  if (prNumbers.length === 0) {
-    console.log('No PR references found in commits');
-    return;
-  }
-
-  const prAuthors = new Map<number, string>();
-  for (const pr of prNumbers) {
-    const login = getPrAuthor(pr);
-    if (login) prAuthors.set(pr, login);
-  }
-
-  if (prAuthors.size === 0) {
-    console.log('No PR authors resolved');
-    return;
-  }
-
+function findMissingContributors(
+  prAuthors: Map<number, string>,
+  body: string,
+): string[] {
   const alreadyMentioned = new Set(
     body.match(/@[A-Za-z0-9_-]+(?:\[bot\])?/g) ?? [],
   );
-
   const missing: string[] = [];
   for (const [pr, login] of [...prAuthors.entries()].sort(
     (a, b) => a[0] - b[0],
@@ -110,14 +96,10 @@ function main(): void {
     if (alreadyMentioned.has(mention)) continue;
     missing.push(`${mention} (#${pr})`);
   }
+  return missing;
+}
 
-  if (missing.length === 0) {
-    console.log('All PR authors already credited — nothing to enrich');
-    return;
-  }
-
-  console.log(`Missing contributors: ${missing.join(', ')}`);
-
+function insertIntoThankYou(body: string, missing: string[]): string {
   const lines = body.split('\n');
   const out: string[] = [];
   let inThanks = false;
@@ -156,14 +138,72 @@ function main(): void {
     for (const m of missing) out.push(`- ${m}`);
   }
 
-  const newBody = out.join('\n');
+  return out.join('\n');
+}
+
+function updateRelease(
+  releaseId: string,
+  tag: string,
+  newBody: string,
+): string {
   const tmpFile = `/tmp/release-body-${tag}.md`;
   writeFileSync(tmpFile, newBody);
-
-  const result = execSync(
-    `gh api --method PATCH repos/{owner}/{repo}/releases/${releaseId} -F body=${tmpFile} --jq .html_url`,
-    { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
+  return execFileSync(
+    'gh',
+    [
+      'api',
+      '--method',
+      'PATCH',
+      `repos/{owner}/{repo}/releases/${releaseId}`,
+      '-F',
+      `body=${tmpFile}`,
+      '--jq',
+      '.html_url',
+    ],
+    SILENT,
   ).trim();
+}
+
+function main(): void {
+  const tag = process.argv[2];
+  if (!tag) {
+    console.error('Usage: enrich-release-notes.ts <tag> [previous_tag]');
+    process.exit(1);
+  }
+
+  const resolved = resolveArgs(tag);
+  if (!resolved) return;
+
+  console.log(`Enriching release ${tag} (range: ${resolved.prevTag}..${tag})`);
+
+  const release = getReleaseBody(tag);
+
+  const prNumbers = getPrNumbers(resolved.prevTag, tag);
+  if (prNumbers.length === 0) {
+    console.log('No PR references found in commits');
+    return;
+  }
+
+  const prAuthors = new Map<number, string>();
+  for (const pr of prNumbers) {
+    const login = getPrAuthor(pr);
+    if (login) prAuthors.set(pr, login);
+  }
+
+  if (prAuthors.size === 0) {
+    console.log('No PR authors resolved');
+    return;
+  }
+
+  const missing = findMissingContributors(prAuthors, release.body);
+  if (missing.length === 0) {
+    console.log('All PR authors already credited — nothing to enrich');
+    return;
+  }
+
+  console.log(`Missing contributors: ${missing.join(', ')}`);
+  const newBody = insertIntoThankYou(release.body, missing);
+  const result = updateRelease(release.id, tag, newBody);
 
   console.log(`Release notes enriched: ${result}`);
   console.log(`Added: ${missing.join(', ')}`);
