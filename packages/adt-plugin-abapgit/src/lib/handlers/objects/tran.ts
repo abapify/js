@@ -44,8 +44,8 @@ export const transactionHandler = createHandler<TransactionLike, typeof tran>(
       return {
         TSTC: {
           TCODE: String(obj.name ?? '').toUpperCase(),
-          TPGRAM: obj.programName ?? undefined,
-          DYPRO: obj.dynproNumber ?? undefined,
+          PGMNA: obj.programName ?? undefined,
+          DYPNO: obj.dynproNumber ?? undefined,
           TYPE: obj.transactionType ?? undefined,
         },
         TSTCC: gui
@@ -61,7 +61,7 @@ export const transactionHandler = createHandler<TransactionLike, typeof tran>(
           texts.length > 0
             ? {
                 item: texts.map((t) => ({
-                  SPRSL: isoToSapLang(t.language || obj.masterLanguage),
+                  SPRSL: isoToSapLang(t.language || obj.masterLanguage || obj.language),
                   TCODE: String(obj.name ?? '').toUpperCase(),
                   TTEXT: t.text ?? '',
                 })),
@@ -78,8 +78,8 @@ export const transactionHandler = createHandler<TransactionLike, typeof tran>(
         description: textItems[0]?.TTEXT,
         language: sapLangToIso(textItems[0]?.SPRSL),
         masterLanguage: sapLangToIso(textItems[0]?.SPRSL),
-        programName: TSTC?.TPGRAM,
-        dynproNumber: TSTC?.DYPRO,
+        programName: TSTC?.PGMNA,
+        dynproNumber: TSTC?.DYPNO,
         transactionType: TSTC?.TYPE,
         guiAttributes: TSTCC
           ? {

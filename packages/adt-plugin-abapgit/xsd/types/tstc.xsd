@@ -5,8 +5,8 @@
   <xs:complexType name="TstcType">
     <xs:all>
       <xs:element name="TCODE" type="xs:string"/>
-      <xs:element name="TPGRAM" type="xs:string" minOccurs="0"/>
-      <xs:element name="DYPRO" type="xs:string" minOccurs="0"/>
+      <xs:element name="PGMNA" type="xs:string" minOccurs="0"/>
+      <xs:element name="DYPNO" type="xs:string" minOccurs="0"/>
       <xs:element name="TYPE" type="xs:string" minOccurs="0"/>
       <xs:element name="CINFO" type="xs:string" minOccurs="0"/>
     </xs:all>

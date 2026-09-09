@@ -49,7 +49,7 @@ export const lockObjectHandler = createHandler<LockObjectLike, typeof enqu>(
       return {
         DD25V: {
           VIEWNAME: String(obj.name ?? '').toUpperCase(),
-          DDLANGUAGE: isoToSapLang(obj.language),
+          DDLANGUAGE: isoToSapLang(obj.masterLanguage || obj.language),
           DDTEXT: obj.description ?? '',
           ROOTTAB: obj.baseTable ?? undefined,
           ROOTFIELD: obj.baseTableField ?? undefined,

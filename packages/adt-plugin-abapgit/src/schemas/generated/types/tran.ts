@@ -8,8 +8,8 @@
 type TranValues = {
     TSTC?: {
         TCODE: string;
-        TPGRAM?: string;
-        DYPRO?: string;
+        PGMNA?: string;
+        DYPNO?: string;
         TYPE?: string;
         CINFO?: string;
     };

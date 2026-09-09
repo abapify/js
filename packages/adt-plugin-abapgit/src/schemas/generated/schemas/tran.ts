@@ -44,8 +44,8 @@ export default {
       all: {
         element: [
           { name: "TCODE", type: "xs:string" },
-          { name: "TPGRAM", type: "xs:string", minOccurs: "0" },
-          { name: "DYPRO", type: "xs:string", minOccurs: "0" },
+          { name: "PGMNA", type: "xs:string", minOccurs: "0" },
+          { name: "DYPNO", type: "xs:string", minOccurs: "0" },
           { name: "TYPE", type: "xs:string", minOccurs: "0" },
           { name: "CINFO", type: "xs:string", minOccurs: "0" },
         ],
